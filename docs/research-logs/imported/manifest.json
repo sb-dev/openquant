@@ -1,0 +1,60 @@
+{
+  "importedAt": "2026-10-19",
+  "canonical": false,
+  "sources": [
+    {
+      "file": "2026-09-14-pactwright-model-backed-execution.md",
+      "originalName": "2026-09-14-pactwright-model-backed-execution.md",
+      "sha256": "af904861624fc9b05b6326a4be7f7d07f263b23c2d3779e3000b2ac00af75299",
+      "origin": "User-supplied project design reference"
+    },
+    {
+      "file": "ink-typescript-production-guide.md",
+      "originalName": "Production Best Practices for an Ink TypeScript TUI.md",
+      "sha256": "316774e5b149abb348c105ec333586ee0c505c12f0caec5852efb0ae4dbbe2f9",
+      "origin": "User-supplied project design reference"
+    },
+    {
+      "file": "ai-native-quant-fund-ink-ux-ui-spec-v1.1.md",
+      "originalName": "ai-native-quant-fund-ink-ux-ui-spec-v1.1.md",
+      "sha256": "d7f879c8e152d090525694cc2ef58f7c27e13d756a2d93561ddc8807c7b590b5",
+      "origin": "User-supplied project design reference"
+    },
+    {
+      "file": "ai-native-quant-fund-tech-stack-spec-v1.md",
+      "originalName": "ai-native-quant-fund-tech-stack-spec-v1.md",
+      "sha256": "8a303374e870fb7d3b78eb4d31f8e0a78f9520b43554034171605d267e695468",
+      "origin": "User-supplied project design reference"
+    },
+    {
+      "file": "ai-native-quant-trading-platform-design-spec-v1.md",
+      "originalName": "ai-native-quant-trading-platform-design-spec-v1.md",
+      "sha256": "569d67edab01c889f89a11bac9fba73e17259151529486d55f5ddffe13899fbb",
+      "origin": "User-supplied project design reference"
+    },
+    {
+      "file": "aicaas-stack-spec.md",
+      "originalName": "aicaas-stack-spec.md",
+      "sha256": "1dbb02a8592cd271954e17d269b849dc6117bd02140d822c1291e96cee642531",
+      "origin": "User-supplied project design reference"
+    },
+    {
+      "file": "openquant-design-spec-v2.md",
+      "originalName": "openquant-design-spec-v2.md",
+      "sha256": "2dbeb8163b365c845094556ee1bfe768218f3b1a62baffb48bce02030ae80b1a",
+      "origin": "User-supplied project design reference"
+    },
+    {
+      "file": "openquant-open-source-project-organisation-v1.md",
+      "originalName": "openquant-open-source-project-organisation-v1.md",
+      "sha256": "b34d930cfd4d275fc8b0a9d593dc428a2b12dc0b273fe366c317702b315d54f2",
+      "origin": "User-supplied project design reference"
+    },
+    {
+      "file": "openquant-source-repository-design-spec-v1.1.md",
+      "originalName": "openquant-source-repository-design-spec-v1.1.md",
+      "sha256": "ab464031d98980d4cd8ac316a73eb0314934b69bf79fc13e174447710d234a3d",
+      "origin": "User-supplied project design reference"
+    }
+  ]
+}

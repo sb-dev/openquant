@@ -1,0 +1,22 @@
+name: Bug or reproducibility failure
+description: Report incorrect behaviour with safe reproduction details.
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Revision and environment
+      description: Include the source revision, operating system, and command. Do not include credentials.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Give the input, steps, expected result, and actual result. Use synthetic data.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Include redacted output and relevant specification or acceptance IDs.

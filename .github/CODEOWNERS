@@ -1,0 +1,11 @@
+# Review ownership; enforcement must be configured on the imported repository.
+* @sb-dev
+/.github/ @sb-dev
+/scripts/ @sb-dev
+/docs/specs/ @sb-dev
+/apps/api/migrations/ @sb-dev
+/packages/api-contracts/ @sb-dev
+/packages/agents/ @sb-dev
+/packages/quant-core/ @sb-dev
+/apps/engine/ @sb-dev
+/infra/ @sb-dev

@@ -1,0 +1,10 @@
+OpenQuant
+Copyright 2026 OpenQuant contributors
+
+New OpenQuant code and documentation are distributed under Apache-2.0.
+Imported design references are retained with provenance under docs/research-logs/imported.
+Their inclusion does not relicense third-party software, data, brands, or quoted material.
+Review source-specific redistribution terms before public publication.
+
+The source organisation follows the design review of sb-dev/kakeibo at
+75443233c474a2a4072348078c22d72d15573645. No Kakeibo application code is included.

@@ -1,0 +1,21 @@
+name: Change request
+description: Propose implementation, documentation, methodology, or integration work.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and desired outcome
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: Owning specification and scope
+      description: Identify the affected rule and whether it must change.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Evidence needed
+      description: Explain how the outcome can be verified.
