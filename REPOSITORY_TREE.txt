@@ -41,6 +41,8 @@ docs/guides/README.md
 docs/guides/c1-reproducible-core.md
 docs/operations/README.md
 docs/product/README.md
+docs/product/production-skills.md
+docs/product/roadmap.md
 docs/reference/README.md
 docs/research-logs/2026-10-19-bootstrap-migration.md
 docs/research-logs/2026-10-19-bootstrap-verification.md
