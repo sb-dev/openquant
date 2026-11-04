@@ -15,6 +15,10 @@ Read [docs/specs/README.md](docs/specs/README.md) and the owning specification b
 - Never enable live trading, change active mandates, or submit broker orders as a repository task.
 - Do not copy credentials, private account data, or licensed datasets into Git or public artefacts.
 
+## Development skills
+
+Shared development skills live in `.agents/skills`. Claude Code uses relative links from `.claude/skills`. Update the shared source and preserve this layout. These skills follow the canonical specifications and apply to repository development.
+
 ## Verification
 
 Run `pnpm verify`, or `node scripts/verify.ts` without pnpm. This runs the implemented bootstrap checks only.

@@ -1,6 +1,6 @@
-# Claude Code development skills
+# Shared development skills
 
-This checkout contains 28 standalone skills and enables two Trail of Bits plugins. They cover the 30 selections for OpenQuant development and maintenance.
+This checkout contains 28 standalone skills shared by Codex and Claude Code. It also enables two Trail of Bits plugins for Claude Code. They cover the 30 selections for OpenQuant development and maintenance.
 
 `CLAUDE.md` imports the canonical coding-agent instructions. OQ-03 §3 and OQ-06 §6 keep these tools separate from the reviewed bundles supplied to deployed research agents.
 
@@ -25,19 +25,20 @@ This checkout contains 28 standalone skills and enables two Trail of Bits plugin
 | `property-based-testing`, `spec-to-code-compliance (plugin)`, `rust-review (plugin)` | [trailofbits/skills](https://github.com/trailofbits/skills/tree/470419e16f97e112d01fc32f4898aea1755015d9) |
 | `turborepo` | [vercel/turborepo](https://github.com/vercel/turborepo/tree/d95ea894953e9262c6b930b9aeb3a493e7a41884) |
 
-Standalone files are copied into `.claude/skills`. Copies preserve the repository's no-symlink contract. `skills-lock.json` records upstream content hashes. `.claude/skill-sources.json` records source commits, installer versions, plugin versions, and the one local adaptation.
+Standalone files live in `.agents/skills` for Codex discovery. Each `.claude/skills/<name>` is a relative symlink to `../../.agents/skills/<name>`. Both agents read the same files. `skills-lock.json` records upstream content hashes. `.claude/skill-sources.json` records source commits, installer versions, plugin versions, and the one local adaptation.
 
 The ML4T packages use the `ml4t-` prefix. Their Python examples provide research guidance. Apply OpenQuant's canonical Rust and TypeScript architecture when implementing it.
 
 ## Open this checkout
 
-The 28 standalone skills are present after checkout. Install the two full plugins once on each development machine, from the repository root.
+The 28 standalone skills are shared by Codex and Claude Code after checkout. Git must preserve symlinks. On Windows, enable Developer Mode or use a checkout with symlink support. Install the two full plugins once on each development machine, from the repository root.
 
 ```bash
 claude plugin marketplace add trailofbits/skills --scope project
 claude plugin install spec-to-code-compliance@trailofbits --scope project
 claude plugin install rust-review@trailofbits --scope project
 
+pnpm dlx skills@1.7.6 list --agent codex
 pnpm dlx skills@1.7.6 list --agent claude-code
 claude plugin list
 ```
@@ -48,7 +49,7 @@ Shared project settings enable these plugins after installation. Each developer 
 
 ## Maintenance
 
-Update only the selected skill or plugin needed for the task. Review the resulting source changes and preserve its licence notices. Refresh `.claude/skill-sources.json` and reapply its documented adaptation when updating `security-review`.
+Update shared skill files in `.agents/skills`. When using the Skills installer, target `--agent codex claude-code` and use its default symlink mode. Update only the selected skill or plugin needed for the task. Review the resulting source changes and preserve its licence notices. Refresh `.claude/skill-sources.json` and reapply its documented adaptation when updating `security-review`.
 
 After staging the intended files, regenerate the repository map and verify.
 
@@ -61,10 +62,10 @@ Upstream licences and notices are preserved under `.claude/third-party`. Ink dec
 
 ## Verification scope and upstream limits
 
-Installation was checked with Skills CLI 1.7.6 and Claude Code 2.1.318. The 270 standalone files were compared with the recorded upstream Git blobs. The sole difference is the documented public-example key replacement. Both native plugins were installed, listed as enabled at project scope, and passed the Claude plugin validator. The validator also reported directory-publication metadata gaps for per-plugin licence files and icons. The upstream repository licence is preserved in the third-party notices.
+The Skills CLI 1.7.6 lists the same 28 shared skills for Codex and Claude Code. All 28 relative symlinks resolve to their canonical directories. Installation was checked with Skills CLI 1.7.6 and Claude Code 2.1.318. The 270 standalone files were compared with the recorded upstream Git blobs. The sole difference is the documented public-example key replacement. Both native plugins were installed, listed as enabled at project scope, and passed the Claude plugin validator. The validator also reported directory-publication metadata gaps for per-plugin licence files and icons. The upstream repository licence is preserved in the third-party notices.
 
-The repository checks cover file presence, generated metadata, credentials, symlinks, and first-party local links. Vendored skill Markdown keeps its upstream links and is excluded only from local-link validation. Three regression tests cover that boundary.
+The repository checks cover file presence, generated metadata, credentials, symlinks, and first-party local links. Vendored skill Markdown keeps its upstream links and is excluded only from local-link validation. The checks permit only the matching relative Claude skill links to tracked canonical skill files inside this repository. Archive scans record each link once and inspect the shared files once. Regression tests cover link targets and the validation boundary.
 
 `otel-instrumentation` contains 22 links to the unselected upstream `otel-collector` and `otel-ottl` skills, plus two invalid anchors. Read those cross-references in the source repository linked above. The invalid anchors are `rules/resources.md` → `rules/resolve-values.md#servicecriticality` and `rules/sdks/go.md` → `#activate-the-sdk`.
 
-These checks verify installation and repository integration. Authenticated Claude model execution, platform deployment, and the future application's skill-assisted workflows were not exercised.
+These checks verify installation and repository integration. Authenticated Codex or Claude model execution, platform deployment, and the future application's skill-assisted workflows were not exercised.
