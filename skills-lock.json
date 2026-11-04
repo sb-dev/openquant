@@ -6,194 +6,196 @@
       "sourceType": "github",
       "skillPath": "skills/astro/SKILL.md",
       "computedHash": "ebefe26b231d32379c14e41a46c2de7b4b0184543bedab7febdabe4fb21fba4e",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "docker-build-strategies": {
       "source": "docker/skills",
       "sourceType": "github",
       "skillPath": "skills/docker-build-strategies/SKILL.md",
       "computedHash": "e6a297d613873cf74b030655ee8405ca4434980cfb0dfd412ac5aa4e213d3d5c",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "docker-project-foundations": {
       "source": "docker/skills",
       "sourceType": "github",
       "skillPath": "skills/docker-project-foundations/SKILL.md",
       "computedHash": "6b2334b2c24910d177e1f80a0cc1f5135f2a9b33b722673873435736de36128f",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "durable-objects": {
       "source": "cloudflare/skills",
       "sourceType": "github",
       "skillPath": "skills/durable-objects/SKILL.md",
       "computedHash": "55897720109876d5755ced452e069c5b6ef1010736642c937d5db49a6ddbf587",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "fly": {
       "source": "superfly/skills",
       "sourceType": "github",
       "skillPath": "plugins/fly/skills/fly/SKILL.md",
       "computedHash": "8fb3a335f2ea9109d10af3467ce3c5392232b8e63449ac1b49cbddb13774a480",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "github-actions-efficiency": {
       "source": "github/awesome-copilot",
       "sourceType": "github",
       "skillPath": "skills/github-actions-efficiency/SKILL.md",
       "computedHash": "92628da7f3eb2ae5625168f31587712a3cd77ac9ba5a23ffc24e86fd12c4408c",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "github-actions-hardening": {
       "source": "github/awesome-copilot",
       "sourceType": "github",
       "skillPath": "skills/github-actions-hardening/SKILL.md",
       "computedHash": "10e35ff70fcf42e09295ffad0ac3203e4d6b6f74557cc3fa1654112b89e0eea2",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "hono": {
       "source": "honojs/skills",
       "sourceType": "github",
       "skillPath": "skills/hono/SKILL.md",
       "computedHash": "f469bac28a53d010bb47bd61109d0cfebe9a4f3fd407310746114549886b5870",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "ink": {
       "source": "thanhdongnguyen/ink-skill",
       "sourceType": "github",
       "skillPath": "skills/ink/SKILL.md",
       "computedHash": "31b11a308ab87386f524f35208059c0fbb358400f6890b59bdfbaf79b0218be1",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "ml4t-lookahead-bias": {
       "source": "ml4t/skills",
       "sourceType": "github",
       "skillPath": "concepts/lookahead-bias/SKILL.md",
       "computedHash": "4c6717a890e3a074653bebcd0982fa818eb4d4aef5b274e14ec7487ac9f8415b",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "ml4t-point-in-time": {
       "source": "ml4t/skills",
       "sourceType": "github",
       "skillPath": "concepts/point-in-time/SKILL.md",
       "computedHash": "da53df07bc4eafeec722033b794cf03fea80f053ce7d5873e84d0e9bf6dc50fa",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "ml4t-survivorship-bias": {
       "source": "ml4t/skills",
       "sourceType": "github",
       "skillPath": "concepts/survivorship-bias/SKILL.md",
       "computedHash": "d6ab114eff41baef5417f02a8848ecf0201e34ae2dee9b798ff0cfeaa71df796",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "ml4t-transaction-costs": {
       "source": "ml4t/skills",
       "sourceType": "github",
       "skillPath": "concepts/transaction-costs/SKILL.md",
       "computedHash": "769a1a0d734f5e05d2ea9836a761dc9dcc2f5b2b433a0878b8d70f85a285fb2a",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "neon-postgres": {
       "source": "neondatabase/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/neon-postgres/SKILL.md",
       "computedHash": "8fe6ed530448e57059a598e4ca807c2aa39bb9358fdc9fca8596b9f3cea65ec7",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "node": {
       "source": "mcollina/skills",
       "sourceType": "github",
       "skillPath": "skills/node/SKILL.md",
-      "computedHash": "aba2163ddb3fcf3e6a9d101ac370fabc94055b3e628b125dd084969f1a945993"
+      "computedHash": "aba2163ddb3fcf3e6a9d101ac370fabc94055b3e628b125dd084969f1a945993",
+      "installMode": "symlink"
     },
     "otel-instrumentation": {
       "source": "dash0hq/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/otel-instrumentation/SKILL.md",
       "computedHash": "8b1459528e06b8d75f9914f63e58389aa29e71d753001303b82ae0bd5ab299d4",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "otel-semantic-conventions": {
       "source": "dash0hq/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/otel-semantic-conventions/SKILL.md",
       "computedHash": "fc4eab18cf24d51cfeff0e345e7883051db60d4e5da21b644ee47c094f019978",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "property-based-testing": {
       "source": "trailofbits/skills",
       "sourceType": "github",
       "skillPath": "plugins/property-based-testing/skills/property-based-testing/SKILL.md",
       "computedHash": "c754807c7113dfb2e8c2de64e19a6612f87282b621da8b1e50e2a7137d8bbe8c",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "rust-best-practices": {
       "source": "morganlinton/BeautifulRust",
       "sourceType": "github",
       "skillPath": "skills/rust-best-practices/SKILL.md",
       "computedHash": "33e21c7a60ee545691185a3c499908dfc10205cde95c855e31975f3e4c264bee",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "secret-serialization": {
       "source": "getsentry/skills",
       "sourceType": "github",
       "skillPath": "skills/secret-serialization/SKILL.md",
       "computedHash": "c314fb6f92e1a08d94667264edf964b0df9666c11bc451233e97336714361bd6",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "security-review": {
       "source": "getsentry/skills",
       "sourceType": "github",
       "skillPath": "skills/security-review/SKILL.md",
       "computedHash": "194b70d3a2a4e0b23a436866c95496457962d1a818c382c56e4912bcd0cc3424",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "skill-scanner": {
       "source": "getsentry/skills",
       "sourceType": "github",
       "skillPath": "skills/skill-scanner/SKILL.md",
       "computedHash": "9ec22514620fedc4e9f2d9b886551a1d4f8383dd272c210d85526a71b7b84adb",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "terraform-style-guide": {
       "source": "hashicorp/agent-skills",
       "sourceType": "github",
       "skillPath": "plugins/terraform/skills/terraform-style-guide/SKILL.md",
       "computedHash": "3b914c5ae01a7101d45b5222fbc38e0be6eb7412deba5f54d471905f22af70c6",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "terraform-test": {
       "source": "hashicorp/agent-skills",
       "sourceType": "github",
       "skillPath": "plugins/terraform/skills/terraform-test/SKILL.md",
       "computedHash": "2d69da79a8e714dbdfee4c9a6b323cf33cef89e6b6dcee154d6b3009814c7240",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "turborepo": {
       "source": "vercel/turborepo",
       "sourceType": "github",
       "skillPath": "skills/turborepo/SKILL.md",
       "computedHash": "c83a6ff75c62092f71da91408164ed3426f11749b032fd23ecc855e27c2fb538",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "typescript-magician": {
       "source": "mcollina/skills",
       "sourceType": "github",
       "skillPath": "skills/typescript-magician/SKILL.md",
-      "computedHash": "99e61d29c107b3c52adbb70c6ee8cfbfb7830ea0649dba4ec89557fdf5c46b54"
+      "computedHash": "99e61d29c107b3c52adbb70c6ee8cfbfb7830ea0649dba4ec89557fdf5c46b54",
+      "installMode": "symlink"
     },
     "workers-best-practices": {
       "source": "cloudflare/skills",
       "sourceType": "github",
       "skillPath": "skills/workers-best-practices/SKILL.md",
       "computedHash": "b6252e1aa7c41d1fbec7f064684deb9bd79866c2b6f3e18deee6d7a0c673f3f3",
-      "installMode": "copy"
+      "installMode": "symlink"
     },
     "wrangler": {
       "source": "cloudflare/skills",
       "sourceType": "github",
       "skillPath": "skills/wrangler/SKILL.md",
       "computedHash": "6e431b3ca4d91547e3d1a224bfd5e725e54843cff3537aca48ea455a81bf7e88",
-      "installMode": "copy"
+      "installMode": "symlink"
     }
   }
 }

@@ -2,7 +2,7 @@
 
 ## Development skills
 
-Project skills are installed in `.claude/skills`. Read `.claude/README.md` for sources, maintenance, and verification limits.
+Shared skills are stored in `.agents/skills`. Claude Code discovers them through relative links in `.claude/skills`. Read `.claude/README.md` for sources, maintenance, and verification limits.
 
 Apply the canonical specifications and repository instructions when upstream guidance conflicts with them. Use the smallest relevant set of skills for each task.
 

@@ -198,7 +198,7 @@
   ],
   "adaptations": [
     {
-      "file": ".claude/skills/security-review/references/supply-chain.md",
+      "file": ".agents/skills/security-review/references/supply-chain.md",
       "change": "Replace the public AWS example access-key ID with YOUR_AWS_ACCESS_KEY_ID to preserve the repository credential check.",
       "upstreamSha256": "ef3000d91763ccdddfbce2660943c4090b4c16b3b33afe980f4e10947729e1f1",
       "installedSha256": "a267cf35d900001701989b073414dc07a2fa05f60f69f59372ea97c12e25278d"
