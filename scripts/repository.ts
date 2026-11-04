@@ -184,7 +184,9 @@ export function checkRepository(base: string): string[] {
     if (lstatSync(absolute).isSymbolicLink()) { errors.push(`Symlink not allowed: ${file}`); continue; }
     if (/(^|\/)(\.env(?!\.example$)(\.|$)|\.dev\.vars(\.|$)|[^/]+\.tfstate(\.|$)|[^/]+\.pem$|[^/]+\.key$)/.test(file)) errors.push(`Private file must not be tracked: ${file}`);
     const text = read(base,file);
-    if (file.endsWith('.md') && !file.startsWith('docs/research-logs/imported/')) errors.push(...localLinkErrors(base,file,text,all));
+    // Vendored documentation can link to unselected files in its upstream repository.
+    // Keep first-party Claude guidance and all non-link checks in scope.
+    if (file.endsWith('.md') && !file.startsWith('docs/research-logs/imported/') && !file.startsWith('.claude/skills/')) errors.push(...localLinkErrors(base,file,text,all));
     if (/\b(?:ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{50,}|AKIA[A-Z0-9]{16})\b/.test(text) || /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/.test(text)) errors.push(`Potential credential in ${file}`);
     if (/^\.github\/workflows\/.*\.ya?ml$/.test(file)) {
       for (const match of text.matchAll(/^\s*-?\s*uses:\s*(\S+)/gm)) {
