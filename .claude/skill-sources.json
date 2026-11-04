@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "installedOn": "2026-11-04",
+  "installers": {
+    "skills": "1.7.6",
+    "claudeCode": "2.1.318"
+  },
+  "sources": [
+    {
+      "repository": "astrolicious/agent-skills",
+      "revision": "cb4839f3794189ebf35c55d3ba5d3876dff7acf0",
+      "skills": [
+        "astro"
+      ],
+      "notices": [
+        ".claude/third-party/astrolicious/agent-skills/SKILL.upstream.txt"
+      ]
+    },
+    {
+      "repository": "cloudflare/skills",
+      "revision": "1f2cd0a19588e2c6197c91dd7c71729df1fb6156",
+      "skills": [
+        "durable-objects",
+        "workers-best-practices",
+        "wrangler"
+      ],
+      "notices": [
+        ".claude/third-party/cloudflare/skills/LICENSE"
+      ]
+    },
+    {
+      "repository": "dash0hq/agent-skills",
+      "revision": "120c2a9f0bfd143ee9ccd911b95626ece33c37fe",
+      "skills": [
+        "otel-instrumentation",
+        "otel-semantic-conventions"
+      ],
+      "notices": [
+        ".claude/third-party/dash0hq/agent-skills/LICENSE"
+      ]
+    },
+    {
+      "repository": "docker/skills",
+      "revision": "090ff3d39db5f8bc55d4e951c26218e7c95ea2d3",
+      "skills": [
+        "docker-build-strategies",
+        "docker-project-foundations"
+      ],
+      "notices": [
+        ".claude/third-party/docker/skills/LICENSE"
+      ]
+    },
+    {
+      "repository": "getsentry/skills",
+      "revision": "0c464f411bdfb8d4c12314b36264d06cb2f60270",
+      "skills": [
+        "secret-serialization",
+        "security-review",
+        "skill-scanner"
+      ],
+      "notices": [
+        ".claude/third-party/getsentry/skills/LICENSE"
+      ]
+    },
+    {
+      "repository": "github/awesome-copilot",
+      "revision": "7e408815ddcb64889a3683799a85399331cfd4ef",
+      "skills": [
+        "github-actions-efficiency",
+        "github-actions-hardening"
+      ],
+      "notices": [
+        ".claude/third-party/github/awesome-copilot/LICENSE"
+      ]
+    },
+    {
+      "repository": "hashicorp/agent-skills",
+      "revision": "5e30fa5c867ba6777c37e4206babfd08049c396f",
+      "skills": [
+        "terraform-style-guide",
+        "terraform-test"
+      ],
+      "notices": [
+        ".claude/third-party/hashicorp/agent-skills/LICENSE"
+      ]
+    },
+    {
+      "repository": "honojs/skills",
+      "revision": "e54ce51f6effaeb574ebd2629e89e086e14a2db3",
+      "skills": [
+        "hono"
+      ],
+      "notices": [
+        ".claude/third-party/honojs/skills/LICENSE"
+      ]
+    },
+    {
+      "repository": "mcollina/skills",
+      "revision": "c75d70dbfbe991d8cec42aeda0b64ff14fbb9ac7",
+      "skills": [
+        "node",
+        "typescript-magician"
+      ],
+      "notices": [
+        ".claude/third-party/mcollina/skills/LICENSE"
+      ]
+    },
+    {
+      "repository": "ml4t/skills",
+      "revision": "691857537a0c8befc11dc2f2ad7a458b7c7e801c",
+      "skills": [
+        "ml4t-lookahead-bias",
+        "ml4t-point-in-time",
+        "ml4t-survivorship-bias",
+        "ml4t-transaction-costs"
+      ],
+      "notices": [
+        ".claude/third-party/ml4t/skills/LICENSE",
+        ".claude/third-party/ml4t/skills/NOTICE"
+      ]
+    },
+    {
+      "repository": "morganlinton/BeautifulRust",
+      "revision": "edd3e86087eda07983251056508fe3b8856d85d7",
+      "skills": [
+        "rust-best-practices"
+      ],
+      "notices": [
+        ".claude/third-party/morganlinton/BeautifulRust/LICENSE"
+      ]
+    },
+    {
+      "repository": "neondatabase/agent-skills",
+      "revision": "ae9babbf804e90bf42e9444ebbc9278dfcb105eb",
+      "skills": [
+        "neon-postgres"
+      ],
+      "notices": [
+        ".claude/third-party/neondatabase/agent-skills/LICENSE"
+      ]
+    },
+    {
+      "repository": "superfly/skills",
+      "revision": "ba182c9ba6ffa5b107d5f7c77e0a2c37eeef89d3",
+      "skills": [
+        "fly"
+      ],
+      "notices": [
+        ".claude/third-party/superfly/skills/LICENSE"
+      ]
+    },
+    {
+      "repository": "thanhdongnguyen/ink-skill",
+      "revision": "90705d29f186d4ca7c85f885675fd7dedeed6c81",
+      "skills": [
+        "ink"
+      ],
+      "notices": [
+        ".claude/third-party/thanhdongnguyen/ink-skill/README.upstream.txt"
+      ]
+    },
+    {
+      "repository": "trailofbits/skills",
+      "revision": "470419e16f97e112d01fc32f4898aea1755015d9",
+      "skills": [
+        "property-based-testing"
+      ],
+      "notices": [
+        ".claude/third-party/trailofbits/skills/LICENSE"
+      ]
+    },
+    {
+      "repository": "vercel/turborepo",
+      "revision": "d95ea894953e9262c6b930b9aeb3a493e7a41884",
+      "skills": [
+        "turborepo"
+      ],
+      "notices": [
+        ".claude/third-party/vercel/turborepo/LICENSE"
+      ]
+    }
+  ],
+  "plugins": [
+    {
+      "id": "rust-review@trailofbits",
+      "version": "1.1.2",
+      "scope": "project",
+      "source": "trailofbits/skills",
+      "revision": "470419e16f97e112d01fc32f4898aea1755015d9"
+    },
+    {
+      "id": "spec-to-code-compliance@trailofbits",
+      "version": "2.0.2",
+      "scope": "project",
+      "source": "trailofbits/skills",
+      "revision": "470419e16f97e112d01fc32f4898aea1755015d9"
+    }
+  ],
+  "adaptations": [
+    {
+      "file": ".claude/skills/security-review/references/supply-chain.md",
+      "change": "Replace the public AWS example access-key ID with YOUR_AWS_ACCESS_KEY_ID to preserve the repository credential check.",
+      "upstreamSha256": "ef3000d91763ccdddfbce2660943c4090b4c16b3b33afe980f4e10947729e1f1",
+      "installedSha256": "a267cf35d900001701989b073414dc07a2fa05f60f69f59372ea97c12e25278d"
+    }
+  ]
+}

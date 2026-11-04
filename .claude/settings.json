@@ -1,0 +1,14 @@
+{
+  "enabledPlugins": {
+    "spec-to-code-compliance@trailofbits": true,
+    "rust-review@trailofbits": true
+  },
+  "extraKnownMarketplaces": {
+    "trailofbits": {
+      "source": {
+        "source": "github",
+        "repo": "trailofbits/skills"
+      }
+    }
+  }
+}
