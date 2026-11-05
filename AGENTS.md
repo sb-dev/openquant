@@ -19,6 +19,8 @@ Read [docs/specs/README.md](docs/specs/README.md) and the owning specification b
 
 Shared development skills live in `.agents/skills`. Claude Code uses relative links from `.claude/skills`. Update the shared source and preserve this layout. These skills follow the canonical specifications and apply to repository development. Use `openquant-ai-engineering` for delegated AI changes, `openquant-workflow-design` for durable orchestration, `openquant-research-evaluation` for evidence comparisons, `openquant-financial-invariants` for numerical changes, and `openquant-vertical-slice` for delivery. Read `.claude/README.md` for the complete task map and portable review limits.
 
+Apply `pragmatic-developer` for ordinary coding and review.
+
 ## Verification
 
 Run `pnpm verify`, or `node scripts/verify.ts` without pnpm. This runs the implemented bootstrap checks only.

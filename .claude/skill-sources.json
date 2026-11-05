@@ -223,11 +223,23 @@
     "openquant-financial-invariants",
     "openquant-research-evaluation",
     "openquant-vertical-slice",
-    "openquant-workflow-design"
+    "openquant-workflow-design",
+    "pragmatic-developer"
   ],
   "portableSkills": [
     "rust-review",
     "spec-to-code-compliance"
   ],
-  "portableManifest": ".claude/portable-skill-sources.json"
+  "portableManifest": ".claude/portable-skill-sources.json",
+  "userSuppliedSkills": [
+    {
+      "name": "pragmatic-developer",
+      "source": "User-supplied saved skill, existing simplified revision",
+      "version": "2026-09-25",
+      "originalFilename": "SKILL(6).md",
+      "file": ".agents/skills/pragmatic-developer/SKILL.md",
+      "sha256": "1c880db1dad9baa4ecceb8de712ef362f7c4f1d7f2b4482cbb73e3f34e164e8d",
+      "adaptation": "None; original bytes and Karpathy Guidelines attribution preserved."
+    }
+  ]
 }

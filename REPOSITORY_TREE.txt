@@ -160,6 +160,7 @@
 .agents/skills/otel-semantic-conventions/rules/attributes.md
 .agents/skills/otel-semantic-conventions/rules/dash0.md
 .agents/skills/otel-semantic-conventions/rules/versioning.md
+.agents/skills/pragmatic-developer/SKILL.md
 .agents/skills/prompt-engineering-patterns/SKILL.md
 .agents/skills/prompt-engineering-patterns/assets/few-shot-examples.json
 .agents/skills/prompt-engineering-patterns/assets/prompt-template-library.md
@@ -447,6 +448,7 @@
 .claude/skills/openquant-workflow-design
 .claude/skills/otel-instrumentation
 .claude/skills/otel-semantic-conventions
+.claude/skills/pragmatic-developer
 .claude/skills/prompt-engineering-patterns
 .claude/skills/property-based-testing
 .claude/skills/rust-best-practices
