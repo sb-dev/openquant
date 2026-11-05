@@ -1,6 +1,6 @@
 # Production Skills selection and integration
 
-Status: proposed development support. No family or Extension Pack is selected or verified for OpenQuant by this document.
+Status: proposed Production Skills family support. No family or Extension Pack is selected or verified for OpenQuant by this document. The separate [installed development skills](../../.claude/README.md) include upstream tools and five OpenQuant-specific procedures; these do not constitute adoption of a Production Skills family.
 
 OpenQuant owns this plan, its requirements, and its integration evidence. The Production Skills [composition contract](https://github.com/sb-dev/production-skills/blob/ae4c0f1bd63107f9dc33e192bbf2a02a9cab75cf/docs/specs/04-cross-domain-orchestration-and-integration.md) keeps consuming-project state outside the central family repository. Production Skills remain independent of Pactwright.
 

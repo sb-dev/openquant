@@ -1,0 +1,5 @@
+interface:
+  display_name: Openquant Workflow Design
+  short_description: Design or review OpenQuant ResearchWorkflow and EvaluationWorkfl
+  default_prompt: Use $openquant-workflow-design for the requested OpenQuant task
+    and report verified evidence.

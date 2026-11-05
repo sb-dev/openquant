@@ -54,6 +54,7 @@
       "repository": "getsentry/skills",
       "revision": "0c464f411bdfb8d4c12314b36264d06cb2f60270",
       "skills": [
+        "gha-security-review",
         "secret-serialization",
         "security-review",
         "skill-scanner"
@@ -163,7 +164,9 @@
       "repository": "trailofbits/skills",
       "revision": "470419e16f97e112d01fc32f4898aea1755015d9",
       "skills": [
-        "property-based-testing"
+        "property-based-testing",
+        "rust-review",
+        "spec-to-code-compliance"
       ],
       "notices": [
         ".claude/third-party/trailofbits/skills/LICENSE"
@@ -177,6 +180,17 @@
       ],
       "notices": [
         ".claude/third-party/vercel/turborepo/LICENSE"
+      ]
+    },
+    {
+      "repository": "wshobson/agents",
+      "revision": "7e2fb559cf4b824b27f1fec49fe88f7511066d26",
+      "skills": [
+        "llm-evaluation",
+        "prompt-engineering-patterns"
+      ],
+      "notices": [
+        ".claude/third-party/wshobson/agents/LICENSE"
       ]
     }
   ],
@@ -203,5 +217,17 @@
       "upstreamSha256": "ef3000d91763ccdddfbce2660943c4090b4c16b3b33afe980f4e10947729e1f1",
       "installedSha256": "a267cf35d900001701989b073414dc07a2fa05f60f69f59372ea97c12e25278d"
     }
-  ]
+  ],
+  "firstPartySkills": [
+    "openquant-ai-engineering",
+    "openquant-financial-invariants",
+    "openquant-research-evaluation",
+    "openquant-vertical-slice",
+    "openquant-workflow-design"
+  ],
+  "portableSkills": [
+    "rust-review",
+    "spec-to-code-compliance"
+  ],
+  "portableManifest": ".claude/portable-skill-sources.json"
 }

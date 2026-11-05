@@ -36,6 +36,13 @@
       "computedHash": "8fb3a335f2ea9109d10af3467ce3c5392232b8e63449ac1b49cbddb13774a480",
       "installMode": "symlink"
     },
+    "gha-security-review": {
+      "source": "getsentry/skills",
+      "ref": "0c464f411bdfb8d4c12314b36264d06cb2f60270",
+      "sourceType": "github",
+      "skillPath": "skills/gha-security-review/SKILL.md",
+      "computedHash": "7569699e788bf657f49f8d2fe217ffb6aa7d267d2de60d5c597013a178f57aa2"
+    },
     "github-actions-efficiency": {
       "source": "github/awesome-copilot",
       "sourceType": "github",
@@ -63,6 +70,13 @@
       "skillPath": "skills/ink/SKILL.md",
       "computedHash": "31b11a308ab87386f524f35208059c0fbb358400f6890b59bdfbaf79b0218be1",
       "installMode": "symlink"
+    },
+    "llm-evaluation": {
+      "source": "wshobson/agents",
+      "ref": "7e2fb559cf4b824b27f1fec49fe88f7511066d26",
+      "sourceType": "github",
+      "skillPath": "plugins/llm-application-dev/skills/llm-evaluation/SKILL.md",
+      "computedHash": "af89a6013eacc5db7afe102b4a2af95ad8dcad4721e35700cba24b1ebd35c94f"
     },
     "ml4t-lookahead-bias": {
       "source": "ml4t/skills",
@@ -119,6 +133,13 @@
       "skillPath": "skills/otel-semantic-conventions/SKILL.md",
       "computedHash": "fc4eab18cf24d51cfeff0e345e7883051db60d4e5da21b644ee47c094f019978",
       "installMode": "symlink"
+    },
+    "prompt-engineering-patterns": {
+      "source": "wshobson/agents",
+      "ref": "7e2fb559cf4b824b27f1fec49fe88f7511066d26",
+      "sourceType": "github",
+      "skillPath": "plugins/llm-application-dev/skills/prompt-engineering-patterns/SKILL.md",
+      "computedHash": "6a8cf3a5e9120641c1c1953c870c156377c57be4a806e1df6fc5f073a41cc639"
     },
     "property-based-testing": {
       "source": "trailofbits/skills",

@@ -9,6 +9,7 @@ The scripts use Node built-ins and erasable TypeScript syntax. Use `.node-versio
 | `generate-spec-index.ts` | Generate the ownership/version table from document metadata. |
 | `generate-repository-tree.ts` | Generate the sorted file map from the Git index, or regular files in an extracted archive. |
 | `repository.ts` | Shared implementation. |
+| `development-skills.ts` | Check declared shared skills, aliases, installer records, and complete portable resources with recorded hashes. |
 | `tests/repository.test.ts` | Negative cases for drift, missing requirements, links, provenance, mutable actions, and archive path escape. |
 
 In a Git checkout, stage intended added/deleted paths before generating the tree. The index records intended repository contents. An extracted ZIP has no `.git`, so the same tool reads its files.

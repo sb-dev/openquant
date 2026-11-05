@@ -1,0 +1,5 @@
+interface:
+  display_name: Openquant Ai Engineering
+  short_description: Develop and evaluate OpenQuant proposer/critic behaviour, AgentE
+  default_prompt: Use $openquant-ai-engineering for the requested OpenQuant task and
+    report verified evidence.

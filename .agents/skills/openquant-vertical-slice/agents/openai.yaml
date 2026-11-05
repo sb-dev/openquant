@@ -1,0 +1,5 @@
+interface:
+  display_name: Openquant Vertical Slice
+  short_description: Plan, implement, or review one complete OpenQuant vertical slice
+  default_prompt: Use $openquant-vertical-slice for the requested OpenQuant task and
+    report verified evidence.
