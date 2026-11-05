@@ -1,6 +1,6 @@
 # Fixtures
 
-No executable fixture is included yet. C1 must add independent numerical expectations and a real replay path.
+No executable fixture is included yet. M1 must add independent numerical expectations, provider/protocol cases and real shared-core evaluation. Public CLI release adds the installed replay path.
 
 | Area | Contract |
 | --- | --- |

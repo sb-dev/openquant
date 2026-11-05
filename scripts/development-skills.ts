@@ -32,6 +32,12 @@ export function developmentSkillErrors(base: string, files: Set<string>): string
     const local = new Set<string>(source.firstPartySkills);
     for (const name of declared) if (!portable.has(name) && !local.has(name) && !lock.skills[name]) errors.push(`Skill installer record is missing: ${name}`);
     for (const name of Object.keys(lock.skills)) if (!declared.has(name)) errors.push(`Unexpected skill installer record: ${name}`);
+    for (const item of source.adaptations) {
+      const match = /^\.agents\/skills\/([a-z0-9-]+)\//.exec(item.file);
+      if (!match || !declared.has(match[1]) || item.file.split('/').includes('..')) throw new Error(`Invalid adapted skill path: ${item.file}`);
+      const hash = createHash('sha256').update(read(item.file)).digest('hex');
+      if (hash !== item.installedSha256) errors.push(`Adapted skill hash mismatch: ${item.file}`);
+    }
     const manifest = JSON.parse(read(source.portableManifest));
     const recorded = new Set<string>();
     for (const item of [...manifest.files, ...manifest.adaptations]) {

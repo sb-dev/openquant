@@ -17,7 +17,7 @@ No dependency installation or cloud credentials are required. The check verifies
 
 ## Next implementation
 
-Read the [roadmap](../product/roadmap.md), then follow [C1 — Reproducible core](../guides/c1-reproducible-core.md). The target is a real Rust fixture evaluation inspected in Ink and exercised from a clean installed package. `openquant demo` is not implemented yet.
+Read the [roadmap](../product/roadmap.md), then follow [M1 — Automated watchlist research](../guides/m1-watchlist-research.md). The first target is a durable competing research cycle with real data and numerical evidence. The [installed replay](../guides/public-cli-replay.md) is a separate public CLI release gate. Neither runtime is implemented yet.
 
 Before changing files, read [CONTRIBUTING.md](../../CONTRIBUTING.md), [AGENTS.md](../../AGENTS.md), and the owning specification. Work on a branch. Run verification before committing and use the specified commit format. AI-authored commits require a verified model trailer.
 

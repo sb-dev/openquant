@@ -7,6 +7,9 @@ description: Design or review OpenQuant ResearchWorkflow and EvaluationWorkflow,
 
 Read `AGENTS.md`, OQ-05 §§3–5 in `docs/specs/05-system-architecture-and-data-spec.md`, and OQ-03 §5 in `docs/specs/03-model-backed-execution-spec.md`. Resolve paths from the repository root. This skill designs product workflows; it does not start scheduled jobs or live trading.
 
+
+Use `openquant-service-integrations` and OQ-05 §7.1 for provider adapters. Freeze the research profile and source evidence for each cycle. Enforce retrieval budgets and cutoff restrictions in code; preserve partial, missing and unknown evidence. Use OQ-02 §1.1 for watchlist membership and source identity.
+
 ## Define one outcome
 
 State the trigger, logical run identity, authoritative records, completion condition, budget dimensions, and operator-visible result. Declare candidate, experiment, compute, LLM-spend, and revision limits, or identify which are outside this slice. Define budget units explicitly. Separate research completion, gate results, and promotion decisions. A mission can complete with no eligible candidate.

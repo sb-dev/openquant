@@ -1,9 +1,9 @@
 ---
 id: OQ-02
 title: OpenQuant — Trading Domain and Evaluation
-version: 1.0.0
+version: 1.1.0
 status: canonical
-updated: 2026-10-19
+updated: 2026-11-05
 owns: strategy semantics, evaluation, lifecycle, portfolio, risk, A01–A18
 ---
 
@@ -32,6 +32,20 @@ An **Evidence Bundle** is a manifest of the exact runs, findings, and policy use
 The **Strategy Graph** is a generated view of parent versions and linked records. Its maintenance is automatic. It needs no manual graph editing and no separate graph database.
 
 Each account has one execution writer. API users, AI agents, and evaluation workers cannot edit its positions or fills. Manual broker activity is imported through reconciliation, not concealed by editing OpenQuant state.
+
+### 1.1 Watchlists, profiles and source evidence
+
+A Watchlist Version binds stable instrument IDs and membership; provider symbols and SEC company IDs are mappings with effective dates, not universal identities. Preserve renamed and removed members in past cycles. A user-selected current watchlist is not evidence of an unbiased historical investable universe.
+
+A Research Profile Version binds provider/adapter identities, required capabilities, feed/session/adjustment rules, market/currency, cohort suite, history and information cutoff, calendar/schedule, freshness policy and budgets. Credentials are references only. Edits apply to future cycles. A Research Cycle freezes watchlist/profile versions and creates bounded per-stock missions with explicit coverage outcomes. An early failure cannot erase the other members.
+
+A dataset manifest records requested and returned coverage, provider/feed, adapter/transformation versions, instrument mapping, bar/session/currency/adjustment semantics, retrieval time, content hashes, completeness and use/retention constraints. Preserve source responses when permitted. Corrections produce new snapshots. Reusing a frozen snapshot reproduces that input; it does not prove the provider's earlier historical version.
+
+A source-evidence record binds document/URL, publisher, original provider reference, content hash where retention permits, publication/availability/retrieval times and their precision, and retrieval outcome. Unknown timestamps remain unknown. An as-of request is a constraint, not a provider guarantee. Exclude unknown or later availability from historical decisions unless the registered policy supplies a justified conservative bound. Web date filters alone do not establish historical page contents.
+
+SEC evidence retains company ID, accession, form, acceptance time, amendment relation, reporting period, taxonomy/tag and units for each fact. Resolve restatements using the filing version available at the cutoff. Do not silently select the latest company-facts value. Tavily snippets, extracted pages and generated summaries retain separate identities; a search score or generated answer is not a verified financial fact.
+
+A provider comparison freezes equivalent requests and policy, stores separate manifests, and reports coverage, semantic differences, measured latency/usage and disagreements. Predeclare tolerances. Equal payloads are not required, and agreement is not an independent financial baseline. A source change creates a new input identity and, when used for selection, a new registered trial. Never blend fallback data silently or select the feed by favourable backtest returns.
 
 ## 2. One strategy format
 

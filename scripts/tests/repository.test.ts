@@ -51,7 +51,17 @@ test('missing portable support files fail completeness verification',()=>mutated
 test('modified portable support files require a provenance update',()=>mutated((base)=>{
   edit(base,'.agents/skills/rust-review/upstream/scripts/build_run_plan.py',(text)=>text+'\n# Changed\n');
 },/Portable skill hash mismatch/));
-test('a metadata change requires regenerated index',()=>mutated((base)=>edit(base,'docs/specs/01-product-design-spec.md',(t)=>t.replace('version: 1.0.0','version: 1.1.0')),/Spec index drift/));
+test('modified adapted skills require a provenance update',()=>mutated((base)=>{
+  edit(base,'.agents/skills/ml4t-fetch-data/SKILL.md',(text)=>text+'\nChanged retrieval policy.\n');
+},/Adapted skill hash mismatch/));
+test('adaptation manifests reject paths outside declared skills',()=>mutated((base)=>{
+  edit(base,'.claude/skill-sources.json',(text)=>{
+    const source = JSON.parse(text);
+    source.adaptations[0].file = '../outside.md';
+    return JSON.stringify(source);
+  });
+},/Invalid adapted skill path/));
+test('a metadata change requires regenerated index',()=>mutated((base)=>edit(base,'docs/specs/01-product-design-spec.md',(t)=>t.replace(/^version: .+$/m,'version: 99.0.0')),/Spec index drift/));
 test('lost product acceptance fails',()=>mutated((base)=>edit(base,'docs/specs/02-trading-domain-and-evaluation-spec.md',(t)=>t.replace(/^\| \*\*A12\*\*.*\n/m,'')),/A acceptance identifiers/));
 test('missing local link target fails',()=>mutated((base)=>edit(base,'README.md',(t)=>t+'\n[Missing](docs/missing.md)\n'),/missing local link/));
 test('missing local heading fails',()=>mutated((base)=>edit(base,'README.md',(t)=>t+'\n[Missing](docs/specs/01-product-design-spec.md#missing-heading)\n'),/missing anchor/));

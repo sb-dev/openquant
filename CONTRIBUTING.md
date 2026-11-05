@@ -26,7 +26,7 @@ The bootstrap can also use `node scripts/verify.ts` with no dependency install. 
 
 Regenerate spec metadata and the repository file map when needed. In a Git checkout, stage intended added and removed paths before generating the map. Do not stage secrets or local output.
 
-New executable packages must add their required checks. C1 must include real Rust fixture evaluation and a clean installed demo. A mock or screenshot cannot satisfy those gates.
+New executable packages must add their required checks. M1 must include real Rust fixture evaluation and verified research execution. Public CLI release separately requires a clean installed demo. A mock or screenshot cannot satisfy those gates.
 
 ## Commit and review
 

@@ -113,7 +113,12 @@
         "ml4t-lookahead-bias",
         "ml4t-point-in-time",
         "ml4t-survivorship-bias",
-        "ml4t-transaction-costs"
+        "ml4t-transaction-costs",
+        "ml4t-fetch-data",
+        "ml4t-validate-data",
+        "ml4t-calendar-ops",
+        "ml4t-define-universe",
+        "ml4t-agent-tool-contracts"
       ],
       "notices": [
         ".claude/third-party/ml4t/skills/LICENSE",
@@ -216,6 +221,41 @@
       "change": "Replace the public AWS example access-key ID with YOUR_AWS_ACCESS_KEY_ID to preserve the repository credential check.",
       "upstreamSha256": "ef3000d91763ccdddfbce2660943c4090b4c16b3b33afe980f4e10947729e1f1",
       "installedSha256": "a267cf35d900001701989b073414dc07a2fa05f60f69f59372ea97c12e25278d"
+    },
+    {
+      "file": ".agents/skills/ml4t-fetch-data/SKILL.md",
+      "upstreamPath": "data/fetch-data/SKILL.md",
+      "change": "Adapt for OpenQuant interfaces, Rust/TypeScript schemas, evidence timing, bounded retrieval and qualified financial/calendar rules. Remove Python dependencies and unsafe generic repair/default assumptions.",
+      "upstreamSha256": "f38e76e2e900c231cf9046b3e80470501363aea98c415401c5da121e3e55ed09",
+      "installedSha256": "2881f59a7cea0ea8559c71818f67e9b5f00aa8c7fa9a8962a66214e9bdcf8413"
+    },
+    {
+      "file": ".agents/skills/ml4t-validate-data/SKILL.md",
+      "upstreamPath": "data/validate-data/SKILL.md",
+      "change": "Adapt for OpenQuant interfaces, Rust/TypeScript schemas, evidence timing, bounded retrieval and qualified financial/calendar rules. Remove Python dependencies and unsafe generic repair/default assumptions.",
+      "upstreamSha256": "50a64b8bbbcc161b8cd5f781f55062722874ef76b83c9f237e46fde9c9c15ade",
+      "installedSha256": "a4fcdf5995f3df544b8a86bd53bf9fd2a6561ecd9c19079421585ffa575959d2"
+    },
+    {
+      "file": ".agents/skills/ml4t-calendar-ops/SKILL.md",
+      "upstreamPath": "data/calendar-ops/SKILL.md",
+      "change": "Adapt for OpenQuant interfaces, Rust/TypeScript schemas, evidence timing, bounded retrieval and qualified financial/calendar rules. Remove Python dependencies and unsafe generic repair/default assumptions.",
+      "upstreamSha256": "8e463698e1ccb41edcac3e9164fac409efc3e6a8bd79222bdfc58b7b6cfb467f",
+      "installedSha256": "0b4ca9c2bbe3a6127c4a1139ed192cb02c42cbccc9ebe2e8d0453b7485200979"
+    },
+    {
+      "file": ".agents/skills/ml4t-define-universe/SKILL.md",
+      "upstreamPath": "data/define-universe/SKILL.md",
+      "change": "Adapt for OpenQuant interfaces, Rust/TypeScript schemas, evidence timing, bounded retrieval and qualified financial/calendar rules. Remove Python dependencies and unsafe generic repair/default assumptions.",
+      "upstreamSha256": "21afde5b855ad814df21faf99c5f7ae810965021cf92921f37174f1f2229292c",
+      "installedSha256": "89f60ded8a3de95374dffae270201e20ddd6e218a7d54ab576387ee52a4ec5ea"
+    },
+    {
+      "file": ".agents/skills/ml4t-agent-tool-contracts/SKILL.md",
+      "upstreamPath": "advanced-ai/agent-tool-contracts/SKILL.md",
+      "change": "Adapt for OpenQuant interfaces, Rust/TypeScript schemas, evidence timing, bounded retrieval and qualified financial/calendar rules. Remove Python dependencies and unsafe generic repair/default assumptions.",
+      "upstreamSha256": "31952cae1e6e0acdcc722ce144b91296622e23fa2a0a8f14a172643ce3fa5c53",
+      "installedSha256": "d5820c459eea55063ddb37d78ec58943c8b24b47da6eeea115ba703e37c8d5a1"
     }
   ],
   "firstPartySkills": [
@@ -224,7 +264,8 @@
     "openquant-research-evaluation",
     "openquant-vertical-slice",
     "openquant-workflow-design",
-    "pragmatic-developer"
+    "pragmatic-developer",
+    "openquant-service-integrations"
   ],
   "portableSkills": [
     "rust-review",
@@ -241,5 +282,6 @@
       "sha256": "1c880db1dad9baa4ecceb8de712ef362f7c4f1d7f2b4482cbb73e3f34e164e8d",
       "adaptation": "None; original bytes and Karpathy Guidelines attribution preserved."
     }
-  ]
+  ],
+  "updatedOn": "2026-11-05"
 }

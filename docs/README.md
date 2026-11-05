@@ -2,7 +2,7 @@
 
 Read [canonical specs](specs/README.md) for required behaviour and [getting started](getting-started/README.md) for this bootstrap.
 
-Use the [delivery roadmap](product/roadmap.md) to plan C1–C4 and the [Production Skills plan](product/production-skills.md) to assess development support. Start implementation with the [C1 guide](guides/c1-reproducible-core.md).
+Use the [delivery roadmap](product/roadmap.md) to plan M1–M4 and the [Production Skills plan](product/production-skills.md) to assess development support. Start implementation with the [M1 guide](guides/m1-watchlist-research.md).
 
 | Area | Purpose |
 | --- | --- |

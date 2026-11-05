@@ -7,6 +7,9 @@ description: Develop and evaluate OpenQuant proposer/critic behaviour, AgentExec
 
 Read `AGENTS.md`, `docs/specs/03-model-backed-execution-spec.md`, and OQ-05 §§2, 4–5 before changing behaviour. Resolve paths below from the repository root. Use this skill for development only. Product agents receive an explicitly reviewed bundle.
 
+
+Use `openquant-service-integrations` and OQ-05 §7.1 for provider adapters. Freeze the research profile and source evidence for each cycle. Enforce retrieval budgets and cutoff restrictions in code; preserve partial, missing and unknown evidence. Use OQ-02 §1.1 for watchlist membership and source identity.
+
 ## Establish the change
 
 1. Identify the role, executor boundary, affected schema, and observable failure.

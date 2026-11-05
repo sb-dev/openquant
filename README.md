@@ -10,7 +10,7 @@ Proposers create strategies. Critics challenge them. Software produces official 
 
 1. Follow [getting started](docs/getting-started/README.md) to clone and verify the repository.
 2. Read the [design](#design) and [canonical specs](docs/specs/README.md).
-3. Follow the [roadmap](docs/product/roadmap.md), starting with [C1 — Reproducible core](docs/guides/c1-reproducible-core.md).
+3. Follow the [roadmap](docs/product/roadmap.md), starting with [M1 — Automated watchlist research](docs/guides/m1-watchlist-research.md).
 
 ## Verify the bootstrap
 
@@ -48,12 +48,13 @@ A mission can produce no eligible strategy. A portfolio can retain cash. A passi
 
 All application checkpoints are planned. Repository checks do not satisfy their product acceptance gates.
 
-| Checkpoint | Intended outcome |
+| Milestone | Intended outcome |
 | --- | --- |
-| C1 — Reproducible core | Actual Rust fixture evaluation, Ink inspection, and a clean installed offline demo. |
-| C2 — Competing research | Bounded proposer/critic execution and durable official evaluation through Cloudflare and Fly.io. |
-| C3 — Persistent paper fund | Live-data paper competitors, separate shadow evidence, and recovery without an active terminal. |
-| C4 — Governed live | Isolated live execution, an approved micro mandate, broker reconciliation, and emergency recovery. |
+| M1 — Automated watchlist research | Recurring competing research with selectable Alpaca/Massive data, SEC/Tavily evidence, bounded budgets and recovery. |
+| M2 — Prospective paper competition | Frozen candidates, future observations and independent recoverable virtual ledgers. |
+| M3 — Portfolio and shadow validation | Combined exposure and execution-path evidence without broker orders. |
+| M4 — Governed live | Isolated live execution, bounded mandates, reconciliation and emergency recovery. |
+| Public CLI release | Clean installed credential-free replay through the shared Rust engine. |
 
 The [delivery roadmap](docs/product/roadmap.md) links prerequisites, acceptance evidence, and open decisions. The [Production Skills plan](docs/product/production-skills.md) records candidate development support and the separate product-agent boundary.
 
@@ -72,7 +73,7 @@ The [delivery roadmap](docs/product/roadmap.md) links prerequisites, acceptance 
 
 See [architecture §1](docs/specs/05-system-architecture-and-data-spec.md#1-technology-and-workload-placement) and [resource ownership](docs/specs/06-engineering-delivery-and-operations-spec.md#3-environments-resources-and-releases). Wrangler deploys Cloudflare code; pinned flyctl deploys Fly apps through GitHub Actions.
 
-The target first product command is `openquant demo`. C1 will calculate a bundled **REPLAY** through the actual Rust core without broker, model, market-data, or cloud credentials. That command is not implemented in this bootstrap.
+The first operational target is [automated watchlist research](docs/guides/m1-watchlist-research.md). [Provider contracts](docs/reference/service-providers.md) keep source selection separate from research logic. The public CLI release separately requires `openquant demo`, a credential-free **REPLAY** through the shared Rust core. These runtime capabilities are not implemented.
 
 ## Repository
 
