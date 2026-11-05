@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync, lstatSync, readlinkSync, realpat
 import { resolve, dirname, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { developmentSkillErrors } from './development-skills.ts';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ignored = new Set(['.git', 'node_modules', 'target', 'dist', '.wrangler', '.turbo', 'coverage', '.cache', 'local-runs']);
@@ -178,6 +179,7 @@ export function checkRepository(base: string): string[] {
   }
   // Do not read any source through an invalid path, including required metadata.
   if (errors.length) return errors;
+  errors.push(...developmentSkillErrors(base,all));
   for (const file of ['README.md','AGENTS.md','LICENSE','SECURITY.md','CONTRIBUTING.md','CODE_OF_CONDUCT.md','TRADEMARKS.md','CHANGELOG.md','REPOSITORY_TREE.txt','docs/specs/README.md','.github/workflows/ci.yml']) {
     if (!all.has(file)) errors.push(`Missing required file: ${file}`);
   }

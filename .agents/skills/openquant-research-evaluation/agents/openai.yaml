@@ -1,0 +1,5 @@
+interface:
+  display_name: Openquant Research Evaluation
+  short_description: 'Design and review OpenQuant competing stock research, watchlist '
+  default_prompt: Use $openquant-research-evaluation for the requested OpenQuant task
+    and report verified evidence.

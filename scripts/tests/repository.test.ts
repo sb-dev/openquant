@@ -33,6 +33,24 @@ function git(base: string, ...args: string[]) {
 }
 
 test('baseline repository satisfies its declared checks',()=>assert.deepEqual(checkRepository(root),[]));
+test('removing a declared skill and its alias fails inventory verification',()=>mutated((base)=>{
+  rmSync(resolve(base,'.agents/skills/rust-review'),{recursive:true});
+  rmSync(resolve(base,'.claude/skills/rust-review'));
+},/Declared skill is missing: rust-review/));
+test('removing a shared skill alias fails inventory verification',()=>mutated((base)=>{
+  rmSync(resolve(base,'.claude/skills/openquant-ai-engineering'));
+},/Claude skill alias is missing: openquant-ai-engineering/));
+test('a regular file cannot stand in for a shared skill alias',()=>mutated((base)=>{
+  const alias = resolve(base,'.claude/skills/openquant-ai-engineering');
+  rmSync(alias);
+  writeFileSync(alias,'../../.agents/skills/openquant-ai-engineering');
+},/Claude skill alias must be a symlink/));
+test('missing portable support files fail completeness verification',()=>mutated((base)=>{
+  rmSync(resolve(base,'.agents/skills/rust-review/upstream/scripts/build_run_plan.py'));
+},/Missing tracked skill resource/));
+test('modified portable support files require a provenance update',()=>mutated((base)=>{
+  edit(base,'.agents/skills/rust-review/upstream/scripts/build_run_plan.py',(text)=>text+'\n# Changed\n');
+},/Portable skill hash mismatch/));
 test('a metadata change requires regenerated index',()=>mutated((base)=>edit(base,'docs/specs/01-product-design-spec.md',(t)=>t.replace('version: 1.0.0','version: 1.1.0')),/Spec index drift/));
 test('lost product acceptance fails',()=>mutated((base)=>edit(base,'docs/specs/02-trading-domain-and-evaluation-spec.md',(t)=>t.replace(/^\| \*\*A12\*\*.*\n/m,'')),/A acceptance identifiers/));
 test('missing local link target fails',()=>mutated((base)=>edit(base,'README.md',(t)=>t+'\n[Missing](docs/missing.md)\n'),/missing local link/));

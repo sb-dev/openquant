@@ -1,0 +1,5 @@
+interface:
+  display_name: Openquant Financial Invariants
+  short_description: Implement or review OpenQuant financial calculations, accounting
+  default_prompt: Use $openquant-financial-invariants for the requested OpenQuant
+    task and report verified evidence.

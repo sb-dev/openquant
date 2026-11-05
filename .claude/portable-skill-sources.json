@@ -1,0 +1,838 @@
+{
+  "repository": "trailofbits/skills",
+  "revision": "470419e16f97e112d01fc32f4898aea1755015d9",
+  "layout": "Complete plugin source trees retained under upstream/. Original nested SKILL.md entries renamed SKILL.upstream.md; Rust prompt-regex test path updated. Portable root entry points added.",
+  "adaptations": [
+    {
+      "file": ".agents/skills/rust-review/SKILL.md",
+      "sourcePaths": [
+        "plugins/rust-review/skills/rust-review/SKILL.md",
+        "plugins/rust-review/agents"
+      ],
+      "change": "Add portable entry point; retain complete plugin source in upstream/ with original discovery entry renamed SKILL.upstream.md. Map native plugin dispatch to generic agents or explicitly non-independent sequential role passes. Preserve evidence, artifact, coverage, and failure requirements. Preserve CC-BY-SA-4.0 attribution for the adapted entry.",
+      "installedSha256": "8466ed680474d1ad0b46fd25fa2efed3aef0b9884917232934b6b3b8c5ebba26"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/SKILL.md",
+      "sourcePaths": [
+        "plugins/spec-to-code-compliance/skills/spec-to-code-compliance/SKILL.md",
+        "plugins/spec-to-code-compliance/agents"
+      ],
+      "change": "Add portable entry point; retain complete plugin source in upstream/ with original discovery entry renamed SKILL.upstream.md. Map native plugin dispatch to generic agents or explicitly non-independent sequential role passes. Preserve evidence, artifact, coverage, and failure requirements. Preserve CC-BY-SA-4.0 attribution for the adapted entry.",
+      "installedSha256": "2b4fc9b1185265e32ba664bd3a9afae9c788a42ef5767546c1bed13fd1332d10"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/scripts/test_prompt_regexes.py",
+      "sourcePath": "plugins/rust-review/scripts/test_prompt_regexes.py",
+      "upstreamSha256": "d3b2ad1f72623fd3f0df07e989b22e07176f0150eb0d438142ab51dbd3087d77",
+      "installedSha256": "3c27a826713468953f3215bd1761ccbba3a6d07db91543a3cd7fba0113038fcd",
+      "mode": "100644",
+      "change": "Resolve renamed SKILL.upstream.md in prompt-regex tests; test behavior unchanged."
+    }
+  ],
+  "files": [
+    {
+      "file": ".agents/skills/rust-review/upstream/.claude-plugin/plugin.json",
+      "sourcePath": "plugins/rust-review/.claude-plugin/plugin.json",
+      "upstreamSha256": "c1a6afc5e7905fa649e8ae99e87dacbaa6a1fd9e8ec0600c2a714dd6b0a039a0",
+      "installedSha256": "c1a6afc5e7905fa649e8ae99e87dacbaa6a1fd9e8ec0600c2a714dd6b0a039a0",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/README.md",
+      "sourcePath": "plugins/rust-review/README.md",
+      "upstreamSha256": "9fb4965b92b365679632fafa087a6a669078bccda0b887c600c3b0651f37a571",
+      "installedSha256": "9fb4965b92b365679632fafa087a6a669078bccda0b887c600c3b0651f37a571",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/agents/rust-review-dedup-judge.md",
+      "sourcePath": "plugins/rust-review/agents/rust-review-dedup-judge.md",
+      "upstreamSha256": "23f09a5af3c3cc5f350bfa937a368c10ae931dad1077ca7e7099e83170b5ed47",
+      "installedSha256": "23f09a5af3c3cc5f350bfa937a368c10ae931dad1077ca7e7099e83170b5ed47",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/agents/rust-review-fp-judge.md",
+      "sourcePath": "plugins/rust-review/agents/rust-review-fp-judge.md",
+      "upstreamSha256": "ebb25be71a2f7d078e6c9a79be7ad6481d81423c7bc21d1dce061f04321175b8",
+      "installedSha256": "ebb25be71a2f7d078e6c9a79be7ad6481d81423c7bc21d1dce061f04321175b8",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/agents/rust-review-worker.md",
+      "sourcePath": "plugins/rust-review/agents/rust-review-worker.md",
+      "upstreamSha256": "ee116cafa60d1b64df641793b5e7c0df909a31a94e5e953db31d9a3a578c688e",
+      "installedSha256": "ee116cafa60d1b64df641793b5e7c0df909a31a94e5e953db31d9a3a578c688e",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/clusters/async-runtime.md",
+      "sourcePath": "plugins/rust-review/prompts/clusters/async-runtime.md",
+      "upstreamSha256": "5c1e493b1317217574cc27d45159775c2cfa3fa25090b9f9f737b525bfcc8369",
+      "installedSha256": "5c1e493b1317217574cc27d45159775c2cfa3fa25090b9f9f737b525bfcc8369",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/clusters/concurrency-data-race.md",
+      "sourcePath": "plugins/rust-review/prompts/clusters/concurrency-data-race.md",
+      "upstreamSha256": "344fdfe042ea014f920215589fa603f5e85a5056e4f8a79f49b191627f87e0d6",
+      "installedSha256": "344fdfe042ea014f920215589fa603f5e85a5056e4f8a79f49b191627f87e0d6",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/clusters/concurrency-locking.md",
+      "sourcePath": "plugins/rust-review/prompts/clusters/concurrency-locking.md",
+      "upstreamSha256": "a1c771a6dc73df18d244363f051ff37e54153e1bef848f130e30a3a14f456080",
+      "installedSha256": "a1c771a6dc73df18d244363f051ff37e54153e1bef848f130e30a3a14f456080",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/clusters/error-handling.md",
+      "sourcePath": "plugins/rust-review/prompts/clusters/error-handling.md",
+      "upstreamSha256": "fcc8d9b999a17ced9c54e1aafa9071238a7e66538d453937196b8ebc4694b58b",
+      "installedSha256": "fcc8d9b999a17ced9c54e1aafa9071238a7e66538d453937196b8ebc4694b58b",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/clusters/ffi-cross-language.md",
+      "sourcePath": "plugins/rust-review/prompts/clusters/ffi-cross-language.md",
+      "upstreamSha256": "5f1d2184a34f6d000a6e18c695c82e2607d0dd56e6a6d9380bfe5c2df4c5280b",
+      "installedSha256": "5f1d2184a34f6d000a6e18c695c82e2607d0dd56e6a6d9380bfe5c2df4c5280b",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/clusters/info-disclosure.md",
+      "sourcePath": "plugins/rust-review/prompts/clusters/info-disclosure.md",
+      "upstreamSha256": "5a1c23addc4cc12ff164f98ba34678be6c9b63cf9b7987f21dedc9a43b27f52f",
+      "installedSha256": "5a1c23addc4cc12ff164f98ba34678be6c9b63cf9b7987f21dedc9a43b27f52f",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/clusters/input-os-safety.md",
+      "sourcePath": "plugins/rust-review/prompts/clusters/input-os-safety.md",
+      "upstreamSha256": "aa00fa03182c2c1117c3340a5d7c578b256b2be2ef376ef71840c1c3e18c35ea",
+      "installedSha256": "aa00fa03182c2c1117c3340a5d7c578b256b2be2ef376ef71840c1c3e18c35ea",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/clusters/layout-safety.md",
+      "sourcePath": "plugins/rust-review/prompts/clusters/layout-safety.md",
+      "upstreamSha256": "c25e2582b9302c7de66d695f634ccb618d30fbf874661b88f0f80915eedbc127",
+      "installedSha256": "c25e2582b9302c7de66d695f634ccb618d30fbf874661b88f0f80915eedbc127",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/clusters/logic-correctness.md",
+      "sourcePath": "plugins/rust-review/prompts/clusters/logic-correctness.md",
+      "upstreamSha256": "e18dd1a9fd4d33d00399ec1ed5af05071b469095aaa6d27b4ea2455f678b4a0e",
+      "installedSha256": "e18dd1a9fd4d33d00399ec1ed5af05071b469095aaa6d27b4ea2455f678b4a0e",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/clusters/manifest.json",
+      "sourcePath": "plugins/rust-review/prompts/clusters/manifest.json",
+      "upstreamSha256": "76dbca40fa7a46df81d8af6eda3a0e66229c7277e254e86c7ab95bba0b8eb1cd",
+      "installedSha256": "76dbca40fa7a46df81d8af6eda3a0e66229c7277e254e86c7ab95bba0b8eb1cd",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/clusters/memory-safety.md",
+      "sourcePath": "plugins/rust-review/prompts/clusters/memory-safety.md",
+      "upstreamSha256": "24a788bd692e90870265addec88f05707bf88c422cbca097785702521eb09195",
+      "installedSha256": "24a788bd692e90870265addec88f05707bf88c422cbca097785702521eb09195",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/clusters/panic-dos.md",
+      "sourcePath": "plugins/rust-review/prompts/clusters/panic-dos.md",
+      "upstreamSha256": "bc0a365f423bdde596834f995a6a1c003fad568d52d5e9509b98d8f0a3e38d9f",
+      "installedSha256": "bc0a365f423bdde596834f995a6a1c003fad568d52d5e9509b98d8f0a3e38d9f",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/clusters/recursion-dos.md",
+      "sourcePath": "plugins/rust-review/prompts/clusters/recursion-dos.md",
+      "upstreamSha256": "4de2aec45f196b36584226fd70b56a82df1b6d75b33056d46ae8e2c292022947",
+      "installedSha256": "4de2aec45f196b36584226fd70b56a82df1b6d75b33056d46ae8e2c292022947",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/clusters/resource-handling.md",
+      "sourcePath": "plugins/rust-review/prompts/clusters/resource-handling.md",
+      "upstreamSha256": "5b5702c57166f9f8cb183f7602702baf16a0a20821bf8ba1efd911a64df1aa84",
+      "installedSha256": "5b5702c57166f9f8cb183f7602702baf16a0a20821bf8ba1efd911a64df1aa84",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/clusters/static-hygiene.md",
+      "sourcePath": "plugins/rust-review/prompts/clusters/static-hygiene.md",
+      "upstreamSha256": "d9045ccb6e90f64273845c43d6b9b79bf77df2e520b2ac2714de890cc467e90a",
+      "installedSha256": "d9045ccb6e90f64273845c43d6b9b79bf77df2e520b2ac2714de890cc467e90a",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/clusters/unsafe-boundary.md",
+      "sourcePath": "plugins/rust-review/prompts/clusters/unsafe-boundary.md",
+      "upstreamSha256": "10f7dabee93a1ff0b9229ba7e23c5b0900da64825d2b3d186ffcc297f6da4dfd",
+      "installedSha256": "10f7dabee93a1ff0b9229ba7e23c5b0900da64825d2b3d186ffcc297f6da4dfd",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/abi-mismatch-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/abi-mismatch-finder.md",
+      "upstreamSha256": "235bbd82a8794e6a2b8d5c360811a362a5927ca1d417a8508e4e0abba9fb04ee",
+      "installedSha256": "235bbd82a8794e6a2b8d5c360811a362a5927ca1d417a8508e4e0abba9fb04ee",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/adversarial-trait-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/adversarial-trait-finder.md",
+      "upstreamSha256": "7cd0587f25560c80bca17767931ca3cbd833dbc6a7b352c82a1d54ebdfe63e16",
+      "installedSha256": "7cd0587f25560c80bca17767931ca3cbd833dbc6a7b352c82a1d54ebdfe63e16",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/arithmetic-overflow-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/arithmetic-overflow-finder.md",
+      "upstreamSha256": "f2a1fb7fc32898a7f54c4da1467db149bce55e6d4b1d2ee08e01648862b63488",
+      "installedSha256": "f2a1fb7fc32898a7f54c4da1467db149bce55e6d4b1d2ee08e01648862b63488",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/assertion-reachable-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/assertion-reachable-finder.md",
+      "upstreamSha256": "9bab8d87093e4dabf3461d9575dd23fc66c3f83949eafd5e30b9fab94bd7dc30",
+      "installedSha256": "9bab8d87093e4dabf3461d9575dd23fc66c3f83949eafd5e30b9fab94bd7dc30",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/async-blocking-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/async-blocking-finder.md",
+      "upstreamSha256": "05cd757a948d102fdd547874d8267167ca0895d393119f9af6fc3a08167b48d1",
+      "installedSha256": "05cd757a948d102fdd547874d8267167ca0895d393119f9af6fc3a08167b48d1",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/atomic-race-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/atomic-race-finder.md",
+      "upstreamSha256": "3128365d7e44adf4b69058b77bb63432648cbc9adb10e8b6d4a902da25ce54e1",
+      "installedSha256": "3128365d7e44adf4b69058b77bb63432648cbc9adb10e8b6d4a902da25ce54e1",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/buffer-overflow-unsafe-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/buffer-overflow-unsafe-finder.md",
+      "upstreamSha256": "13c538ed4dbc0535a0fbef691f4c79fe538ed9d675af0c88ff6d48594ff08570",
+      "installedSha256": "13c538ed4dbc0535a0fbef691f4c79fe538ed9d675af0c88ff6d48594ff08570",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/bufwriter-unflushed-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/bufwriter-unflushed-finder.md",
+      "upstreamSha256": "d6bb277a0ea6575862b6620f7820c425f4321dc9d8f7d7627b026f01d169517c",
+      "installedSha256": "d6bb277a0ea6575862b6620f7820c425f4321dc9d8f7d7627b026f01d169517c",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/cancel-safety-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/cancel-safety-finder.md",
+      "upstreamSha256": "75fea515a1e818c90ec1ff024b7e3d595e4247fb8a9f6c5b2004baa56bc3c51c",
+      "installedSha256": "75fea515a1e818c90ec1ff024b7e3d595e4247fb8a9f6c5b2004baa56bc3c51c",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/cargo-lint-config-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/cargo-lint-config-finder.md",
+      "upstreamSha256": "ae2eddc58db7394b212ac8b7b8cc38a2a94138a5cc932f073ce7beb639b1036a",
+      "installedSha256": "ae2eddc58db7394b212ac8b7b8cc38a2a94138a5cc932f073ce7beb639b1036a",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/closure-ffi-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/closure-ffi-finder.md",
+      "upstreamSha256": "e02de116960cd52bc81074e11a522ace6ab70fa4773fe9235c86d85154f7f36a",
+      "installedSha256": "e02de116960cd52bc81074e11a522ace6ab70fa4773fe9235c86d85154f7f36a",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/closure-panic-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/closure-panic-finder.md",
+      "upstreamSha256": "9ec22b968985aa82e068996107bb2027eaf7aadb4ae135f5871ed562984a750b",
+      "installedSha256": "9ec22b968985aa82e068996107bb2027eaf7aadb4ae135f5871ed562984a750b",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/collection-key-mutation-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/collection-key-mutation-finder.md",
+      "upstreamSha256": "ade9461584d12c45fa434bfd55a83e974dbef1e8315a133dc08bccfcf12d0089",
+      "installedSha256": "ade9461584d12c45fa434bfd55a83e974dbef1e8315a133dc08bccfcf12d0089",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/cstring-dangling-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/cstring-dangling-finder.md",
+      "upstreamSha256": "3bbd4e310ad0fac5303729f5d693eaba4ffee77aa32dd408877412c0e002b26c",
+      "installedSha256": "3bbd4e310ad0fac5303729f5d693eaba4ffee77aa32dd408877412c0e002b26c",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/deprecated-api-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/deprecated-api-finder.md",
+      "upstreamSha256": "2356c3a229d51939bb377c2d1ce32fd1df4959411c679c62fb1199fff01ec63a",
+      "installedSha256": "2356c3a229d51939bb377c2d1ce32fd1df4959411c679c62fb1199fff01ec63a",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/destructor-skip-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/destructor-skip-finder.md",
+      "upstreamSha256": "258025c6150e5f4edda8669743bcb556ea50c87b070b5221032b0b7630f03b8c",
+      "installedSha256": "258025c6150e5f4edda8669743bcb556ea50c87b070b5221032b0b7630f03b8c",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/double-free-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/double-free-finder.md",
+      "upstreamSha256": "c6b15798988e9a05bd03ff49ee27cd180224c44545b91b2dd53d9db580b701a3",
+      "installedSha256": "c6b15798988e9a05bd03ff49ee27cd180224c44545b91b2dd53d9db580b701a3",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/drop-panic-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/drop-panic-finder.md",
+      "upstreamSha256": "b37e62548f486406183b2ecfd395b1f070954ada3c7499bf65f76718e0d85968",
+      "installedSha256": "b37e62548f486406183b2ecfd395b1f070954ada3c7499bf65f76718e0d85968",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/dyn-trait-ffi-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/dyn-trait-ffi-finder.md",
+      "upstreamSha256": "73dc05f43283ff438052a142a78a8bb9da18b5946ae4bbf87c07f27e5b162f56",
+      "installedSha256": "73dc05f43283ff438052a142a78a8bb9da18b5946ae4bbf87c07f27e5b162f56",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/float-edge-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/float-edge-finder.md",
+      "upstreamSha256": "c4dc578ae38787a5bc54544a9c876a7a80e3d9a0bdcec8bb239a5c6dc8790e58",
+      "installedSha256": "c4dc578ae38787a5bc54544a9c876a7a80e3d9a0bdcec8bb239a5c6dc8790e58",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/foreign-drop-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/foreign-drop-finder.md",
+      "upstreamSha256": "76a52b3ed8077443e8ead91faaa1c5b7e4bafab7c68e6504a081899ad683dfac",
+      "installedSha256": "76a52b3ed8077443e8ead91faaa1c5b7e4bafab7c68e6504a081899ad683dfac",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/invalid-free-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/invalid-free-finder.md",
+      "upstreamSha256": "ee7faafdb62f1cd5c696b1e2afa7bfc42078fd47121af55ab2e14004006e1ffd",
+      "installedSha256": "ee7faafdb62f1cd5c696b1e2afa7bfc42078fd47121af55ab2e14004006e1ffd",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/lossy-from-into-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/lossy-from-into-finder.md",
+      "upstreamSha256": "104ff498f652f9fdf4d2798dfebb092dc380b708df2ea97e9960f65d8d308b75",
+      "installedSha256": "104ff498f652f9fdf4d2798dfebb092dc380b708df2ea97e9960f65d8d308b75",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/lossy-str-conversion-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/lossy-str-conversion-finder.md",
+      "upstreamSha256": "3b7e787ee0dec3651af699293258e5997d468bc0fdf55fa8314cb6ead9903fa3",
+      "installedSha256": "3b7e787ee0dec3651af699293258e5997d468bc0fdf55fa8314cb6ead9903fa3",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/msrv-mismatch-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/msrv-mismatch-finder.md",
+      "upstreamSha256": "61663658007d08e2ef2911a096b54d837e829badf4ac92d688fb01c459d9e5d1",
+      "installedSha256": "61663658007d08e2ef2911a096b54d837e829badf4ac92d688fb01c459d9e5d1",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/nondeterminism-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/nondeterminism-finder.md",
+      "upstreamSha256": "dad119c84180920e4258e493d969a9598f7b8aaa22b7bd2a44437ddb5fd7e5eb",
+      "installedSha256": "dad119c84180920e4258e493d969a9598f7b8aaa22b7bd2a44437ddb5fd7e5eb",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/opaque-pointer-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/opaque-pointer-finder.md",
+      "upstreamSha256": "3469427249df12d83b82ff90b3d72837d8d4c215e98d4d35f2d35f2a197d4d40",
+      "installedSha256": "3469427249df12d83b82ff90b3d72837d8d4c215e98d4d35f2d35f2a197d4d40",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/ord-eq-hash-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/ord-eq-hash-finder.md",
+      "upstreamSha256": "58055286593db6ad08917709582f3cef6da17fd01793182abc567b4bb67a627f",
+      "installedSha256": "58055286593db6ad08917709582f3cef6da17fd01793182abc567b4bb67a627f",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/out-of-bounds-index-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/out-of-bounds-index-finder.md",
+      "upstreamSha256": "8629f653d73e0e267e2ba548a3c88295efe03793f5853473dda2b0cfbe42845d",
+      "installedSha256": "8629f653d73e0e267e2ba548a3c88295efe03793f5853473dda2b0cfbe42845d",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/packed-field-ref-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/packed-field-ref-finder.md",
+      "upstreamSha256": "eb28bd82060275326b718a4839e252345fd4ed86dcb828f28c5e039fa9e16f37",
+      "installedSha256": "eb28bd82060275326b718a4839e252345fd4ed86dcb828f28c5e039fa9e16f37",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/panic-unwind-unsafe-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/panic-unwind-unsafe-finder.md",
+      "upstreamSha256": "30a82a7d83ee1cbea971a2d87f6e996db077c48fc1e6b1afbed3c27dd3d26459",
+      "installedSha256": "30a82a7d83ee1cbea971a2d87f6e996db077c48fc1e6b1afbed3c27dd3d26459",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/path-traversal-join-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/path-traversal-join-finder.md",
+      "upstreamSha256": "13c8e5ad1330baa012cf7014d386e61e243a0f31fa42bab498ffb4838116c934",
+      "installedSha256": "13c8e5ad1330baa012cf7014d386e61e243a0f31fa42bab498ffb4838116c934",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/pointer-exposure-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/pointer-exposure-finder.md",
+      "upstreamSha256": "e5dda8d39ec41c1d83be1de783e5c1f379913aa6467dbaba8353f8bcd7ff3e18",
+      "installedSha256": "e5dda8d39ec41c1d83be1de783e5c1f379913aa6467dbaba8353f8bcd7ff3e18",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/raw-fd-lifecycle-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/raw-fd-lifecycle-finder.md",
+      "upstreamSha256": "f4e485de5943cfb1128bc7a1bdd6bb23bef4c422bfbd63b2c5229a95bd4befcd",
+      "installedSha256": "f4e485de5943cfb1128bc7a1bdd6bb23bef4c422bfbd63b2c5229a95bd4befcd",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/recursive-deserialize-stack-overflow-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/recursive-deserialize-stack-overflow-finder.md",
+      "upstreamSha256": "0f16fbc717bf048c5adbe23bbe2c056993becec796e8ec36325e6fd75ef44c5c",
+      "installedSha256": "0f16fbc717bf048c5adbe23bbe2c056993becec796e8ec36325e6fd75ef44c5c",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/recursive-drop-stack-overflow-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/recursive-drop-stack-overflow-finder.md",
+      "upstreamSha256": "212ccf950aa2bd0b91950179c4d7e5d42ad7eb4a2707950ff9112017f43575b0",
+      "installedSha256": "212ccf950aa2bd0b91950179c4d7e5d42ad7eb4a2707950ff9112017f43575b0",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/recursive-format-stack-overflow-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/recursive-format-stack-overflow-finder.md",
+      "upstreamSha256": "085f4241ffa49123f1be72a9b26fab67b231ee20c90fa402e66fc3a113bfae46",
+      "installedSha256": "085f4241ffa49123f1be72a9b26fab67b231ee20c90fa402e66fc3a113bfae46",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/refcell-borrow-panic-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/refcell-borrow-panic-finder.md",
+      "upstreamSha256": "119970e1ef75547d54d76e1bb7251b83e189621e2aa817f0f5b47cede8c81414",
+      "installedSha256": "119970e1ef75547d54d76e1bb7251b83e189621e2aa817f0f5b47cede8c81414",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/repr-c-padding-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/repr-c-padding-finder.md",
+      "upstreamSha256": "31d73bff27df552ef2d8e4d9d1b203757f128ca818823ea4363f184f86995667",
+      "installedSha256": "31d73bff27df552ef2d8e4d9d1b203757f128ca818823ea4363f184f86995667",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/resource-exhaustion-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/resource-exhaustion-finder.md",
+      "upstreamSha256": "d8a169f355cfa18d30177bb19171190c290890d51af8ebde996767c1e07098f5",
+      "installedSha256": "d8a169f355cfa18d30177bb19171190c290890d51af8ebde996767c1e07098f5",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/result-discarded-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/result-discarded-finder.md",
+      "upstreamSha256": "99fbad8883f690e690c6509008e1acd7654b5b98f087b896bae4082b7d14c79b",
+      "installedSha256": "99fbad8883f690e690c6509008e1acd7654b5b98f087b896bae4082b7d14c79b",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/select-bias-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/select-bias-finder.md",
+      "upstreamSha256": "24c1284014a89c74327b0dc123b6c5ec0a9bf57bd0971f883ec51426ac69dfb5",
+      "installedSha256": "24c1284014a89c74327b0dc123b6c5ec0a9bf57bd0971f883ec51426ac69dfb5",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/send-sync-bounds-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/send-sync-bounds-finder.md",
+      "upstreamSha256": "8f27a590734113e7094f45f2b71d115e807e9eb35d33fe8de2883c403e7957f4",
+      "installedSha256": "8f27a590734113e7094f45f2b71d115e807e9eb35d33fe8de2883c403e7957f4",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/serialize-struct-mismatch-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/serialize-struct-mismatch-finder.md",
+      "upstreamSha256": "3a4f25ef4afa7a676016fe0b1631b5b1a41c53a532a4ed5e6128f5807f52ac1e",
+      "installedSha256": "3a4f25ef4afa7a676016fe0b1631b5b1a41c53a532a4ed5e6128f5807f52ac1e",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/shared-memory-race-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/shared-memory-race-finder.md",
+      "upstreamSha256": "400c82d7872b1e848daadd6fe3fc4834397198b6340777dbbf57cfd28a5f7daf",
+      "installedSha256": "400c82d7872b1e848daadd6fe3fc4834397198b6340777dbbf57cfd28a5f7daf",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/static-mut-race-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/static-mut-race-finder.md",
+      "upstreamSha256": "dc3edd55cad150f52c6f1a2e5ccffc1d1224d831766ba9ec952e76128bc7b9d8",
+      "installedSha256": "dc3edd55cad150f52c6f1a2e5ccffc1d1224d831766ba9ec952e76128bc7b9d8",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/str-slice-boundary-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/str-slice-boundary-finder.md",
+      "upstreamSha256": "870e5114e4d318e7cdaccf96315d67d8b3e3fafab01f497ab74d4e40dc72d4a9",
+      "installedSha256": "870e5114e4d318e7cdaccf96315d67d8b3e3fafab01f497ab74d4e40dc72d4a9",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/string-comparison-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/string-comparison-finder.md",
+      "upstreamSha256": "bc7ec9e43749b367c4aeb88c60a8fd5139b37b98a72d1faf66f47a9d0525f548",
+      "installedSha256": "bc7ec9e43749b367c4aeb88c60a8fd5139b37b98a72d1faf66f47a9d0525f548",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/toctou-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/toctou-finder.md",
+      "upstreamSha256": "87917e3b47b0f2c6ee83af499144dabca50bd91e7a87f63963c301582457e09f",
+      "installedSha256": "87917e3b47b0f2c6ee83af499144dabca50bd91e7a87f63963c301582457e09f",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/uninitialized-read-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/uninitialized-read-finder.md",
+      "upstreamSha256": "591021ed80c16ab7e4b4552b90773b508e68cbc4aaf124f1c64a823c308623fe",
+      "installedSha256": "591021ed80c16ab7e4b4552b90773b508e68cbc4aaf124f1c64a823c308623fe",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/union-ub-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/union-ub-finder.md",
+      "upstreamSha256": "be8259632d1bd20dff2cc53c3fbedd48358fab381d64abef0cb0f2feee0bd9c1",
+      "installedSha256": "be8259632d1bd20dff2cc53c3fbedd48358fab381d64abef0cb0f2feee0bd9c1",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/unsafe-sync-impl-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/unsafe-sync-impl-finder.md",
+      "upstreamSha256": "88f21b78fc146827e10ddfe823ed34057aaaedcd834141cb1ef10f1c3c4d3d65",
+      "installedSha256": "88f21b78fc146827e10ddfe823ed34057aaaedcd834141cb1ef10f1c3c4d3d65",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/unwrap-on-untrusted-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/unwrap-on-untrusted-finder.md",
+      "upstreamSha256": "49fd0889307a1ab13c32ef654f2541d1424500ebb5d50db231feede71f2cb8b7",
+      "installedSha256": "49fd0889307a1ab13c32ef654f2541d1424500ebb5d50db231feede71f2cb8b7",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/use-after-free-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/use-after-free-finder.md",
+      "upstreamSha256": "8a8237880088a98a3b49c402672809431cda66f6e03fb0e98f84e7a96faf4bda",
+      "installedSha256": "8a8237880088a98a3b49c402672809431cda66f6e03fb0e98f84e7a96faf4bda",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/prompts/general/vec-set-len-uninit-finder.md",
+      "sourcePath": "plugins/rust-review/prompts/general/vec-set-len-uninit-finder.md",
+      "upstreamSha256": "b641f302ec14455aeb2a1fcfaeae4986d2b0a91fd26966e1228786d3932f2195",
+      "installedSha256": "b641f302ec14455aeb2a1fcfaeae4986d2b0a91fd26966e1228786d3932f2195",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/scripts/build_run_plan.py",
+      "sourcePath": "plugins/rust-review/scripts/build_run_plan.py",
+      "upstreamSha256": "2fa42b567741e6735d2e1099561dae9cde5c631ea7408bc84bc1aaac74d3f782",
+      "installedSha256": "2fa42b567741e6735d2e1099561dae9cde5c631ea7408bc84bc1aaac74d3f782",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/scripts/generate_sarif.py",
+      "sourcePath": "plugins/rust-review/scripts/generate_sarif.py",
+      "upstreamSha256": "0cfd2f1f0ff6927f64bbe0be2c75cf84954602d49cb338a15c4908b841373fe8",
+      "installedSha256": "0cfd2f1f0ff6927f64bbe0be2c75cf84954602d49cb338a15c4908b841373fe8",
+      "mode": "100755"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/scripts/pyproject.toml",
+      "sourcePath": "plugins/rust-review/scripts/pyproject.toml",
+      "upstreamSha256": "a75faeec5e7b34727236c42a2eaa3a7bf3d3935263a7bf73a764ed80d2bc09dc",
+      "installedSha256": "a75faeec5e7b34727236c42a2eaa3a7bf3d3935263a7bf73a764ed80d2bc09dc",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/scripts/test_gating.py",
+      "sourcePath": "plugins/rust-review/scripts/test_gating.py",
+      "upstreamSha256": "8b1aa4e7cd8b6e083f389c9716e1421d1cebebaba41684fe02096dce491403bf",
+      "installedSha256": "8b1aa4e7cd8b6e083f389c9716e1421d1cebebaba41684fe02096dce491403bf",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/scripts/test_generate_sarif.py",
+      "sourcePath": "plugins/rust-review/scripts/test_generate_sarif.py",
+      "upstreamSha256": "6d3e3e9c9af035f87f6c4a9fce74750dca88d5ffacb32702a23a6512020ecd02",
+      "installedSha256": "6d3e3e9c9af035f87f6c4a9fce74750dca88d5ffacb32702a23a6512020ecd02",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/scripts/test_prompt_regexes.py",
+      "sourcePath": "plugins/rust-review/scripts/test_prompt_regexes.py",
+      "upstreamSha256": "d3b2ad1f72623fd3f0df07e989b22e07176f0150eb0d438142ab51dbd3087d77",
+      "installedSha256": "3c27a826713468953f3215bd1761ccbba3a6d07db91543a3cd7fba0113038fcd",
+      "mode": "100644",
+      "change": "Resolve renamed SKILL.upstream.md in prompt-regex tests; test behavior unchanged."
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/scripts/test_split.py",
+      "sourcePath": "plugins/rust-review/scripts/test_split.py",
+      "upstreamSha256": "067f7ac4c2a0bb8ef4e5a55862ffec900ea5a6b44e00642d1e49c576e1792b1e",
+      "installedSha256": "067f7ac4c2a0bb8ef4e5a55862ffec900ea5a6b44e00642d1e49c576e1792b1e",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/scripts/test_validate_artifacts.py",
+      "sourcePath": "plugins/rust-review/scripts/test_validate_artifacts.py",
+      "upstreamSha256": "e8cf32c277a340c607b519d691b83f1a64951c6557d7fba7fc11bbc27ee99f75",
+      "installedSha256": "e8cf32c277a340c607b519d691b83f1a64951c6557d7fba7fc11bbc27ee99f75",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/scripts/validate_artifacts.py",
+      "sourcePath": "plugins/rust-review/scripts/validate_artifacts.py",
+      "upstreamSha256": "f373bc7dafabd027afe0fd825169440736c7425c559b7bf4a8779e9ec3ace658",
+      "installedSha256": "f373bc7dafabd027afe0fd825169440736c7425c559b7bf4a8779e9ec3ace658",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/rust-review/upstream/skills/rust-review/SKILL.upstream.md",
+      "sourcePath": "plugins/rust-review/skills/rust-review/SKILL.md",
+      "upstreamSha256": "52ee8b08876b0ad90ecdf4a58de8d41fb2d8627f1e4d259a806a35a6e187ae91",
+      "installedSha256": "52ee8b08876b0ad90ecdf4a58de8d41fb2d8627f1e4d259a806a35a6e187ae91",
+      "mode": "100644",
+      "change": "Rename original skill entry to avoid duplicate discovery; contents unchanged."
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/.claude-plugin/plugin.json",
+      "sourcePath": "plugins/spec-to-code-compliance/.claude-plugin/plugin.json",
+      "upstreamSha256": "2ded65ff10cd060a507bd95a4a32605892af309a085cea1abe5d752e919d7893",
+      "installedSha256": "2ded65ff10cd060a507bd95a4a32605892af309a085cea1abe5d752e919d7893",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/README.md",
+      "sourcePath": "plugins/spec-to-code-compliance/README.md",
+      "upstreamSha256": "454774836a48ea2f144f044c370df24c54ed828543eaab1ebf8fd6ee8cd2fd38",
+      "installedSha256": "454774836a48ea2f144f044c370df24c54ed828543eaab1ebf8fd6ee8cd2fd38",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/agents/spec-compliance-checker.md",
+      "sourcePath": "plugins/spec-to-code-compliance/agents/spec-compliance-checker.md",
+      "upstreamSha256": "20dbf4d9b8013e8c42691dab08bd4df1ac0250eb715f3a02b2270be78bc287c4",
+      "installedSha256": "20dbf4d9b8013e8c42691dab08bd4df1ac0250eb715f3a02b2270be78bc287c4",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/evals/.gitignore",
+      "sourcePath": "plugins/spec-to-code-compliance/evals/.gitignore",
+      "upstreamSha256": "f370ad043ec0c98a166fd98646c3b94280ed78bc996223b6cca2ba936f7c6781",
+      "installedSha256": "f370ad043ec0c98a166fd98646c3b94280ed78bc996223b6cca2ba936f7c6781",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/evals/documents-contradict/case.yaml",
+      "sourcePath": "plugins/spec-to-code-compliance/evals/documents-contradict/case.yaml",
+      "upstreamSha256": "f8551fc7926d714fa66041ee70ddcb254e7f307e00d1f47a2c3f4c40aaa78eb2",
+      "installedSha256": "f8551fc7926d714fa66041ee70ddcb254e7f307e00d1f47a2c3f4c40aaa78eb2",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/evals/documents-contradict/fixture/README.md",
+      "sourcePath": "plugins/spec-to-code-compliance/evals/documents-contradict/fixture/README.md",
+      "upstreamSha256": "32a853e485704015155313b39507b48fa442a595b4fc1228b4ec06bfc880ef2c",
+      "installedSha256": "32a853e485704015155313b39507b48fa442a595b4fc1228b4ec06bfc880ef2c",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/evals/documents-contradict/fixture/SPEC.md",
+      "sourcePath": "plugins/spec-to-code-compliance/evals/documents-contradict/fixture/SPEC.md",
+      "upstreamSha256": "366bf7a2fd9acf477b98d4899c339b1a9aa576ce46bc97720036345f08189fde",
+      "installedSha256": "366bf7a2fd9acf477b98d4899c339b1a9aa576ce46bc97720036345f08189fde",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/evals/documents-contradict/fixture/Vault.sol",
+      "sourcePath": "plugins/spec-to-code-compliance/evals/documents-contradict/fixture/Vault.sol",
+      "upstreamSha256": "a2ab9662cd2b8e38ccb0d108e44526db1408a26a1687ebb304e21bc391004f30",
+      "installedSha256": "a2ab9662cd2b8e38ccb0d108e44526db1408a26a1687ebb304e21bc391004f30",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/evals/documents-contradict/graders/reports-the-contradiction.md",
+      "sourcePath": "plugins/spec-to-code-compliance/evals/documents-contradict/graders/reports-the-contradiction.md",
+      "upstreamSha256": "94d0a41eb5ad1477d86c28f827c8397c6a8fc5c7b640cdf51d05fdc5f9073d9f",
+      "installedSha256": "94d0a41eb5ad1477d86c28f827c8397c6a8fc5c7b640cdf51d05fdc5f9073d9f",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/evals/name-is-not-evidence/case.yaml",
+      "sourcePath": "plugins/spec-to-code-compliance/evals/name-is-not-evidence/case.yaml",
+      "upstreamSha256": "9a5b3990506f9032d4b8fc088668a45d380ae5eea612e43a39f3beb7f80f2cbe",
+      "installedSha256": "9a5b3990506f9032d4b8fc088668a45d380ae5eea612e43a39f3beb7f80f2cbe",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/evals/name-is-not-evidence/fixture/SPEC.md",
+      "sourcePath": "plugins/spec-to-code-compliance/evals/name-is-not-evidence/fixture/SPEC.md",
+      "upstreamSha256": "366bf7a2fd9acf477b98d4899c339b1a9aa576ce46bc97720036345f08189fde",
+      "installedSha256": "366bf7a2fd9acf477b98d4899c339b1a9aa576ce46bc97720036345f08189fde",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/evals/name-is-not-evidence/fixture/Vault.sol",
+      "sourcePath": "plugins/spec-to-code-compliance/evals/name-is-not-evidence/fixture/Vault.sol",
+      "upstreamSha256": "a2ab9662cd2b8e38ccb0d108e44526db1408a26a1687ebb304e21bc391004f30",
+      "installedSha256": "a2ab9662cd2b8e38ccb0d108e44526db1408a26a1687ebb304e21bc391004f30",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/evals/name-is-not-evidence/graders/senior-branch-unenforced.md",
+      "sourcePath": "plugins/spec-to-code-compliance/evals/name-is-not-evidence/graders/senior-branch-unenforced.md",
+      "upstreamSha256": "07603c77846f995fd10cb7fd94975320024b7bd924422055316e7d949bbe7b30",
+      "installedSha256": "07603c77846f995fd10cb7fd94975320024b7bd924422055316e7d949bbe7b30",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/evals/name-is-not-evidence/graders/verdict-per-requirement.md",
+      "sourcePath": "plugins/spec-to-code-compliance/evals/name-is-not-evidence/graders/verdict-per-requirement.md",
+      "upstreamSha256": "2363f8fe5905ef2246197c939d788be65f642bebf39646ad1204797089f73ec2",
+      "installedSha256": "2363f8fe5905ef2246197c939d788be65f642bebf39646ad1204797089f73ec2",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/evals/routes-not-inline/case.yaml",
+      "sourcePath": "plugins/spec-to-code-compliance/evals/routes-not-inline/case.yaml",
+      "upstreamSha256": "ec22c8cdd298bc4e7555366e241aa459d82b664887362d89bc365e240c261a51",
+      "installedSha256": "ec22c8cdd298bc4e7555366e241aa459d82b664887362d89bc365e240c261a51",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/evals/routes-not-inline/fixture/SPEC.md",
+      "sourcePath": "plugins/spec-to-code-compliance/evals/routes-not-inline/fixture/SPEC.md",
+      "upstreamSha256": "366bf7a2fd9acf477b98d4899c339b1a9aa576ce46bc97720036345f08189fde",
+      "installedSha256": "366bf7a2fd9acf477b98d4899c339b1a9aa576ce46bc97720036345f08189fde",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/evals/routes-not-inline/fixture/Vault.sol",
+      "sourcePath": "plugins/spec-to-code-compliance/evals/routes-not-inline/fixture/Vault.sol",
+      "upstreamSha256": "a2ab9662cd2b8e38ccb0d108e44526db1408a26a1687ebb304e21bc391004f30",
+      "installedSha256": "a2ab9662cd2b8e38ccb0d108e44526db1408a26a1687ebb304e21bc391004f30",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/evals/routes-not-inline/graders/dispatches-the-workflow.md",
+      "sourcePath": "plugins/spec-to-code-compliance/evals/routes-not-inline/graders/dispatches-the-workflow.md",
+      "upstreamSha256": "03c5f2cb1468acc9404d40a7c9ea6e65b4e95832ba59985a32887ad8e29c679b",
+      "installedSha256": "03c5f2cb1468acc9404d40a7c9ea6e65b4e95832ba59985a32887ad8e29c679b",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/evals/routes-not-inline/graders/invokes-the-skill.md",
+      "sourcePath": "plugins/spec-to-code-compliance/evals/routes-not-inline/graders/invokes-the-skill.md",
+      "upstreamSha256": "a226751594926c4fd96d166ab7a1d013459163ddf139848a6a304b575c0c1821",
+      "installedSha256": "a226751594926c4fd96d166ab7a1d013459163ddf139848a6a304b575c0c1821",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/skills/spec-to-code-compliance/SKILL.upstream.md",
+      "sourcePath": "plugins/spec-to-code-compliance/skills/spec-to-code-compliance/SKILL.md",
+      "upstreamSha256": "eb0d91b50a9c06f50baf8763d1e23566897b9fa3e7ffcf13134eee4e1ccaefe5",
+      "installedSha256": "eb0d91b50a9c06f50baf8763d1e23566897b9fa3e7ffcf13134eee4e1ccaefe5",
+      "mode": "100644",
+      "change": "Rename original skill entry to avoid duplicate discovery; contents unchanged."
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/skills/spec-to-code-compliance/agents/openai.yaml",
+      "sourcePath": "plugins/spec-to-code-compliance/skills/spec-to-code-compliance/agents/openai.yaml",
+      "upstreamSha256": "419472a4c1f12fc061081e3ea1cb2f525776d17d0dc05e7a3c4a26d6a98099f0",
+      "installedSha256": "419472a4c1f12fc061081e3ea1cb2f525776d17d0dc05e7a3c4a26d6a98099f0",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/skills/spec-to-code-compliance/assets/trail-of-bits-mark.svg",
+      "sourcePath": "plugins/spec-to-code-compliance/skills/spec-to-code-compliance/assets/trail-of-bits-mark.svg",
+      "upstreamSha256": "4bf74c789b38dcf6ad762c136b6832363d27ae19fbaa9a18ec18d66ecce6ca05",
+      "installedSha256": "4bf74c789b38dcf6ad762c136b6832363d27ae19fbaa9a18ec18d66ecce6ca05",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/skills/spec-to-code-compliance/resources/ANALYSIS_FORMAT.md",
+      "sourcePath": "plugins/spec-to-code-compliance/skills/spec-to-code-compliance/resources/ANALYSIS_FORMAT.md",
+      "upstreamSha256": "802674d5a0622fba7c32d1e480fd236f4bddcd2435841fcf48b17044d5d4d273",
+      "installedSha256": "802674d5a0622fba7c32d1e480fd236f4bddcd2435841fcf48b17044d5d4d273",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/skills/spec-to-code-compliance/resources/DIVERGENCE_RUBRIC.md",
+      "sourcePath": "plugins/spec-to-code-compliance/skills/spec-to-code-compliance/resources/DIVERGENCE_RUBRIC.md",
+      "upstreamSha256": "c7192803ae5c489501788ae5be56a5dd36b3f0b64f88982bf41f69a4245303f1",
+      "installedSha256": "c7192803ae5c489501788ae5be56a5dd36b3f0b64f88982bf41f69a4245303f1",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/skills/spec-to-code-compliance/resources/DOMAIN_NOTES.md",
+      "sourcePath": "plugins/spec-to-code-compliance/skills/spec-to-code-compliance/resources/DOMAIN_NOTES.md",
+      "upstreamSha256": "435459c75d21208ea73a6cda7dfc6910efc468a903f62e20f4837d5bd8b92c4a",
+      "installedSha256": "435459c75d21208ea73a6cda7dfc6910efc468a903f62e20f4837d5bd8b92c4a",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/skills/spec-to-code-compliance/resources/WORKED_EXAMPLE.md",
+      "sourcePath": "plugins/spec-to-code-compliance/skills/spec-to-code-compliance/resources/WORKED_EXAMPLE.md",
+      "upstreamSha256": "7b9ff43b20ba83e1ce934bc9161b14ce58617b65a9ae9c4583026dbf0299e927",
+      "installedSha256": "7b9ff43b20ba83e1ce934bc9161b14ce58617b65a9ae9c4583026dbf0299e927",
+      "mode": "100644"
+    },
+    {
+      "file": ".agents/skills/spec-to-code-compliance/upstream/workflows/spec-compliance.js",
+      "sourcePath": "plugins/spec-to-code-compliance/workflows/spec-compliance.js",
+      "upstreamSha256": "782c17752a1b8f9e83e65120d59b7588548aba0441943ce5388163226f6d5238",
+      "installedSha256": "782c17752a1b8f9e83e65120d59b7588548aba0441943ce5388163226f6d5238",
+      "mode": "100644"
+    }
+  ],
+  "verification": {
+    "upstreamBlobsMatched": 112,
+    "rustBundledTests": "87 passed; one external anyio deprecation warning",
+    "wrapperRelativeLinks": "all resolve",
+    "claudeSymlinks": "both resolve to shared skill directories",
+    "rustSourceInProject": "none found outside bundled upstream trees",
+    "executionLimits": "No actual Rust review, compliance audit, native workflow execution, or model-role end-to-end execution performed.",
+    "forwardTest": "Sequential portable smoke test: Rust preflight stops with no source; one future compliance requirement recorded absent without inventing current defect. No independent-agent or full-runtime audit."
+  }
+}
