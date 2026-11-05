@@ -1,6 +1,6 @@
 # Shared development skills
 
-This checkout contains 38 shared development skills for Codex and Claude Code. Files live in `.agents/skills`; matching relative links expose them to Claude Code. Two existing native Claude plugin settings remain unchanged.
+This checkout contains 39 shared development skills for Codex and Claude Code. Files live in `.agents/skills`; matching relative links expose them to Claude Code. Two existing native Claude plugin settings remain unchanged.
 
 `CLAUDE.md` imports the canonical coding-agent instructions. OQ-03 §3 and OQ-06 §6 keep these tools separate from the reviewed bundles supplied to deployed research agents.
 
@@ -34,6 +34,7 @@ The ML4T packages use the `ml4t-` prefix. Their Python examples provide research
 
 | Task | Skill | Owning specification |
 | --- | --- | --- |
+| Ordinary coding, tests, dependencies, configuration, and review | `pragmatic-developer` | OQ-06 §6 |
 | AgentExecutor, proposer/critic prompts, context, permissions, model evaluation | `openquant-ai-engineering`, `prompt-engineering-patterns`, `llm-evaluation` | OQ-03 §§1–6 |
 | Research/evaluation orchestration, schedules, outbox, claims, retries, cancellation | `openquant-workflow-design` | OQ-05 §§3–5; OQ-03 §5 |
 | Competing stock research, sources, cohorts, holdouts, forecast calibration | `openquant-research-evaluation` plus the four ML4T skills | OQ-01 §§2–3; OQ-02 §3; OQ-03 §§1–2 |
@@ -41,11 +42,13 @@ The ML4T packages use the `ml4t-` prefix. Their Python examples provide research
 | Complete vertical slices and requirement-to-test traceability | `openquant-vertical-slice`, `spec-to-code-compliance` | OQ-06 §8 |
 | Workflow exploitation and CI trust boundaries | `gha-security-review` plus the existing GitHub Actions skills | OQ-06 §2 |
 
+`pragmatic-developer` is the user-supplied existing simplified skill dated 2026-09-25, copied without changes. Its original Karpathy Guidelines attribution is preserved. It is a local skill, not a new upstream package. Its source filename and SHA-256 are recorded in `.claude/skill-sources.json`.
+
 The five `openquant-` skills are first-party development procedures derived from the canonical specifications. They do not implement product capabilities or change the roadmap. Watchlist contracts that are not yet specified must be defined in their owning specification before implementation.
 
 ## Open this checkout
 
-The 38 shared skills are present after checkout. Git must preserve symlinks. On Windows, enable Developer Mode or use a checkout with symlink support.
+The 39 shared skills are present after checkout. Git must preserve symlinks. On Windows, enable Developer Mode or use a checkout with symlink support.
 
 ```bash
 pnpm dlx skills@1.7.6 list --agent codex
