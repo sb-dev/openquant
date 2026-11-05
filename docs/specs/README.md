@@ -6,13 +6,13 @@ These seven documents define the target product. The repository is a specificati
 
 | Specification | Version | Status | Owns |
 | --- | --- | --- | --- |
-| [OQ-01 — Product Design](01-product-design-spec.md) | 1.0.0 | canonical | goals, scope, operating loop, human responsibilities |
-| [OQ-02 — Trading Domain and Evaluation](02-trading-domain-and-evaluation-spec.md) | 1.0.0 | canonical | strategy semantics, evaluation, lifecycle, portfolio, risk, A01–A18 |
-| [OQ-03 — Model-Backed Execution](03-model-backed-execution-spec.md) | 1.0.0 | canonical | proposer and critic behaviour, delegation, permissions, budgets, results |
-| [OQ-04 — Ink UX/UI](04-ink-ux-ui-spec.md) | 1.0.0 | canonical | screens, navigation, focus, input, states, confirmations, terminal behaviour |
-| [OQ-05 — System Architecture and Data](05-system-architecture-and-data-spec.md) | 1.0.0 | canonical | stack, hosting, source boundaries, persistence, protocols, authentication |
-| [OQ-06 — Engineering, Delivery and Operations](06-engineering-delivery-and-operations-spec.md) | 1.0.0 | canonical | verification, automation, releases, deployments, recovery, R01–R10 |
-| [OQ-07 — Open-Source Project Organisation](07-open-source-project-organisation-spec.md) | 1.0.0 | canonical | public surfaces, contribution, governance, licensing, publication |
+| [OQ-01 — Product Design](01-product-design-spec.md) | 1.1.0 | canonical | goals, scope, operating loop, human responsibilities |
+| [OQ-02 — Trading Domain and Evaluation](02-trading-domain-and-evaluation-spec.md) | 1.1.0 | canonical | strategy semantics, evaluation, lifecycle, portfolio, risk, A01–A18 |
+| [OQ-03 — Model-Backed Execution](03-model-backed-execution-spec.md) | 1.1.0 | canonical | proposer and critic behaviour, delegation, permissions, budgets, results |
+| [OQ-04 — Ink UX/UI](04-ink-ux-ui-spec.md) | 1.1.0 | canonical | screens, navigation, focus, input, states, confirmations, terminal behaviour |
+| [OQ-05 — System Architecture and Data](05-system-architecture-and-data-spec.md) | 1.1.0 | canonical | stack, hosting, source boundaries, persistence, protocols, authentication |
+| [OQ-06 — Engineering, Delivery and Operations](06-engineering-delivery-and-operations-spec.md) | 1.1.0 | canonical | verification, automation, releases, deployments, recovery, R01–R10 |
+| [OQ-07 — Open-Source Project Organisation](07-open-source-project-organisation-spec.md) | 1.1.0 | canonical | public surfaces, contribution, governance, licensing, publication |
 
 ## Authority
 
@@ -26,4 +26,4 @@ A01–A18 remain in the [trading domain](02-trading-domain-and-evaluation-spec.m
 
 ## Changes
 
-Update the owning document and its single metadata block. Regenerate this index with `pnpm generate:spec-index`. Run `pnpm verify`. A passing bootstrap check confirms repository integrity only; it does not accept C1–C4.
+Update the owning document and its single metadata block. Regenerate this index with `pnpm generate:spec-index`. Run `pnpm verify`. A passing bootstrap check confirms repository integrity only; it does not accept M1–M4 or the public CLI release.

@@ -1,9 +1,9 @@
 ---
 id: OQ-07
 title: OpenQuant — Open-Source Project Organisation
-version: 1.0.0
+version: 1.1.0
 status: canonical
-updated: 2026-10-19
+updated: 2026-11-05
 owns: public surfaces, contribution, governance, licensing, publication
 ---
 
@@ -44,7 +44,7 @@ Keep product behaviour in the owning specification. Academy, examples, blog post
 
 The README follows understand, see evidence, run, and explore. Keep it concise. Explain the research-to-capital loop, why evidence matters, the current implementation status, available commands, and next steps.
 
-Advertise only implemented quick-start commands. At C1, the first useful result is a deterministic `REPLAY` through the actual engine without broker, data-provider, model, or cloud credentials.
+Advertise only implemented quick-start commands. M1 first delivers privately operated watchlist research. Public CLI release requires a deterministic installed `REPLAY` through the actual engine without broker, data-provider, model, or cloud credentials.
 
 The website adds a product overview, terminal demonstration, evidence model, strategy format, critic workflow, evaluation results, portfolio/risk boundaries, examples, and contribution routes. Do not lead with hypothetical returns or use “production-ready” without operating evidence.
 
@@ -132,7 +132,7 @@ Use the project's own fixture and operating history for a continuing case study 
 
 Begin with a catalogue, not a marketplace. Record name, category, description, author, version, repository, compatibility, capabilities, configuration, licence, and status: `OFFICIAL`, `COMMUNITY`, `EXPERIMENTAL`, or `DEPRECATED`.
 
-Data adapters document instruments, frequencies, historical/live support, point-in-time properties, corporate actions, limits, costs, and redistribution terms.
+Data adapters document instruments, frequencies, historical/live support, point-in-time properties, corporate actions, limits, costs, and redistribution terms. Filing and web adapters also record source attribution, document version, amendments, extraction scope and permitted retention. An API subscription or search result does not by itself grant redistribution rights. The [provider reference](../reference/service-providers.md) labels documented capabilities separately from live verification. Provider comparison reports disclose feed/session/adjustment differences and retain adverse results.
 
 Broker adapters document sandbox/live support, asset classes, order types, authentication, idempotency limits, reconciliation, cancellation semantics, known limitations, and compatible OpenQuant versions. Live integrations require the domain and operational evidence before publication as supported.
 
@@ -160,11 +160,11 @@ Release notes separate product, quant engine, strategy schema, evaluation, risk,
 
 ## 12. Progressive publication and acceptance
 
-At bootstrap, publish the design and truthful status. At C1, add the runnable replay, first example pack, correctness/cost benchmarks, and introductory learning material. C2 adds research/critique and rejection examples. C3 adds prospective paper, portfolio, and shadow material. C4 adds broker, emergency, recovery, and governed live guides.
+At bootstrap, publish the design and truthful status. M1 adds bounded watchlist research, source comparison, critique and rejection guides when verified. M2 adds prospective paper material; M3 adds portfolio and shadow material; M4 adds broker, emergency and recovery guides. Public CLI release separately adds the installed replay, reusable example pack, correctness/cost benchmarks and introductory learning material.
 
 Each usable capability ships the smallest set of material needed to discover, understand, run, verify, and extend it. Do not build a CMS, learning-management system, strategy marketplace, or private benchmark portal as prerequisites.
 
-Acceptance requires a clear canonical source; a credential-free first evaluation when C1 ships; reproducible claims; versioned strategy/data assumptions; failed examples; separate Docs and Academy roles; reusable packs; regression benchmarks; explicit modes; protected private data; reviewed live integrations; and one website that reuses repository knowledge.
+Acceptance requires a clear canonical source; a credential-free installed evaluation before public CLI release; reproducible claims; versioned strategy/data assumptions; failed examples; separate Docs and Academy roles; reusable packs; regression benchmarks; explicit modes; protected private data; reviewed live integrations; and one website that reuses repository knowledge.
 
 ## 13. Source migration
 

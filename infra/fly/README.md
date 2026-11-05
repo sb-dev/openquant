@@ -4,10 +4,10 @@ Create profiles with working images and verification:
 
 | File | Checkpoint | Required boundary |
 | --- | --- | --- |
-| `agent-runner.toml` | C2 | Separate app; isolated delegated CLI; no broker, repository-write, or deployment authority. |
-| `engine-batch.toml` | C2 | Separate app; bounded native compute; HTTP-pull queue; attempt-scoped outcomes. |
-| `engine-paper.toml` | C3 | Persistent live-data paper/shadow sessions; no broker trading credentials. |
-| `engine-live.toml` | C4 | Isolated live app; one account writer; separately protected deploy and secrets. |
+| `agent-runner.toml` | M1 | Separate app; isolated delegated CLI; no broker, repository-write, or deployment authority. |
+| `engine-batch.toml` | M1 | Separate app; bounded native compute; HTTP-pull queue; attempt-scoped outcomes. |
+| `engine-paper.toml` | M2/M3 | Persistent live-data paper/shadow sessions; no broker trading credentials. |
+| `engine-live.toml` | M4 | Isolated live app; one account writer; separately protected deploy and secrets. |
 
 These files are not supplied as dummy configurations. Pin tested images and select a region from actual data/broker/database needs.
 

@@ -1,6 +1,6 @@
 # Shared development skills
 
-This checkout contains 39 shared development skills for Codex and Claude Code. Files live in `.agents/skills`; matching relative links expose them to Claude Code. Two existing native Claude plugin settings remain unchanged.
+This checkout contains 45 shared development skills for Codex and Claude Code. Files live in `.agents/skills`; matching relative links expose them to Claude Code. Two existing native Claude plugin settings remain unchanged.
 
 `CLAUDE.md` imports the canonical coding-agent instructions. OQ-03 §3 and OQ-06 §6 keep these tools separate from the reviewed bundles supplied to deployed research agents.
 
@@ -17,7 +17,7 @@ This checkout contains 39 shared development skills for Codex and Claude Code. F
 | `terraform-style-guide`, `terraform-test` | [hashicorp/agent-skills](https://github.com/hashicorp/agent-skills/tree/5e30fa5c867ba6777c37e4206babfd08049c396f) |
 | `hono` | [honojs/skills](https://github.com/honojs/skills/tree/e54ce51f6effaeb574ebd2629e89e086e14a2db3) |
 | `node`, `typescript-magician` | [mcollina/skills](https://github.com/mcollina/skills/tree/c75d70dbfbe991d8cec42aeda0b64ff14fbb9ac7) |
-| `ml4t-lookahead-bias`, `ml4t-point-in-time`, `ml4t-survivorship-bias`, `ml4t-transaction-costs` | [ml4t/skills](https://github.com/ml4t/skills/tree/691857537a0c8befc11dc2f2ad7a458b7c7e801c) |
+| `ml4t-lookahead-bias`, `ml4t-point-in-time`, `ml4t-survivorship-bias`, `ml4t-transaction-costs`, `ml4t-fetch-data`, `ml4t-validate-data`, `ml4t-calendar-ops`, `ml4t-define-universe`, `ml4t-agent-tool-contracts` | [ml4t/skills](https://github.com/ml4t/skills/tree/691857537a0c8befc11dc2f2ad7a458b7c7e801c) |
 | `rust-best-practices` | [morganlinton/BeautifulRust](https://github.com/morganlinton/BeautifulRust/tree/edd3e86087eda07983251056508fe3b8856d85d7) |
 | `neon-postgres` | [neondatabase/agent-skills](https://github.com/neondatabase/agent-skills/tree/ae9babbf804e90bf42e9444ebbc9278dfcb105eb) |
 | `fly` | [superfly/skills](https://github.com/superfly/skills/tree/ba182c9ba6ffa5b107d5f7c77e0a2c37eeef89d3) |
@@ -28,7 +28,7 @@ This checkout contains 39 shared development skills for Codex and Claude Code. F
 
 Standalone files live in `.agents/skills` for Codex discovery. Each `.claude/skills/<name>` is a relative symlink to `../../.agents/skills/<name>`. Both agents read the same files. `skills-lock.json` records upstream content hashes. `.claude/skill-sources.json` records source commits, installer versions, plugin versions, and local adaptations. `.claude/portable-skill-sources.json` records every file and hash in the two portable review bundles. First-party skills and portable entries are maintained here; they are not upstream Skills CLI installs.
 
-The ML4T packages use the `ml4t-` prefix. Their Python examples provide research guidance. Apply OpenQuant's canonical Rust and TypeScript architecture when implementing it.
+The ML4T packages use the `ml4t-` prefix. The five retrieval/tool additions are documented local adaptations with upstream and installed hashes. They use OpenQuant contracts and correct blanket calendar, stale-data, price-adjustment and delisting assumptions. Original licence/NOTICE files remain unchanged. The installer lock records upstream content; `.claude/skill-sources.json` records adapted file identity. Existing upstream Python examples are guidance, not required dependencies. OpenQuant owns timing, numerical semantics and validation policy; do not import fixed lag or financial assumptions from teaching examples.
 
 ## Task coverage
 
@@ -38,17 +38,18 @@ The ML4T packages use the `ml4t-` prefix. Their Python examples provide research
 | AgentExecutor, proposer/critic prompts, context, permissions, model evaluation | `openquant-ai-engineering`, `prompt-engineering-patterns`, `llm-evaluation` | OQ-03 §§1–6 |
 | Research/evaluation orchestration, schedules, outbox, claims, retries, cancellation | `openquant-workflow-design` | OQ-05 §§3–5; OQ-03 §5 |
 | Competing stock research, sources, cohorts, holdouts, forecast calibration | `openquant-research-evaluation` plus the four ML4T skills | OQ-01 §§2–3; OQ-02 §3; OQ-03 §§1–2 |
+| Provider interfaces, retrieval, source comparisons and evidence timing | `openquant-service-integrations` plus five adapted retrieval/tool skills | OQ-02 §1.1; OQ-05 §7.1 |
 | Financial fixtures, units, accounting, risk, numerical regressions | `openquant-financial-invariants`, `property-based-testing`, `rust-review` | OQ-02 §§2–3, 6–9 |
 | Complete vertical slices and requirement-to-test traceability | `openquant-vertical-slice`, `spec-to-code-compliance` | OQ-06 §8 |
 | Workflow exploitation and CI trust boundaries | `gha-security-review` plus the existing GitHub Actions skills | OQ-06 §2 |
 
 `pragmatic-developer` is the user-supplied existing simplified skill dated 2026-09-25, copied without changes. Its original Karpathy Guidelines attribution is preserved. It is a local skill, not a new upstream package. Its source filename and SHA-256 are recorded in `.claude/skill-sources.json`.
 
-The five `openquant-` skills are first-party development procedures derived from the canonical specifications. They do not implement product capabilities or change the roadmap. Watchlist contracts that are not yet specified must be defined in their owning specification before implementation.
+The six `openquant-` skills are first-party development procedures derived from the canonical specifications. They do not implement product capabilities or change the roadmap. Watchlist contracts that are not yet specified must be defined in their owning specification before implementation.
 
 ## Open this checkout
 
-The 39 shared skills are present after checkout. Git must preserve symlinks. On Windows, enable Developer Mode or use a checkout with symlink support.
+The 45 shared skills are present after checkout. Git must preserve symlinks. On Windows, enable Developer Mode or use a checkout with symlink support.
 
 ```bash
 pnpm dlx skills@1.7.6 list --agent codex
@@ -84,7 +85,7 @@ Upstream licences and notices are preserved under `.claude/third-party`. Ink dec
 
 ## Verification scope and upstream limits
 
-`pnpm verify` checks the declared shared inventory, matching aliases, installer records, portable support files and hashes, repository integrity, and mutation tests. The inventory includes the first-party and portable skills that are intentionally absent from the upstream installer lockfile. A plugin setting alone cannot satisfy a declared shared skill.
+`pnpm verify` checks the declared shared inventory, matching aliases, installer records, adapted-file hashes, portable support files and hashes, repository integrity, and mutation tests. The inventory includes the first-party and portable skills that are intentionally absent from the upstream installer lockfile. A plugin setting alone cannot satisfy a declared shared skill.
 
 The portable Rust bundle includes upstream helper tests. These test the helpers, not OpenQuant's future Rust engine. There is currently no product Rust source to audit. A limited compliance exercise can classify planned runtime requirements as absent without claiming a bootstrap defect or whole-project compliance.
 
@@ -94,4 +95,6 @@ The Sentry GHA skill has a narrower external-attacker threat model than OpenQuan
 
 Vendored Markdown retains upstream links. `otel-instrumentation` still contains links to unselected `otel-collector` and `otel-ottl` skills and two invalid anchors noted in the original installation. Consult the pinned source for those references.
 
-Installation, static checks, helper tests, and bounded skill exercises do not establish production model behaviour, deployment readiness, or C1–C4 acceptance. See the [addition record](../docs/research-logs/2026-11-04-development-skill-completion.md) for checks and limits.
+Installation, static checks, helper tests, and bounded skill exercises do not establish production model behaviour, deployment readiness, or M1–M4 acceptance. See the [addition record](../docs/research-logs/2026-11-04-development-skill-completion.md) for checks and limits.
+
+The [watchlist/provider update](../docs/research-logs/2026-11-05-watchlist-provider-plan.md) records the six additions, adaptations and verification limits.

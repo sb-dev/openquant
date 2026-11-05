@@ -1,6 +1,6 @@
 # Fly.io delegated execution host
 
-Status: planned; no implementation. First checkpoint: C2.
+Status: planned; no implementation. First checkpoint: M1.
 
 Run the reviewed external CLI in isolated sessions. Return structured outcomes; never write canonical research results or obtain broker credentials.
 

@@ -1,9 +1,9 @@
 ---
 id: OQ-05
 title: OpenQuant — System Architecture and Data
-version: 1.0.0
+version: 1.1.0
 status: canonical
-updated: 2026-10-19
+updated: 2026-11-05
 owns: stack, hosting, source boundaries, persistence, protocols, authentication
 ---
 
@@ -66,6 +66,12 @@ Mandate approval, rejection, acknowledgements, and policy changes are ordinary v
 
 Cloudflare schedules trigger product work and recovery. Market calendars and stored schedule slots determine whether work is due. A repeated trigger cannot create another run for the same logical slot. Persistent paper/live feeds run on Fly.io, not in GitHub Actions or one Workflow step per tick.
 
+### 3.1 Watchlist cycle dispatch
+
+Use a stable schedule ID plus logical calendar slot as the uniqueness key. Atomically freeze profile/watchlist versions and reserve the cycle budget before dispatch. Editing a profile does not permit a second automatic cycle for the same slot. An explicit rerun has its own identity, reason and budget and remains linked to the original slot.
+
+Store timezone, calendar version, session, data-ready deadline, freshness threshold, overlap policy and catch-up limit. The initial policy runs one active cycle per schedule, defers within the freshness deadline, records missed/expired slots, and dispatches only the latest eligible missed slot on recovery. Do not create unbounded historical backlogs. Pause prevents new cycles from starting but lets already active cycles dispatch their remaining bounded work and finish; cancellation explicitly targets active work. Resume applies the same catch-up policy. Missing/stale data and insufficient budget produce visible coverage reasons without inventing run-status enum values.
+
 ## 4. Dispatch, ownership, and completion
 
 Create the run, budget reservation, and dispatch-outbox entry in one database transaction. Retain one batch queue for quantitative jobs. Queue messages contain input references, not whole datasets. Do not put live orders, halts, or raw market ticks on this queue.
@@ -119,6 +125,34 @@ Prices, quantities, and money use explicit decimal strings. The Rust core owns c
 Hono route inference can supplement TypeScript typing. It does not replace runtime validation or define Rust's contract.
 
 Evaluation input identity binds strategy, engine, data, cost model, policy, suite, and seed. Result identity also binds the logical run, current attempt, ownership revision, and actual executable digest. Verify these before accepting an artefact.
+
+### 7.1 Pluggable data and research providers
+
+Use three capability-specific interfaces. Register adapters in code and select them through a versioned research profile. Adding an adapter must not require provider branches in research workflows. This is data-source selection; the delegated model executor remains governed by OQ-03 and is not a new model router.
+
+| Interface | Initial adapters | Host and operations |
+| --- | --- | --- |
+| `MarketDataProvider` | `alpaca`, `massive` | Rust adapters in `apps/engine`; instrument mapping, historical bars and declared corporate-action/calendar capabilities. |
+| `CompanyFilingsProvider` | `sec-edgar` | TypeScript adapters in `apps/api`; filing discovery, document retrieval and filing-linked financial facts. |
+| `WebResearchProvider` | `tavily` | TypeScript adapters in `apps/api`; search and bounded content extraction. |
+
+Keep provider SDKs, authentication, endpoint conventions and pagination inside adapters. `packages/quant-core` consumes validated inputs and never calls providers. Language-neutral request/result schemas remain in `packages/api-contracts`; internal interfaces live beside their hosts. No new shared package, plugin loader, service or workflow class is required.
+
+| Contract | Required behaviour |
+| --- | --- |
+| Capabilities | Declare operations, markets, history, feed coverage, frequencies, sessions, adjustments, time precision and revision/as-of limitations. Check account entitlements before dispatch; reject unsupported semantics explicitly. |
+| Request | Bind logical request/attempt, profile revision, stable instrument mapping, range/cutoff, operation, semantic settings, limits and cancellation/deadline. Provider defaults must not choose financial semantics. |
+| Result | Return normalized typed data plus manifest/source references, requested/returned coverage, completeness, source IDs, adapter/transformation identity, usage and timestamps. Distinguish no observations, partial retrieval and failure. |
+| Errors | Separate authentication, permission/entitlement, rate limit, timeout, unavailable data, unsupported capability, malformed response and cancellation. Retry only classified transient failures within the same bounded policy; preserve every billed attempt. |
+| Persistence | Freeze validated snapshots before evaluation. Retain permitted original payloads and transformation identity. Cache keys include provider/feed, all semantic inputs, cutoff and revision; never share across incompatible profiles. |
+
+Market retrieval executes as a bounded job in the existing batch host. The API sends a guarded retrieval request through the existing batch dispatch path, receives the validated manifest and records it before evaluation. A retrieval job does not become an official numerical result. Market credentials reside only in the owning host and are absent from model subprocesses. SEC/Tavily calls remain bounded API-owned I/O, with permitted large artefacts stored in R2. The research workflow assembles approved evidence references before agent dispatch.
+
+Enforce request/credit and aggregate budgets outside adapters. Apply provider/account rate limits across concurrent jobs, bounded pagination, request timeouts and cancellation. Preserve `Retry-After` when present. Do not retry authentication or unsupported-capability errors as transient failures. Unknown billed usage stays reserved. Redact keys, raw credentials and sensitive query content from telemetry.
+
+SEC access follows its declared-client and fair-access requirements. Web extraction accepts only permitted public HTTP(S) targets; validate redirects and reject internal/private addresses. Treat retrieved instructions as untrusted data. Generated answers and snippets never replace original evidence.
+
+Switch providers only for future cycles or explicit new comparisons. Initial automatic fallback is disabled. For comparison, issue separate requests with aligned feed/session/adjustment semantics, preserve both results and report differences. Never splice the responses into a single unlabelled dataset. [Provider reference](../reference/service-providers.md) and [comparison guide](../guides/provider-comparison.md) track integration details and verification limits.
 
 ## 8. Client runtime and notifications
 

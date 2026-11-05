@@ -1,9 +1,9 @@
 ---
 id: OQ-04
 title: OpenQuant — Ink UX/UI
-version: 1.0.0
+version: 1.1.0
 status: canonical
-updated: 2026-10-19
+updated: 2026-11-05
 owns: screens, navigation, focus, input, states, confirmations, terminal behaviour
 ---
 
@@ -71,6 +71,14 @@ Review resource use before starting a costly operation. Show exhaustion as a pau
 Show proposer and critic work as structured outcomes. Include role, task, result, version, usage, and evidence links. Do not require hidden model reasoning to explain an operational decision.
 
 Agent detail shows scope, tool permissions, execution profile, actual model when reported, behaviour version, resolved forecast sample count, calibration, and failures. Unknown provenance is labelled unknown. Do not rank unrelated roles on one reputation score.
+
+### 4.1 Research configuration and source inspection
+
+Within Foundry, create/edit a watchlist and research profile. Show stable stock identity, selected provider/feed, supported capabilities, required history, schedule timezone, freshness policy, next due slot and both per-mission and period-wide budgets. Saving creates a version for future cycles. Display the version used by each active and historical cycle.
+
+Provide explicit run-now, pause-future-dispatch, cancel-active-work and resume actions through the same guarded command path. Pause preserves active work; cancellation is separate. Show last cycle, every stock's coverage/outcome, missing evidence, data freshness, budget reservations/usage and reasons work cannot start. Never imply a successful connection check verifies all account entitlements.
+
+The comparison view reports Alpaca/Massive manifests, aligned request semantics, coverage, differences, latency and usage. Separate provider comparisons from strategy rankings. Evidence details link SEC filings and web sources with timestamps, revisions, citation locations and unknowns. Reconnection fetches authoritative state. These small views ship with M1; full workspaces grow with later capabilities.
 
 ## 5. Arena
 

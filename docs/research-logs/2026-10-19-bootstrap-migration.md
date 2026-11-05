@@ -34,7 +34,7 @@ Kakeibo's layout review at `75443233c474a2a4072348078c22d72d15573645` is reporte
 
 This is the repository bootstrap, not C1 implementation. It creates directory ownership guides and working repository automation. Executable application packages, dependency workspaces, Cargo, runtime schemas, deployment profiles, and release workflows arrive with verified capabilities.
 
-The root Node/pnpm tooling supports bootstrap verification only. No empty service manifest, no-op application command, or fake passing engine test is included. The next implementation contract is [C1](../guides/c1-reproducible-core.md).
+The root Node/pnpm tooling supports bootstrap verification only. No empty service manifest, no-op application command, or fake passing engine test is included. The next implementation contract is [C1](https://github.com/sb-dev/openquant/blob/75d26f6e75dbd06e64c12fce0192ae6a681cfd80/docs/guides/c1-reproducible-core.md).
 
 ## Provenance
 
