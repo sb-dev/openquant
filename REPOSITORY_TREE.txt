@@ -543,6 +543,7 @@ docs/research-logs/2026-10-19-bootstrap-migration.md
 docs/research-logs/2026-10-19-bootstrap-verification.md
 docs/research-logs/2026-11-04-development-skill-completion.md
 docs/research-logs/2026-11-05-watchlist-provider-plan.md
+docs/research-logs/2026-11-07-strategy-research-and-evaluation.md
 docs/research-logs/README.md
 docs/research-logs/imported/2026-09-14-pactwright-model-backed-execution.md
 docs/research-logs/imported/README.md
