@@ -78,6 +78,30 @@
       "skillPath": "plugins/llm-application-dev/skills/llm-evaluation/SKILL.md",
       "computedHash": "af89a6013eacc5db7afe102b4a2af95ad8dcad4721e35700cba24b1ebd35c94f"
     },
+    "ml4t-agent-tool-contracts": {
+      "source": "ml4t/skills",
+      "sourceType": "github",
+      "skillPath": "advanced-ai/agent-tool-contracts/SKILL.md",
+      "computedHash": "ae2cfec3f0f3f561daff4df003728aee7b7dd8af330aa1cbbb63e9f29a597114"
+    },
+    "ml4t-calendar-ops": {
+      "source": "ml4t/skills",
+      "sourceType": "github",
+      "skillPath": "data/calendar-ops/SKILL.md",
+      "computedHash": "398253e758d734e46a81dbc8b41a33016147f64981a24e201e4ea1e031ce6a92"
+    },
+    "ml4t-define-universe": {
+      "source": "ml4t/skills",
+      "sourceType": "github",
+      "skillPath": "data/define-universe/SKILL.md",
+      "computedHash": "0de5ae2d25094c6cf5b11b579dd7a387795e67d385e6e0c133c6e75b92e9e792"
+    },
+    "ml4t-fetch-data": {
+      "source": "ml4t/skills",
+      "sourceType": "github",
+      "skillPath": "data/fetch-data/SKILL.md",
+      "computedHash": "61d8ce5fa0269b5c73487d95233f97838bb30bb22948d48821fcc114adbc2e08"
+    },
     "ml4t-lookahead-bias": {
       "source": "ml4t/skills",
       "sourceType": "github",
@@ -105,6 +129,12 @@
       "skillPath": "concepts/transaction-costs/SKILL.md",
       "computedHash": "769a1a0d734f5e05d2ea9836a761dc9dcc2f5b2b433a0878b8d70f85a285fb2a",
       "installMode": "symlink"
+    },
+    "ml4t-validate-data": {
+      "source": "ml4t/skills",
+      "sourceType": "github",
+      "skillPath": "data/validate-data/SKILL.md",
+      "computedHash": "30a5d59e8ed06892c2a054dd4d3d9cb879e80ce0f60c642ec6683a69d2c47ca8"
     },
     "neon-postgres": {
       "source": "neondatabase/agent-skills",

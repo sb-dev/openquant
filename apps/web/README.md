@@ -1,6 +1,6 @@
 # Public static website
 
-Status: planned; no implementation. First checkpoint: C1 onward.
+Status: planned; no implementation. First milestone: public release onward.
 
 Use Astro and Cloudflare static hosting. Present repository material and approved exports without private fund credentials or private event streams.
 

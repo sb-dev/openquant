@@ -1,9 +1,9 @@
 ---
 id: OQ-06
 title: OpenQuant — Engineering, Delivery and Operations
-version: 1.0.0
+version: 1.1.0
 status: canonical
-updated: 2026-10-19
+updated: 2026-11-05
 owns: verification, automation, releases, deployments, recovery, R01–R10
 ---
 
@@ -14,7 +14,7 @@ See the [specification index](README.md) for ownership and the current bootstrap
 
 ## 1. Bootstrap and command scope
 
-The bootstrap contains canonical specifications, directory ownership guides, root policies, GitHub templates, and working repository checks. It contains no application, Rust engine, executor, or deployment implementation. C1 is not complete.
+The bootstrap contains canonical specifications, directory ownership guides, root policies, GitHub templates, and working repository checks. It contains no application, Rust engine, executor, or deployment implementation. M1 is not complete.
 
 Implemented commands:
 
@@ -24,7 +24,7 @@ Implemented commands:
 | `pnpm generate:spec-index` | Generate the ownership/version index from the seven front-matter blocks. |
 | `pnpm generate:tree` | Generate the file map from the Git index, or files in an extracted archive. |
 
-Node can run the TypeScript tooling directly. No dependency install is needed for the bootstrap checks. Native type stripping is execution, not TypeScript type checking. C1 must add strict type checks and the TypeScript/Rust build toolchain.
+Node can run the TypeScript tooling directly. No dependency install is needed for the bootstrap checks. Native type stripping is execution, not TypeScript type checking. M1 must add strict type checks and the TypeScript/Rust build toolchain.
 
 The root command must grow with the implemented checkpoint. A passing bootstrap check does not satisfy application acceptance. Do not add placeholder commands that print success for absent implementation.
 
@@ -41,7 +41,7 @@ Keep YAML thin. Checked-in TypeScript scripts implement reusable repository chec
 | `infrastructure.yml` | PR validation; trusted reviewed plan/apply | Cloudflare Terraform, declared queue-consumer setup, Fly app provisioning/configuration checks, and resource read-back | environment-scoped infrastructure credentials |
 | `release.yml` | protected release tag or approved dispatch | build and verify CLI/engine artefacts, publish provenance and release notes, install published candidate | publishing credentials only |
 | `model-evaluation.yml` | explicit dispatch on reviewed revision | real proposer/critic compatibility and regression evaluation with fixed budgets | test model access only |
-| `deploy-live.yml` | explicit dispatch, introduced at C4 | isolated Fly live-image rollout; old-writer shutdown, reconciliation, and authority read-back before any resumption | separately protected live deployment access |
+| `deploy-live.yml` | explicit dispatch, introduced at M4 | isolated Fly live-image rollout; old-writer shutdown, reconciliation, and authority read-back before any resumption | separately protected live deployment access |
 
 The bootstrap configures Dependabot for Actions. Add grouped npm and Cargo updates when their dependency manifests exist. No automatic major upgrade or baseline rewrite. Link checking and benchmark regression checks can remain jobs in existing workflows rather than new automation services.
 
@@ -140,7 +140,7 @@ Fly documents app lifecycle controls and ephemeral/local storage behaviour. Thes
 
 ### Additional live gate
 
-C4 requires the selected broker, instrument set, market-data rights, account permissions, capital policy, network requirements, and operational ownership. These are not supplied by the reference repository.
+M4 requires the selected broker, instrument set, market-data rights, account permissions, capital policy, network requirements, and operational ownership. These are not supplied by the reference repository.
 
 Before enabling real money, test durable order intent before submission, account writer fencing, unknown submissions, duplicate and late fills, partial cancellation, control-plane failure, database failure, restart reconciliation, and a broker emergency path independent of the normal API.
 
@@ -202,12 +202,19 @@ Test selected Linux and macOS release targets. The installed CLI must find the m
 
 Build working vertical slices rather than a large empty tree.
 
-| Checkpoint | Repository outcome | Design v2 evidence |
+| Milestone | Repository outcome | Required evidence |
 |---|---|---|
-| C1 — Reproducible core | Root workspaces and CI; real Rust fixture evaluation; Ink inspection; clean installed demo; source/spec checks | A03–A05, A15–A16 |
-| C2 — Competing research | Hono/Neon/R2; two Workflows; delegated proposer/critic runner; official evaluation dispatch and recovery | A01–A06, A11 |
-| C3 — Persistent paper fund | Live-data adapter, independent paper competitors, shadow portfolio path, notifications, restart and stale-state controls | A07–A10, A13, A15 |
-| C4 — Governed live | Separate Fly live app, credentials, and deployment; approved micro mandate; broker reconciliation and emergency recovery | all applicable checks, including A09–A14 and A18 |
+| M1 — Automated watchlist research | S1–S5: one complete competition, selectable/comparable market data, filing/web evidence, saved watchlist and unattended learning/recovery | A01–A06, A11, applicable A15; R01–R03, R05–R06, R08 and applicable R07/R09/R10 boundaries |
+| M2 — Prospective paper competition | Live observations, independent paper ledgers and recoverable sessions | A07, applicable A13/A15 |
+| M3 — Portfolio and shadow validation | Portfolio fit, separate shadow evidence and execution-path checks without orders | A08–A10, applicable A13/A15 |
+| M4 — Governed live | Isolated account writer, bounded mandate, broker reconciliation and emergency recovery | All applicable checks, including A09–A14/A18 and R07–R10 |
+| Public CLI release | Clean installed credential-free replay through shared Rust, terminal inspection and release verification | A03–A05, A15–A16, R04 and applicable release checks |
+
+[The roadmap](../product/roadmap.md) defines incremental outcomes and dependencies. M1 incorporates the former C1 numerical foundation and C2 research path. M2/M3 split former C3; M4 preserves former C4. The installed-demo gate remains mandatory before public CLI release and can follow private M1. No acceptance ID is removed or relabelled as passed.
+
+For M1, ordinary CI adds shared adapter contracts, permitted/synthetic response fixtures, schema validation, instrument mapping, split/dividend/units handling, calendar/DST and early-close cases, amendments and cutoff exclusion, pagination, partial/no-data distinctions, typed errors, bounded retry/cancellation and redaction. Validate malicious source text cannot change tools. Provider comparison uses predeclared tolerances and separately labelled datasets; never rewrite golden values to match a vendor.
+
+Opt-in live probes verify all four initial adapters with actual entitlements, bounded spend, declared source terms and recorded running identities. Exercise the real delegated executor separately using the production bundle. S5 requires successive scheduled cycles without a TUI/GHA runner, duplicate-slot/overlap handling, missed-slot recovery, pause/cancel/resume, worker death, lost acknowledgement, source outages, shared rate limits and period-wide budget exhaustion. Preserve unresolved usage and partial evidence. Mocked responses cannot establish these outcomes.
 
 Public evidence/export checks A17 apply whenever a result is published. Engine compatibility A18 applies whenever a release changes evaluated semantics, including before live trading.
 

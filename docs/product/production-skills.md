@@ -1,6 +1,6 @@
 # Production Skills selection and integration
 
-Status: proposed Production Skills family support. No family or Extension Pack is selected or verified for OpenQuant by this document. The separate [installed development skills](../../.claude/README.md) include upstream tools and five OpenQuant-specific procedures; these do not constitute adoption of a Production Skills family.
+Status: proposed Production Skills family support. No family or Extension Pack is selected or verified for OpenQuant by this document. The separate [installed development skills](../../.claude/README.md) include upstream tools and six OpenQuant-specific procedures; these do not constitute adoption of a Production Skills family.
 
 OpenQuant owns this plan, its requirements, and its integration evidence. The Production Skills [composition contract](https://github.com/sb-dev/production-skills/blob/ae4c0f1bd63107f9dc33e192bbf2a02a9cab75cf/docs/specs/04-cross-domain-orchestration-and-integration.md) keeps consuming-project state outside the central family repository. Production Skills remain independent of Pactwright.
 
@@ -10,7 +10,7 @@ The registry statuses below were reviewed on 26 October 2026 at Production Skill
 
 | Candidate and recorded status | Proposed OpenQuant contribution | Evidence required for adoption |
 | --- | --- | --- |
-| [Software Engineering — proposed](https://github.com/sb-dev/production-skills/blob/ae4c0f1bd63107f9dc33e192bbf2a02a9cab75cf/registry/projects/software-engineering-skills.json) | C1–C4 contracts, shared-core implementation, deployment isolation, and recovery. | A bounded implementation task that preserves the owning specification and passes the relevant OpenQuant tests. |
+| [Software Engineering — proposed](https://github.com/sb-dev/production-skills/blob/ae4c0f1bd63107f9dc33e192bbf2a02a9cab75cf/registry/projects/software-engineering-skills.json) | M1–M4 contracts, shared-core implementation, deployment isolation, and recovery. | A bounded implementation task that preserves the owning specification and passes the relevant OpenQuant tests. |
 | [Deep Research — proposed](https://github.com/sb-dev/production-skills/blob/ae4c0f1bd63107f9dc33e192bbf2a02a9cab75cf/registry/projects/deep-research-skills.json) | Source verification and evidence synthesis for data, methods, and integration choices. | Traceable sources, uncertainty, access limits, and a usable handoff. Research does not certify strategy performance or release restricted holdout data. |
 | [UI/UX — scaffolded](https://github.com/sb-dev/production-skills/blob/ae4c0f1bd63107f9dc33e192bbf2a02a9cab75cf/registry/projects/ui-ux-design-skills.json) | Ink focus, navigation, accessibility, confirmations, and stale/unknown states. | Interaction evidence against [the terminal UX specification](../specs/04-ink-ux-ui-spec.md) and A15; visual polish alone is insufficient. |
 | [QA/Evaluation — proposed](https://github.com/sb-dev/production-skills/blob/ae4c0f1bd63107f9dc33e192bbf2a02a9cab75cf/registry/projects/qa-evaluation-skills.json) | Independent fixtures, failure scenarios, and regression coverage. | Relevant domain coverage and reproducible failures. Financial correctness remains owned by OpenQuant's domain specification and tests. |

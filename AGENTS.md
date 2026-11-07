@@ -4,7 +4,7 @@ Read [docs/specs/README.md](docs/specs/README.md) and the owning specification b
 
 ## Scope and boundaries
 
-- The current repository is a bootstrap. Do not claim C1–C4 are implemented.
+- The current repository is a bootstrap. Do not claim M1–M4 are implemented.
 - Keep the Kakeibo-style roots. Add executable packages only with working code and verification.
 - Ink owns rendering/input and local presentation state. Hono is its only remote boundary.
 - Cloudflare coordinates product work. Fly.io runs native compute and delegated execution.
@@ -17,7 +17,7 @@ Read [docs/specs/README.md](docs/specs/README.md) and the owning specification b
 
 ## Development skills
 
-Shared development skills live in `.agents/skills`. Claude Code uses relative links from `.claude/skills`. Update the shared source and preserve this layout. These skills follow the canonical specifications and apply to repository development. Use `openquant-ai-engineering` for delegated AI changes, `openquant-workflow-design` for durable orchestration, `openquant-research-evaluation` for evidence comparisons, `openquant-financial-invariants` for numerical changes, and `openquant-vertical-slice` for delivery. Read `.claude/README.md` for the complete task map and portable review limits.
+Shared development skills live in `.agents/skills`. Claude Code uses relative links from `.claude/skills`. Update the shared source and preserve this layout. These skills follow the canonical specifications and apply to repository development. Use `openquant-ai-engineering` for delegated AI changes, `openquant-workflow-design` for durable orchestration, `openquant-research-evaluation` for evidence comparisons, `openquant-financial-invariants` for numerical changes, and `openquant-vertical-slice` for delivery. Use `openquant-service-integrations` for provider contracts, retrieval and comparison. Read `.claude/README.md` for the complete task map and portable review limits.
 
 Apply `pragmatic-developer` for ordinary coding and review.
 

@@ -1,9 +1,9 @@
 ---
 id: OQ-01
 title: OpenQuant — Product Design
-version: 1.0.0
+version: 1.1.0
 status: canonical
-updated: 2026-10-19
+updated: 2026-11-05
 owns: goals, scope, operating loop, human responsibilities
 ---
 
@@ -70,7 +70,11 @@ The interface must show environment, account, real or simulated money mode, data
 
 Exiting the terminal detaches the operator. It does not halt trading or cancel backend work.
 
-The first executable checkpoint provides `openquant demo`. It calculates a bundled fixture result through the shared Rust core without cloud, model, data-provider, or broker credentials. Recorded proposals are labelled as recorded. This is a replay, not prospective paper performance.
+The first operational milestone is automated competing research on a saved stock watchlist. The operator selects a versioned research profile, sources, calendar and spending limits. Each cycle freezes membership and inputs, records competing proposals and critique, and produces official Rust evaluation evidence. Inspection, pause, explicit cancellation and resume remain available while the backend works without a terminal.
+
+Start with daily bars, one market/currency and reviewed long-only operators. Alpaca and Massive are initial selectable market adapters; SEC EDGAR supplies filings and Tavily supplies web evidence. Their capabilities and access must be verified before use. A source or stock failure remains visible. A cycle may produce no eligible strategy.
+
+The public CLI release separately provides `openquant demo`: a credential-free bundled REPLAY through the same Rust core. Recorded proposals are labelled. The installed demo remains required for public CLI release, but does not block private M1 operation.
 
 [Ink UX/UI](04-ink-ux-ui-spec.md) owns the interaction details.
 
@@ -84,11 +88,13 @@ The first executable checkpoint provides `openquant demo`. It calculates a bundl
 | Monthly | Review retirement, portfolio regimes, agent calibration, search history, and risk limits. |
 | Governance review | Review broker controls, recovery evidence, market permissions, applicable obligations, and capital scaling. |
 
+Research remains enabled across bounded cycles. Initially dispatch after the selected trading session and provider freshness window; also permit explicit on-demand runs. The stored schedule policy owns overlap and missed-slot behaviour. Daily historical refreshes remain BACKTEST evidence.
+
 Cloudflare schedules durable product work. GitHub Actions runs repository verification and delivery. The product continues without an open terminal or GitHub runner.
 
 ## 7. Delivery and acceptance
 
-Deliver four complete checkpoints: reproducible core, competing research, persistent paper fund, and governed live operation. [Engineering §8](06-engineering-delivery-and-operations-spec.md#8-delivery-checkpoints-and-acceptance) owns their completion evidence.
+Deliver M1 automated watchlist research, M2 prospective paper competition, M3 portfolio/shadow validation, and M4 governed live operation. Deliver the installed offline replay as a separate public CLI release gate. [Engineering §8](06-engineering-delivery-and-operations-spec.md#8-delivery-checkpoints-and-acceptance) owns their completion evidence.
 
 The [A01–A18 acceptance criteria](02-trading-domain-and-evaluation-spec.md#9-acceptance-and-preservation-of-results) preserve the agreed product requirements. Repository acceptance R01–R10 is defined in the engineering specification.
 

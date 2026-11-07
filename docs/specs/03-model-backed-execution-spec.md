@@ -1,9 +1,9 @@
 ---
 id: OQ-03
 title: OpenQuant — Model-Backed Execution
-version: 1.0.0
+version: 1.1.0
 status: canonical
-updated: 2026-10-19
+updated: 2026-11-05
 owns: proposer and critic behaviour, delegation, permissions, budgets, results
 ---
 
@@ -39,6 +39,16 @@ Each mission has explicit candidate, experiment, compute, LLM-spend, and revisio
 Subsequent proposals receive a bounded context pack: relevant past hypotheses, failed trials, critic findings, and observed outcomes. Retrieve this from existing records. Do not add a memory service or vector database without a demonstrated retrieval need.
 
 Record unsuccessful model calls and revised outputs. A transport retry must not silently replace an earlier candidate with whichever model response looks best.
+
+### Recurring budgets and retrieval tools
+
+Reserve candidate, experiment, revision, model, provider-request/credit and compute allowances before external work. Apply both per-mission limits and a watchlist-wide spending cap for a declared period. New cycles do not reset that cap. Freeze per-stock allocation and bounded concurrency; unused capacity is reassigned only by declared policy. Retries and comparison calls consume budget. Unknown usage remains reserved until reconciled or conservatively accounted for.
+
+Expose narrow typed tools for approved market snapshots, filings and web evidence. The host/API enforces instrument scope, domains, cutoff, result size, request count, timeout and cost. Source text cannot grant access or modify permissions. Provider credentials stay in the owning adapter host; agents receive approved references or bounded content. Sanitize diagnostic arguments and never log secret-bearing URLs.
+
+All proposers in a comparison receive the same frozen evidence pack or the same predeclared retrieval allowance and cutoff. Record requested and actually consumed evidence. Missing required evidence blocks eligibility; optional retrieval failures remain visible. Allow no automatic provider fallback. Source/profile changes create new recorded inputs. News/fundamentals can support a hypothesis; executable use requires a reviewed operator and registered data semantics.
+
+Subsequent cycles may use bounded prior failures and critic findings from authorised records. Final holdouts remain excluded until a frozen candidate is evaluated; revealed feedback remains consumed in later cycles. A repeated candidate hash is not an independent discovery.
 
 ## 2. Competition and learning
 
@@ -101,7 +111,7 @@ The third-party executor is an external dependency. Document its authentication,
 | Execution outcome | Completion, refusal, malformed result, denied capability, authentication failure, cancellation, or timeout. |
 | Usage | Observed cost and duration, with unknown or estimated fields labelled. |
 
-These are contract requirements, not a frozen JSON schema. C2 supplies versioned schemas and shared valid/invalid fixtures. Unsupported mandatory fields or semantics fail validation.
+These are contract requirements, not a frozen JSON schema. M1 supplies versioned schemas and shared valid/invalid fixtures. Unsupported mandatory fields or semantics fail validation.
 
 A valid critic result can reject a candidate. Successful tool execution is not approval of its output. A critic recommendation is not an official numeric evaluation result.
 

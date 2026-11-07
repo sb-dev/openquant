@@ -7,6 +7,9 @@ description: Design and review OpenQuant competing stock research, watchlist mis
 
 Read `AGENTS.md`, OQ-01 §§2–3, OQ-02 §§1–3 and 9, and OQ-03 §§1–2 and 6 under `docs/specs/`. Resolve all paths from the repository root. Use this skill to develop or assess research behaviour. Do not start recurring execution or change an active mission without authorisation.
 
+
+Use `openquant-service-integrations` and OQ-05 §7.1 for provider adapters. Freeze the research profile and source evidence for each cycle. Enforce retrieval budgets and cutoff restrictions in code; preserve partial, missing and unknown evidence. Use OQ-02 §1.1 for watchlist membership and source identity.
+
 ## Register the comparison
 
 1. Identify the objective, instrument universe or proposed watchlist version, market profile, as-of time, and authorised evidence.

@@ -88,7 +88,7 @@ A01–A18 remain in the [trading domain](02-trading-domain-and-evaluation-spec.m
 
 ## Changes
 
-Update the owning document and its single metadata block. Regenerate this index with \`pnpm generate:spec-index\`. Run \`pnpm verify\`. A passing bootstrap check confirms repository integrity only; it does not accept C1–C4.
+Update the owning document and its single metadata block. Regenerate this index with \`pnpm generate:spec-index\`. Run \`pnpm verify\`. A passing bootstrap check confirms repository integrity only; it does not accept M1–M4 or the public CLI release.
 `;
 }
 

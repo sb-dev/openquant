@@ -1,6 +1,6 @@
-# C1 — Reproducible core
+# Public CLI release — Reproducible replay
 
-Status: implementation required. This guide defines the next complete checkpoint.
+Status: implementation required. This is the public CLI release gate. M1 private research can be delivered first; its numerical fixtures and shared core are reused here.
 
 ## Outcome
 
@@ -20,4 +20,4 @@ A clean installed `openquant demo` evaluates a bundled strategy with the shared 
 
 Use [A03–A05, A15–A16](../specs/02-trading-domain-and-evaluation-spec.md#9-acceptance-and-preservation-of-results), plus R01–R04 and any applicable release checks in [engineering §8](../specs/06-engineering-delivery-and-operations-spec.md#8-delivery-checkpoints-and-acceptance).
 
-Record exact commands, revisions, expected results, observations, and remaining gaps. Do not treat agreement between two paths using the same calculation as an independent financial baseline. A mocked success screen does not complete C1.
+Record exact commands, revisions, expected results, observations, and remaining gaps. Do not treat agreement between two paths using the same calculation as an independent financial baseline. A mocked success screen does not satisfy this release gate.
