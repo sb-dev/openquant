@@ -63,19 +63,24 @@ Keep the existing boundaries in [OQ-02 §§1–3](../specs/02-trading-domain-and
 
 The Strategy Contract and executable Definition share one version. A run separately binds the watchlist, data, engine, costs and evaluation policy. Agents cannot improve a reported result by silently changing the measurement conditions. Historical model knowledge remains a limitation even with date-filtered retrieval.
 
-## Focused reading list
+## Reading list and skill priorities
 
-These five sources cover distinct research tasks. Coverage was checked against publisher descriptions and contents. The applications below are recommendations; full PDFs have not been analysed.
+Keep the full reference list; prioritise which methods to extract first. Coverage was checked against publisher descriptions and contents. The applications below are recommendations; full PDFs have not been analysed.
 
 | Area | Book | Selected use |
 | --- | --- | --- |
 | Strategy formulation | Ernest P. Chan — [Algorithmic Trading: Winning Strategies and Their Rationale](https://www.wiley.com/en-gb/algorithmic-trading-winning-strategies-and-their-rationale-p-9781118460146) | Translate momentum and mean-reversion rationales into explicit rules and testable variants. |
+| Experiment design | Robert Pardo — [The Evaluation and Optimization of Trading Strategies, 2nd edition](https://www.wiley.com/en-gb/the-evaluation-and-optimization-of-trading-strategies-2nd-edition-p-9781118045053) | Design bounded parameter searches and walk-forward tests: fit on earlier data, then evaluate on later data. |
 | Technical analysis | Perry J. Kaufman — [Trading Systems and Methods, 6th edition](https://www.wiley.com/en-us/trading-systems-and-methods-6th-edition-p-9781119605355) | Extract relevant indicator definitions, trend, momentum and volume methods. Use selected chapters as a component reference. |
-| Fundamental analysis | Stephen H. Penman — [Financial Statement Analysis and Security Valuation, 5th edition](https://www.mheducation.com/highered/product/financial-statement-analysis-and-security-valuation-penman.html?viewOption=student) | Derive profitability, cash-flow, sustainable-earnings and accounting-quality hypotheses. Use valuation methods when the experiment needs them. |
+| Technical analysis | John J. Murphy — [Technical Analysis of the Financial Markets: A Comprehensive Guide to Trading Methods and Applications](https://penguinrandomhousehighereducation.com/book/?isbn=9780735200661) | Generate chart- and indicator-based hypotheses. Convert each pattern into explicit rules before testing. |
+| Fundamental analysis | Stephen H. Penman — [Financial Statement Analysis and Security Valuation, 5th edition](https://www.mheducation.co.uk/ebook-financial-statement-analysis-and-security-valuation-9780077147921-emea) | Derive profitability, cash-flow, sustainable-earnings and accounting-quality hypotheses. Use valuation methods when the experiment needs them. |
+| Stock selection | Wesley R. Gray and Jack R. Vogel — [Quantitative Momentum: A Practitioner's Guide to Building a Momentum-Based Stock Selection System](https://www.wiley.com/en-us/quantitative-momentum-a-practitioner%27s-guide-to-building-a-momentum-based-stock-selection-system-p-9781119237259) | Form stock-ranking and rebalance hypotheses for joint watchlist evaluation. Keep relative momentum separate from the seed's RSI pullback. |
 | Empirical validation | David Aronson — [Evidence-Based Technical Analysis: Applying the Scientific Method and Statistical Inference to Trading Signals](https://www.wiley.com/en-gb/evidence-based-technical-analysis-applying-the-scientific-method-and-statistical-inference-to-trading-signals-p-9780470008744) | Make hypotheses falsifiable and challenge improvements caused by searching many variants. |
 | Sizing and risk | Robert Carver — [Systematic Trading](https://www.harriman-house.com/authors/robert-carver/systematic-trading/9780857194459) | Turn signals into positions with explicit risk, diversification and cost assumptions. |
+| Execution assumptions | Larry Harris — [Trading and Exchanges: Market Microstructure for Practitioners](https://academic.oup.com/book/52292) | Specify order, spread, liquidity and fill assumptions. Check present-day venue rules separately. |
+| Machine-learning validation | Marcos López de Prado — [Advances in Financial Machine Learning](https://www.wiley.com/en-ie/advances-in-financial-machine-learning-p-9781119482086) | Design time-aware validation for learned models, including separation of overlapping training and test observations. |
 
-For the first swing-strategy work, start with selected Chan and Kaufman methods and Aronson's validation guidance. Use Carver for sizing changes. Use Penman when adding filing-based hypotheses; a fundamental filter is a separate experiment, and a valuation strategy needs its own holding horizon.
+For the first swing-strategy skills, start with selected Chan and Kaufman methods, Pardo's experiment design and Aronson's validation guidance. Use the remaining references when a hypothesis needs their methods; later priority does not remove a book from the list. A fundamental filter is a separate experiment, and a valuation strategy needs its own holding horizon.
 
 Fundamental values must be tied to filing versions and verified availability times. Period-end dates do not establish when a value became public. Follow [OQ-02 §1.1](../specs/02-trading-domain-and-evaluation-spec.md#11-watchlists-profiles-and-source-evidence) for amendments and restatements. Executable fundamental features require reviewed operators and registered data semantics.
 
