@@ -26,6 +26,8 @@ Deployed proposers and critics follow a different contract: [model execution §3
 
 Any future reuse of skill guidance inside the deployed bundle needs an explicit reviewed change, recorded provenance, behaviour/schema compatibility, and the relevant offline and real-executor evaluations. Installing a development skill does not authorise this reuse or grant access to trading credentials.
 
+The [strategy research reading list](../research-logs/2026-11-07-strategy-research-and-evaluation.md#reading-list-and-skill-priorities) remains a source catalogue, including technical and fundamental analysis. Select methods for formulation, experiment design, critique and sizing under OQ-03 §3. Keep source edition/page, checked equations, assumptions and worked checks with each adopted procedure. PDF analysis and runtime-skill creation are separate work; no book-derived skill is installed by this plan. A fundamental feature also needs filing-version/availability semantics and a reviewed executable operator.
+
 ## Adoption record and evaluation
 
 For each actual selection, record the requirement, family revision, selected skills or packs, constraints, handoff owner, trial commands, observed results, and remaining limits in an OpenQuant research log. Verify clean installation and relevant behaviour before claiming integration.

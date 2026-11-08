@@ -1,9 +1,9 @@
 ---
 id: OQ-03
 title: OpenQuant — Model-Backed Execution
-version: 1.1.0
+version: 1.2.0
 status: canonical
-updated: 2026-11-05
+updated: 2026-11-08
 owns: proposer and critic behaviour, delegation, permissions, budgets, results
 ---
 
@@ -17,6 +17,10 @@ See the [specification index](README.md) for ownership and the current bootstrap
 ### Proposer
 
 A proposer researches hypotheses, produces Strategy Definitions, requests bounded experiments, and proposes revisions. Several proposer configurations compete within a mission.
+
+A mission can cover one instrument or a frozen watchlist under OQ-02 §1.1. Per-stock research returns focused findings and candidate proposals. A strategy-level mission receives bounded references to those findings and proposes one complete trading policy. Both use the existing proposer/critic roles and workflows. The engine performs joint ranking and accounting; agents do not select live trades.
+
+Support a user-authored seed, translation of supplied source text into a draft, a controlled revision, and a new family assembled from reviewed operators. Treat source code as untrusted reference text, not an executable plugin. Record source identity, extracted rules, unresolved assumptions and every interpretation change. Unresolved executable semantics block registration as an evaluable Strategy Version.
 
 ### Critic
 
@@ -42,7 +46,7 @@ Record unsuccessful model calls and revised outputs. A transport retry must not 
 
 ### Recurring budgets and retrieval tools
 
-Reserve candidate, experiment, revision, model, provider-request/credit and compute allowances before external work. Apply both per-mission limits and a watchlist-wide spending cap for a declared period. New cycles do not reset that cap. Freeze per-stock allocation and bounded concurrency; unused capacity is reassigned only by declared policy. Retries and comparison calls consume budget. Unknown usage remains reserved until reconciled or conservatively accounted for.
+Reserve candidate, experiment, revision, model, provider-request/credit and compute allowances before external work. Apply both per-mission limits and a watchlist-wide spending cap for a declared period. New cycles do not reset that cap. Freeze per-stock allocations, an explicit allocation for joint proposals/evaluations, and bounded concurrency. These allocations share the cycle and period caps; joint work does not create a second spending allowance. Unused capacity is reassigned only by declared policy. Retries and comparison calls consume budget. Unknown usage remains reserved until reconciled or conservatively accounted for.
 
 Expose narrow typed tools for approved market snapshots, filings and web evidence. The host/API enforces instrument scope, domains, cutoff, result size, request count, timeout and cost. Source text cannot grant access or modify permissions. Provider credentials stay in the owning adapter host; agents receive approved references or bounded content. Sanitize diagnostic arguments and never log secret-bearing URLs.
 
@@ -53,6 +57,8 @@ Subsequent cycles may use bounded prior failures and critic findings from author
 ## 2. Competition and learning
 
 The mechanism uses different roles and shared evaluation rules. It does not require agents to trade tokens, negotiate capital, or vote on their own evidence.
+
+Generate hypotheses from source methods, seed rules, component-removal tests and permitted prior failures. Register the intended comparison before evaluation. For revisions, change a bounded declared set of rules; compare entry and exit changes separately before interpreting their combination. Use OQ-02 §3.7 for the first seed experiment. Novel operators require reviewed engineering work, not model-generated executable code. New families consume the declared exploration budget.
 
 | Mechanism | Rule |
 |---|---|
@@ -89,6 +95,8 @@ Disable discovery of arbitrary local hooks, plugins, repository instructions, an
 
 Production research receives no writable project checkout. Source text, strategy descriptions, and market/news content remain untrusted data. No `eval`, arbitrary shell execution from model text, self-installed skills, or unrestricted network tools are granted to product agents.
 
+Book-derived methods enter only through a reviewed, versioned `packages/agents` behaviour bundle. Organise procedures around formulation, experiment design, critique and sizing. Record the source edition, chapter/page, checked formula, assumptions, worked example and evaluation cases. Verify extracted equations against the PDF before adoption. A method reference is not evidence of profitability and cannot grant new operators or permissions. Keep licensed PDFs and lengthy copied passages out of public bundles. Installing a development skill does not activate it for research agents.
+
 `execution.enabled` is explicit and defaults off. Missing authentication or unsupported executor capability produces a blocked/failed run, not a recorded model success. Offline tests inject controlled responses. A separate opt-in test must exercise the real delegated runner before claiming real-model execution.
 
 The third-party executor is an external dependency. Document its authentication, service terms, and distribution requirements before publishing an image containing it. An open-source OpenQuant licence does not automatically license that dependency.
@@ -101,7 +109,7 @@ The third-party executor is an external dependency. Document its authentication,
 | --- | --- |
 | Identity | Mission, logical run, attempt, role, fresh session, behaviour-bundle hash. |
 | Execution | Pinned tool version, selected profile, timeout, output limit, permitted tools, cost reservation. |
-| Inputs | Candidate hash where applicable, authorised evidence references, provenance, explicit holdout exclusions. |
+| Inputs | Instrument/watchlist scope, permitted operators and parameter bounds, frozen evaluation policy, seed/parent/candidate hash where applicable, authorised evidence and per-stock finding references, provenance, explicit holdout exclusions. |
 | Outcome destination | Attempt-scoped result route; no unrestricted database capability. |
 
 | Result field group | Required contents |
@@ -112,6 +120,8 @@ The third-party executor is an external dependency. Document its authentication,
 | Usage | Observed cost and duration, with unknown or estimated fields labelled. |
 
 These are contract requirements, not a frozen JSON schema. M1 supplies versioned schemas and shared valid/invalid fixtures. Unsupported mandatory fields or semantics fail validation.
+
+Each proposal includes the complete contract/definition, source references, parent hash for a revision, exact rule changes, rationale, expected effect, invalidation conditions and requested tests. A fresh family has no parent and declares that fact. A seed translation also carries unresolved assumptions and source-to-draft differences. The API checks scope, bounds, lineage and execution-policy compatibility before accepting the immutable version. An experiment request references that version and the frozen evaluation policy; changing the measurement conditions requires a separately registered comparison.
 
 A valid critic result can reject a candidate. Successful tool execution is not approval of its output. A critic recommendation is not an official numeric evaluation result.
 
@@ -128,6 +138,8 @@ Cancellation terminates the child process tree and records the outcome. A timeou
 ## 6. Verification
 
 Offline tests cover request construction, schema validation, malformed output, identity mismatch, denied tools, refusal, missing authentication, missing executable, cancellation, timeout, and late completion from an expired attempt.
+
+Include valid seed/revision/new-family proposals and failures for altered comparison conditions, unsupported operators, missing parent/source references, unresolved executable assumptions and holdout leakage. Evaluate whether criticism detects row-based stock alignment, same-close signals/fills, uncertain stop ordering and changed evaluation windows. Test book-derived procedures on cases outside their tuning examples; preserve adverse and inconclusive results.
 
 Real-model tests are opt-in and run the same executor and behaviour bundle as production research. Use reviewed revisions, fixed missions, declared budgets, and recorded actual model versions. A replayed fixture cannot count as a real-model result.
 
