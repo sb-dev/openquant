@@ -1,9 +1,9 @@
 ---
 id: OQ-05
 title: OpenQuant — System Architecture and Data
-version: 1.1.0
+version: 1.2.0
 status: canonical
-updated: 2026-11-05
+updated: 2026-11-08
 owns: stack, hosting, source boundaries, persistence, protocols, authentication
 ---
 
@@ -62,6 +62,8 @@ Boundary checks reject API implementation imports in Ink, Node subprocess code i
 
 **EvaluationWorkflow:** freeze the strategy/data/policy manifest, request engine work, verify the returned artefacts, and record official evidence. Numerical success and promotion eligibility remain separate.
 
+Both workflows accept the mission scope defined by OQ-02 §1.1. Per-stock missions retain their own findings and outcomes. A strategy-level mission uses immutable references to required findings and proposes a whole-watchlist policy. Its EvaluationWorkflow submits each candidate's joint evaluations through the existing batch path. Each Rust run owns the strategy ledger and common event sequence for its registered scenario. Separate stock results are diagnostics, not a substitute for this run. No additional service, workflow class or numerical engine is required.
+
 Mandate approval, rejection, acknowledgements, and policy changes are ordinary version-checked commands. They do not need one workflow class each. Cloudflare's Workflow API provides the orchestration boundary; application records remain authoritative for domain state.
 
 Cloudflare schedules trigger product work and recovery. Market calendars and stored schedule slots determine whether work is due. A repeated trigger cannot create another run for the same logical slot. Persistent paper/live feeds run on Fly.io, not in GitHub Actions or one Workflow step per tick.
@@ -69,6 +71,8 @@ Cloudflare schedules trigger product work and recovery. Market calendars and sto
 ### 3.1 Watchlist cycle dispatch
 
 Use a stable schedule ID plus logical calendar slot as the uniqueness key. Atomically freeze profile/watchlist versions and reserve the cycle budget before dispatch. Editing a profile does not permit a second automatic cycle for the same slot. An explicit rerun has its own identity, reason and budget and remains linked to the original slot.
+
+Freeze allocations for each stock and for joint strategy work under the same cycle/period caps. Persist links from the cycle to each mission and candidate evaluation. Materialise one bounded evidence manifest from required completed findings, source snapshots and explicit optional failures before joint dispatch. Required missing inputs block the dependent work with a reason; other stock outcomes remain intact. Do not silently remove a stock or create a different universe. Retry and recovery reuse the frozen dependencies and logical identities. New evidence or membership requires a new recorded input/trial.
 
 Store timezone, calendar version, session, data-ready deadline, freshness threshold, overlap policy and catch-up limit. The initial policy runs one active cycle per schedule, defers within the freshness deadline, records missed/expired slots, and dispatches only the latest eligible missed slot on recovery. Do not create unbounded historical backlogs. Pause prevents new cycles from starting but lets already active cycles dispatch their remaining bounded work and finish; cancellation explicitly targets active work. Resume applies the same catch-up policy. Missing/stale data and insufficient budget produce visible coverage reasons without inventing run-status enum values.
 
@@ -124,7 +128,9 @@ Prices, quantities, and money use explicit decimal strings. The Rust core owns c
 
 Hono route inference can supplement TypeScript typing. It does not replace runtime validation or define Rust's contract.
 
-Evaluation input identity binds strategy, engine, data, cost model, policy, suite, and seed. Result identity also binds the logical run, current attempt, ownership revision, and actual executable digest. Verify these before accepting an artefact.
+Evaluation input identity binds strategy, watchlist/profile versions, engine/operator compatibility, per-instrument dataset manifests, calendar, warm-up/scored windows, initial capital, execution/cost policy, suite, and seed. Result identity also binds the logical run, current attempt, ownership revision, and actual executable digest. Verify these before accepting an artefact.
+
+Joint market events carry session/phase, availability times, instrument identities and explicit coverage. Checkpoints bind that event cursor to positions, cash, reservations, pending entries and scheduled stop changes. Results expose joint ledger/metrics, per-stock contributions, selection/skipped-entry diagnostics and incomplete coverage. Generate cross-runtime bindings and valid/invalid fixtures from the existing schema owners. No provider payload or agent score bypasses the reviewed strategy operators. OQ-02 §§2–3 owns the numerical and event-order rules.
 
 ### 7.1 Pluggable data and research providers
 

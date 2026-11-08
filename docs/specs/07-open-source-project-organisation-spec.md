@@ -1,9 +1,9 @@
 ---
 id: OQ-07
 title: OpenQuant — Open-Source Project Organisation
-version: 1.1.0
+version: 1.2.0
 status: canonical
-updated: 2026-11-05
+updated: 2026-11-08
 owns: public surfaces, contribution, governance, licensing, publication
 ---
 
@@ -71,11 +71,15 @@ One canonical example pack contains the strategy artefact, hypothesis, dataset m
 
 Strategy metadata identifies purpose, universe, data requirements, horizon, assumptions, known failure modes, evaluation instructions, compatible schema/engine versions, licence, and author. Link benchmark or paper evidence only when it exists.
 
+For a translated seed, retain source identity and attribution, extracted rules, unresolved assumptions and documented interpretation changes. For related variants, record parent/version hashes and exact rule differences. A comparison manifest references their packs and binds common watchlist, data, dates, capital, execution/cost policy and benchmarks. Keep shared inputs in one authoritative location. Standalone stock diagnostics are labelled separately from joint strategy evidence.
+
 Select official examples for educational value, reproducibility, useful baselines, regression detection, or demonstrated capability. A high return alone is not an acceptance criterion.
 
 Retain examples that are overfit, cost-sensitive, regime-fragile, or highly correlated. Failed strategies are useful evidence and tests.
 
 Start with cash/buy-and-hold baselines, simple momentum, simple mean reversion, and a deliberately overfit case as checkpoints make them runnable. Do not invent successful fixture results to populate a catalogue.
+
+The daily swing family in OQ-02 §2.6 supplies the initial controlled strategy comparison. Publish a runnable pack only when its implementation and independent fixtures exist. Supplied scripts remain source references unless their inclusion and licence are established.
 
 Community strategy metadata can link to external repositories. A registry is sufficient. Do not build a strategy marketplace or signal-selling service.
 
@@ -115,6 +119,8 @@ Do not selectively publish only successful live periods. Prefer reproducible res
 Distinguish synthetic, open, redistributable, user-supplied, and commercially licensed data. Manifests state provider, licence, asset class, universe, frequency, period, point-in-time properties, corporate actions, content hash, and source/reproduction instructions.
 
 Licensed datasets remain outside Git unless redistribution is permitted. A connector does not grant data rights. Private accounts, active mandates, credentials, and prompts containing private information are excluded from exports.
+
+Book-derived procedures retain citations and original method notes. Keep licensed PDFs and lengthy copied passages out of public material. The research-log reading list is a reference catalogue; a book's inclusion does not establish that it has been analysed or that a runtime skill is installed. OQ-03 §3 owns adoption into the reviewed behaviour bundle.
 
 Public exports require explicit authorisation, redaction, licence checks, and reproducibility review. A17 applies whenever a result is published. The risk implementation and tests remain open-source.
 

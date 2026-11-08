@@ -1,9 +1,9 @@
 ---
 id: OQ-01
 title: OpenQuant — Product Design
-version: 1.1.0
+version: 1.2.0
 status: canonical
-updated: 2026-11-05
+updated: 2026-11-08
 owns: goals, scope, operating loop, human responsibilities
 ---
 
@@ -46,6 +46,8 @@ Use two AI roles: proposer and critic. Several proposer configurations can compe
 
 One immutable strategy artefact contains the explanatory Strategy Contract and the executable Strategy Definition. Evidence Bundles and the Strategy Graph are derived from stored records. Graph maintenance is automatic.
 
+Keep per-stock research for focused company evidence and failure isolation. A strategy can trade one instrument or a frozen watchlist. When instruments compete for cash or position slots, evaluate the complete selection, sizing and exit policy jointly. Per-stock findings support that policy but cannot replace its joint evidence. The strategy manages its assigned budget; portfolio allocation distributes capital across strategies; account execution enforces account limits.
+
 Research can return no eligible candidate. A fund can retain cash. Neither an agent nor a workflow must manufacture a promotion to report completion.
 
 Paper and shadow are separate evidence checks. Paper observes future live data with simulated fills. Shadow checks the intended production decision path without broker submission. Historical fixture replay is labelled `REPLAY`.
@@ -70,7 +72,7 @@ The interface must show environment, account, real or simulated money mode, data
 
 Exiting the terminal detaches the operator. It does not halt trading or cancel backend work.
 
-The first operational milestone is automated competing research on a saved stock watchlist. The operator selects a versioned research profile, sources, calendar and spending limits. Each cycle freezes membership and inputs, records competing proposals and critique, and produces official Rust evaluation evidence. Inspection, pause, explicit cancellation and resume remain available while the backend works without a terminal.
+The first operational milestone is automated competing research on a saved stock watchlist. The operator selects a versioned research profile, sources, calendar and spending limits. Each cycle freezes membership, inputs and allocations for per-stock and joint work. It records competing proposals and critique, preserves stock coverage, and evaluates complete watchlist policies through the shared Rust core. Inspection, pause, explicit cancellation and resume remain available while the backend works without a terminal.
 
 Start with daily bars, one market/currency and reviewed long-only operators. Alpaca and Massive are initial selectable market adapters; SEC EDGAR supplies filings and Tavily supplies web evidence. Their capabilities and access must be verified before use. A source or stock failure remains visible. A cycle may produce no eligible strategy.
 

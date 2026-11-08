@@ -1,9 +1,9 @@
 ---
 id: OQ-04
 title: OpenQuant — Ink UX/UI
-version: 1.1.0
+version: 1.2.0
 status: canonical
-updated: 2026-11-05
+updated: 2026-11-08
 owns: screens, navigation, focus, input, states, confirmations, terminal behaviour
 ---
 
@@ -64,7 +64,7 @@ Show NAV, cash, drawdown, exposure, and active strategies only with their period
 
 A Research Mission is a bounded objective. The list shows intent, status, candidate count, and budget use. Detail includes constraints, hypotheses, rejected ideas, competing versions, critic findings, attempts, and remaining budget.
 
-Create a mission through a short structured flow. Use free text for the objective. Select the market profile, horizon, constraints, cohort policy, candidate limit, experiment limit, compute budget, model budget, and revision limit from valid controls.
+Create a mission through a short structured flow. Use free text for the objective. Select one instrument or a saved watchlist version, the market profile, horizon, constraints, cohort policy, candidate limit, experiment limit, compute budget, model budget, and revision limit from valid controls.
 
 Review resource use before starting a costly operation. Show exhaustion as a paused or blocked state with retained outcomes. Do not quietly raise limits.
 
@@ -78,7 +78,17 @@ Within Foundry, create/edit a watchlist and research profile. Show stable stock 
 
 Provide explicit run-now, pause-future-dispatch, cancel-active-work and resume actions through the same guarded command path. Pause preserves active work; cancellation is separate. Show last cycle, every stock's coverage/outcome, missing evidence, data freshness, budget reservations/usage and reasons work cannot start. Never imply a successful connection check verifies all account entitlements.
 
+Separate stock research coverage from joint strategy evaluation. Show the shared cycle cap, allocations to stock and joint work, required dependencies, and why a joint run is blocked. A successful stock mission must not make an incomplete joint evaluation appear successful.
+
 The comparison view reports Alpaca/Massive manifests, aligned request semantics, coverage, differences, latency and usage. Separate provider comparisons from strategy rankings. Evidence details link SEC filings and web sources with timestamps, revisions, citation locations and unknowns. Reconnection fetches authoritative state. These small views ship with M1; full workspaces grow with later capabilities.
+
+### 4.2 Strategy authoring and revisions
+
+Create a structured draft, import a definition, or supply source text for a bounded translation. Show the hypothesis, universe, indicators, entry/ranking rules, sizing, exits and requested execution behaviour. Source code is reference material; the product does not execute it.
+
+Expose extracted rules, source references, interpretation changes and unresolved assumptions. Save incomplete work as a draft. Block evaluation until executable semantics pass validation. For operator-authored or imported drafts, review the complete definition and evaluation conditions before registering a version or starting a costly run. Unattended revisions use the approved mission constraints and budgets; they remain inspectable without requiring an operator at each cycle. Read accepted state back through the normal command path.
+
+For a revision, show parent/child rule differences, rationale, intended effect and proposed tests. Distinguish strategy changes from changed data, dates, costs or fill assumptions. Let the operator start a bounded comparison against the parent without manually maintaining the Strategy Graph.
 
 ## 5. Arena
 
@@ -102,6 +112,8 @@ Evidence summaries show contract validity, independent critique, historical test
 
 Comparison shows the same metrics, units, periods, methods, costs, trial counts, uncertainty, and open findings for each candidate. Replace unexplained scores such as “robustness HIGH” or “portfolio +0.31” with defined measures and their limits.
 
+For a joint strategy, lead with the complete policy's result and expose per-stock contributions, retained cash and skipped entries. Label standalone stock runs as diagnostics. Display the frozen watchlist, capital basis and execution policy when comparing variants. Do not combine mismatched universes or measurement conditions into an unexplained ranking.
+
 ## 6. Strategy Detail
 
 The header shows strategy identity, immutable version, parent, hypothesis, cohort, lifecycle, and readiness. Use these tabs:
@@ -116,6 +128,8 @@ The header shows strategy identity, immutable version, parent, hypothesis, cohor
 | Activity | Timestamp, actor/role, action, outcome, evidence reference. |
 
 Opening evidence shows declared inputs, strategy and dataset versions, engine identity, parameters, costs, suite, seeds where used, metrics, warnings, and the resulting decision.
+
+Within Summary and Lineage, expose the executable rules and source-to-version or parent-to-child differences. Within Runs, show common decision times, ranks, selected/rejected entries, reservations and stop-transition effective times. Keep detailed diagnostics behind drill-down; do not add a separate primary workspace.
 
 Keep the route from an active mandate back to its approval, evidence, trials, and original hypothesis. Show old versions without implying they retain authority.
 

@@ -2,7 +2,7 @@
 
 Date: 2026-11-07. Reviewed [PR #4](https://github.com/sb-dev/openquant/pull/4) at `5daacdf1faf6fd9a8d78fd86f037fd941ec91e60`.
 
-Status: research recommendation. Proposed extensions below do not change canonical requirements or establish strategy performance.
+Status: adopted into OQ-01–OQ-07 v1.2.0 on 2026-11-08. The original research below records the rationale; the canonical specifications own the resulting requirements. Runtime implementation and strategy performance remain unverified.
 
 ## Recommendation and rationale
 
@@ -92,14 +92,14 @@ For each method, retain the edition, chapter/page, assumptions, exact formula, w
 
 Use concise workflows and original method notes. Do not place book PDFs or lengthy copied passages in the public repository. Reviewed procedures enter the explicit `packages/agents` behaviour bundle with a recorded version; installing a development skill does not activate it for deployed agents. Follow the [existing integration boundary](../product/production-skills.md#development-and-deployed-agents).
 
-## Proposed specification and delivery follow-up
+## Specification and delivery decision
 
-- **OQ-02:** define the exact operator subset, joint selection, shared strategy cash, daily event phases and stop transitions.
-- **OQ-03/OQ-04:** define structured seed/revision proposals and an authoring view that exposes extracted rules, unresolved assumptions and parent/child differences.
-- **M1:** use the seed family to verify local signals and position state in S1. Propose one joint watchlist replay in S4. Use the existing S5 revision loop for bounded follow-up experiments. See the [roadmap](../product/roadmap.md).
+- **OQ-02 §§2.4–2.6 and 3.7:** joint selection, shared strategy cash, daily event phases, the corrected seed family and its controlled comparison are canonical requirements.
+- **OQ-03/OQ-04:** structured seed/revision proposals and authoring views expose extracted rules, unresolved assumptions and parent/child differences. OQ-05 owns coordinated dispatch and frozen joint inputs.
+- **M1:** S1 verifies local seed signals and position state. S4 includes joint watchlist replay and the four-candidate comparison. S5 uses bounded prior findings for revisions. OQ-06 owns acceptance; OQ-07 owns example provenance and publication. See the [roadmap](../product/roadmap.md).
 
 Retain the existing account allocator and execution boundaries. No new service, agent role or numerical engine is needed for this proposal.
 
 ## Evidence and limits
 
-This log records specification and source-code inspection plus publisher-source checks. No market-data backtest or full-book PDF analysis was performed. No strategy edge, skill effectiveness or runtime capability is established. Canonical changes and implementation require their own verification.
+This log records specification and source-code inspection plus publisher-source checks. No market-data backtest or full-book PDF analysis was performed. No strategy edge, skill effectiveness or runtime capability is established. Repository checks for a canonical update do not establish runtime acceptance.

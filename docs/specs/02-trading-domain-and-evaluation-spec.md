@@ -1,9 +1,9 @@
 ---
 id: OQ-02
 title: OpenQuant — Trading Domain and Evaluation
-version: 1.1.0
+version: 1.2.0
 status: canonical
-updated: 2026-11-05
+updated: 2026-11-08
 owns: strategy semantics, evaluation, lifecycle, portfolio, risk, A01–A18
 ---
 
@@ -37,7 +37,9 @@ Each account has one execution writer. API users, AI agents, and evaluation work
 
 A Watchlist Version binds stable instrument IDs and membership; provider symbols and SEC company IDs are mappings with effective dates, not universal identities. Preserve renamed and removed members in past cycles. A user-selected current watchlist is not evidence of an unbiased historical investable universe.
 
-A Research Profile Version binds provider/adapter identities, required capabilities, feed/session/adjustment rules, market/currency, cohort suite, history and information cutoff, calendar/schedule, freshness policy and budgets. Credentials are references only. Edits apply to future cycles. A Research Cycle freezes watchlist/profile versions and creates bounded per-stock missions with explicit coverage outcomes. An early failure cannot erase the other members.
+A Research Profile Version binds provider/adapter identities, required capabilities, feed/session/adjustment rules, market/currency, cohort suite, history and information cutoff, calendar/schedule, freshness policy and budgets. Credentials are references only. Edits apply to future cycles. A Research Cycle freezes watchlist/profile versions and its work allocation. It retains bounded per-stock missions and can create a strategy-level mission over that same watchlist. Every member has an explicit coverage outcome. An early failure cannot erase the other members.
+
+A Research Mission binds one instrument or an exact watchlist version, permitted operators, parameter bounds, and required evidence. Per-stock findings can support a strategy-level mission through immutable references. Their scores do not become trading signals without an executable rule and registered data semantics. Research coverage and joint strategy results are separate outcomes.
 
 A dataset manifest records requested and returned coverage, provider/feed, adapter/transformation versions, instrument mapping, bar/session/currency/adjustment semantics, retrieval time, content hashes, completeness and use/retention constraints. Preserve source responses when permitted. Corrections produce new snapshots. Reusing a frozen snapshot reproduces that input; it does not prove the provider's earlier historical version.
 
@@ -55,13 +57,29 @@ Keep the existing terminology, with one ownership rule:
 
 **The Strategy Contract explains a strategy. The Strategy Definition specifies its executable behaviour. Both belong to the same versioned artefact.**
 
-The contract contains the hypothesis, economic rationale, intended conditions, benchmarks, assumptions, and invalidation conditions. The definition contains the universe, data dependencies, signals, entries, exits, sizing, and requested execution behaviour.
+The contract contains the hypothesis, economic rationale, intended conditions, benchmarks, assumptions, and invalidation conditions. The definition contains the universe binding and eligibility rules, data dependencies, indicators, entries, ranking and tie-break rules, position limits, sizing, exits, state transitions, and requested execution behaviour.
 
 The approved version binds both sections to one hash. Behavioural changes create a new version. There is no production strategy code generated independently from this artefact.
 
+Use the same format for one instrument and a watchlist. When positions compete for cash or slots, the complete definition is one trading policy. Its run binds an exact Watchlist Version within the definition's permitted universe. Changing run membership creates a new input identity and trial; changing universe rules creates a new Strategy Version.
+
+Keep measurement conditions outside the strategy: initial evaluation capital, dates, benchmarks, data snapshots, fill/cost assumptions and the evaluation suite belong to the registered policy and run. Bind the strategy's execution requirements to a compatible policy; reject an unsupported combination. A strategy revision cannot silently change the comparison conditions.
+
 ### 2.2 Bounded execution
 
-The definition uses a small set of reviewed operators. Start with the operators required by the bundled strategies: rolling calculations, comparisons, boolean conditions, rebalance rules, and sizing rules.
+The definition uses a small set of reviewed operators. The initial long-only daily subset supports:
+
+| Operator group | Required semantics |
+| --- | --- |
+| Inputs and history | OHLCV references by instrument/session, bounded lag, and prior-position state. |
+| Calculations | Typed arithmetic, min/max, simple rolling means, simple-mean RSI and ATR. Division by zero has an explicit outcome. |
+| Conditions | Comparisons and Boolean combinations over available values. |
+| Selection | Eligibility, descending rank, stable instrument-ID tie-break, one holding per instrument and a bounded slot count. |
+| Sizing | Cash divided by vacant slots, cash caps, lot rounding and reservations within the assigned strategy budget. |
+| Exits and state | Entry price/ATR snapshots, fixed stop/target, and a one-time stop change with an effective session. |
+| Rebalance | Declared decision schedule and target changes; no implicit rebalance on every arriving stock bar. |
+
+Each operator defines input/output types and units, lookback and warm-up, missing/non-finite values, update phase, bounds and compatibility version. Do not substitute Wilder smoothing for a simple mean under the same identifier. Indicators include the current completed bar only where their definition says so.
 
 Represent expressions as typed operator trees. Do not execute arbitrary expression strings through `eval`, shell commands, or dynamic code loading.
 
@@ -83,6 +101,53 @@ step(strategy_version, prior_state, market_event)
 Historical and paper runs use a simulated execution adapter. Shadow uses the production decision path without broker submission. Live uses the broker adapter.
 
 Reuse signal, sizing, risk, and accounting semantics where they apply. Do not claim simulated fills equal real fills. Alpaca's own documentation, for example, identifies market impact, latency, and order-queue effects that its paper simulation does not reproduce.
+
+For joint execution, `market_event` identifies the common session/phase and validated observations for the bound universe. `prior_state` includes positions, cash, reservations, pending entries and scheduled stop changes for the whole strategy. The adapter must not trigger a separate ranking whenever a stock arrives. Stock input order cannot change the result. Checkpoints preserve this state and the event cursor.
+
+### 2.4 Joint selection and capital
+
+Each historical or paper candidate has one isolated simulated ledger. Its instruments share cash and position slots; competing candidates do not share that ledger. The evaluation policy supplies initial capital. In an account, the strategy uses its assigned budget and sub-ledger under §5, never the account's entire cash balance.
+
+Rank eligible new entries at a common decision time. Exclude held instruments and existing entry reservations. Resolve equal scores by ascending stable instrument ID. Count reserved entries against slot limits. Persist selection, rejection and skipped-entry reasons, including unavailable indicators, existing holdings, rank, cash and lot constraints.
+
+Sizing reserves costs as well as notional. Debit actual filled quantity times price plus costs; do not debit a nominal allocation unrelated to rounded shares. Leave unspent cash available under the next permitted decision. Cash becomes available only after its fill or reservation-release event. Intraday exits cannot fund earlier opening entries. Strategy limits can only tighten account/mandate limits.
+
+Report joint equity and costs with per-stock contributions and cash attribution. Standalone stock tests remain diagnostics; summing their returns cannot establish the joint policy's result.
+
+### 2.5 Initial daily execution policy
+
+M1 uses one market/currency, one declared session calendar, daily OHLCV and long-only cash positions. The registered policy binds costs, price/quantity scales, corporate-action handling and the following conservative phases. Other execution policies require separately versioned semantics and evidence.
+
+| Phase | Required behaviour |
+| --- | --- |
+| Before open | Apply stop changes scheduled by the previous completed session. Restore the previous decision's entry intents and cash/slot reservations. |
+| Open | Process existing-position gap exits, then eligible reserved entry intents in their frozen rank order. Resolve entries from the opening price under the declared fill/cost model. Never rerank using opening prices or later data. |
+| During session | Test stops and targets active for that session, including protection on newly filled positions. Use only those levels; a high-triggered stop change is not effective yet. |
+| After close | Complete indicators for the common session, value holdings, and schedule stop changes for surviving positions. Rank new entries and reserve cash caps/slots for the next open. |
+
+For the initial simulated cash-cap model, freeze each entry's maximum total spend at the close. The signal inputs must be available before the intended opening phase; late data cannot create a retroactive fill. The simulator converts the cap to the largest permitted lot multiple whose notional plus costs fits the reservation. Use the declared opening fill price and round quantity down. This is a declared simulation assumption, not a guarantee of a broker's opening fill. Skip an unfillable intent with a reason, release its reservation, and do not backfill or enlarge other intents until the next close. Opening exits cannot enlarge previously frozen entry caps. An intent expires after its intended opening phase. A broker adapter must support the requested behaviour or reject it before live use.
+
+For a long position that gaps through an active stop, use the opening price with adverse execution costs, not the stop price. A gap above a target fills at the target before costs in this conservative model. Otherwise an intraday stop/target touch fills at its level before costs. If both are touched and their order is unknown, the stop takes precedence. Record ambiguous bars. Reject invalid levels or unsupported fills rather than inventing a price. A stop moved to entry does not remove fees, gaps or loss risk.
+
+Align by session/time, never by row number. Declare the warm-up range separately from the scored period. Missing required bars or a required valuation at the common cutoff make joint evidence insufficient; do not shrink the universe, advance one stock to a later date, or forward-fill a tradable bar. Expected market closures and predeclared ineligibility remain distinct from missing observations. Optional company-research failures do not block a price-only strategy unless its mission requires that evidence.
+
+### 2.6 Daily swing seed family
+
+The supplied `daily_multifactor_swing_trader.py` and `gemini-code-1793903237866.py` are source references, not executable product plugins. The corrected seed family uses the following rules. Thresholds and five slots belong to this example, not global defaults.
+
+| Component | Definition |
+| --- | --- |
+| Trend | `close[t] > SMA50[t]`. |
+| Recent weakness | `RSI[t-2] <= threshold OR RSI[t-1] <= threshold`; current `RSI[t] > 30`. This does not require an upward crossing. |
+| Volume | `volume[t] > volume_SMA20[t]`; the mean includes bar `t`. |
+| Rank | `50 * (volume / volume_SMA20) + (100 - RSI)`, descending. |
+| Sizing | Five slots, one position per instrument. At the close, divide unreserved strategy cash by vacant slots; freeze each selected entry's total spend cap. Unused slots retain cash. |
+| Protection | `stop = entry_price - 2 * entry_ATR`; `target = entry_price + 5 * entry_ATR`. |
+| Optional break-even | When `high >= entry_price + entry_ATR`, move the stop once to entry for a surviving position, effective next session. |
+
+RSI uses 14-bar simple means of positive/negative close changes: `100 - 100 / (1 + mean_gain / mean_loss)`. With positive gain and zero loss, RSI is 100; with zero gain and positive loss, it is 0; with both zero, it is unavailable. ATR is the 14-bar simple mean of `max(high-low, abs(high-previous_close), abs(low-previous_close))`. Require full windows and a previous close for each change/true-range observation. Entry requires all referenced indicator values, including both lagged RSI values, to be available; ATR and volume mean must be positive and finite. Preserve these definitions in reviewed operators.
+
+Snapshot `entry_ATR` from the signal session, not the following entry session's completed range. Entry price is the actual simulated fill. Use the common calendar, cutoff, accounting and daily phases above. Re-entry after an exit requires a fresh close decision and cannot occur earlier than the next session's open. Record the differences from the source scripts, including warm-up/undefined-value handling, next-open fills, deferred stop changes, deterministic ties and exact cash accounting. Initial capital and instruments come from the evaluation profile; do not adopt the scripts' currency label or fallback tickers as defaults.
 
 ## 3. Evaluation and the Arena
 
@@ -151,6 +216,12 @@ A completed run can contain failing gates. A gate pass does not grant capital.
 
 Rank within comparable cohorts. Show net return, drawdown, tail risk, turnover, execution cost, exposure, sample size, search history, and uncertainty. Define each metric's unit, window, and method. Do not use unexplained “robustness: HIGH” or “portfolio contribution: +0.31” as approval inputs.
 
+### 3.7 Controlled seed comparison
+
+Register four versions from §2.6: threshold 30 without break-even, threshold 32 without break-even, threshold 30 with break-even, and threshold 32 with break-even. Keep the watchlist, dates, warm-up, data, initial capital, daily execution policy, costs and benchmarks identical. Record parentage and the changed rules. Compare net return, drawdown, turnover, trade count and cost sensitivity, with per-stock contributions and skipped entries.
+
+These runs isolate the entry change, exit change and their interaction. They do not presume an improvement. Component-removal tests and new strategy families use their own registered trials. Failure and adverse results remain in the search history.
+
 ## 4. Lifecycle and promotion
 
 Preserve the original checks, but do not build a service for each stage.
@@ -180,6 +251,8 @@ A behaviour-changing revision returns to evaluation. It does not inherit permiss
 ## 5. Portfolio allocation
 
 The Arena selects eligible candidates. A separate deterministic portfolio calculation proposes allocations. Neither raw-return rank nor agent voting controls capital.
+
+The strategy owns ranking and sizing within its assigned budget (§2.4). This allocator owns allocation across strategies. Account execution owns authoritative cash, positions, reservations and broker orders. A five-slot watchlist strategy is one candidate here; its stock selector is not a second account allocator. Joint evaluation within that candidate is required in M1; cross-strategy portfolio validation remains M3.
 
 Use one transparent allocator initially:
 
@@ -254,7 +327,7 @@ Before live enablement, test an emergency route independent of the ordinary Hono
 
 ## 7. Reproducibility and compatibility
 
-Every run binds the strategy, engine, dataset, cost model, policy, seed, and evaluation-suite versions. Record deterministic event ordering and recoverable checkpoints.
+Every run binds the strategy, exact watchlist membership, profile, engine/operator compatibility, dataset manifests, calendar, warm-up and scored windows, initial capital, execution/cost policy, seed, and evaluation-suite versions. Record deterministic event ordering and recoverable checkpoints. The joint ledger, pending entries, reservations and scheduled stop changes belong to that same run identity.
 
 Exact ledger results require exact reproducibility. Statistical outputs use declared tolerances. Prices, quantities, and monetary values use explicit decimal strings on the wire. Instrument tick, lot, currency, and rounding rules are part of the execution profile.
 

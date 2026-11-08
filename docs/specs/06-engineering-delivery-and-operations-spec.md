@@ -1,9 +1,9 @@
 ---
 id: OQ-06
 title: OpenQuant — Engineering, Delivery and Operations
-version: 1.1.0
+version: 1.2.0
 status: canonical
-updated: 2026-11-05
+updated: 2026-11-08
 owns: verification, automation, releases, deployments, recovery, R01–R10
 ---
 
@@ -152,7 +152,7 @@ Do not enable live operation if the Fly deployment cannot satisfy the broker and
 
 ## 5. Fixtures, evaluations, and public content
 
-An example pack contains one strategy artefact, a dataset manifest, execution configuration, expected invariants, licence information, and an explanation. Tests, the CLI demo, Academy exercises, and website examples reference that pack rather than copying it.
+An example pack contains one strategy artefact, a dataset manifest, execution configuration, expected invariants, licence information, and an explanation. A family comparison references versioned packs and common inputs through one comparison manifest. Tests, the CLI demo, Academy exercises, and website examples reference those packs rather than copying them.
 
 Keep three kinds of evidence separate:
 
@@ -204,7 +204,7 @@ Build working vertical slices rather than a large empty tree.
 
 | Milestone | Repository outcome | Required evidence |
 |---|---|---|
-| M1 — Automated watchlist research | S1–S5: one complete competition, selectable/comparable market data, filing/web evidence, saved watchlist and unattended learning/recovery | A01–A06, A11, applicable A15; R01–R03, R05–R06, R08 and applicable R07/R09/R10 boundaries |
+| M1 — Automated watchlist research | S1–S5: one complete competition, selectable/comparable market data, filing/web evidence, per-stock coverage, joint watchlist strategy evaluation and unattended revisions/recovery | A01–A06, A11, applicable A15; R01–R03, R05–R06, R08 and applicable R07/R09/R10 boundaries |
 | M2 — Prospective paper competition | Live observations, independent paper ledgers and recoverable sessions | A07, applicable A13/A15 |
 | M3 — Portfolio and shadow validation | Portfolio fit, separate shadow evidence and execution-path checks without orders | A08–A10, applicable A13/A15 |
 | M4 — Governed live | Isolated account writer, bounded mandate, broker reconciliation and emergency recovery | All applicable checks, including A09–A14/A18 and R07–R10 |
@@ -213,6 +213,22 @@ Build working vertical slices rather than a large empty tree.
 [The roadmap](../product/roadmap.md) defines incremental outcomes and dependencies. M1 incorporates the former C1 numerical foundation and C2 research path. M2/M3 split former C3; M4 preserves former C4. The installed-demo gate remains mandatory before public CLI release and can follow private M1. No acceptance ID is removed or relabelled as passed.
 
 For M1, ordinary CI adds shared adapter contracts, permitted/synthetic response fixtures, schema validation, instrument mapping, split/dividend/units handling, calendar/DST and early-close cases, amendments and cutoff exclusion, pagination, partial/no-data distinctions, typed errors, bounded retry/cancellation and redaction. Validate malicious source text cannot change tools. Provider comparison uses predeclared tolerances and separately labelled datasets; never rewrite golden values to match a vendor.
+
+S1 verifies the OQ-02 §2.6 seed's indicators and position state on one instrument, with a seed and controlled revision through the existing competition path. S4 retains per-stock coverage and adds the joint replay plus the four-candidate comparison in OQ-02 §3.7. S5 carries bounded revisions, failed trials and consumed holdouts across cycles. Joint evaluation inside one strategy is an M1 requirement; allocation across strategies remains M3.
+
+Use synthetic or permitted inputs and independently calculated expected results for these cases. They extend the existing acceptance IDs without changing their text:
+
+| Case | Required demonstration | Acceptance |
+| --- | --- | --- |
+| Seed semantics | Simple-mean RSI/ATR, lagged weakness, current volume mean, warm-up and zero/undefined inputs match the declared formulas. Source-to-seed changes are explicit. | A03–A05 |
+| Competing entries | With four of five slots occupied, three qualifying stocks produce one selected entry. Equal scores use stable IDs. Permuting input order preserves fills and ledger results. | A03–A04 |
+| Time and coverage | Unequal date ranges cannot be aligned by row. Missing required data blocks joint evidence without dropping a member or erasing other stock findings. All holdings use one valuation cutoff. | A05 |
+| Entry and exit phases | Close signals cannot fill at that close. Entry ATR comes from the signal session. Opening gaps, dual stop/target touches and next-session stop activation follow the registered policy. Intraday proceeds cannot fund prior entries. | A03–A05 |
+| Cash and quantities | Fees, lot rounding, cash caps, reservations, expired/skipped entries and later cash reuse reconcile independently. No candidate spends another candidate's simulated capital. | A03–A04 |
+| Revisions and comparison | The four versions share all evaluation conditions. Parent hashes, rule changes, failures, optional/required evidence and consumed holdouts remain inspectable. Changed conditions register a distinct comparison. | A01–A02, A05–A06, A15 |
+| Joint recovery | Interrupted and uninterrupted replay match, including pending entries and scheduled stops. Redelivery produces one official result. Stock and joint attempts stay within shared cycle/period budgets. | A02–A03, A11 |
+
+These are implementation acceptance requirements. A documentation check does not execute them or establish strategy performance.
 
 Opt-in live probes verify all four initial adapters with actual entitlements, bounded spend, declared source terms and recorded running identities. Exercise the real delegated executor separately using the production bundle. S5 requires successive scheduled cycles without a TUI/GHA runner, duplicate-slot/overlap handling, missed-slot recovery, pause/cancel/resume, worker death, lost acknowledgement, source outages, shared rate limits and period-wide budget exhaustion. Preserve unresolved usage and partial evidence. Mocked responses cannot establish these outcomes.
 
