@@ -1,7 +1,7 @@
 ---
 id: OQ-06
 title: OpenQuant — Engineering, Delivery and Operations
-version: 1.2.0
+version: 1.2.1
 status: canonical
 updated: 2026-11-10
 owns: verification, automation, releases, deployments, recovery, R01–R10
@@ -204,33 +204,45 @@ Build working vertical slices rather than a large empty tree.
 
 | Milestone | Repository outcome | Required evidence |
 |---|---|---|
-| M1 — Automated watchlist research | S1–S5: one complete competition, selectable/comparable market data, filing/web evidence, per-stock coverage, joint watchlist strategy evaluation and unattended revisions/recovery | A01–A06, A11, applicable A15; R01–R03, R05–R06, R08 and applicable R07/R09/R10 boundaries |
+| M1 — Automated watchlist research | S0–S5: offline seed evaluation, one complete connected competition, selectable/comparable market data, filing/web evidence, per-stock coverage, joint watchlist strategy evaluation and unattended revisions/recovery | A01–A06, A11, applicable A15; R01–R03, R05–R06, R08 and applicable R07/R09/R10 boundaries |
 | M2 — Prospective paper competition | Live observations, independent paper ledgers and recoverable sessions | A07, applicable A13/A15 |
 | M3 — Portfolio and shadow validation | Portfolio fit, separate shadow evidence and execution-path checks without orders | A08–A10, applicable A13/A15 |
 | M4 — Governed live | Isolated account writer, bounded mandate, broker reconciliation and emergency recovery | All applicable checks, including A09–A14/A18 and R07–R10 |
 | Public CLI release | Clean installed credential-free replay through shared Rust, terminal inspection and release verification | A03–A05, A15–A16, R04 and applicable release checks |
 
-[The roadmap](../product/roadmap.md) defines incremental outcomes and dependencies. M1 incorporates the former C1 numerical foundation and C2 research path. M2/M3 split former C3; M4 preserves former C4. The installed-demo gate remains mandatory before public CLI release and can follow private M1. No acceptance ID is removed or relabelled as passed.
+[The roadmap](../product/roadmap.md) defines incremental outcomes and dependencies. S0 incorporates the former C1 numerical foundation; S1–S5 deliver the connected M1 research path from former C2. M2/M3 split former C3; M4 preserves former C4. The installed-demo gate remains mandatory before public CLI release and can follow private M1. No acceptance ID is removed or relabelled as passed.
+
+### S0 — Offline seed evaluation
+
+Run the OQ-02 §§2.5–2.6 daily swing seed on fixed synthetic data through the shared Rust core. Demonstrate one complete one-instrument path from indicators and signals to fills, cash and positions. Use independently calculated expectations, including the two RSI entry conditions, execution timing, sizing, corporate actions and invalid inputs. This slice needs no provider credentials, model execution, cloud services or deployment.
+
+S0 is complete only when a clean checkout can run a documented local command, inspect actual results and pass the S0 cases below through `pnpm verify`. Add the Cargo workspace, pinned toolchain, lockfile, real core implementation and local harness together. Wire Rust format, clippy, tests and fixture execution into `scripts/verify.ts` and `.github/workflows/ci.yml`. A Rust integration-test harness is sufficient; it must expose signals, trades, cash and positions, not only a pass count. Do not require the installed CLI, API, Ink or a second numerical engine.
+
+Record the source revision, strategy/input/configuration identities, engine identity, command, independent expected results, actual results and remaining limits. Repeat runs must agree. Restoring local numerical state must preserve the event cursor and corporate-action identities so a split is not applied twice. This local replay contributes to A03–A05; it does not establish A11 distributed recovery, complete an acceptance ID by itself or satisfy the public CLI release gate.
+
+Require S0 evidence before accepting S1. Provider setup and integration investigation may proceed in parallel. S1 reuses the verified core and fixtures for one stock, a seed and a controlled revision through the connected competition path. It still requires real provider and proposer/critic execution, registered trials, durable official results, permissions, budgets and verified deployment. S4 adds joint watchlist replay and the four-candidate comparison in OQ-02 §3.7. S5 carries bounded revisions, failed trials and consumed holdouts across unattended cycles, with distributed recovery. Allocation across strategies remains M3.
+
+### Connected slices and acceptance cases
 
 For M1, ordinary CI adds shared adapter contracts, permitted/synthetic response fixtures, schema validation, instrument mapping, split/dividend/units handling, calendar/DST and early-close cases, amendments and cutoff exclusion, pagination, partial/no-data distinctions, typed errors, bounded retry/cancellation and redaction. Validate malicious source text cannot change tools. Provider comparison uses predeclared tolerances and separately labelled datasets; never rewrite golden values to match a vendor.
 
-S1 verifies the OQ-02 §2.6 seed's indicators and position state on one instrument, with a seed and controlled revision through the existing competition path. S4 retains per-stock coverage and adds the joint replay plus the four-candidate comparison in OQ-02 §3.7. S5 carries bounded revisions, failed trials and consumed holdouts across cycles. Joint evaluation inside one strategy is an M1 requirement; allocation across strategies remains M3.
-
 Use synthetic or permitted inputs and independently calculated expected results for these cases. They extend the existing acceptance IDs without changing their text:
 
-| Case | Required demonstration | Acceptance |
-| --- | --- | --- |
-| Seed semantics | Simple-mean RSI/ATR, lagged weakness, current volume mean, warm-up and zero/undefined inputs match the declared formulas. Source-to-seed changes are explicit. | A03–A05 |
-| Entry variants | RSI `29, 31, 31` satisfies threshold 30 without a crossing at `t`; `31, 31, 31` satisfies threshold 32 only. The current floor remains 30 and rank inputs come from `t`. | A03–A05 |
-| Competing entries | With four of five slots occupied, three qualifying stocks produce one selected entry. Equal scores use stable IDs. Permuting input order preserves fills and ledger results. | A03–A04 |
-| Time and coverage | Unequal date ranges cannot be aligned by row. Missing required data blocks joint evidence without dropping a member or erasing other stock findings. All holdings use one valuation cutoff. | A05 |
-| Unplanned non-trading events | Distinguish a confirmed halt from unexplained missing data. Apply eligibility changes only when available and effective. Expire an unfilled opening intent. An unsupported held-position valuation or terminal settlement produces `INSUFFICIENT` with event details, retains the frozen universe and appears in cohort coverage. | A05 |
-| Split across an ex-date | With a 2-for-1 split, 10 held shares at entry 100 and entry ATR 4 become 20 shares at entry 50 and ATR 2. Stop 92 and target 120 become 46 and 60; a scheduled stop at 100 becomes 50. With zero costs and whole-share lots, a separate pending cap of 1,000 buys 20 shares at raw open 50, with signal ATR 4 converted to 2. Rank and cap stay fixed. Repeat after recovery without applying the split twice. | A03–A05, A11 |
-| Cash dividend | For an ordinary dividend of 1 per share, 20 eligible shares create a receivable of 20 on the ex-date. With zero costs/withholding and raw price 50 before and 49 after, equity remains 1,000 before other moves. Buying power is unchanged until payment, then cash rises by 20 and the receivable becomes zero. An ex-date buyer gets no entitlement; stops and targets stay on the raw basis. | A03–A05 |
-| Entry and exit phases | Close signals cannot fill at that close. Entry ATR comes from the signal session. Opening gaps, dual stop/target touches and next-session stop activation follow the registered policy. Intraday proceeds cannot fund prior entries. | A03–A05 |
-| Cash and quantities | Fees, lot rounding, cash caps, reservations, expired/skipped entries and later cash reuse reconcile independently. No candidate spends another candidate's simulated capital. | A03–A04 |
-| Revisions and comparison | The four versions share all evaluation conditions. Parent hashes, rule changes, failures, optional/required evidence and consumed holdouts remain inspectable. Changed conditions register a distinct comparison. | A01–A02, A05–A06, A15 |
-| Joint recovery | Interrupted and uninterrupted replay match, including pending entries and scheduled stops. Redelivery produces one official result. Stock and joint attempts stay within shared cycle/period budgets. | A02–A03, A11 |
+| Case | Required demonstration | Acceptance | Delivery scope |
+| --- | --- | --- | --- |
+| Seed semantics | Simple-mean RSI/ATR, lagged weakness, current volume mean, warm-up and zero/undefined inputs match the declared formulas. Source-to-seed changes are explicit. | A03–A05 | S0 |
+| Entry variants | RSI `29, 31, 31` satisfies threshold 30 without a crossing at `t`; `31, 31, 31` satisfies threshold 32 only. The current floor remains 30 and rank inputs come from `t`. | A03–A05 | S0 |
+| Competing entries | With four of five slots occupied, three qualifying stocks produce one selected entry. Equal scores use stable IDs. Permuting input order preserves fills and ledger results. | A03–A04 | S4 |
+| Time and coverage | Unequal date ranges cannot be aligned by row. Missing required data blocks joint evidence without dropping a member or erasing other stock findings. All holdings use one valuation cutoff. | A05 | S4 |
+| Unplanned non-trading events | Distinguish a confirmed halt from unexplained missing data. Apply eligibility changes only when available and effective. Expire an unfilled opening intent. An unsupported held-position valuation or terminal settlement produces `INSUFFICIENT` with event details, retains the frozen universe and appears in cohort coverage. | A05 | S0 for local missing-data, expiry and unsupported-action handling; S4 for joint/cohort coverage |
+| Split across an ex-date | With a 2-for-1 split, 10 held shares at entry 100 and entry ATR 4 become 20 shares at entry 50 and ATR 2. Stop 92 and target 120 become 46 and 60; a scheduled stop at 100 becomes 50. With zero costs and whole-share lots, a separate pending cap of 1,000 buys 20 shares at raw open 50, with signal ATR 4 converted to 2. Rank and cap stay fixed. Repeat after recovery without applying the split twice. | A03–A05, A11 | S0 for arithmetic and local state restore; S5 for distributed recovery |
+| Cash dividend | For an ordinary dividend of 1 per share, 20 eligible shares create a receivable of 20 on the ex-date. With zero costs/withholding and raw price 50 before and 49 after, equity remains 1,000 before other moves. Buying power is unchanged until payment, then cash rises by 20 and the receivable becomes zero. An ex-date buyer gets no entitlement; stops and targets stay on the raw basis. | A03–A05 | S0 |
+| Entry and exit phases | Close signals cannot fill at that close. Entry ATR comes from the signal session. Opening gaps, dual stop/target touches and next-session stop activation follow the registered policy. Intraday proceeds cannot fund prior entries. | A03–A05 | S0 for one instrument; S4 for cash timing across instruments |
+| Cash and quantities | Fees, lot rounding, cash caps, reservations, expired/skipped entries and later cash reuse reconcile independently. No candidate spends another candidate's simulated capital. | A03–A04 | S0 for one ledger; S1 for candidate isolation; S4 for shared instrument cash |
+| Revisions and comparison | The four versions share all evaluation conditions. Parent hashes, rule changes, failures, optional/required evidence and consumed holdouts remain inspectable. Changed conditions register a distinct comparison. | A01–A02, A05–A06, A15 | S1 for seed/revision lineage; S4 for four-candidate comparison; S5 for cross-cycle history |
+| Joint recovery | Interrupted and uninterrupted replay match, including pending entries and scheduled stops. Redelivery produces one official result. Stock and joint attempts stay within shared cycle/period budgets. | A02–A03, A11 | S4 for deterministic joint replay and shared budgets; S5 for distributed recovery and redelivery |
+| Invalid inputs | Reject unsupported operators and invalid levels. Exclude prohibited future data. Missing required inputs and unsupported corporate actions produce explicit failure or insufficient evidence under OQ-02 §§2.2, 2.5–2.6; never substitute values or silently drop inputs. | A03–A05 | S0; S1 also checks the connected boundary |
+| Local replay | Repeat fixed inputs and restore numerical state, including pending entries, scheduled stops and applied action identities. Signals, fills and final cash/positions match independent expectations and uninterrupted execution. | A03–A05 | S0; does not establish A11 |
 
 These are implementation acceptance requirements. A documentation check does not execute them or establish strategy performance.
 

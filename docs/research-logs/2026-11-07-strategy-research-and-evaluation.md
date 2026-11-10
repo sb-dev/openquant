@@ -105,7 +105,7 @@ Use concise workflows and original method notes. Do not place book PDFs or lengt
 
 - **OQ-02 §§2.4–2.6 and 3.7:** joint selection, shared strategy cash, daily event phases, the corrected seed family and its controlled comparison are canonical requirements.
 - **OQ-03/OQ-04:** structured seed/revision proposals and authoring views expose extracted rules, unresolved assumptions and parent/child differences. OQ-05 owns coordinated dispatch and frozen joint inputs.
-- **M1:** S1 verifies local seed signals and position state. S4 includes joint watchlist replay and the four-candidate comparison. S5 uses bounded prior findings for revisions. OQ-06 owns acceptance; OQ-07 owns example provenance and publication. See the [roadmap](../product/roadmap.md).
+- **M1 (delivery mapping updated 2026-11-10):** S0 verifies the offline seed's signals, execution, accounting and local state restore through the shared Rust core. S1 reuses that evidence for connected competition. S4 includes joint watchlist replay and the four-candidate comparison. S5 uses bounded prior findings for revisions and verifies distributed recovery. OQ-06 owns acceptance; OQ-07 owns example provenance and publication. See the [roadmap](../product/roadmap.md).
 
 Retain the existing account allocator and execution boundaries. No new service, agent role or numerical engine is needed for this proposal.
 
