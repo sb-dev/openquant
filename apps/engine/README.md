@@ -1,7 +1,7 @@
 # Native Rust host
 
-Status: planned; no implementation. First checkpoint: M1.
+Status: planned; no implementation. First connected slice: M1/S1.
 
-Thin entry points around quant-core. Add batch hosting and pluggable market retrieval at M1, live-data paper at M2, shadow validation at M3, and separately deployed live execution at M4. Market and broker adapters belong beside this host.
+Thin entry points around quant-core. S0 runs the core locally through a small harness; it does not require the connected batch host. Add batch hosting and the first market adapter in S1, then the second market adapter in S2. Add live-data paper at M2, shadow validation at M3, and separately deployed live execution at M4. Market and broker adapters belong beside this host.
 
 Owner: [05-system-architecture-and-data-spec.md](../../docs/specs/05-system-architecture-and-data-spec.md). Add executable files and required verification together.

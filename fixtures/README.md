@@ -1,6 +1,6 @@
 # Fixtures
 
-No executable fixture is included yet. M1 must add independent numerical expectations, provider/protocol cases and real shared-core evaluation. Public CLI release adds the installed replay path.
+No executable fixture is included yet. M1/S0 must add synthetic seed inputs, independent numerical expectations and real shared-core evaluation through a local harness. Provider, cross-runtime protocol and recorded model-response cases arrive with their S1–S3 integrations. S4 adds joint watchlist and comparison cases; S5 adds distributed recovery. Public CLI release reuses the seed fixtures and adds the installed replay path.
 
 | Area | Contract |
 | --- | --- |

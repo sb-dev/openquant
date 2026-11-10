@@ -7,6 +7,6 @@ Keep these four package boundaries. API-only modules remain in `apps/api`.
 | [api-contracts](api-contracts/README.md) | Shared wire schemas | M1 |
 | [api-client](api-client/README.md) | Typed client transport | M1 |
 | [agents](agents/README.md) | Versioned proposer/critic behaviour | M1 |
-| [quant-core](quant-core/README.md) | Shared Rust numerical library | M1 |
+| [quant-core](quant-core/README.md) | Shared Rust numerical library | M1/S0 |
 
 Directories are reserved; executable packages are not implemented.

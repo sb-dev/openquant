@@ -32,3 +32,11 @@ The [provider reference](../reference/service-providers.md) links official sourc
 - `git diff --check`: no whitespace errors.
 
 An initial check identified a historical link to the renamed C1 guide; it now points to the original committed guide. The skill review changed the adapted fetch-data file, so its recorded hash was updated before final verification. No provider implementation or live research behaviour is claimed.
+
+## Delivery amendment — 2026-11-10
+
+Add S0 — Offline seed evaluation before S1. This changes the current M1 sequence to six slices, S0–S5; the five-slice decision above remains the historical record. OQ-06 §8 and the [roadmap](../product/roadmap.md) own the current acceptance and dependencies.
+
+S0 gives the existing numerical requirements a separate completion point: fixed synthetic inputs, independent expectations and inspectable results through the shared Rust core in `pnpm verify`. It needs no provider credentials, model execution, cloud service or deployment. S1 depends on that evidence and retains connected competition, authority, durability and deployment verification. S4 retains joint watchlist evaluation; S5 retains unattended revisions and distributed recovery. The installed public CLI replay remains a separate release gate.
+
+This amendment changes delivery planning only. It does not implement the core or fixtures, establish an acceptance pass, or alter the financial rules, A01–A18 or R01–R10.
