@@ -1,6 +1,6 @@
 # Fixtures
 
-No executable fixture is included yet. M1/S0 must add synthetic seed inputs, independent numerical expectations and real shared-core evaluation through a local harness. Provider, cross-runtime protocol and recorded model-response cases arrive with their S1–S3 integrations. S4 adds joint watchlist and comparison cases; S5 adds distributed recovery. Public CLI release reuses the seed fixtures and adds the installed replay path.
+No executable fixture is included yet. M1/S0 must add versioned seed definitions, synthetic inputs, independent numerical expectations and real shared-core evaluation through a local harness. S0 also adds valid/invalid input, numerical result and checkpoint payloads for the api-contracts schemas, exercised in Rust. S1 runs the same fixtures in TypeScript and adds connected envelopes. Provider and recorded model-response cases arrive with their S1–S3 integrations. S4 adds joint watchlist and comparison cases; S5 adds distributed recovery. Public CLI release reuses the seed fixtures and adds the installed replay path.
 
 | Area | Contract |
 | --- | --- |

@@ -1,7 +1,7 @@
 ---
 id: OQ-06
 title: OpenQuant — Engineering, Delivery and Operations
-version: 1.2.1
+version: 1.2.2
 status: canonical
 updated: 2026-11-10
 owns: verification, automation, releases, deployments, recovery, R01–R10
@@ -24,7 +24,7 @@ Implemented commands:
 | `pnpm generate:spec-index` | Generate the ownership/version index from the seven front-matter blocks. |
 | `pnpm generate:tree` | Generate the file map from the Git index, or files in an extracted archive. |
 
-Node can run the TypeScript tooling directly. No dependency install is needed for the bootstrap checks. Native type stripping is execution, not TypeScript type checking. M1 must add strict type checks and the TypeScript/Rust build toolchain.
+Node can run the TypeScript tooling directly. No dependency install is needed for the bootstrap checks. Native type stripping is execution, not TypeScript type checking. S0 adds the Rust build toolchain and schema checks. S1 adds the TypeScript build toolchain, strict type checks and cross-runtime validation.
 
 The root command must grow with the implemented checkpoint. A passing bootstrap check does not satisfy application acceptance. Do not add placeholder commands that print success for absent implementation.
 
@@ -176,6 +176,8 @@ Use the root contribution policy, required verification, and commit convention. 
 
 The spec index is generated from each document's single metadata block. `REPOSITORY_TREE.txt` is generated from the Git index. Stage intended file additions and deletions before regenerating it. In an extracted ZIP without a Git root, generate it from regular files after excluding local build and secret paths.
 
+Specification versions describe canonical requirements, not implemented releases. Use a patch change for clarifications or delivery sequencing that preserves domain and protocol semantics, a minor change for compatible new requirements, and a major change for incompatible requirements. Assess changes against the last merged version. An open PR may revise its proposed versions without a bump for every review commit; cite the commit SHA for exact draft content. After merge, changed canonical content needs a new version.
+
 The reference archive preserves source bytes and hashes. It is non-canonical. A source migration record explains changes. Research logs and public material cannot override canonical requirements.
 
 `CODEOWNERS` requests review; it does not enforce repository rules. Before public release, verify branch rules, required checks, code-owner enforcement, private security reporting, and protected environment capabilities on the actual repository.
@@ -216,11 +218,17 @@ Build working vertical slices rather than a large empty tree.
 
 Run the OQ-02 §§2.5–2.6 daily swing seed on fixed synthetic data through the shared Rust core. Demonstrate one complete one-instrument path from indicators and signals to fills, cash and positions. Use independently calculated expectations, including the two RSI entry conditions, execution timing, sizing, corporate actions and invalid inputs. This slice needs no provider credentials, model execution, cloud services or deployment.
 
-S0 is complete only when a clean checkout can run a documented local command, inspect actual results and pass the S0 cases below through `pnpm verify`. Add the Cargo workspace, pinned toolchain, lockfile, real core implementation and local harness together. Wire Rust format, clippy, tests and fixture execution into `scripts/verify.ts` and `.github/workflows/ci.yml`. A Rust integration-test harness is sufficient; it must expose signals, trades, cash and positions, not only a pass count. Do not require the installed CLI, API, Ink or a second numerical engine.
+Represent each seed variant as a versioned Strategy Contract and Strategy Definition under OQ-02 §§2.1–2.2. Evaluate the definition's typed operator trees through the shared validator and evaluator. Thresholds 30/32 and break-even off/on are differences in the definitions, with distinct artefact identities. They are not separate Rust strategy implementations or evaluator modes. Implement only the reviewed operator subset needed by the seed. A hard-coded seed path cannot satisfy S0 acceptance.
+
+S0's strategy/evaluation input, numerical result and restored-state payloads use versioned language-neutral schemas in `packages/api-contracts/schemas`, following OQ-05 §7. They are shared contracts, not provisional local formats. Generate Rust bindings and validate these payloads in S0, including unsupported versions, unknown mandatory fields and decimal values. Store shared valid/invalid payloads in `fixtures/protocol`. A checkpoint binds the strategy/input/engine identities and event cursor to positions, cash, reservations, pending entries, scheduled stops and applied action identities. Local report formatting may remain harness-specific; its numerical payload must use the shared result schema. S1 adds TypeScript bindings and validation against the same fixtures, plus the run/attempt/ownership envelopes required by connected execution. S0 does not invent those remote identities or claim an official application result.
+
+S0 is complete only when a clean checkout can run a documented local command, inspect actual results and pass the S0 cases below through `pnpm verify`. Add the Cargo workspace, pinned toolchain, lockfile, schemas, real core implementation and local harness together. Wire Rust format, clippy, schema validation, tests and fixture execution into `scripts/verify.ts` and `.github/workflows/ci.yml`. A Rust integration-test harness is sufficient; it must expose signals, trades, cash and positions, not only a pass count. Do not require the installed CLI, API service, TypeScript runtime, Ink or a second numerical engine.
 
 Record the source revision, strategy/input/configuration identities, engine identity, command, independent expected results, actual results and remaining limits. Repeat runs must agree. Restoring local numerical state must preserve the event cursor and corporate-action identities so a split is not applied twice. This local replay contributes to A03–A05; it does not establish A11 distributed recovery, complete an acceptance ID by itself or satisfy the public CLI release gate.
 
 Require S0 evidence before accepting S1. Provider setup and integration investigation may proceed in parallel. S1 reuses the verified core and fixtures for one stock, a seed and a controlled revision through the connected competition path. It still requires real provider and proposer/critic execution, registered trials, durable official results, permissions, budgets and verified deployment. S4 adds joint watchlist replay and the four-candidate comparison in OQ-02 §3.7. S5 carries bounded revisions, failed trials and consumed holdouts across unattended cycles, with distributed recovery. Allocation across strategies remains M3.
+
+Before S1 acceptance, pass the S0 definitions and a proposer-authored controlled revision through the same Rust validation and evaluation path. Verify that the connected schema boundary preserves S0's independent expected results and restored state. Do not replace the S0 evaluator when the first proposer is connected.
 
 ### Connected slices and acceptance cases
 
@@ -230,6 +238,8 @@ Use synthetic or permitted inputs and independently calculated expected results 
 
 | Case | Required demonstration | Acceptance | Delivery scope |
 | --- | --- | --- | --- |
+| Definition execution | Load distinct versioned definitions for threshold 30/32 and break-even off/on through one validator and evaluator. Definition changes alone produce the expected signal and scheduled-stop differences. Unsupported operator IDs and invalid operator types/units fail before evaluation. | A03–A05 | S0 for one-instrument fixtures; S1 for the connected path; S4 for the joint comparison |
+| Shared payloads | Validate input, numerical result and checkpoint payloads against their api-contracts schemas. Serialize and restore state through the checkpoint schema without changing replay results. Reject unsupported schema versions, unknown mandatory fields and mismatched checkpoint identities. | A03–A05 | S0 for Rust; S1 for TypeScript/Rust parity and connected envelopes |
 | Seed semantics | Simple-mean RSI/ATR, lagged weakness, current volume mean, warm-up and zero/undefined inputs match the declared formulas. Source-to-seed changes are explicit. | A03–A05 | S0 |
 | Entry variants | RSI `29, 31, 31` satisfies threshold 30 without a crossing at `t`; `31, 31, 31` satisfies threshold 32 only. The current floor remains 30 and rank inputs come from `t`. | A03–A05 | S0 |
 | Competing entries | With four of five slots occupied, three qualifying stocks produce one selected entry. Equal scores use stable IDs. Permuting input order preserves fills and ledger results. | A03–A04 | S4 |
