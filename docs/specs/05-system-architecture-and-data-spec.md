@@ -3,7 +3,7 @@ id: OQ-05
 title: OpenQuant — System Architecture and Data
 version: 1.2.0
 status: canonical
-updated: 2026-11-08
+updated: 2026-11-10
 owns: stack, hosting, source boundaries, persistence, protocols, authentication
 ---
 
@@ -101,6 +101,10 @@ Use authenticated TLS connections across the Cloudflare/Fly boundary. Service cr
 Separate Fly apps for the agent runner, batch engine, paper engine, and live engine. Fly app secrets are available to every Machine in that app; process groups alone are therefore not a credential boundary. Live broker keys must never be installed in a batch or agent app.
 
 An agent receives only the approved research bundle and model access required by its execution profile. Keep host service credentials out of the child process environment. Batch compute receives read-scoped inputs and an attempt-scoped result route. Deploy tokens remain outside all product runtimes.
+
+The batch app also holds the market-data credentials used by §7.1 retrieval jobs. Every Machine in that app can access those app secrets, including evaluation Machines. Treat the entire app as one trusted credential boundary. Its deployment profile permits bounded outbound retrieval only to approved provider endpoints and required application input/result services. Record and verify the endpoint and redirect restrictions. Do not rely on process groups to isolate retrieval credentials.
+
+Batch credentials must carry no live order authority. For Alpaca, a paper-account credential is a candidate only if verified account authority and data entitlements satisfy the profile. A live-account trading key is prohibited even if the adapter calls only market-data endpoints. S1 must establish the selected credential's authority and entitlements without submitting an order. If suitable credentials or access restrictions cannot be verified, block provider enablement. Keep secrets out of probe evidence and logs. This preserves R10.
 
 Fly root disks are ephemeral. Treat them as scratch space. A Fly Volume may support a bounded crash-recovery journal when required, but it is not a second canonical portfolio database. Volumes are host-local and not automatically replicated; snapshots do not replace tested recovery.
 

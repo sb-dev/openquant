@@ -51,6 +51,15 @@ Then compare under the same frozen data, dates, costs, timing and benchmarks:
 
 Measure net return, drawdown, turnover, trade count and cost sensitivity. Retain per-stock contributions and skipped-entry reasons. This comparison isolates both changes and their interaction; it does not assume an improvement.
 
+### Source identities
+
+SHA-256 values below were calculated from the original uploaded bytes on 2026-11-10. The scripts remain outside Git. Reviewers need those exact source files to inspect the extraction; the hashes identify the inputs but do not supply their contents.
+
+| Source | SHA-256 |
+| --- | --- |
+| `daily_multifactor_swing_trader.py` (V1) | `f3c6b65607c4b3ab783b53d639772fb3952447034f3cc7e4b7891507fdeed8d1` |
+| `gemini-code-1793903237866.py` (V2) | `51aeec0ddd6bf257e318253e7a8dcb598516144e0bacf7e74001cf0333dc37fe` |
+
 ## Agent formulation and iteration
 
 Keep the existing boundaries in [OQ-02 §§1–3](../specs/02-trading-domain-and-evaluation-spec.md) and [OQ-03 §§1–4](../specs/03-model-backed-execution-spec.md):

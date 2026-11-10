@@ -3,7 +3,7 @@ id: OQ-06
 title: OpenQuant — Engineering, Delivery and Operations
 version: 1.2.0
 status: canonical
-updated: 2026-11-08
+updated: 2026-11-10
 owns: verification, automation, releases, deployments, recovery, R01–R10
 ---
 
@@ -221,8 +221,12 @@ Use synthetic or permitted inputs and independently calculated expected results 
 | Case | Required demonstration | Acceptance |
 | --- | --- | --- |
 | Seed semantics | Simple-mean RSI/ATR, lagged weakness, current volume mean, warm-up and zero/undefined inputs match the declared formulas. Source-to-seed changes are explicit. | A03–A05 |
+| Entry variants | RSI `29, 31, 31` satisfies threshold 30 without a crossing at `t`; `31, 31, 31` satisfies threshold 32 only. The current floor remains 30 and rank inputs come from `t`. | A03–A05 |
 | Competing entries | With four of five slots occupied, three qualifying stocks produce one selected entry. Equal scores use stable IDs. Permuting input order preserves fills and ledger results. | A03–A04 |
 | Time and coverage | Unequal date ranges cannot be aligned by row. Missing required data blocks joint evidence without dropping a member or erasing other stock findings. All holdings use one valuation cutoff. | A05 |
+| Unplanned non-trading events | Distinguish a confirmed halt from unexplained missing data. Apply eligibility changes only when available and effective. Expire an unfilled opening intent. An unsupported held-position valuation or terminal settlement produces `INSUFFICIENT` with event details, retains the frozen universe and appears in cohort coverage. | A05 |
+| Split across an ex-date | With a 2-for-1 split, 10 held shares at entry 100 and entry ATR 4 become 20 shares at entry 50 and ATR 2. Stop 92 and target 120 become 46 and 60; a scheduled stop at 100 becomes 50. With zero costs and whole-share lots, a separate pending cap of 1,000 buys 20 shares at raw open 50, with signal ATR 4 converted to 2. Rank and cap stay fixed. Repeat after recovery without applying the split twice. | A03–A05, A11 |
+| Cash dividend | For an ordinary dividend of 1 per share, 20 eligible shares create a receivable of 20 on the ex-date. With zero costs/withholding and raw price 50 before and 49 after, equity remains 1,000 before other moves. Buying power is unchanged until payment, then cash rises by 20 and the receivable becomes zero. An ex-date buyer gets no entitlement; stops and targets stay on the raw basis. | A03–A05 |
 | Entry and exit phases | Close signals cannot fill at that close. Entry ATR comes from the signal session. Opening gaps, dual stop/target touches and next-session stop activation follow the registered policy. Intraday proceeds cannot fund prior entries. | A03–A05 |
 | Cash and quantities | Fees, lot rounding, cash caps, reservations, expired/skipped entries and later cash reuse reconcile independently. No candidate spends another candidate's simulated capital. | A03–A04 |
 | Revisions and comparison | The four versions share all evaluation conditions. Parent hashes, rule changes, failures, optional/required evidence and consumed holdouts remain inspectable. Changed conditions register a distinct comparison. | A01–A02, A05–A06, A15 |
@@ -230,7 +234,7 @@ Use synthetic or permitted inputs and independently calculated expected results 
 
 These are implementation acceptance requirements. A documentation check does not execute them or establish strategy performance.
 
-Opt-in live probes verify all four initial adapters with actual entitlements, bounded spend, declared source terms and recorded running identities. Exercise the real delegated executor separately using the production bundle. S5 requires successive scheduled cycles without a TUI/GHA runner, duplicate-slot/overlap handling, missed-slot recovery, pause/cancel/resume, worker death, lost acknowledgement, source outages, shared rate limits and period-wide budget exhaustion. Preserve unresolved usage and partial evidence. Mocked responses cannot establish these outcomes.
+Opt-in live probes verify all four initial adapters with actual entitlements, bounded spend, declared source terms and recorded running identities. S1 records the market-data credential's verified account type, absence of live order authority and required feed/history entitlements, without recording secrets or placing orders. It also verifies the batch app's approved outbound destinations and redirect restrictions under OQ-05 §5. Missing authority or entitlement evidence blocks enablement; a successful data response alone does not establish credential safety. Exercise the real delegated executor separately using the production bundle. S5 requires successive scheduled cycles without a TUI/GHA runner, duplicate-slot/overlap handling, missed-slot recovery, pause/cancel/resume, worker death, lost acknowledgement, source outages, shared rate limits and period-wide budget exhaustion. Preserve unresolved usage and partial evidence. Mocked responses cannot establish these outcomes.
 
 Public evidence/export checks A17 apply whenever a result is published. Engine compatibility A18 applies whenever a release changes evaluated semantics, including before live trading.
 
