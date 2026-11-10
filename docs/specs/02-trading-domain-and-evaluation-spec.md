@@ -3,7 +3,7 @@ id: OQ-02
 title: OpenQuant — Trading Domain and Evaluation
 version: 1.2.0
 status: canonical
-updated: 2026-11-08
+updated: 2026-11-10
 owns: strategy semantics, evaluation, lifecycle, portfolio, risk, A01–A18
 ---
 
@@ -120,7 +120,7 @@ M1 uses one market/currency, one declared session calendar, daily OHLCV and long
 
 | Phase | Required behaviour |
 | --- | --- |
-| Before open | Apply stop changes scheduled by the previous completed session. Restore the previous decision's entry intents and cash/slot reservations. |
+| Before open | Restore positions, scheduled stops, entry intents and cash/slot reservations. Apply effective corporate actions to that state exactly once, then activate scheduled stops on the resulting price basis. |
 | Open | Process existing-position gap exits, then eligible reserved entry intents in their frozen rank order. Resolve entries from the opening price under the declared fill/cost model. Never rerank using opening prices or later data. |
 | During session | Test stops and targets active for that session, including protection on newly filled positions. Use only those levels; a high-triggered stop change is not effective yet. |
 | After close | Complete indicators for the common session, value holdings, and schedule stop changes for surviving positions. Rank new entries and reserve cash caps/slots for the next open. |
@@ -129,25 +129,35 @@ For the initial simulated cash-cap model, freeze each entry's maximum total spen
 
 For a long position that gaps through an active stop, use the opening price with adverse execution costs, not the stop price. A gap above a target fills at the target before costs in this conservative model. Otherwise an intraday stop/target touch fills at its level before costs. If both are touched and their order is unknown, the stop takes precedence. Record ambiguous bars. Reject invalid levels or unsupported fills rather than inventing a price. A stop moved to entry does not remove fees, gaps or loss risk.
 
-Align by session/time, never by row number. Declare the warm-up range separately from the scored period. Missing required bars or a required valuation at the common cutoff make joint evidence insufficient; do not shrink the universe, advance one stock to a later date, or forward-fill a tradable bar. Expected market closures and predeclared ineligibility remain distinct from missing observations. Optional company-research failures do not block a price-only strategy unless its mission requires that evidence.
+Align by session/time, never by row number. Declare the warm-up range separately from the scored period. Missing required bars or a required valuation at the common cutoff make joint evidence insufficient; do not shrink the universe, advance one stock to a later date, or forward-fill a tradable bar. Expected market closures and causally established ineligibility remain distinct from missing observations. Optional company-research failures do not block a price-only strategy unless its mission requires that evidence.
+
+M1 explicitly limits evidence for unplanned halts, delistings and acquisitions. An absent bar alone does not establish that no qualifying trades occurred. Require dated source evidence and apply any eligibility change only from its verified availability time, no earlier than its effective time. A confirmed non-trading instrument cannot create a signal or fill; expire its pending entry at the intended opening phase and release the reservation. Keep it in the frozen universe and coverage report. If it is held and the required valuation or terminal settlement is unsupported, mark joint evidence `INSUFFICIENT`. Report the instrument, event, missing evidence and affected period. Do not invent a liquidation price or remove the instrument and rerun the same comparison. This M1 limitation can bias the set of completed runs; report it alongside cohort results. A later policy for stale marks or terminal settlement requires separately versioned semantics and acceptance evidence under §3.3.
 
 ### 2.6 Daily swing seed family
 
-The supplied `daily_multifactor_swing_trader.py` and `gemini-code-1793903237866.py` are source references, not executable product plugins. The corrected seed family uses the following rules. Thresholds and five slots belong to this example, not global defaults.
+The supplied `daily_multifactor_swing_trader.py` and `gemini-code-1793903237866.py` are source references, not executable product plugins. Their exact-byte SHA-256 identities are recorded in the [research log](../research-logs/2026-11-07-strategy-research-and-evaluation.md#source-identities). The corrected seed family uses the following rules. Thresholds and five slots belong to this example, not global defaults.
 
 | Component | Definition |
 | --- | --- |
 | Trend | `close[t] > SMA50[t]`. |
-| Recent weakness | `RSI[t-2] <= threshold OR RSI[t-1] <= threshold`; current `RSI[t] > 30`. This does not require an upward crossing. |
+| Recent weakness | `RSI[t-2] <= threshold OR RSI[t-1] <= threshold`; current `RSI[t] > 30`. This does not require an upward crossing at session `t`. The current floor remains 30 in all four versions. |
 | Volume | `volume[t] > volume_SMA20[t]`; the mean includes bar `t`. |
-| Rank | `50 * (volume / volume_SMA20) + (100 - RSI)`, descending. |
+| Rank | `50 * (volume[t] / volume_SMA20[t]) + (100 - RSI[t])`, descending. |
 | Sizing | Five slots, one position per instrument. At the close, divide unreserved strategy cash by vacant slots; freeze each selected entry's total spend cap. Unused slots retain cash. |
 | Protection | `stop = entry_price - 2 * entry_ATR`; `target = entry_price + 5 * entry_ATR`. |
 | Optional break-even | When `high >= entry_price + entry_ATR`, move the stop once to entry for a surviving position, effective next session. |
 
 RSI uses 14-bar simple means of positive/negative close changes: `100 - 100 / (1 + mean_gain / mean_loss)`. With positive gain and zero loss, RSI is 100; with zero gain and positive loss, it is 0; with both zero, it is unavailable. ATR is the 14-bar simple mean of `max(high-low, abs(high-previous_close), abs(low-previous_close))`. Require full windows and a previous close for each change/true-range observation. Entry requires all referenced indicator values, including both lagged RSI values, to be available; ATR and volume mean must be positive and finite. Preserve these definitions in reviewed operators.
 
-Snapshot `entry_ATR` from the signal session, not the following entry session's completed range. Entry price is the actual simulated fill. Use the common calendar, cutoff, accounting and daily phases above. Re-entry after an exit requires a fresh close decision and cannot occur earlier than the next session's open. Record the differences from the source scripts, including warm-up/undefined-value handling, next-open fills, deferred stop changes, deterministic ties and exact cash accounting. Initial capital and instruments come from the evaluation profile; do not adopt the scripts' currency label or fallback tickers as defaults.
+Signal OHLC is split-adjusted to the signal session's share basis using only actions effective and available by that session. Adjust historical volume inversely to prices on the same basis. Do not use future adjustments or dividend-adjusted prices. All indicator values referenced at decision `t`, including lagged RSI, use that causal series. Fills, gap/touch checks and holdings valuation use raw as-traded prices on the current session's share basis.
+
+Snapshot `entry_ATR` from the signal session, not the following entry session's completed range. Convert this price distance to the entry session's share basis for any intervening split. `entry_price` is the actual simulated fill on that basis. Stops, targets and break-even thresholds use the same basis as the position and raw prices checked against them.
+
+For an effective split with ratio `r = new shares / old shares`, multiply held quantity by `r`. Divide `entry_price`, `entry_ATR`, active stops/targets and scheduled stop levels by `r`. Convert pending entry ATR by the same ratio, but retain the monetary cap and frozen rank. Size the entry from that cap at the new raw opening price, including costs and lot rounding. Record the action identity and checkpoint its application to prevent double adjustment after recovery. A resulting fractional entitlement requires declared cash-in-lieu or fractional-share semantics; otherwise the evidence is insufficient, never silently rounded away.
+
+For an ordinary cash dividend, record the entitled quantity held immediately before the ex-date boundary. New ex-date entries receive no entitlement. Add the declared cash entitlement as a receivable in equity on the ex-date and move it to cash only at the evidenced payment phase. It cannot fund entries before payment. Keep raw price levels and position quantity unchanged by the dividend. Include the raw ex-date price move and the separate entitlement once each in returns. Require causal action data, payment timing and any withholding assumptions in the profile. Special distributions or other unsupported action semantics make evidence insufficient.
+
+Use the common calendar, cutoff, accounting and daily phases above. Re-entry after an exit requires a fresh close decision and cannot occur earlier than the next session's open. Record the differences from the source scripts, including warm-up/undefined-value handling, price basis and corporate actions, next-open fills, deferred stop changes, deterministic ties and exact cash accounting. Initial capital and instruments come from the evaluation profile; do not adopt the scripts' currency label or fallback tickers as defaults.
 
 ## 3. Evaluation and the Arena
 
@@ -220,7 +230,7 @@ Rank within comparable cohorts. Show net return, drawdown, tail risk, turnover, 
 
 Register four versions from §2.6: threshold 30 without break-even, threshold 32 without break-even, threshold 30 with break-even, and threshold 32 with break-even. Keep the watchlist, dates, warm-up, data, initial capital, daily execution policy, costs and benchmarks identical. Record parentage and the changed rules. Compare net return, drawdown, turnover, trade count and cost sensitivity, with per-stock contributions and skipped entries.
 
-These runs isolate the entry change, exit change and their interaction. They do not presume an improvement. Component-removal tests and new strategy families use their own registered trials. Failure and adverse results remain in the search history.
+These runs isolate the entry-rule change, exit change and their interaction. The current `RSI[t] > 30` floor remains fixed. Threshold 30 implies a crossing above 30 in one of the last two transitions, but not necessarily at session `t`. Threshold 32 also admits a path such as `31, 31, 31`, with no crossing. Interpret the entry variant as allowing this additional behaviour, not merely changing how deep a recovery must start. The comparison does not presume an improvement. Component-removal tests and new strategy families use their own registered trials. Failure and adverse results remain in the search history.
 
 ## 4. Lifecycle and promotion
 

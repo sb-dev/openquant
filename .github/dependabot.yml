@@ -8,4 +8,4 @@ updates:
     groups:
       actions:
         patterns: ['*']
-# Add npm and Cargo updates when C1 creates the dependency workspaces.
+# Add npm and Cargo updates when S1 creates the dependency workspaces.
