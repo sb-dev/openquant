@@ -1,0 +1,205 @@
+{
+  "description": "Sources of the draft method notes. Each summary is an assistant-written summary of the book, identified by the digest of the PDF the maintainer supplied. No rule has been checked against the book.",
+  "sources": [
+    {
+      "id": "chan-algorithmic-trading",
+      "rule_prefix": "CHAN",
+      "author": "Ernest P. Chan",
+      "title": "Algorithmic Trading: Winning Strategies and Their Rationale",
+      "edition": "unknown",
+      "note": "packages/agents/src/methods/chan-algorithmic-trading.md",
+      "summary": {
+        "kind": "assistant-written summary",
+        "media_type": "application/pdf",
+        "sha256": "43465023abb8c90eb85c22be8dd50f175408d5b697df9b7d916207bc2881c0ca",
+        "bytes": 144526,
+        "pages": 4,
+        "received": "2026-11-11",
+        "export_method": "unknown",
+        "document_revision": "unknown",
+        "locator": "held by the maintainer outside Git"
+      },
+      "primary_pages_checked": []
+    },
+    {
+      "id": "pardo-evaluation-optimization",
+      "rule_prefix": "PARDO",
+      "author": "Robert Pardo",
+      "title": "The Evaluation and Optimization of Trading Strategies",
+      "edition": "2nd",
+      "note": "packages/agents/src/methods/pardo-evaluation-optimization.md",
+      "summary": {
+        "kind": "assistant-written summary",
+        "media_type": "application/pdf",
+        "sha256": "d51ba621d8057e6268bededd6f014b8900811bbf722915a0f84ca47e093ec1ea",
+        "bytes": 89513,
+        "pages": 2,
+        "received": "2026-11-11",
+        "export_method": "unknown",
+        "document_revision": "unknown",
+        "locator": "held by the maintainer outside Git"
+      },
+      "primary_pages_checked": []
+    },
+    {
+      "id": "kaufman-trading-systems-methods",
+      "rule_prefix": "KAUFMAN",
+      "author": "Perry J. Kaufman",
+      "title": "Trading Systems and Methods",
+      "edition": "6th",
+      "note": "packages/agents/src/methods/kaufman-trading-systems-methods.md",
+      "summary": {
+        "kind": "assistant-written summary",
+        "media_type": "application/pdf",
+        "sha256": "927af81180d015d1a442dfa8d8b5969ca3624dee1cc8dd0e240457d677f55846",
+        "bytes": 275647,
+        "pages": 13,
+        "received": "2026-11-11",
+        "export_method": "unknown",
+        "document_revision": "unknown",
+        "locator": "held by the maintainer outside Git"
+      },
+      "primary_pages_checked": []
+    },
+    {
+      "id": "murphy-technical-analysis",
+      "rule_prefix": "MURPHY",
+      "author": "John J. Murphy",
+      "title": "Technical Analysis of the Financial Markets: A Comprehensive Guide to Trading Methods and Applications",
+      "edition": "unknown",
+      "note": "packages/agents/src/methods/murphy-technical-analysis.md",
+      "summary": {
+        "kind": "assistant-written summary",
+        "media_type": "application/pdf",
+        "sha256": "231c5d6826016f0db0319b17780c9847183c354f7c5b784a5c4197a00d565d64",
+        "bytes": 228792,
+        "pages": 10,
+        "received": "2026-11-11",
+        "export_method": "unknown",
+        "document_revision": "unknown",
+        "locator": "held by the maintainer outside Git"
+      },
+      "primary_pages_checked": []
+    },
+    {
+      "id": "penman-financial-statement-analysis",
+      "rule_prefix": "PENMAN",
+      "author": "Stephen H. Penman",
+      "title": "Financial Statement Analysis and Security Valuation",
+      "edition": "5th",
+      "note": "packages/agents/src/methods/penman-financial-statement-analysis.md",
+      "summary": {
+        "kind": "assistant-written summary",
+        "media_type": "application/pdf",
+        "sha256": "d319deca82e9af69a1dbf3cdc06636564b5275bd24421dcd5875b49eab28e248",
+        "bytes": 155596,
+        "pages": 6,
+        "received": "2026-11-11",
+        "export_method": "unknown",
+        "document_revision": "unknown",
+        "locator": "held by the maintainer outside Git"
+      },
+      "primary_pages_checked": []
+    },
+    {
+      "id": "gray-vogel-quantitative-momentum",
+      "rule_prefix": "GRAYVOGEL",
+      "author": "Wesley R. Gray and Jack R. Vogel",
+      "title": "Quantitative Momentum: A Practitioner's Guide to Building a Momentum-Based Stock Selection System",
+      "edition": "unknown",
+      "note": "packages/agents/src/methods/gray-vogel-quantitative-momentum.md",
+      "summary": {
+        "kind": "assistant-written summary",
+        "media_type": "application/pdf",
+        "sha256": "1df0bec55706049779b58c0e4bbcf1fcd1b1b39dbe67dad59df8a54b92cf131c",
+        "bytes": 133599,
+        "pages": 4,
+        "received": "2026-11-11",
+        "export_method": "unknown",
+        "document_revision": "unknown",
+        "locator": "held by the maintainer outside Git"
+      },
+      "primary_pages_checked": []
+    },
+    {
+      "id": "aronson-evidence-based-technical-analysis",
+      "rule_prefix": "ARONSON",
+      "author": "David Aronson",
+      "title": "Evidence-Based Technical Analysis: Applying the Scientific Method and Statistical Inference to Trading Signals",
+      "edition": "unknown",
+      "note": "packages/agents/src/methods/aronson-evidence-based-technical-analysis.md",
+      "summary": {
+        "kind": "assistant-written summary",
+        "media_type": "application/pdf",
+        "sha256": "231fba17dc7397c3f791e9872fb4897d19e8f90b87d1ddfd0feab8061a27fd99",
+        "bytes": 190233,
+        "pages": 7,
+        "received": "2026-11-11",
+        "export_method": "unknown",
+        "document_revision": "unknown",
+        "locator": "held by the maintainer outside Git"
+      },
+      "primary_pages_checked": []
+    },
+    {
+      "id": "carver-systematic-trading",
+      "rule_prefix": "CARVER",
+      "author": "Robert Carver",
+      "title": "Systematic Trading",
+      "edition": "unknown",
+      "note": "packages/agents/src/methods/carver-systematic-trading.md",
+      "summary": {
+        "kind": "assistant-written summary",
+        "media_type": "application/pdf",
+        "sha256": "5c95ed5c38d6209c77fabc065875eb7168d29a8c47f78691a45e04f03be232a4",
+        "bytes": 114055,
+        "pages": 3,
+        "received": "2026-11-11",
+        "export_method": "unknown",
+        "document_revision": "unknown",
+        "locator": "held by the maintainer outside Git"
+      },
+      "primary_pages_checked": []
+    },
+    {
+      "id": "harris-trading-and-exchanges",
+      "rule_prefix": "HARRIS",
+      "author": "Larry Harris",
+      "title": "Trading and Exchanges: Market Microstructure for Practitioners",
+      "edition": "unknown",
+      "note": "packages/agents/src/methods/harris-trading-and-exchanges.md",
+      "summary": {
+        "kind": "assistant-written summary",
+        "media_type": "application/pdf",
+        "sha256": "4de1682cd1c5aa8c00f545eaaec9a8ba426c7631c7ef38f38ee50dd560c0f26a",
+        "bytes": 183526,
+        "pages": 6,
+        "received": "2026-11-11",
+        "export_method": "unknown",
+        "document_revision": "unknown",
+        "locator": "held by the maintainer outside Git"
+      },
+      "primary_pages_checked": []
+    },
+    {
+      "id": "lopez-de-prado-advances-financial-ml",
+      "rule_prefix": "LDP",
+      "author": "Marcos López de Prado",
+      "title": "Advances in Financial Machine Learning",
+      "edition": "unknown",
+      "note": "packages/agents/src/methods/lopez-de-prado-advances-financial-ml.md",
+      "summary": {
+        "kind": "assistant-written summary",
+        "media_type": "application/pdf",
+        "sha256": "c5a10e4afb55fa411dd65413fa0ab1552bc0bb1613a7c3db59b24223aa72ef6a",
+        "bytes": 119542,
+        "pages": 4,
+        "received": "2026-11-11",
+        "export_method": "unknown",
+        "document_revision": "unknown",
+        "locator": "held by the maintainer outside Git"
+      },
+      "primary_pages_checked": []
+    }
+  ]
+}
