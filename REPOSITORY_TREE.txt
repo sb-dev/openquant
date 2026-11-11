@@ -578,6 +578,10 @@ infra/terraform/README.md
 package.json
 packages/README.md
 packages/agents/README.md
+packages/agents/evals/fixture-policy.json
+packages/agents/evals/strategy-critique/fixtures/dataset.json
+packages/agents/evals/strategy-formulation/fixtures/dataset.json
+packages/agents/schemas/README.md
 packages/agents/src/methods/aronson-evidence-based-technical-analysis.md
 packages/agents/src/methods/carver-systematic-trading.md
 packages/agents/src/methods/chan-algorithmic-trading.md
@@ -589,6 +593,8 @@ packages/agents/src/methods/murphy-technical-analysis.md
 packages/agents/src/methods/pardo-evaluation-optimization.md
 packages/agents/src/methods/penman-financial-statement-analysis.md
 packages/agents/src/methods/sources.json
+packages/agents/src/skills/strategy-critique/procedure.md
+packages/agents/src/skills/strategy-formulation/procedure.md
 packages/api-client/README.md
 packages/api-contracts/README.md
 packages/quant-core/README.md
