@@ -144,7 +144,14 @@ export function agentAssetErrors(base: string, files: Set<string>): string[] {
       const lines = note.split('\n');
       const start = lines.indexOf(ruleHeader);
       if (start < 0 || lines[start + 1] !== '| --- | --- | --- | --- | --- | --- | --- |') { errors.push(`Method note has no rules: ${source.note}`); return; }
-      const checked = new Set<string>(source.primary_pages_checked.map((item: Json) => item?.rule));
+      // A primary_checked rule needs a complete record of the primary pages checked (OQ-03 §3).
+      const checked = new Set<string>();
+      for (const item of source.primary_pages_checked) {
+        const complete = /^[A-Z]{3,}-\d{2}$/.test(item?.rule ?? '') && ['locator', 'pages', 'checked_by'].every((key) => text(item[key]))
+          && /^\d{4}-\d{2}-\d{2}$/.test(item.checked_on ?? '');
+        if (complete) checked.add(item.rule);
+        else errors.push(`Invalid primary page record in ${source.note}: ${item?.rule ?? '(missing rule)'} needs locator, pages, checked_on and checked_by`);
+      }
       let expected = 1;
       for (const line of lines.slice(start + 2)) {
         if (!line.startsWith('|')) break;
