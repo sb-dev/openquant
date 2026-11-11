@@ -578,6 +578,7 @@ infra/terraform/README.md
 package.json
 packages/README.md
 packages/agents/README.md
+packages/agents/src/methods/sources.json
 packages/api-client/README.md
 packages/api-contracts/README.md
 packages/quant-core/README.md
