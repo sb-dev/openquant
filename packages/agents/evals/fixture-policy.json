@@ -1,0 +1,17 @@
+{
+  "synthetic": true,
+  "purpose": "Synthetic finding-treatment policy for offline pilot evaluation cases only. It is not a registered evaluation policy (OQ-02 §§3.1 and 3.6) and grants no gate, promotion or approval.",
+  "treatments": {
+    "hypothesis_assumption": { "default": "advisory" },
+    "data_quality_alignment": { "default": "blocking" },
+    "causal_leakage": { "default": "blocking" },
+    "execution_accounting_assumption": { "default": "blocking" },
+    "search_overfitting": { "default": "blocking" },
+    "policy_mismatch": { "default": "blocking" },
+    "portfolio_fit": { "default": "advisory" },
+    "operational_risk": { "default": "advisory" },
+    "source_uncertainty": { "default": "advisory", "escalate_when": ["affects_executable_rule"] },
+    "missing_evidence": { "default": "advisory", "escalate_when": ["required_evidence"] },
+    "method_advice": { "default": "advisory" }
+  }
+}
