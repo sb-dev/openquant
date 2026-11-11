@@ -1,9 +1,9 @@
 ---
 id: OQ-02
 title: OpenQuant — Trading Domain and Evaluation
-version: 1.2.0
+version: 1.3.0
 status: canonical
-updated: 2026-11-10
+updated: 2026-11-11
 owns: strategy semantics, evaluation, lifecycle, portfolio, risk, A01–A18
 ---
 
@@ -224,6 +224,8 @@ Decision outcome: APPROVED / REJECTED / DEFERRED
 
 A completed run can contain failing gates. A gate pass does not grant capital.
 
+Critic findings use the typed categories in [OQ-03 §4](03-model-backed-execution-spec.md#4-request-and-result-boundaries). The registered policy maps each category and its applicability conditions, including the lifecycle transitions it affects, to blocking or advisory treatment. Method notes, source summaries and model-stated severity cannot set or change that mapping. An unknown category is an invalid result, not an advisory finding. Summary-derived thresholds, capital caps and parameter-count preferences remain advisory unless the registered policy adopts them. Finding treatment is separate from run status, gate results and decision outcomes. A valid adverse finding is a completed research result, not a failed run or an approval.
+
 Rank within comparable cohorts. Show net return, drawdown, tail risk, turnover, execution cost, exposure, sample size, search history, and uncertainty. Define each metric's unit, window, and method. Do not use unexplained “robustness: HIGH” or “portfolio contribution: +0.31” as approval inputs.
 
 ### 3.7 Controlled seed comparison
@@ -243,6 +245,8 @@ Preserve the original checks, but do not build a service for each stage.
 | `PAPER` | Sufficient prospective evidence, no blocking findings, acceptable portfolio proposal | `SHADOW` |
 | `SHADOW` | Execution-path checks and recovery tests pass; steward approves a live mandate | `LIVE`, mandate tier `MICRO` |
 | `LIVE`, tier `MICRO` | Actual fills, costs, reconciliation, and risk behaviour support a larger allocation | `LIVE`, mandate tier `PRODUCTION` |
+
+Independent critique applies to a validated, registered `DRAFT` version and its hash. A draft that fails validation receives diagnostics, not critique. A transition waits while an applicable finding that the registered policy treats as blocking for that transition remains unresolved (§3.6). Advisory findings remain visible in the evidence bundle.
 
 `PAUSED` suspends authority without erasing evidence or positions. `RETIRED` ends new deployment eligibility. Existing obligations remain visible until closed or transferred through an explicit process.
 
@@ -379,6 +383,8 @@ Acceptance tests below are requirements, not reported test results.
 | **A16** | A clean installed release runs the fixture demo without cloud, model, data-provider, or broker credentials. |
 | **A17** | A public benchmark export is reproducible, version-labelled, licence-checked, and free from private account data and secrets. |
 | **A18** | Engine changes invalidate affected evidence or produce an explicit compatibility decision. Changed numbers are explained, not silently replaced. |
+
+A01's critic block applies when an unresolved finding has an applicable blocking treatment under the registered policy (§§3.6 and 4). The critic cannot assign that treatment, close its own finding or approve the candidate. This interprets A01 without changing its wording.
 
 ### Measuring “same results”
 

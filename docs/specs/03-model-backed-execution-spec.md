@@ -1,9 +1,9 @@
 ---
 id: OQ-03
 title: OpenQuant — Model-Backed Execution
-version: 1.2.0
+version: 1.3.0
 status: canonical
-updated: 2026-11-08
+updated: 2026-11-11
 owns: proposer and critic behaviour, delegation, permissions, budgets, results
 ---
 
@@ -95,21 +95,27 @@ Disable discovery of arbitrary local hooks, plugins, repository instructions, an
 
 Production research receives no writable project checkout. Source text, strategy descriptions, and market/news content remain untrusted data. No `eval`, arbitrary shell execution from model text, self-installed skills, or unrestricted network tools are granted to product agents.
 
-Book-derived methods enter only through a reviewed, versioned `packages/agents` behaviour bundle. Organise procedures around formulation, experiment design, critique and sizing. Record the source edition, chapter/page, checked formula, assumptions, worked example and evaluation cases. Verify extracted equations against the PDF before adoption. A method reference is not evidence of profitability and cannot grant new operators or permissions. Keep licensed PDFs and lengthy copied passages out of public bundles. Installing a development skill does not activate it for research agents.
+Book-derived methods enter only through a reviewed, versioned `packages/agents` behaviour bundle. Organise skills around formulation, experiment design, critique and sizing; several sources can support one skill. Record the source edition, chapter/page or explicit unknown, source-check status, checked formula, assumptions, adaptations, worked example and evaluation cases. Each extracted rule records one `rule_origin`: `primary_checked` (exact primary page checked), `summary_claim_unverified` (summary claim only) or `summariser_recommendation` (design advice with no book attribution). An ambiguous origin remains unverified. Verify extracted equations against the cited primary pages before adoption; a summary of a book is not a primary source. Summary-only rules can support drafts and test cases, but they do not enter a released bundle. Source fidelity, operator availability and behaviour evidence are separate checks. A method reference is not evidence of profitability and cannot grant new operators or permissions. Keep licensed PDFs, private source documents and lengthy copied passages out of Git and public bundles. Installing a development skill does not activate it for research agents.
 
 `execution.enabled` is explicit and defaults off. Missing authentication or unsupported executor capability produces a blocked/failed run, not a recorded model success. Offline tests inject controlled responses. A separate opt-in test must exercise the real delegated runner before claiming real-model execution.
 
 The third-party executor is an external dependency. Document its authentication, service terms, and distribution requirements before publishing an image containing it. An open-source OpenQuant licence does not automatically license that dependency.
 
+A product skill is a complete module in `packages/agents`. Its registration, request assembly and result parsing, schemas, instructions, method notes, development scripts and evaluations describe the same behaviour. Use one reviewed static registry. A model supplies task arguments, never a module path, client or executable name. The host derives trusted context from the existing envelope: mission, run, attempt and call identities, role, bundle and skill versions, scope, cutoff, frozen policy, deadline and reserved allowances. Model input cannot supply or enlarge that context. Skill code checks structure, reference membership and exact rule differences only. It does not repeat the API's scope, bounds, lineage or policy validation, or the Rust core's operator, type, unit and lookback validation. It makes no unrecorded nested model calls.
+
+The behaviour bundle is an exact allowlist of paths and content hashes, never a recursive directory copy. Build tooling verifies that manifest and inlines the allowlisted procedure text and method notes into a generated module. Request assembly selects text from that module, binds the manifest hash and reads no filesystem. The runner verifies the matching bundle identity before dispatch and cannot substitute local text. Evaluation files, expected answers, development scripts and private source snapshots never enter the bundle or the delegated filesystem.
+
+The first pilot registers two role modules: `strategy-formulation` for the proposer and `strategy-critique` for the critic. Each has pure request assembly and result parsing, and neither exposes agent-callable tools. Agent-callable tools, their host bridge, call identities and records, and local tool schemas arrive together with the first S3 evidence tool. A tool handler runs in the trusted runner host, not in the delegated executor or a process it starts. It receives narrow attempt-scoped clients and a cancellation signal, validates input and permissions before external work, and validates output before returning a bounded result. It cannot call an API-owned provider adapter in process. A tool result is not an official result or a registered trial. Development scripts are not runtime entry points. Never pass model text to a shell.
+
 ## 4. Request and result boundaries
 
-`packages/agents` owns role instructions, reviewed skills, output schemas, request assembly, parsing, evaluation cases, and release metadata. `apps/agent-runner` owns the isolated host process. The API alone performs canonical research writes after validation.
+`packages/agents` owns role instructions, reviewed skill modules and method notes, role request/result schemas, request assembly, parsing, evaluation cases, and release metadata. `apps/agent-runner` owns the isolated host process. The API alone performs canonical research writes after validation.
 
 | Request field group | Required contents |
 | --- | --- |
-| Identity | Mission, logical run, attempt, role, fresh session, behaviour-bundle hash. |
-| Execution | Pinned tool version, selected profile, timeout, output limit, permitted tools, cost reservation. |
-| Inputs | Instrument/watchlist scope, permitted operators and parameter bounds, frozen evaluation policy, seed/parent/candidate hash where applicable, authorised evidence and per-stock finding references, provenance, explicit holdout exclusions. |
+| Identity | Mission, logical run, attempt, role, fresh session, behaviour-bundle hash, which binds the selected skill and allowed method revisions. |
+| Execution | Pinned tool version, selected profile, timeout, output limit, permitted tools as `tool:<registry-id>@<version>` (none for role modules), cost reservation. |
+| Inputs | Instrument/watchlist scope, permitted operators as `operator:<operator-id>@<compatibility-version>` and parameter bounds, required provider capabilities as `provider:<adapter-id>/<operation>@<version>`, frozen evaluation policy, seed/parent/candidate hash where applicable, authorised evidence and per-stock finding references, provenance, explicit holdout exclusions. |
 | Outcome destination | Attempt-scoped result route; no unrestricted database capability. |
 
 | Result field group | Required contents |
@@ -121,9 +127,31 @@ The third-party executor is an external dependency. Document its authentication,
 
 These are contract requirements, not a frozen JSON schema. M1 supplies versioned schemas and shared valid/invalid fixtures. Unsupported mandatory fields or semantics fail validation.
 
+The identifier formats reference their owning registries. Availability in one namespace grants no authority in another. Before dispatch, the host checks source-adoption evidence, schema compatibility, and the task's requirements against mission permissions and available capabilities. Missing required inputs block the task with a reason; optional failures remain visible. Never fabricate data, substitute an operator, expand scope or choose a new provider. Record supplied methods and result-cited methods. Citations are model self-reports, and every cited method must belong to the supplied reviewed set.
+
 Each proposal includes the complete contract/definition, source references, parent hash for a revision, exact rule changes, rationale, expected effect, invalidation conditions and requested tests. A fresh family has no parent and declares that fact. A seed translation also carries unresolved assumptions and source-to-draft differences. The API checks scope, bounds, lineage and execution-policy compatibility before accepting the immutable version. An experiment request references that version and the frozen evaluation policy; changing the measurement conditions requires a separately registered comparison.
 
-A valid critic result can reject a candidate. Successful tool execution is not approval of its output. A critic recommendation is not an official numeric evaluation result.
+A sizing result is a controlled revision within the strategy's assigned budget, or a critique of sizing assumptions. It never calculates an authoritative account allocation, grants capital or submits orders. Unresolved executable semantics remain draft material or findings. Never fill missing rules merely to obtain schema-valid output.
+
+A critic request references a registered Strategy Version and its application-owned hash. Deterministic validation rejects malformed or unregistered drafts before dispatch. Their diagnostics go to a later proposer attempt, and no Strategy Version hash is fabricated. Criticism of unregistered drafts is not supported.
+
+A valid critic result can reject a candidate. Successful tool execution is not approval of its output. A critic recommendation is not an official numeric evaluation result. A valid adverse finding is not a tool or execution failure.
+
+Each critic finding has one primary category from the table below, optional related categories, method references, evidence and location, proposed tests where applicable, and `finding_source`: `deterministic_check` or `model_judgement`. `finding_source` describes how a finding was produced; `rule_origin` (§3) describes a method rule. The primary category identifies the defect. `method_advice` covers optional preferences only and is never a fallback for a concrete defect. Unknown categories fail result validation. [OQ-02 §3.6](02-trading-domain-and-evaluation-spec.md#36-results-and-selection) assigns treatment through the registered policy. The critic cannot rewrite the candidate or close its findings through an approval field.
+
+| Category | Defect or concern covered |
+| --- | --- |
+| `hypothesis_assumption` | Unsupported economic mechanism, applicability or falsifiability assumptions. |
+| `data_quality_alignment` | Row-based stock alignment, mismatched sessions, missing or inconsistent observations. |
+| `causal_leakage` | Same-close signals/fills and use of unavailable future information. |
+| `execution_accounting_assumption` | Uncertain stop ordering, unrealistic costs/fills and inconsistent accounting assumptions. |
+| `search_overfitting` | Unreported trials, tuning contamination, inadequate search adjustment or robustness tests. |
+| `policy_mismatch` | Changed evaluation windows, thresholds or other frozen comparison conditions. |
+| `portfolio_fit` | Unsupported diversification claims, concentration or correlated exposures. |
+| `operational_risk` | Missing recovery assumptions, unreliable dependencies or unsupported operating conditions. |
+| `source_uncertainty` | Unverified attribution, ambiguous formula or unsupported method interpretation. |
+| `missing_evidence` | Required evidence absent or insufficient to assess a claim. |
+| `method_advice` | Optional preferences only; never a fallback category for a concrete defect. |
 
 The host strips service credentials from the child environment. It provides no writable project checkout, broker access, deployment token, or official-result writer. Retrieved content is data, never authority to change the role or tools.
 
@@ -135,13 +163,19 @@ The host returns acceptance promptly. Cloudflare observes durable status through
 
 Cancellation terminates the child process tree and records the outcome. A timeout must not leave an unbounded subprocess. Store a bounded diagnostic record without credentials or full sensitive context.
 
+Cancellation also propagates to tool dependencies and stops new work. It does not prove that a remote request stopped or cost nothing. Record each tool call's outcome against its call identity: success, invalid input or output, denied capability, authentication failure, unavailable dependency, timeout or cancellation. Return a bounded diagnostic to the model. Tool-call outcomes are not attempt outcomes. A recoverable tool failure can still end in completion. Missing required evidence makes the result ineligible; an optional failure remains in coverage. A terminal denial, authentication failure, cancellation or timeout maps to the matching §4 outcome, and malformed final output maps to malformed result. Do not add attempt statuses for unavailable dependencies or invalid tool arguments.
+
 ## 6. Verification
 
 Offline tests cover request construction, schema validation, malformed output, identity mismatch, denied tools, refusal, missing authentication, missing executable, cancellation, timeout, and late completion from an expired attempt.
 
 Include valid seed/revision/new-family proposals and failures for altered comparison conditions, unsupported operators, missing parent/source references, unresolved executable assumptions and holdout leakage. Evaluate whether criticism detects row-based stock alignment, same-close signals/fills, uncertain stop ordering and changed evaluation windows. Test book-derived procedures on cases outside their tuning examples; preserve adverse and inconclusive results.
 
-Real-model tests are opt-in and run the same executor and behaviour bundle as production research. Use reviewed revisions, fixed missions, declared budgets, and recorded actual model versions. A replayed fixture cannot count as a real-model result.
+Criticism follows registration. Place defects that a registered Strategy Version cannot contain in its supplied source references, evidence, or rationale and expected-effect claims. Label cases for every finding category and for these defects, including valid controls. Compare category and evidence pairs and policy treatment with deterministic assertions. Policy-permitted `method_advice` is not a false positive; an invented defect or an advisory finding elevated to blocking is.
+
+Each skill evaluation case records its ID, purpose, requirement or method reference, input, frozen context, references to recorded dependency responses, expected outcome, permitted calls, and expected warnings or failures. Label each case as authoring, tuning or fresh. Expected answers never enter the evaluated agent's context. A fresh case is consumed once its result informs a prompt or method change. Public repository cases are regression evidence, not contamination-free holdouts. A model judge, if adopted, runs through `AgentExecutor` with its own reviewed bundle, identity and budget.
+
+Real-model tests are opt-in and run the same executor and behaviour bundle as production research. Use reviewed revisions, fixed missions, declared budgets, and recorded actual model versions. A replayed fixture cannot count as a real-model result. To assess a method, compare a baseline bundle with one that adds it under matched missions, evidence, executor configuration and budgets. Record each bundle identity, the actual model, validity, known-flaw detection, false positives, cost and latency over repeated trials.
 
 Before adopting a tool version, exercise its actual binary, supported flags, permission controls, configuration isolation, session identity, structured output, and termination behaviour. The September Pactwright CLI observations are historical evidence, not a current invocation recipe.
 

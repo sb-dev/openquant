@@ -1,9 +1,9 @@
 ---
 id: OQ-06
 title: OpenQuant — Engineering, Delivery and Operations
-version: 1.2.2
+version: 1.3.0
 status: canonical
-updated: 2026-11-10
+updated: 2026-11-11
 owns: verification, automation, releases, deployments, recovery, R01–R10
 ---
 
@@ -159,8 +159,10 @@ Keep three kinds of evidence separate:
 | Evidence | Location and use |
 |---|---|
 | Deterministic engine/protocol fixtures | `fixtures/` and component tests; run on ordinary CI |
-| Model behaviour evaluations | `packages/agents/evals/`; same real runner for paid acceptance, controlled adapter responses for offline tests |
+| Model behaviour evaluations | `packages/agents/evals/<skill>/`, with recorded responses in `fixtures/agent-results`; same real runner for paid acceptance, controlled adapter responses for offline tests |
 | Product research and account history | private Neon/R2; not Git, public CI artefacts, or a public Arena feed |
+
+Skill evaluation suites stay outside the runtime asset tree. Ordinary CI runs non-empty offline suites; paid or external evaluations remain explicit, bounded and separate. Bundle checks prove that evaluation files, expected answers, development scripts and private snapshots cannot enter a bundle. Exact numerical expectations reference independent shared fixtures.
 
 Runtime strategy competition is coordinated by Cloudflare and executed by the Fly-hosted engine. Repository benchmark runs validate the software and its evaluation method. A benchmark fixture is not proof of future trading returns.
 
@@ -230,6 +232,8 @@ Require S0 evidence before accepting S1. Provider setup and integration investig
 
 Before S1 acceptance, pass the S0 definitions and a proposer-authored controlled revision through the same Rust validation and evaluation path. Verify that the connected schema boundary preserves S0's independent expected results and restored state. Do not replace the S0 evaluator when the first proposer is connected.
 
+Before S0, `packages/agents` may hold draft method notes, procedure drafts, evaluation case descriptions and non-financial I/O shapes, checked by repository tooling. These drafts do not stub financial schemas, form a bundle or satisfy S0 or S1. S1 adds the pilot role modules, wire schemas and owner validators, the bundle allowlist, required dependencies and lockfile, strict TypeScript checks and non-empty offline suites to `pnpm verify`. The first S3 evidence tool adds its bridge, handler, local tool schemas, call records and host/tool integration tests together. Its registered-tool probe proves that model processes and their children cannot read host credentials. Earlier executable delivery requires a change to this sequencing.
+
 ### Connected slices and acceptance cases
 
 For M1, ordinary CI adds shared adapter contracts, permitted/synthetic response fixtures, schema validation, instrument mapping, split/dividend/units handling, calendar/DST and early-close cases, amendments and cutoff exclusion, pagination, partial/no-data distinctions, typed errors, bounded retry/cancellation and redaction. Validate malicious source text cannot change tools. Provider comparison uses predeclared tolerances and separately labelled datasets; never rewrite golden values to match a vendor.
@@ -250,6 +254,7 @@ Use synthetic or permitted inputs and independently calculated expected results 
 | Entry and exit phases | Close signals cannot fill at that close. Entry ATR comes from the signal session. Opening gaps, dual stop/target touches and next-session stop activation follow the registered policy. Intraday proceeds cannot fund prior entries. | A03–A05 | S0 for one instrument; S4 for cash timing across instruments |
 | Cash and quantities | Fees, lot rounding, cash caps, reservations, expired/skipped entries and later cash reuse reconcile independently. No candidate spends another candidate's simulated capital. | A03–A04 | S0 for one ledger; S1 for candidate isolation; S4 for shared instrument cash |
 | Revisions and comparison | The four versions share all evaluation conditions. Parent hashes, rule changes, failures, optional/required evidence and consumed holdouts remain inspectable. Changed conditions register a distinct comparison. | A01–A02, A05–A06, A15 | S1 for seed/revision lineage; S4 for four-candidate comparison; S5 for cross-cycle history |
+| Pilot skill modules | Role modules register with no callable tools. Shared valid/invalid payloads pass through assembly and parsing. Development scripts run in fixture mode through the same exports. The bundle holds only allowlisted paths and hashes. Unregistered drafts are rejected before critique, unknown finding categories fail, and the registered policy assigns treatment. The real executor probe uses the production bundle with explicit tool denial. | A01–A02, A05; R05 | S1; S3 adds the first registered evidence tool and its probe |
 | Joint recovery | Interrupted and uninterrupted replay match, including pending entries and scheduled stops. Redelivery produces one official result. Stock and joint attempts stay within shared cycle/period budgets. | A02–A03, A11 | S4 for deterministic joint replay and shared budgets; S5 for distributed recovery and redelivery |
 | Invalid inputs | Reject unsupported operators and invalid levels. Exclude prohibited future data. Missing required inputs and unsupported corporate actions produce explicit failure or insufficient evidence under OQ-02 §§2.2, 2.5–2.6; never substitute values or silently drop inputs. | A03–A05 | S0; S1 also checks the connected boundary |
 | Local replay | Repeat fixed inputs and restore numerical state, including pending entries, scheduled stops and applied action identities. Signals, fills and final cash/positions match independent expectations and uninterrupted execution. | A03–A05 | S0; does not establish A11 |
