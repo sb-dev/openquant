@@ -261,7 +261,7 @@ Do not implement all indicators, chart patterns, valuation models or ML methods 
 
 ## Ownership and follow-up changes
 
-Adopted on 2026-11-11 in OQ-02 §§3.6, 4 and 9, OQ-03 §§3–6, OQ-05 §§2 and 7, and OQ-06 §§5 and 8. The canonical specifications now own these requirements. The remaining rows are S1/S3 implementation follow-ups.
+Adopted on 2026-11-11 in OQ-02 §§3.6, 4 and 9, OQ-03 §§3–6, OQ-05 §§2 and 7, and OQ-06 §§5 and 8. The canonical specifications now own these requirements. The remaining rows are S1/S3 implementation follow-ups. OQ-06 §8 also permits pre-S0 procedure drafts for the two pilot role modules, checked by repository tooling. This widens the pre-S0 list in "Small first implementation"; the drafts form no bundle and satisfy neither S0 nor S1.
 
 | File or owner | Follow-up responsibility |
 | --- | --- |
