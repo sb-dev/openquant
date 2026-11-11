@@ -600,6 +600,7 @@ packages/api-contracts/README.md
 packages/quant-core/README.md
 pnpm-lock.yaml
 scripts/README.md
+scripts/agent-assets.ts
 scripts/check-repository.ts
 scripts/development-skills.ts
 scripts/generate-repository-tree.ts

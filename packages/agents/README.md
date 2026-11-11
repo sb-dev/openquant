@@ -28,3 +28,5 @@ Policy, roles, reviewed skill modules, method notes, role request/result schemas
 - Case descriptions contain no numerical goldens. S0 supplies independent shared fixtures; S1 converts these cases into executable suites.
 - Public cases are regression evidence, not holdouts.
 - In a case, `warnings` are non-fatal messages from the host, the parser or owner validation. `diagnostics` are block, malformed or rejection reasons.
+
+`pnpm verify` runs `scripts/agent-assets.ts`. It checks the exact file layout, the source registry, rule rows, rule references, finding-category parity with OQ-03 §4, the fixture policy, case fields, split labels and coverage of the OQ-03 §6 cases. It does not check that a rule is true, that a summary matches its book, or that a procedure improves research.
