@@ -2,7 +2,7 @@
 
 Date: 2026-11-10. Review corrections: 2026-11-11. Reviewed `main` at [`54f9912b29dbfb5af410aa42ad7b87f8eb343bd6`](https://github.com/sb-dev/openquant/commit/54f9912b29dbfb5af410aa42ad7b87f8eb343bd6), after PR #4 merged.
 
-Status: proposed. This log recommends an authoring contract. It does not change canonical requirements, install skills, or establish runtime readiness.
+Status: adopted into OQ-02, OQ-03, OQ-05 and OQ-06 v1.3.0 on 2026-11-11. The review below records the rationale; the canonical specifications own the resulting requirements. Runtime implementation, primary-source verification and skill effectiveness remain unverified.
 
 ## Recommendation
 
@@ -261,7 +261,7 @@ Do not implement all indicators, chart patterns, valuation models or ML methods 
 
 ## Ownership and follow-up changes
 
-This PR changes only this log, its index and the generated repository map. If the recommendation is adopted, use the following ownership map. Do not silently promote this log into a canonical specification.
+Adopted on 2026-11-11 in OQ-02 §§3.6, 4 and 9, OQ-03 §§3–6, OQ-05 §§2 and 7, and OQ-06 §§5 and 8. The canonical specifications now own these requirements. The remaining rows are S1/S3 implementation follow-ups.
 
 | File or owner | Follow-up responsibility |
 | --- | --- |
@@ -285,6 +285,8 @@ The main risks are duplicated platform logic, a second numerical implementation 
 These are previously recorded SHA-256 identities for extracted summary text, not original book bytes. The earlier recipe described paragraph text joined with two newlines and a final newline. It did not record the exact API/export version, table/formula traversal, Drive revision IDs or a durable snapshot locator. Those details cannot be reconstructed from the hashes. This revision did not reproduce them; the table is historical provenance, not a reproducible source-verification claim.
 
 Before primary-source adoption, capture a new authorised private snapshot and record the exact API call or export MIME type, response/extractor version, document revision if available, retrieval time, table/list/formula treatment, byte encoding and digest. Record an access-controlled snapshot locator outside Git. If revision access or retention is unavailable, state that limitation. Never invent old revision IDs or claim a current editable document reproduces these bytes.
+
+PDF exports of the ten summaries, received on 2026-11-11, are recorded by byte digest in `packages/agents/src/methods/sources.json`. Their correspondence with the extracted-text hashes below is unverified. The PDFs remain outside Git.
 
 | Summary, identified by author and reading-list title | Extracted-text SHA-256 |
 | --- | --- |

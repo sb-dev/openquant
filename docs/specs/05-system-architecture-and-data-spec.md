@@ -1,9 +1,9 @@
 ---
 id: OQ-05
 title: OpenQuant — System Architecture and Data
-version: 1.2.0
+version: 1.3.0
 status: canonical
-updated: 2026-11-10
+updated: 2026-11-11
 owns: stack, hosting, source boundaries, persistence, protocols, authentication
 ---
 
@@ -45,7 +45,7 @@ The operator client accesses all private remote state through Hono. It never con
 | `apps/web` | Public static presentation. |
 | `packages/api-contracts` | API and cross-runtime schema source. |
 | `packages/api-client` | HTTP/events, reconnect, runtime validation, outcome handling. |
-| `packages/agents` | Role behaviour, output schemas, assembly/parsing, evaluation cases, release identity. |
+| `packages/agents` | Role behaviour, skill modules and method notes, role request/result schemas, assembly/parsing, evaluation cases, release identity. |
 | `packages/quant-core` | Shared signals, simulation, accounting, portfolio, risk, and metrics. |
 
 API-only domain, application, database, configuration, and telemetry modules remain inside `apps/api` until another consumer needs them. The only SQL migration owner is `apps/api/migrations`.
@@ -55,6 +55,8 @@ List TypeScript packages explicitly in the pnpm workspace. Do not give Rust an n
 Create an executable package only when its checkpoint supplies working code and verification. Directory guides reserve ownership during bootstrap; they are not completed services.
 
 Boundary checks reject API implementation imports in Ink, Node subprocess code in Worker bundles, and broker code in the agent runtime. Domain modules do not import Cloudflare bindings.
+
+Skill registration and schema exports in `packages/agents`, and everything they import, build for Workers without Node-only code. ResearchWorkflow calls a skill's request assembly after selecting the bundle and evidence. The guarded API calls its result parsing before its own authority and acceptance checks. Neither function dispatches or waits for a model process. Runner clients and process control stay in `apps/agent-runner`. A later evidence tool calls a guarded attempt-scoped API route; SEC and Tavily adapters remain in `apps/api`.
 
 ## 3. Durable product workflows
 
@@ -124,7 +126,7 @@ Keep one explicit region per profile initially. Select it using the chosen data,
 
 Canonical market types include Instrument, Bar, Quote, Trade, CorporateAction, TradingCalendar, and DatasetManifest. Preserve event time, availability time, source, instrument identity, and dataset version. Normalise provider payloads behind an adapter. A strategy must not depend on a provider-specific payload.
 
-Schemas for strategies, evaluation requests/results, market events, and command/mandate envelopes live in `packages/api-contracts/schemas`. Agent output schemas live in `packages/agents/schemas`. Reference them rather than duplicating them.
+Schemas for strategies, evaluation requests/results, market events, and command/mandate envelopes live in `packages/api-contracts/schemas`. Agent role request/result schemas live in `packages/agents/schemas` as JSON Schema. They reference the exact versioned strategy and evaluation schemas in `packages/api-contracts/schemas` with `$ref`. Build tooling bundles those references into the complete schema supplied to the model. A missing reference, unsupported construct or model-schema incompatibility fails the build or probe; never replace it with an unconstrained schema. Skill-local tool input/output schemas arrive with the first S3 tool. They may use strict Zod objects without embedded financial subdocuments, accept authorised references, reject unknown fields, and never coerce, default or strip values. Reference these owners rather than duplicating them.
 
 Every wire envelope identifies its schema version. Incompatible changes require a new version. Reject unknown mandatory fields and unsupported semantics. Generate language bindings from the schemas. Validate at runtime in both TypeScript and Rust using the same valid and invalid fixtures.
 
