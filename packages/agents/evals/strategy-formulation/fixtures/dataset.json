@@ -507,7 +507,7 @@
       "split": "fresh",
       "consumed": false,
       "kind": "behaviour",
-      "purpose": "An entry-only revision adds one bounded condition to the registered baseline and leaves exits, rank and sizing unchanged.",
+      "purpose": "An entry-only revision makes one bounded, justified change to the registered baseline's entry rules and leaves exits, rank and sizing unchanged; the case accepts any such change rather than one predetermined condition.",
       "requirements": [
         "OQ-03 §2",
         "OQ-03 §4",
@@ -538,10 +538,10 @@
         "owner_validation": "registered",
         "must_include": [
           "parent hash equal to the supplied hash",
-          "one added entry condition requiring the decision close above the prior close, with prior and new form",
+          "one bounded entry change that addresses the reported down-close, heavy-volume pattern using permitted operators within bounds, with prior and new form; any such justified change is acceptable",
           "rank, sizing, stop, target and break-even setting unchanged",
           "mechanism separating recovery from continued informed selling",
-          "expected effect of fewer entries that may miss deeper reversals, with no presumed improvement",
+          "expected effect stated as a direction evaluation could contradict, including any entries the change gives up, with no presumed improvement",
           "invalidation conditions and a registered comparison against the parent reporting signal and trade counts",
           "per-stock findings cited as evidence references, not used as trading signals"
         ],

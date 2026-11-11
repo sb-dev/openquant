@@ -145,6 +145,17 @@ function chanSource(value: any) { return value.sources.find((source: any)=>sourc
 test('unlisted agent assets fail the layout allowlist',()=>mutated((base)=>writeFileSync(resolve(base,`${agents}/src/extra.md`),'Extra\n'),/Unexpected agent asset: packages\/agents\/src\/extra\.md/));
 test('a missing method note fails',()=>mutated((base)=>rmSync(resolve(base,chanNote)),/Missing agent asset: packages\/agents\/src\/methods\/chan-algorithmic-trading\.md/));
 test('primary_checked requires a recorded primary page check',()=>mutated((base)=>edit(base,chanNote,(t)=>t.replace('| `summary_claim_unverified` |','| `primary_checked` |')),/claims primary_checked without a recorded primary page check/));
+function primaryCheck(record: Record<string, string>) {
+  return (base: string) => {
+    editJson(base,sourcesPath,(value)=>{ chanSource(value).primary_pages_checked = [record]; });
+    edit(base,chanNote,(t)=>t.replace('| `summary_claim_unverified` |','| `primary_checked` |'));
+  };
+}
+test('a rule-only primary page record does not permit primary_checked',()=>mutated(primaryCheck({ rule: 'CHAN-01' }),/Invalid primary page record in .*: CHAN-01 needs locator, pages, checked_on and checked_by/));
+test('a complete primary page record permits primary_checked',()=>{
+  const errors = mutationErrors(primaryCheck({ rule: 'CHAN-01', locator: 'Example edition, chapter 1', pages: 'p. 1', checked_on: '2026-11-11', checked_by: 'maintainer' }));
+  assert.ok(!errors.some((error)=>/primary/.test(error)),errors.join('\n'));
+});
 test('rule categories must come from OQ-03',()=>mutated((base)=>edit(base,chanNote,(t)=>t.replace('| `causal_leakage` |','| `lookahead` |')),/Unknown category lookahead/));
 test('rule IDs must stay in sequence',()=>mutated((base)=>edit(base,chanNote,(t)=>t.replace('| `CHAN-02` |','| `CHAN-20` |')),/Rule CHAN-20 is out of sequence/));
 test('rule pages must exist in the recorded summary',()=>mutated((base)=>editJson(base,sourcesPath,(value)=>{ chanSource(value).summary.pages = 1; }),/Invalid summary page for CHAN-/));

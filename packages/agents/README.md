@@ -18,7 +18,7 @@ Policy, roles, reviewed skill modules, method notes, role request/result schemas
 
 ## Rules for these drafts
 
-- The method notes come from assistant-written summaries, not from the books. Every rule is `summary_claim_unverified` or `summariser_recommendation`. No rule is `primary_checked`, so none can enter a released bundle.
+- The method notes come from assistant-written summaries, not from the books. Every rule is `summary_claim_unverified` or `summariser_recommendation`. No rule is `primary_checked`, so none can enter a released bundle. A `primary_checked` rule would need a `primary_pages_checked` record in `sources.json` with its rule ID, the primary edition and locator, the exact pages, the check date and who checked it.
 - Notes and procedures are written in original words. The summaries, the books and long passages stay outside Git.
 - Corrections to the summaries are limited to rendering repairs, internal consistency and checks against standard definitions or the canonical specifications. A correction is not a primary-page check.
 - A rule's origin follows its operative instruction. Use `summary_claim_unverified` when the summary attributes the instruction to the book. Use `summariser_recommendation` when it comes from summariser advice, from an adaptation in the note or from the specifications.
