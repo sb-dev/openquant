@@ -578,6 +578,16 @@ infra/terraform/README.md
 package.json
 packages/README.md
 packages/agents/README.md
+packages/agents/src/methods/aronson-evidence-based-technical-analysis.md
+packages/agents/src/methods/carver-systematic-trading.md
+packages/agents/src/methods/chan-algorithmic-trading.md
+packages/agents/src/methods/gray-vogel-quantitative-momentum.md
+packages/agents/src/methods/harris-trading-and-exchanges.md
+packages/agents/src/methods/kaufman-trading-systems-methods.md
+packages/agents/src/methods/lopez-de-prado-advances-financial-ml.md
+packages/agents/src/methods/murphy-technical-analysis.md
+packages/agents/src/methods/pardo-evaluation-optimization.md
+packages/agents/src/methods/penman-financial-statement-analysis.md
 packages/agents/src/methods/sources.json
 packages/api-client/README.md
 packages/api-contracts/README.md
