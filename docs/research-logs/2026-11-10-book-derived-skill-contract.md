@@ -62,14 +62,14 @@ These are observations about the summaries. They do not establish errors in the 
 
 The reviewer additionally reports unspecified smoothing for a Wilder-labelled RSI, annualisation constants of 252 versus 256 days, and opposing stop guidance for momentum/trend methods. These source observations were not independently rechecked in this revision. They are extraction checks, not new trading requirements. OQ-02 §§2.2 and 2.6 independently confirm that the seed uses simple-mean RSI. Record smoothing, day-count and stop-policy assumptions explicitly before adopting a method.
 
-Each extracted rule has one origin: `primary_checked` (exact primary page checked), `summary_claim_unverified` (summary claim only), or `summariser_recommendation` (design advice with no book attribution). An ambiguous origin remains unverified. Naming a book in a draft does not attribute the summariser's routing, lint rules or defaults to its author.
+Each extracted rule has a `rule_origin`: `primary_checked` (exact primary page checked), `summary_claim_unverified` (summary claim only), or `summariser_recommendation` (design advice with no book attribution). An ambiguous origin remains unverified. Naming a book in a draft does not attribute the summariser's routing, lint rules or defaults to its author.
 
 ## Two contract options
 
 | Option | Benefits | Costs and limits |
 | --- | --- | --- |
 | **1. Self-contained executable skill modules** | Each skill owns its registration, task logic, dependency wiring, scripts and test harness. Easy to develop and run separately. | Repeats validation, cancellation, logging and capability handling. Each module needs more integration review to prevent differences in those controls. |
-| **2. Executable skill modules with shared host adapters — recommended** | Each skill retains its executable task logic and complete supporting files. The host supplies common execution controls and approved client interfaces. The same entry point serves production, the playground and tests. | Requires a small shared interface and a verified executor/tool bridge. Avoid growing this into a general plugin framework. |
+| **2. Executable skill modules with shared host adapters — recommended** | Each skill retains its executable task logic and complete supporting files. The host supplies common execution controls and approved client interfaces. Production, playgrounds and tests reuse the same role assembly/parsing exports or, when introduced, tool handlers. | Requires a small shared interface and verified executor integration; the tool bridge follows with S3 tools. Avoid growing this into a general plugin framework. |
 
 Both options use the existing provider, API and Rust owners. Neither permits a second official financial implementation or direct broker authority. Option 2 reduces repeated platform code while preserving the user's full skill definition. Start with a static registry and the necessary shared types; extract further helpers only when actual callers need them.
 
@@ -83,10 +83,10 @@ Use `packages/agents/src/skills/<skill-name>/` within the existing package owner
 
 | File | Responsibility |
 | --- | --- |
-| `index.ts` | Export stable registration metadata, tool-schema exports and the executable handler or factory. Importing the module performs no network, model or persistence work. |
-| `schema.ts` | Export strict Zod schemas for local tool arguments/results and references to authoritative role/wire schemas and validators. Apply the composition policy below; do not mirror financial fields. |
+| `index.ts` | Export stable registration metadata and pure `assembleRequest`/`parseResult` functions for role modules. Export tool schemas and a handler only when a callable tool is introduced. Importing the module performs no network, model or persistence work. |
+| `schema.ts` | Export authoritative role/wire schema and validator references in S1. Add strict Zod schemas for local tool arguments/results with the first S3 tool. Apply the composition policy below; do not mirror financial fields. |
 | `utils.ts` | Implement task-specific business logic, bounded context assembly, evidence checks, exact rule diffs and formatting. Receive approved API/service clients through dependency injection. |
-| `scripts/manual-test.ts` | Execute the same registered entry point with a named fixture. Default to offline clients. External calls require explicit opt-in and bounded budgets. This is a playground, not a second implementation. |
+| `scripts/manual-test.ts` | Execute the same role exports, or a tool handler when introduced, with a named fixture. Default to offline clients. External calls require explicit opt-in and bounded budgets. This is a playground, not a second implementation. |
 | `scripts/` | Development-only helpers in v1. No runtime script entry type or arbitrary process execution. |
 | `packages/agents/evals/<skill-name>/fixtures/dataset.json` | Hold versioned synthetic or permitted cases, expected assertions and source identity. Reference shared numerical fixtures instead of copying their goldens. |
 | `packages/agents/evals/<skill-name>/<skill-name>.eval.ts` | Exercise the actual exports with deterministic assertions and separately selected model evaluations. Record tested skill/bundle identity. |
@@ -95,9 +95,11 @@ Use `packages/agents/src/skills/<skill-name>/` within the existing package owner
 
 Evaluation paths above are repository-relative; other rows are relative to the skill directory. Keep recorded model responses in `fixtures/agent-results` and reference them from cases. Keep suites under the existing OQ-06 §5 owner, not beside runtime assets.
 
-The bundle is an exact allowlist of paths and content hashes, never a recursive directory copy. The host verifies the manifest and supplies selected `procedure.md` text and method notes explicitly in the request. Discovery remains disabled. Test that evaluation files, expected answers, development scripts and private snapshots cannot enter the bundle or delegated filesystem. Development `SKILL.md` files remain separate.
+The bundle is an exact allowlist of paths and content hashes, never a recursive directory copy. Build tooling verifies the manifest and inlines allowlisted `procedure.md` text and method notes into a generated Worker-safe module. Cloudflare request assembly selects text from that module and binds its manifest hash in the request. It does not read a filesystem. The runner verifies the matching bundle identity before dispatch; it cannot substitute local procedure text. Discovery remains disabled. Test that evaluation files, expected answers, development scripts and private snapshots cannot enter the bundle or delegated filesystem. Development `SKILL.md` files remain separate.
 
 ### 2. Registration and execution
+
+The S1 pilot registers role modules only, with no agent-callable tools. The tool contract below is a design for the first S3 evidence tool. Its bridge, `ExecuteSkill` handlers, skill-call identities/records and local Zod schemas are not S1 deliverables. S1 still verifies the real executor, isolation, attempt records and explicit tool denial.
 
 Use one reviewed static registry. A model supplies task arguments, never a module path, replacement client or executable name. Mount selected tools through `apps/agent-runner` and the existing `AgentExecutor` contract. The pinned delegated CLI's tool bridge still needs implementation and a deployment probe; this proposal does not assume that it already works.
 
@@ -144,7 +146,7 @@ Attempt outcomes remain exactly OQ-03 §4: completion, refusal, malformed result
 
 Keep JSON Schema as the authoritative source for role request/result wire envelopes in `packages/agents/schemas` and financial subdocuments in `packages/api-contracts/schemas`, following OQ-05 §7. Role result schemas reference the exact versioned Strategy Contract/Definition with `$ref`. Build tooling bundles those references into the complete schema supplied to the model. Missing references, unsupported constructs or model-schema incompatibility fail the build/probe; never replace them with `{}`. Generate TypeScript bindings from those sources and validate with the owner-provided runtime validators.
 
-Use Zod only for skill-local tool I/O without embedded financial subdocuments in v1. Tools accept authorised references; they do not define a second Strategy Definition. `schema.ts` exports both those local validators and the authoritative role-schema/validator references. This avoids Zod-to-JSON-to-Zod round trips and experimental JSON-to-Zod conversion. A future tool needing embedded financial documents must first extend this composition policy.
+When the first tool arrives in S3, use Zod only for skill-local tool I/O without embedded financial subdocuments in v1. S1 adds no Zod dependency; role wire schemas use their existing owner validators. Tools accept authorised references; they do not define a second Strategy Definition. `schema.ts` exports both those local validators and the authoritative role-schema/validator references. This avoids Zod-to-JSON-to-Zod round trips and experimental JSON-to-Zod conversion. A future tool needing embedded financial documents must first extend this composition policy.
 
 Export local tool schemas with the correct input/output direction. Use `z.strictObject()` for input objects; reject unknown fields in both the exported schema and runtime parser. No coercion, defaults or silent stripping may change meaning. [Zod's documentation](https://zod.dev/json-schema) explains input/output conversion and unsupported constructs. The chosen pinned exporter still needs parity tests; this proposal does not claim a working generator.
 
@@ -187,7 +189,23 @@ Use task-specific payloads within the existing proposer/critic result envelope, 
 
 The host/API validates identities, references, scope, bounds and lineage before guarded writes. Unresolved executable semantics prevent registration as an evaluable Strategy Version. Preserve interpretation notes as draft material or findings; never fill missing rules merely to obtain schema-valid output.
 
-Each critic finding carries a typed category, method reference, evidence/location and origin (`deterministic_check` or `model_judgement`). Proposed categories are `causal_leakage`, `policy_mismatch`, `source_uncertainty`, `missing_evidence` and `method_advice`. The registered policy maps categories and applicability conditions to blocking or advisory treatment. Method notes and model severity cannot set that mapping. Unknown categories fail result validation rather than becoming advisory by default.
+Each critic finding carries a typed category, method reference, evidence/location and `finding_source` (`deterministic_check` or `model_judgement`). This is separate from an extracted rule's `rule_origin`. Derive categories from OQ-03 §§1 and 6:
+
+| Category | Defect or concern covered |
+| --- | --- |
+| `hypothesis_assumption` | Unsupported economic mechanism, applicability or falsifiability assumptions. |
+| `data_quality_alignment` | Row-based stock alignment, mismatched sessions, missing or inconsistent observations. |
+| `causal_leakage` | Same-close signals/fills and use of unavailable future information. |
+| `execution_accounting_assumption` | Uncertain stop ordering, unrealistic costs/fills and inconsistent accounting assumptions. |
+| `search_overfitting` | Unreported trials, tuning contamination, inadequate search adjustment or robustness tests. |
+| `policy_mismatch` | Changed evaluation windows, thresholds or other frozen comparison conditions. |
+| `portfolio_fit` | Unsupported diversification claims, concentration or correlated exposures. |
+| `operational_risk` | Missing recovery assumptions, unreliable dependencies or unsupported operating conditions. |
+| `source_uncertainty` | Unverified attribution, ambiguous formula or unsupported method interpretation. |
+| `missing_evidence` | Required evidence absent or insufficient to assess a claim. |
+| `method_advice` | Optional preferences only; never a fallback category for a concrete defect. |
+
+Label fixtures for every category and each OQ-03 §6 required defect. Compare category/evidence pairs and policy treatment, including valid controls. A finding may reference related categories, but its primary category must identify the defect rather than recast it as advice. The registered policy maps categories and applicability conditions to blocking or advisory treatment. Method notes and model severity cannot set that mapping. Unknown categories fail result validation rather than becoming advisory by default.
 
 This mapping requires adoption in OQ-02's finding/gate rules and OQ-03's result contract before pilot acceptance. Preserve A01's ability to block on unresolved applicable findings. Summary-only capital caps, parameter-count preferences and reward/risk thresholds are `method_advice` unless the registered policy explicitly adopts them. No runtime gate changes in this PR.
 
@@ -200,11 +218,11 @@ The following checks are proposed, not executed by this research.
 | Layer | Required evidence |
 | --- | --- |
 | Source review | Check selected primary pages, equations, notation, assumptions and attribution. Resolve damaged extraction and document every adaptation. Summary-only drafts do not enter a released book-derived runtime bundle. |
-| Structural checks | Exercise `schema.ts` and exported tool schemas with shared valid/invalid payloads. Check versions, references, required fields, exact amounts, unknown fields and input/output parity. A valid structure cannot clear unresolved semantics. |
+| Structural checks | In S1 exercise role wire schemas and parsing; in S3 also exercise `schema.ts` local tool validators and exported tool schemas with shared valid/invalid payloads. Check versions, references, required fields, exact amounts, unknown fields and input/output parity. A valid structure cannot clear unresolved semantics. |
 | Task-logic tests | Exercise `utils.ts` and `index.ts` with fixed time and injected clients. Check structural constraints, reference membership, policy-reference preservation, evidence handling and exact rule diffs. API/Rust tests own semantic bounds and policy decisions. Invalid task inputs must fail before external calls. |
-| Host/tool integration | Invoke the actual registered handler. Check tool exposure, denied capabilities, identity mismatch, malformed dependency responses, timeout, cancellation, output limits, budget accounting and redaction. Mock external boundaries, not the skill under test. |
+| Host/tool integration (S3) | Invoke the first actual registered evidence-tool handler. Check tool exposure, denied capabilities, identity mismatch, malformed dependency responses, timeout, cancellation, output limits, budget accounting and redaction. Mock external boundaries, not the skill under test. |
 | Owner validation | Submit parsed proposals through the API checks and existing asynchronous evaluation path. Test rejection diagnostics in subsequent context packs. Shared Rust tests and independent fixtures establish mathematics; skill tests cannot replace them. |
-| Script parity | Run `scripts/manual-test.ts` in fixture mode as a smoke test. Use the same schemas, handler and client interfaces, with fixture implementations through the production injection path. Return a meaningful exit status. No runtime scripts are included in v1. |
+| Script parity | Run `scripts/manual-test.ts` in fixture mode as a smoke test. Use the same role exports in S1, and tool schemas, handlers and client interfaces when introduced, with fixture implementations through the production injection path. Return a meaningful exit status. No runtime scripts are included in v1. |
 | Offline agent checks | Test assembly, parsing, source-injection resistance, role restrictions and controlled responses. Keep task cases outside the examples used for tuning. Offline adapter success does not prove model behaviour. |
 | Opt-in real-executor checks | Compare the baseline role bundle with a version that adds the method. Match missions, evidence, executor configuration and budgets. Exercise the production execution path and record each tested bundle identity. Record actual model identity, validity, known-flaw detection, false positives and relevant cost/latency measures. Use repeated trials and retain adverse, inconclusive and uncertain outcomes. |
 
@@ -237,7 +255,7 @@ Pilot two complete modules, not a catalogue of empty folders:
 
 Use the canonical seed to test the interface, not as evidence that a book authored its rules. Prioritise selected Chan/Kaufman methods and Pardo/Aronson evaluation guidance after primary-page checks. Retain all ten books. Later tasks can add a validation-plan module, a Carver-informed sizing audit or a Harris-informed execution-cost audit when their dependencies are supported.
 
-Before S0, author source notes, dataset case descriptions and non-financial I/O shapes only. Do not stub or copy financial schemas. S0 supplies shared schemas, definitions, Rust validation and independent fixtures. Executable pilot modules land with S1, together with pinned dependencies/lockfile, strict TypeScript checks, owner validators, runner and tool bridge, and real checks in `pnpm verify`. Earlier executable delivery requires an OQ-06 sequencing change first. Neither a manual playground run nor a mocked skill test satisfies that integration gate. The broader catalogue does not block S0, and drafting skills does not satisfy S0 or S1 acceptance.
+Before S0, author source notes, dataset case descriptions and non-financial I/O shapes only. Do not stub or copy financial schemas. S0 supplies shared schemas, definitions, Rust validation and independent fixtures. Executable pilot modules land with S1: role assembly/parsing, bundle allowlist and inlined instruction assets, evaluation suites, required dependencies/lockfile, strict TypeScript checks, owner validators, runner and real checks in `pnpm verify`. No callable tool is registered. The first S3 evidence tool introduces the bridge, handler, local Zod schemas, tool-call records and host/tool integration tests together. Until then, that contract remains text. Structurally invalid final output can consume a paid attempt; measure that rate and cost in S1 before proposing an earlier self-check tool. Earlier executable delivery requires an OQ-06 sequencing change first. Neither a manual playground run nor a mocked skill test satisfies that integration gate. The broader catalogue does not block S0, and drafting skills does not satisfy S0 or S1 acceptance.
 
 Do not implement all indicators, chart patterns, valuation models or ML methods to prove the contract. Add a method only for a bounded research need. Record unsupported executable uses until reviewed inputs, operators and tests exist; validation diagnostics can identify those limits without a paid critic attempt. Joint strategy evaluation remains S4; cross-strategy allocation remains M3.
 
@@ -249,11 +267,11 @@ This PR changes only this log, its index and the generated repository map. If th
 | --- | --- |
 | `docs/specs/03-model-backed-execution-spec.md` §§3–6 | Adopt executable skill registration, trusted context, callable/result contracts, finding categories, source gates, cancellation and separate call/attempt outcomes. Preserve proposer/critic and guarded-write authority. |
 | `docs/specs/05-system-architecture-and-data-spec.md` §§2 and 7 | Define Worker-safe exports, JSON-first role schemas, local Zod tool exports, bundled shared references and existing evaluation ownership. Keep provider and numerical owners unchanged. |
-| `docs/specs/06-engineering-delivery-and-operations-spec.md` §§5 and 8 | Add executable-module, script-parity, schema-parity and bundle checks. Require the actual registered-tool/executor probe. Preserve S0/S1 and offline/real-executor distinctions. |
-| `docs/specs/02-trading-domain-and-evaluation-spec.md` §§3 and 9 | Adopt policy-owned blocking/advisory classification and its A01 interpretation before pilot acceptance. Preserve A01–A18 wording. |
+| `docs/specs/06-engineering-delivery-and-operations-spec.md` §§5 and 8 | Add executable-module, script-parity, schema-parity and bundle checks. Require the real executor probe in S1 and the registered-tool probe with the first S3 evidence tool. Preserve slice boundaries and offline/real-executor distinctions. |
+| `docs/specs/02-trading-domain-and-evaluation-spec.md` §§3–4 and 9 | Adopt policy-owned blocking/advisory classification, lifecycle promotion treatment and its A01 interpretation before pilot acceptance. Preserve A01–A18 wording. |
 | `apps/api` | Own guarded result parsing/acceptance, policy mapping and future attempt-scoped evidence routes, call records and any required migrations. |
-| `packages/agents` | Implement the static registry, minimal shared types, full skill modules, schemas, reviewed source notes, scripts, evaluations and release identity together. Do not create placeholder packages. |
-| `apps/agent-runner` and the existing `AgentExecutor` adapter | Mount allowlisted tools, supply trusted context and narrow clients, enforce resource bounds and record each call. Verify the pinned CLI's real tool bridge. |
+| `packages/agents` | Implement S1 role registration, exports, wire schemas, reviewed notes, development scripts, evaluations and release identity together. Add callable-tool registration and local Zod schemas with S3 evidence tools. Do not create placeholder packages. |
+| `apps/agent-runner` and the existing `AgentExecutor` adapter | In S1 enforce executor isolation, attempt identity/budgets and no callable tools. In S3 mount allowlisted evidence tools, supply trusted context/narrow clients, record each call and verify the pinned CLI tool bridge. |
 | `docs/product/production-skills.md`, `docs/guides/m1-watchlist-research.md`, `packages/agents/README.md` | Point authors to the adopted contract and record actual implementation limits. Do not imply that a development-skill install enables runtime use. |
 | `packages/api-contracts`, `packages/quant-core`, `fixtures` | Reuse existing schema and numerical owners. Add code/fixtures only for an accepted method's actual dependency. A new financial semantic rule also updates OQ-02. |
 | Package manifests/lockfile, `scripts/verify.ts`, `.github/workflows/ci.yml` | Add pinned dependencies, strict TypeScript/build checks and non-empty offline skill suites with the implementation. Keep external/model evaluations explicit, bounded and separate from ordinary CI. |
