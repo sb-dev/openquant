@@ -14,7 +14,7 @@ mod operators_support;
 
 use openquant_core::{
     model::MissingReason,
-    numeric::Decimal,
+    numeric::Ratio,
     operators::{PriceBar, Value},
     signals::evaluate_signals,
 };
@@ -22,49 +22,61 @@ use operators_support::*;
 
 #[test]
 fn arithmetic_overflow_is_a_typed_failure_never_a_panic_or_a_wrapped_value() {
-    let extreme = |high: Decimal, low: Decimal| PriceBar {
+    // The exact domain is a fraction of two 128-bit integers: values at its edge must fail, not
+    // wrap and not round.
+    let big = Ratio::new(i128::MAX, 1).unwrap();
+    let extreme = |high: Ratio, low: Ratio, volume: Ratio| PriceBar {
         open: high,
         high,
         low,
         close: high,
-        volume: Decimal::MAX,
+        volume,
     };
     let cases: Vec<(&str, serde_json::Value, Vec<Option<PriceBar>>)> = vec![
         (
             "sum of closes",
             bin("add", close(), close()),
-            vec![Some(extreme(Decimal::MAX, Decimal::ZERO))],
+            vec![Some(extreme(big, Ratio::ZERO, Ratio::ONE))],
         ),
         (
             "difference beyond the minimum",
             bin("sub", bin("mul", close(), cst("-1", "RATIO")), close()),
-            vec![Some(extreme(Decimal::MAX, Decimal::ZERO))],
+            vec![Some(extreme(big, Ratio::ZERO, Ratio::ONE))],
         ),
         (
             "product with a large ratio",
             bin("mul", volume(), cst("1000000000000", "RATIO")),
-            vec![Some(extreme(Decimal::ONE, Decimal::ZERO))],
+            vec![Some(extreme(Ratio::ONE, Ratio::ZERO, big))],
         ),
         (
             "quotient by a tiny ratio",
             bin("div", close(), cst("0.000000000001", "RATIO")),
-            vec![Some(extreme(Decimal::MAX, Decimal::ZERO))],
+            vec![Some(extreme(big, Ratio::ZERO, Ratio::ONE))],
         ),
         (
             "sum inside a rolling mean",
             sma(volume(), 2),
             vec![
-                Some(extreme(Decimal::ONE, Decimal::ZERO)),
-                Some(extreme(Decimal::ONE, Decimal::ZERO)),
+                Some(extreme(Ratio::ONE, Ratio::ZERO, big)),
+                Some(extreme(Ratio::ONE, Ratio::ZERO, big)),
             ],
         ),
         (
             "range of an extreme bar",
             atr(1),
             vec![
-                Some(extreme(Decimal::MAX, Decimal::ZERO)),
-                Some(extreme(Decimal::MAX, -Decimal::MAX)),
+                Some(extreme(big, Ratio::ZERO, Ratio::ONE)),
+                Some(extreme(big, big.negated(), Ratio::ONE)),
             ],
+        ),
+        (
+            "denominators that do not combine",
+            bin("add", close(), bin("div", close(), cst("3", "RATIO"))),
+            vec![Some(extreme(
+                Ratio::new(i128::MAX - 2, 1_000_000_000_000_000_000_007).unwrap(),
+                Ratio::ZERO,
+                Ratio::ONE,
+            ))],
         ),
     ];
     for (name, expr, series) in cases {
@@ -106,9 +118,13 @@ fn rsi_follows_the_spec_formula_with_simple_means() {
     let series = closes_to_series(&[1000, 1200, 1100, 1500]);
     let value = Probe::new(rsi(close(), 3)).at(&series, 3);
     assert_agrees(Exp::Num(Frac::new(600, 7)), value, "RSI3");
-    // The 28-digit quotient 85.714285714285714285714285714 (rounded in the last digit).
+    // The value is exactly 600/7. Its display form is the 28-digit quotient
+    // 85.714285714285714285714285714 (rounded in the last digit).
+    assert_eq!(num(value).to_string(), "600/7");
     assert!(
         num(value)
+            .to_display_decimal()
+            .unwrap()
             .to_string()
             .starts_with("85.7142857142857142857142857")
     );
@@ -135,11 +151,11 @@ fn rsi_gain_only_is_100_loss_only_is_0_and_flat_is_undefined() {
     let probe = rsi14();
     assert_eq!(
         probe.at(&closes_to_series(&up), 14),
-        Value::Num(Decimal::from(100))
+        Value::Num(Ratio::from_i64(100))
     );
     assert_eq!(
         probe.at(&closes_to_series(&down), 14),
-        Value::Num(Decimal::ZERO)
+        Value::Num(Ratio::ZERO)
     );
     assert_eq!(
         probe.at(&closes_to_series(&flat), 14),
@@ -150,7 +166,7 @@ fn rsi_gain_only_is_100_loss_only_is_0_and_flat_is_undefined() {
     one_gain[14] = 10_001;
     assert_eq!(
         probe.at(&closes_to_series(&one_gain), 14),
-        Value::Num(Decimal::from(100))
+        Value::Num(Ratio::from_i64(100))
     );
     // One single loss among flat bars is loss-only: 0.
     let mut one_loss = vec![10_000; 15];
@@ -159,7 +175,7 @@ fn rsi_gain_only_is_100_loss_only_is_0_and_flat_is_undefined() {
     }
     assert_eq!(
         probe.at(&closes_to_series(&one_loss), 14),
-        Value::Num(Decimal::ZERO)
+        Value::Num(Ratio::ZERO)
     );
 }
 
@@ -176,7 +192,7 @@ fn rsi_becomes_defined_again_when_the_flat_window_slides_past_a_move() {
     for t in 14..=16 {
         assert_eq!(
             probe.at(&series, t),
-            Value::Num(Decimal::from(100)),
+            Value::Num(Ratio::from_i64(100)),
             "t={t}: the single gain is inside the window"
         );
     }
@@ -223,14 +239,14 @@ fn rsi_equals_exactly_30_and_32_on_integer_ratios() {
     changes.extend([0, 0, 0, 0]);
     assert_eq!(changes.len(), 14);
     let series = closes_to_series(&closes_from_changes(10_000, &changes));
-    assert_eq!(probe.at(&series, 14), Value::Num(Decimal::from(30)));
+    assert_eq!(probe.at(&series, 14), Value::Num(Ratio::from_i64(30)));
 
     // Gains 400 + 400, loss 1700, eleven unchanged: 100 * 800 / 2500 = 32 exactly.
     let mut changes = vec![400, 400, -1700];
     changes.extend([0; 11]);
     assert_eq!(changes.len(), 14);
     let series = closes_to_series(&closes_from_changes(10_000, &changes));
-    assert_eq!(probe.at(&series, 14), Value::Num(Decimal::from(32)));
+    assert_eq!(probe.at(&series, 14), Value::Num(Ratio::from_i64(32)));
 
     // One tick either way leaves the boundary: 100 * 801 / 2501 > 32 and 100 * 799 / 2499 < 32.
     for (gain, above) in [(401, true), (399, false)] {
@@ -238,7 +254,7 @@ fn rsi_equals_exactly_30_and_32_on_integer_ratios() {
         changes.extend([0; 11]);
         let series = closes_to_series(&closes_from_changes(10_000, &changes));
         let value = num(probe.at(&series, 14));
-        assert_eq!(value > Decimal::from(32), above, "{value}");
+        assert_eq!(value > Ratio::from_i64(32), above, "{value}");
     }
 }
 
@@ -310,10 +326,7 @@ fn atr_takes_the_largest_of_the_three_ranges() {
 #[test]
 fn atr_of_flat_bars_is_exactly_zero() {
     let series = closes_to_series(&[10_000; 20]);
-    assert_eq!(
-        Probe::new(atr(14)).at(&series, 14),
-        Value::Num(Decimal::ZERO)
-    );
+    assert_eq!(Probe::new(atr(14)).at(&series, 14), Value::Num(Ratio::ZERO));
 }
 
 #[test]
@@ -327,11 +340,11 @@ fn atr_matches_the_reference_and_is_never_below_the_mean_range() {
         assert_agrees(reference::atr(&reference, t, 14), value, &format!("t={t}"));
         if let Value::Num(atr) = value {
             // ATR * 14 * 100 is the sum of the true ranges in ticks; each is at least the bar's
-            // own high - low. The engine rounds the mean at 28 digits, so allow 1e-15 ticks.
+            // own high - low. The mean is exact, so there is no tolerance.
             let range_sum: i64 = bars[t - 13..=t].iter().map(|b| b.h - b.l).sum();
-            let true_range_ticks = atr * Decimal::from(1400);
+            let true_range_ticks = atr.mul(Ratio::from_i64(1400)).unwrap();
             assert!(
-                true_range_ticks + Decimal::new(1, 15) >= Decimal::from(range_sum),
+                true_range_ticks >= Ratio::from_i64(range_sum),
                 "t={t}: TR >= high - low"
             );
         }
@@ -527,7 +540,7 @@ fn arithmetic_is_exact_and_division_by_zero_is_an_explicit_missing_value() {
     );
     // A zero numerator is fine.
     let zero_numerator = series_of(&[Bar::flat(1000, 100), Bar::flat(1000, 0)]);
-    assert_eq!(ratio.at(&zero_numerator, 1), Value::Num(Decimal::ZERO));
+    assert_eq!(ratio.at(&zero_numerator, 1), Value::Num(Ratio::ZERO));
     // Division by a zero RATIO constant, and by an exact zero difference.
     assert_eq!(
         Probe::new(bin("div", close(), cst("0", "RATIO"))).at(&series, 0),
@@ -587,7 +600,7 @@ fn the_seed_rank_formula_gives_the_documented_value() {
     let rank = signals(&strategy, &series, 1).rank;
     assert_agrees(Exp::Num(Frac::int(150)), rank, "rank");
     // The mean includes bar t: (1000 + 3000) / 2 = 2000; a lagged mean (1000) would give 175.
-    assert_ne!(rank, Value::Num(Decimal::from(175)));
+    assert_ne!(rank, Value::Num(Ratio::from_i64(175)));
 }
 
 #[test]
@@ -806,11 +819,8 @@ fn seed_on_flat_prices_has_undefined_rsi_and_a_zero_atr() {
         indicator(&eval, "rsi14"),
         Value::Missing(MissingReason::UndefinedFlat)
     );
-    assert_eq!(indicator(&eval, "atr14"), Value::Num(Decimal::ZERO));
-    assert_eq!(
-        snapshot_value(&eval, "entry_atr"),
-        Value::Num(Decimal::ZERO)
-    );
+    assert_eq!(indicator(&eval, "atr14"), Value::Num(Ratio::ZERO));
+    assert_eq!(snapshot_value(&eval, "entry_atr"), Value::Num(Ratio::ZERO));
     // close > SMA50 is false (equal), but the lagged RSI is undefined, so the whole condition is
     // unavailable rather than false.
     assert_eq!(eval.condition, Value::Missing(MissingReason::UndefinedFlat));

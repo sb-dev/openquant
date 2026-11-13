@@ -45,6 +45,10 @@ const MAX_MESSAGE_BYTES: usize = 1024;
 const DECIMAL_PATTERN: &str =
     r"^(?:0(?:\.[0-9]+)?|-?[1-9][0-9]*(?:\.[0-9]+)?|-0\.[0-9]*[1-9][0-9]*)$";
 
+/// The `Exact` grammar in `common.schema.json`: the decimal grammar or a fraction `n/d`. A
+/// pattern failure with this expression is a malformed value of the same kind.
+const EXACT_PATTERN: &str = r"^(?:0(?:\.[0-9]+)?|-?[1-9][0-9]*(?:\.[0-9]+)?|-0\.[0-9]*[1-9][0-9]*|-?[1-9][0-9]*/[1-9][0-9]*)$";
+
 type Validators = BTreeMap<&'static str, Validator>;
 
 fn build() -> Result<Validators, String> {
@@ -88,7 +92,8 @@ fn bounded(mut message: String) -> String {
 fn is_decimal_grammar(error: &ValidationError<'_>) -> bool {
     matches!(
         error.kind(),
-        ValidationErrorKind::Pattern { pattern } if pattern == DECIMAL_PATTERN
+        ValidationErrorKind::Pattern { pattern }
+            if pattern == DECIMAL_PATTERN || pattern == EXACT_PATTERN
     )
 }
 

@@ -2,13 +2,15 @@
 //!
 //! Signal inputs come from the causal series: bars up to the decision session, split-adjusted
 //! with only the actions that were effective and available by that session. Volume adjusts
-//! inversely. Dividends never adjust prices.
+//! inversely. Dividends never adjust prices. The adjustment is exact: a price after a 3-for-1
+//! split is a third of the raw price, not a 28-digit decimal.
 
 use crate::{
     data::RunInput,
     model::{Failure, FailureCode, Result},
-    numeric::{Decimal, div, mul},
+    numeric::Decimal,
     operators::{Env, PriceBar, Value, compile::Node, eval::eval},
+    ratio::Ratio,
     strategy::ValidatedStrategy,
 };
 
@@ -35,7 +37,8 @@ pub struct SignalEval {
 /// available later is future data for this decision.
 ///
 /// # Errors
-/// `FUTURE_DATA` for a bar available after `deadline`; `ARITHMETIC_OVERFLOW` on overflow.
+/// `FUTURE_DATA` for a bar available after `deadline`; `ARITHMETIC_OVERFLOW` when an exact value
+/// does not fit 128 bits.
 pub fn build_series(
     input: &RunInput,
     decision: usize,
@@ -65,23 +68,34 @@ pub fn build_series(
                 ),
             ));
         }
-        let mut numerator = Decimal::ONE;
-        let mut denominator = Decimal::ONE;
+        // Prices multiply by old/new for every split after the bar and by the product of the
+        // splits, volume by the inverse.
+        let mut prices = Ratio::ONE;
         for split in splits
             .iter()
             .filter(|s| s.effective_index > index && s.effective_index <= decision)
         {
-            numerator = mul(numerator, Decimal::from(split.old))?;
-            denominator = mul(denominator, Decimal::from(split.new))?;
+            if split.old == 0 || split.new == 0 {
+                // The schema bounds both terms from below by 1; a hand-built split can still
+                // carry a zero, which divides by zero when it is applied.
+                return Err(Failure::new(
+                    FailureCode::ArithmeticOverflow,
+                    format!(
+                        "split {} for {} cannot be applied: a ratio term is zero",
+                        split.new, split.old
+                    ),
+                ));
+            }
+            prices = prices.mul(Ratio::new(i128::from(split.old), i128::from(split.new))?)?;
         }
-        let price =
-            |value: Decimal| -> Result<Decimal> { div(mul(value, numerator)?, denominator) };
+        let volumes = Ratio::ONE.div(prices)?;
+        let price = |value: Decimal| Ratio::from(value).mul(prices);
         series.push(Some(PriceBar {
             open: price(bar.open)?,
             high: price(bar.high)?,
             low: price(bar.low)?,
             close: price(bar.close)?,
-            volume: div(mul(bar.volume, denominator)?, numerator)?,
+            volume: Ratio::from(bar.volume).mul(volumes)?,
         }));
     }
     Ok(series)
@@ -101,11 +115,11 @@ impl Env for SignalEnv<'_> {
         self.strategy.indicators.get(index).map(|i| &i.node)
     }
 
-    fn entry_price(&self) -> Option<Decimal> {
+    fn entry_price(&self) -> Option<Ratio> {
         None
     }
 
-    fn snapshot(&self, _name: &str) -> Option<Decimal> {
+    fn snapshot(&self, _name: &str) -> Option<Ratio> {
         None
     }
 }
@@ -113,7 +127,7 @@ impl Env for SignalEnv<'_> {
 /// Evaluate indicators, entry condition, rank and snapshots at the last series index.
 ///
 /// # Errors
-/// `ARITHMETIC_OVERFLOW` on overflow or an internal inconsistency.
+/// `ARITHMETIC_OVERFLOW` when an exact value does not fit 128 bits, or an internal inconsistency.
 pub fn evaluate_signals(
     strategy: &ValidatedStrategy,
     series: &[Option<PriceBar>],
@@ -143,8 +157,8 @@ pub fn evaluate_signals(
 /// Environment for levels and triggers: one raw bar at index 0, the entry price and snapshots.
 pub struct LevelEnv<'a> {
     pub bar: Option<PriceBar>,
-    pub entry_price: Decimal,
-    pub snapshots: &'a [(String, Decimal)],
+    pub entry_price: Ratio,
+    pub snapshots: &'a [(String, Ratio)],
 }
 
 impl Env for LevelEnv<'_> {
@@ -156,11 +170,11 @@ impl Env for LevelEnv<'_> {
         None
     }
 
-    fn entry_price(&self) -> Option<Decimal> {
+    fn entry_price(&self) -> Option<Ratio> {
         Some(self.entry_price)
     }
 
-    fn snapshot(&self, name: &str) -> Option<Decimal> {
+    fn snapshot(&self, name: &str) -> Option<Ratio> {
         self.snapshots
             .iter()
             .find(|(n, _)| n == name)
@@ -171,7 +185,7 @@ impl Env for LevelEnv<'_> {
 /// Evaluate a level or trigger expression (OQ-02 section 2.6 protection and break-even).
 ///
 /// # Errors
-/// `ARITHMETIC_OVERFLOW` on overflow or an internal inconsistency.
+/// `ARITHMETIC_OVERFLOW` when an exact value does not fit 128 bits, or an internal inconsistency.
 pub fn eval_position_expr(node: &Node, env: &LevelEnv<'_>) -> Result<Value> {
     eval(node, 0, env)
 }

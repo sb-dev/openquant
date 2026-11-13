@@ -19,7 +19,7 @@ use std::str::FromStr;
 
 use execution_support::*;
 use openquant_contracts::{EvaluationResult, canonical_json, parse, to_value};
-use openquant_core::{Run, State};
+use openquant_core::{Run, State, numeric::Ratio};
 use proptest::{
     prelude::*,
     test_runner::{Config, RngAlgorithm, RngSeed},
@@ -310,7 +310,7 @@ fn check_state(run: &Run, state: &State, scenario: &Scenario) {
     }
     for position in &state.positions {
         assert!(position.quantity > Decimal::ZERO, "quantities are positive");
-        assert!(position.stop > Decimal::ZERO && position.stop < position.target);
+        assert!(position.stop > Ratio::ZERO && position.stop < position.target);
         assert!(position.mark > Decimal::ZERO);
     }
     // One instrument: a slot is held by a position or a pending entry, never both.

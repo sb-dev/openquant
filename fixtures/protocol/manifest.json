@@ -395,6 +395,182 @@
       "contract": "evaluation-input",
       "expect": "valid",
       "with_strategy": "s0/strategies/seed-5-rsi40-breakeven-off-data-only.json"
+    },
+    {
+      "path": "protocol/valid/input.exact-fractions.json",
+      "contract": "evaluation-input",
+      "expect": "valid",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json"
+    },
+    {
+      "path": "protocol/valid/checkpoint.exact-pending-fraction.json",
+      "contract": "checkpoint",
+      "expect": "valid",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/valid/checkpoint.exact-open-position-fraction.json",
+      "contract": "checkpoint",
+      "expect": "valid",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-zero-denominator.json",
+      "contract": "checkpoint",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-zero-numerator.json",
+      "contract": "checkpoint",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-leading-zeros.json",
+      "contract": "checkpoint",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-missing-denominator.json",
+      "contract": "checkpoint",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-exponent.json",
+      "contract": "checkpoint",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-plus-sign.json",
+      "contract": "checkpoint",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-negative-denominator.json",
+      "contract": "checkpoint",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-fraction-in-cash.json",
+      "contract": "checkpoint",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-fraction-in-mark.json",
+      "contract": "checkpoint",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/result.exact-fraction-in-position-stop.json",
+      "contract": "evaluation-result",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL"
+    },
+    {
+      "path": "protocol/invalid/result.exact-fraction-in-snapshot-value.json",
+      "contract": "evaluation-result",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-too-long.json",
+      "contract": "checkpoint",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-not-reduced.json",
+      "contract": "checkpoint",
+      "expect": "semantic_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-not-reduced-fraction-of-the-stop.json",
+      "contract": "checkpoint",
+      "expect": "semantic_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-denominator-one.json",
+      "contract": "checkpoint",
+      "expect": "semantic_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-decimal-representable.json",
+      "contract": "checkpoint",
+      "expect": "semantic_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-numerator-beyond-i128.json",
+      "contract": "checkpoint",
+      "expect": "semantic_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-numerator-i128-minimum.json",
+      "contract": "checkpoint",
+      "expect": "semantic_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-denominator-beyond-i128.json",
+      "contract": "checkpoint",
+      "expect": "semantic_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-pending-snapshot-not-reduced.json",
+      "contract": "checkpoint",
+      "expect": "semantic_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
     }
   ]
 }

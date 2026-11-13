@@ -2,7 +2,8 @@
 //!
 //! A checkpoint binds the strategy, input and engine identities and the event cursor to cash,
 //! reservations, positions, pending entries, scheduled stops, receivables and applied action
-//! identities (OQ-06 section 8, S0).
+//! identities (OQ-06 section 8, S0). Levels and snapshots are stored exactly (`Exact`: a decimal
+//! or a reduced fraction), so a restored state equals the uninterrupted one.
 
 use std::collections::BTreeSet;
 
@@ -11,9 +12,10 @@ use openquant_contracts::generated as g;
 use crate::{
     data::ActionKind,
     execution::accounting::{positions_value, receivables_total},
-    format::{core_cursor, ident, parse_decimal, session_date, wire_cursor},
+    format::{core_cursor, ident, parse_decimal, parse_exact, session_date, wire_cursor},
     model::{Failure, FailureCode, PHASES, Phase, Result},
     numeric::Decimal,
+    ratio::Ratio,
     run::Run,
     state::{Pending, Position, Receivable, Scheduled, State},
 };
@@ -63,43 +65,50 @@ fn ledger_balances(line: &g::LedgerEntry) -> Result<Balances> {
     })
 }
 
-fn snapshots_to_wire(run: &Run, snapshots: &[(String, Decimal)]) -> Result<Vec<g::SnapshotValue>> {
+fn snapshots_to_wire(
+    run: &Run,
+    snapshots: &[(String, Ratio)],
+) -> Result<Vec<g::CheckpointSnapshotValue>> {
     snapshots
         .iter()
         .map(|(name, value)| {
-            Ok(g::SnapshotValue {
+            Ok(g::CheckpointSnapshotValue {
                 name: ident(name)?,
-                value: run.fmt.exact(*value)?,
+                value: run.fmt.wire(*value)?,
             })
         })
         .collect()
 }
 
-fn snapshots_from_wire(snapshots: &[g::SnapshotValue]) -> Result<Vec<(String, Decimal)>> {
+fn snapshots_from_wire(snapshots: &[g::CheckpointSnapshotValue]) -> Result<Vec<(String, Ratio)>> {
     snapshots
         .iter()
-        .map(|s| Ok((s.name.to_string(), parse_decimal(&s.value)?)))
+        .map(|s| Ok((s.name.to_string(), parse_exact(&s.value)?)))
         .collect()
 }
 
 impl Run {
     /// Serialise `state`.
     ///
+    /// Levels and snapshots are written as `Exact` values: a normalised decimal when the value
+    /// terminates, otherwise a reduced fraction.
+    ///
     /// # Errors
-    /// A formatting failure if a value cannot be represented.
+    /// A formatting failure if a value cannot be represented, including an integer level beyond
+    /// 96 bits, which has no wire form (`ARITHMETIC_OVERFLOW`).
     pub fn checkpoint(&self, state: &State) -> Result<g::Checkpoint> {
         let fmt = &self.fmt;
         let mut positions = Vec::new();
         for p in &state.positions {
             let scheduled_stop = match &p.scheduled {
-                Some(s) => Some(g::ScheduledStop {
+                Some(s) => Some(g::CheckpointScheduledStop {
                     effective_session: session_date(&s.effective_session)?,
-                    level: fmt.exact(s.level)?,
+                    level: fmt.wire(s.level)?,
                 }),
                 None => None,
             };
             positions.push(g::PositionSnapshot {
-                entry_price: fmt.exact(p.entry_price)?,
+                entry_price: fmt.wire(p.entry_price)?,
                 entry_session: session_date(&p.entry_session)?,
                 fired_adjustments: p.fired.iter().map(|f| ident(f)).collect::<Result<_>>()?,
                 instrument_id: ident(&p.instrument_id)?,
@@ -107,8 +116,8 @@ impl Run {
                 quantity: fmt.qty(p.quantity)?,
                 scheduled_stop,
                 snapshots: snapshots_to_wire(self, &p.snapshots)?,
-                stop: fmt.exact(p.stop)?,
-                target: fmt.exact(p.target)?,
+                stop: fmt.wire(p.stop)?,
+                target: fmt.wire(p.target)?,
                 trade_id: ident(&p.trade_id)?,
             });
         }
@@ -159,7 +168,9 @@ impl Run {
     ///
     /// # Errors
     /// `CHECKPOINT_MISMATCH` when strategy, input or engine identity or the cursor does not
-    /// belong to this run.
+    /// belong to this run. `INVALID_DECIMAL` for a level or snapshot that breaks the canonical
+    /// `Exact` rule (a fraction that is not reduced, has denominator 1, has a decimal form or
+    /// does not fit 128 bits).
     pub fn restore(&self, checkpoint: &g::Checkpoint) -> Result<State> {
         let mismatch = |what: &str| {
             Failure::new(
@@ -192,7 +203,7 @@ impl Run {
         let mut positions = Vec::new();
         for p in &snap.positions {
             positions.push(Position {
-                entry_price: parse_decimal(&p.entry_price)?,
+                entry_price: parse_exact(&p.entry_price)?,
                 entry_session: p.entry_session.to_string(),
                 fired: p.fired_adjustments.iter().map(|f| f.to_string()).collect(),
                 instrument_id: p.instrument_id.to_string(),
@@ -201,13 +212,13 @@ impl Run {
                 scheduled: match &p.scheduled_stop {
                     Some(s) => Some(Scheduled {
                         effective_session: s.effective_session.to_string(),
-                        level: parse_decimal(&s.level)?,
+                        level: parse_exact(&s.level)?,
                     }),
                     None => None,
                 },
                 snapshots: snapshots_from_wire(&p.snapshots)?,
-                stop: parse_decimal(&p.stop)?,
-                target: parse_decimal(&p.target)?,
+                stop: parse_exact(&p.stop)?,
+                target: parse_exact(&p.target)?,
                 trade_id: p.trade_id.to_string(),
             });
         }
@@ -356,9 +367,15 @@ impl Run {
                 return Err(bad("position without an open trade record"));
             };
             // The trade record follows the position's share basis, split included, so the
-            // two always agree at an event boundary.
+            // two always agree at an event boundary. The record shows a price, so it is compared
+            // with the display form of the exact entry price, which is what the record was
+            // written from.
+            let shown_entry = position
+                .entry_price
+                .to_display_decimal()
+                .map_err(|_| bad("position entry price"))?;
             let agrees = parse_decimal(&open_record.quantity).ok() == Some(position.quantity)
-                && parse_decimal(&open_record.entry_price).ok() == Some(position.entry_price)
+                && parse_decimal(&open_record.entry_price).ok() == Some(shown_entry)
                 && open_record.entry_session.as_str() == position.entry_session;
             if !agrees {
                 return Err(bad("position does not match its open trade record"));
@@ -490,7 +507,7 @@ impl Run {
     }
 
     /// Snapshot names must be the strategy's, in its order.
-    fn check_snapshot_names(&self, snapshots: &[(String, Decimal)]) -> Result<()> {
+    fn check_snapshot_names(&self, snapshots: &[(String, Ratio)]) -> Result<()> {
         let matches = snapshots.len() == self.strategy.snapshots.len()
             && snapshots
                 .iter()

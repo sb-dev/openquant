@@ -15,6 +15,7 @@ mod execution_support;
 
 use execution_support::*;
 use openquant_contracts::to_value;
+use openquant_core::numeric::Ratio;
 use rust_decimal::Decimal;
 
 /// Zero costs, capital 5000.00 (cap 1000.00). S1 signals with ATR(1) = max(104 - 100,
@@ -313,10 +314,8 @@ fn a_non_terminating_conversion_keeps_the_position_value_on_the_money_grid() {
     let result = to_value(&run.result(&state, None).unwrap()).unwrap();
     assert_dec(&result["final"]["positions_value"], "1030.00");
     assert_dec(&result["final"]["equity"], "5030.00");
-    // The converted stop is 184/3 within 28-digit precision.
-    let stop = state.positions[0].stop;
-    let error = (stop * Decimal::from(3) - Decimal::from(184)).abs();
-    assert!(error < "0.000000000000000000000001".parse::<Decimal>().unwrap());
+    // The converted stop is exactly 184/3: a level is never rounded to 28 digits.
+    assert_eq!(state.positions[0].stop, Ratio::new(184, 3).unwrap());
 }
 
 #[test]

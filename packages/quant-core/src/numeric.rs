@@ -2,9 +2,15 @@
 //!
 //! Quantisation points are explicit (OQ-02 section 2.5): caps and quantities round down, fees
 //! round up, sale levels round down, display values round half-even.
+//!
+//! These helpers serve money, quantities and marks. Values that feed a price-grid decision (the
+//! evaluator, levels, snapshots) are exact [`Ratio`] fractions and meet the grid only when a sale
+//! price is floored (see [`crate::ratio`]).
 
 use rust_decimal::RoundingStrategy;
 pub use rust_decimal::{Decimal, prelude::ToPrimitive};
+
+pub use crate::ratio::Ratio;
 
 use crate::model::{Failure, FailureCode, Result};
 
