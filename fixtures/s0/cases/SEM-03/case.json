@@ -1,0 +1,10 @@
+{
+  "id": "SEM-03",
+  "title": "Seed warm-up: first valid session of every indicator",
+  "covers": ["Seed semantics"],
+  "strategy": "../../strategies/seed-1-rsi30-breakeven-off.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

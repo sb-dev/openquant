@@ -1,0 +1,10 @@
+{
+  "id": "X-07",
+  "title": "Dual touch: the stop wins and the bar is flagged ambiguous",
+  "covers": ["Entry and exit phases"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

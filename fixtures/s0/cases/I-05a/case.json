@@ -1,0 +1,10 @@
+{
+  "id": "I-05a",
+  "title": "Excess price scale is rejected as an invalid decimal",
+  "covers": ["Invalid inputs"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}

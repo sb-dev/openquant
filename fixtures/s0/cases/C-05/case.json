@@ -1,0 +1,10 @@
+{
+  "id": "C-05",
+  "title": "Split and dividend on the same day: entitlement on the pre-split quantity",
+  "covers": ["Split across an ex-date", "Cash dividend"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

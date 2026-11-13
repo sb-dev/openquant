@@ -1,0 +1,10 @@
+{
+  "id": "X-09b",
+  "title": "Break-even on on identical bars: scheduled stop 50, exit at 50.00",
+  "covers": ["Entry and exit phases", "Definition execution"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

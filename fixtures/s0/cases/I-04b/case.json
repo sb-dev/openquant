@@ -1,0 +1,10 @@
+{
+  "id": "I-04b",
+  "title": "Operator unit mismatch is rejected before evaluation",
+  "covers": ["Invalid inputs", "Definition execution"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}

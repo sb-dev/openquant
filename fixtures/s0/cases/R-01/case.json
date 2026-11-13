@@ -1,0 +1,10 @@
+{
+  "id": "R-01",
+  "title": "Rich replay: three trades, a break-even stop, a 2-for-1 split on a pending entry and a taxed dividend",
+  "covers": ["Local replay", "Split across an ex-date", "Cash dividend", "Entry and exit phases", "Shared payloads"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

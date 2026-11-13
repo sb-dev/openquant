@@ -1,0 +1,10 @@
+{
+  "id": "X-03",
+  "title": "Fee rounds up: one share less when ceil pushes the total over the cap",
+  "covers": ["Cash and quantities"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

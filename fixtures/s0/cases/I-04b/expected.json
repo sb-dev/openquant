@@ -1,0 +1,11 @@
+{
+  "schema": "s0-expected/1",
+  "case": "I-04b",
+  "origin": {
+    "kind": "oracle",
+    "oracle": "oracle.py",
+    "oracle_sha256": "07582e4a30b45dcf0a522f027810520c1490ff6e26fedff4a5fc3ad31112c403",
+    "note": "Derived from OQ-02 sections 2.1 to 2.6 with exact rational arithmetic; see derivation.md. Not produced by the Rust engine."
+  },
+  "expect": {"outcome": {"status": "FAILED", "code": "OPERATOR_UNIT_MISMATCH"}}
+}

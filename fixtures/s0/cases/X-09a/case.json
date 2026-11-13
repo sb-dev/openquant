@@ -1,0 +1,10 @@
+{
+  "id": "X-09a",
+  "title": "Break-even off on identical bars: target at 60.00",
+  "covers": ["Entry and exit phases", "Definition execution"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

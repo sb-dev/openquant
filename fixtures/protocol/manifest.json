@@ -283,6 +283,99 @@
       "code": "CHECKPOINT_MISMATCH",
       "with_strategy": "s0/cases/F0-smoke/strategy.json",
       "with_input": "s0/cases/F0-smoke/input.json"
+    },
+    {
+      "path": "protocol/invalid/input.unplanned-event-kind-unknown.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/input.split-ratio-zero.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/input.dividend-phase-unknown.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "s0/cases/I-04a/strategy.json",
+      "contract": "strategy-artefact",
+      "expect": "semantic_invalid",
+      "code": "UNSUPPORTED_OPERATOR"
+    },
+    {
+      "path": "s0/cases/I-04b/strategy.json",
+      "contract": "strategy-artefact",
+      "expect": "semantic_invalid",
+      "code": "OPERATOR_UNIT_MISMATCH"
+    },
+    {
+      "path": "s0/cases/I-05a/input.json",
+      "contract": "evaluation-input",
+      "expect": "semantic_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/I-05a/strategy.json"
+    },
+    {
+      "path": "s0/cases/I-05b/input.json",
+      "contract": "evaluation-input",
+      "expect": "semantic_invalid",
+      "code": "INVALID_INPUT",
+      "with_strategy": "s0/cases/I-05b/strategy.json"
+    },
+    {
+      "path": "s0/cases/I-05c/input.json",
+      "contract": "evaluation-input",
+      "expect": "semantic_invalid",
+      "code": "INVALID_INPUT",
+      "with_strategy": "s0/cases/I-05c/strategy.json"
+    },
+    {
+      "path": "s0/cases/I-08/input.json",
+      "contract": "evaluation-input",
+      "expect": "semantic_invalid",
+      "code": "IDENTITY_MISMATCH",
+      "with_strategy": "s0/cases/I-08/strategy.json"
+    },
+    {
+      "path": "s0/cases/X-01/strategy.json",
+      "contract": "strategy-artefact",
+      "expect": "valid"
+    },
+    {
+      "path": "s0/cases/X-01/input.json",
+      "contract": "evaluation-input",
+      "expect": "valid",
+      "with_strategy": "s0/cases/X-01/strategy.json"
+    },
+    {
+      "path": "s0/cases/C-06/input.json",
+      "contract": "evaluation-input",
+      "expect": "valid",
+      "with_strategy": "s0/cases/C-06/strategy.json"
+    },
+    {
+      "path": "s0/cases/R-01/input.json",
+      "contract": "evaluation-input",
+      "expect": "valid",
+      "with_strategy": "s0/cases/R-01/strategy.json"
+    },
+    {
+      "path": "s0/cases/SEM-01/input.json",
+      "contract": "evaluation-input",
+      "expect": "valid",
+      "with_strategy": "s0/strategies/seed-1-rsi30-breakeven-off.json"
+    },
+    {
+      "path": "s0/cases/ENT-03/input.json",
+      "contract": "evaluation-input",
+      "expect": "valid",
+      "with_strategy": "s0/strategies/seed-5-rsi40-breakeven-off-data-only.json"
     }
   ]
 }

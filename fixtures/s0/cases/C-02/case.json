@@ -1,0 +1,10 @@
+{
+  "id": "C-02",
+  "title": "Fractional entitlement: 3-for-2 split on 7 shares is INSUFFICIENT",
+  "covers": ["Split across an ex-date", "Invalid inputs"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}

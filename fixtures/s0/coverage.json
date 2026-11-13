@@ -2,24 +2,137 @@
   "schema": "s0-coverage/1",
   "note": "Maps each S0 row of OQ-06 section 8 to the cases that demonstrate it. Each case declares the same rows in case.json.",
   "rows": {
-    "Definition execution": [],
-    "Shared payloads": [
-      "F0-smoke"
+    "Definition execution": [
+      "ENT-01-v1",
+      "ENT-01-v2",
+      "ENT-01-v3",
+      "ENT-01-v4",
+      "ENT-02-v1",
+      "ENT-02-v2",
+      "ENT-02-v3",
+      "ENT-02-v4",
+      "ENT-03",
+      "ENT-03-v1",
+      "ENT-03-v2",
+      "DEF-01-v1",
+      "DEF-01-v2",
+      "DEF-01-v3",
+      "DEF-01-v4",
+      "DEF-02-v1",
+      "DEF-02-v2",
+      "DEF-02-v3",
+      "DEF-02-v4",
+      "X-09a",
+      "X-09b",
+      "I-04a",
+      "I-04b"
     ],
-    "Seed semantics": [],
-    "Entry variants": [],
-    "Unplanned non-trading events": [],
-    "Split across an ex-date": [],
-    "Cash dividend": [],
+    "Shared payloads": [
+      "F0-smoke",
+      "I-08",
+      "R-01"
+    ],
+    "Seed semantics": [
+      "SEM-01",
+      "SEM-02",
+      "SEM-03",
+      "SEM-04",
+      "SEM-04b",
+      "SEM-05"
+    ],
+    "Entry variants": [
+      "SEM-04",
+      "SEM-04b",
+      "ENT-01-v1",
+      "ENT-01-v2",
+      "ENT-01-v3",
+      "ENT-01-v4",
+      "ENT-02-v1",
+      "ENT-02-v2",
+      "ENT-02-v3",
+      "ENT-02-v4",
+      "ENT-03",
+      "ENT-03-v1",
+      "ENT-03-v2"
+    ],
+    "Unplanned non-trading events": [
+      "C-06",
+      "I-02",
+      "I-06",
+      "I-07"
+    ],
+    "Split across an ex-date": [
+      "C-01a",
+      "C-01b",
+      "C-01c",
+      "C-02",
+      "C-05",
+      "C-07",
+      "R-01"
+    ],
+    "Cash dividend": [
+      "C-03",
+      "C-04",
+      "C-04a",
+      "C-04b",
+      "C-04c",
+      "C-05",
+      "R-01"
+    ],
     "Entry and exit phases": [
-      "F0-smoke"
+      "F0-smoke",
+      "DEF-01-v1",
+      "DEF-01-v2",
+      "DEF-01-v3",
+      "DEF-01-v4",
+      "DEF-02-v1",
+      "DEF-02-v2",
+      "DEF-02-v3",
+      "DEF-02-v4",
+      "X-01",
+      "X-05",
+      "X-06",
+      "X-07",
+      "X-08",
+      "X-09a",
+      "X-09b",
+      "X-10",
+      "X-11",
+      "R-01"
     ],
     "Cash and quantities": [
-      "F0-smoke"
+      "F0-smoke",
+      "X-01",
+      "X-02a",
+      "X-02b",
+      "X-03",
+      "X-04",
+      "X-05",
+      "X-06",
+      "X-08",
+      "X-10",
+      "X-11",
+      "C-04a",
+      "C-04b",
+      "C-04c"
     ],
-    "Invalid inputs": [],
+    "Invalid inputs": [
+      "C-02",
+      "C-06",
+      "C-07",
+      "I-01",
+      "I-02",
+      "I-03",
+      "I-04a",
+      "I-04b",
+      "I-05a",
+      "I-05b",
+      "I-05c",
+      "I-08"
+    ],
     "Local replay": [
-      "F0-smoke"
+      "F0-smoke",
+      "R-01"
     ]
   }
 }
