@@ -23,7 +23,7 @@ Apply `pragmatic-developer` for ordinary coding and review.
 
 ## Verification
 
-Run `pnpm verify`, or `node scripts/verify.ts` without pnpm. This runs the implemented bootstrap checks only.
+Run `pnpm verify`, or `node scripts/verify.ts` without pnpm. This runs the repository checks and the implemented S0 Rust checks. Connected slices remain unimplemented.
 
 After editing spec metadata, run `pnpm generate:spec-index`. Stage intended added/deleted paths before `pnpm generate:tree` in a Git checkout. Regenerate and verify again.
 

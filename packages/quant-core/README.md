@@ -1,6 +1,6 @@
 # Shared Rust numerical library
 
-Status: planned; no implementation. First slice: M1/S0 — Offline seed evaluation.
+Status: S0 implemented — offline seed evaluation on synthetic data. Crate `openquant-core`. Connected use, joint watchlist evaluation (S4) and live execution are not implemented.
 
 Signals, simulation, accounting, portfolio, risk, and metrics. This is a library, not a set of separate services. Verify numerical semantics using independent fixtures.
 

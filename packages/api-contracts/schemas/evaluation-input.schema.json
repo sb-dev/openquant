@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:evaluation-input:1",
+  "title": "EvaluationInput",
+  "description": "Everything that affects a one-instrument daily evaluation except the strategy artefact, which is bound by hash (OQ-05 section 7).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "strategy_hash", "operator_set", "seed", "dataset", "instruments", "calendar", "windows", "initial_capital", "policy"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["evaluation-input/1"] },
+    "strategy_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+    "operator_set": { "type": "string", "enum": ["daily-long-only-seed@1"] },
+    "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+    "dataset": { "$ref": "#/$defs/DatasetRef" },
+    "instruments": { "type": "array", "minItems": 1, "maxItems": 1, "items": { "$ref": "#/$defs/InstrumentInput" } },
+    "calendar": { "$ref": "#/$defs/CalendarSpec" },
+    "windows": { "$ref": "#/$defs/Windows" },
+    "initial_capital": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+    "policy": { "$ref": "#/$defs/ExecutionPolicy" }
+  },
+  "$defs": {
+    "DatasetRef": {
+      "title": "DatasetRef",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "source", "licence"],
+      "properties": {
+        "id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "version": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "source": { "type": "string", "enum": ["SYNTHETIC"] },
+        "licence": { "type": "string", "maxLength": 200 }
+      }
+    },
+    "InstrumentInput": {
+      "title": "InstrumentInput",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["instrument_id", "bars", "corporate_actions", "unplanned_events"],
+      "properties": {
+        "instrument_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "bars": { "type": "array", "maxItems": 400, "items": { "$ref": "#/$defs/BarInput" } },
+        "corporate_actions": { "type": "array", "maxItems": 32, "items": { "$ref": "#/$defs/CorporateAction" } },
+        "unplanned_events": { "type": "array", "maxItems": 32, "items": { "$ref": "#/$defs/UnplannedEvent" } }
+      }
+    },
+    "BarInput": {
+      "title": "BarInput",
+      "description": "Raw as-traded daily bar with event and availability time.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session", "open", "high", "low", "close", "volume", "event_time", "available_at"],
+      "properties": {
+        "session": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" },
+        "open": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "high": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "low": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "close": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "volume": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "event_time": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "available_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" }
+      }
+    },
+    "CorporateAction": {
+      "title": "CorporateAction",
+      "oneOf": [
+        { "$ref": "#/$defs/SplitAction" },
+        { "$ref": "#/$defs/CashDividendAction" },
+        { "$ref": "#/$defs/UnsupportedAction" }
+      ]
+    },
+    "SplitAction": {
+      "title": "SplitAction",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "action_id", "effective_session", "available_at", "ratio_new", "ratio_old"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["SPLIT"] },
+        "action_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "effective_session": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" },
+        "available_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "ratio_new": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "ratio_old": { "type": "integer", "minimum": 1, "maximum": 1000 }
+      }
+    },
+    "CashDividendAction": {
+      "title": "CashDividendAction",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "action_id", "effective_session", "available_at", "amount_per_share", "payment_session", "payment_phase"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["CASH_DIVIDEND"] },
+        "action_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "effective_session": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" },
+        "available_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "amount_per_share": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "payment_session": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" },
+        "payment_phase": { "$ref": "urn:openquant:schema:common:1#/$defs/Phase" }
+      }
+    },
+    "UnsupportedAction": {
+      "title": "UnsupportedAction",
+      "description": "Accepted by the schema so the evaluator can report INSUFFICIENT evidence instead of a schema failure.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "action_id", "effective_session", "available_at"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["SPECIAL_DISTRIBUTION", "SPIN_OFF", "MERGER"] },
+        "action_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "effective_session": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" },
+        "available_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" }
+      }
+    },
+    "UnplannedEvent": {
+      "title": "UnplannedEvent",
+      "description": "Dated source evidence. A confirmed halt makes the session non-trading; an absent bar alone does not.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_id", "kind", "effective_session", "available_at"],
+      "properties": {
+        "event_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "kind": { "type": "string", "enum": ["CONFIRMED_HALT"] },
+        "effective_session": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" },
+        "available_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" }
+      }
+    },
+    "CalendarSpec": {
+      "title": "CalendarSpec",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sessions"],
+      "properties": {
+        "sessions": { "type": "array", "minItems": 2, "maxItems": 400, "items": { "$ref": "#/$defs/CalendarSession" } }
+      }
+    },
+    "CalendarSession": {
+      "title": "CalendarSession",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session", "open_at", "close_at"],
+      "properties": {
+        "session": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" },
+        "open_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "close_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" }
+      }
+    },
+    "Windows": {
+      "title": "Windows",
+      "description": "Warm-up starts at warmup_start. Entry decisions begin at scored_start. The run ends after scored_end.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["warmup_start", "scored_start", "scored_end"],
+      "properties": {
+        "warmup_start": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" },
+        "scored_start": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" },
+        "scored_end": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" }
+      }
+    },
+    "ExecutionPolicy": {
+      "title": "ExecutionPolicy",
+      "description": "Registered policy: scales, lots, costs and corporate-action handling (OQ-02 section 2.5).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "currency", "price_scale", "quantity_scale", "money_scale", "diagnostic_scale", "lot_size", "cost_model", "corporate_actions"],
+      "properties": {
+        "id": { "type": "string", "enum": ["daily-long-only-cash@1"] },
+        "currency": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "price_scale": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "quantity_scale": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "money_scale": { "type": "integer", "minimum": 0, "maximum": 12 },
+        "diagnostic_scale": { "type": "integer", "minimum": 0, "maximum": 12 },
+        "lot_size": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "cost_model": { "$ref": "#/$defs/CostModel" },
+        "corporate_actions": { "$ref": "#/$defs/ActionPolicy" }
+      }
+    },
+    "CostModel": {
+      "title": "CostModel",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "fixed_fee_per_fill", "fee_bps", "gap_exit_slippage_bps"],
+      "properties": {
+        "id": { "type": "string", "enum": ["fixed_plus_bps@1"] },
+        "fixed_fee_per_fill": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "fee_bps": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "gap_exit_slippage_bps": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" }
+      }
+    },
+    "ActionPolicy": {
+      "title": "ActionPolicy",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "fractional", "withholding_bps"],
+      "properties": {
+        "id": { "type": "string", "enum": ["split_cash_dividend_ex_date@1"] },
+        "fractional": { "type": "string", "enum": ["INSUFFICIENT"] },
+        "withholding_bps": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" }
+      }
+    }
+  }
+}

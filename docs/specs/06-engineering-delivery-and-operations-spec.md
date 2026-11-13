@@ -1,9 +1,9 @@
 ---
 id: OQ-06
 title: OpenQuant — Engineering, Delivery and Operations
-version: 1.3.0
+version: 1.3.1
 status: canonical
-updated: 2026-11-11
+updated: 2026-11-13
 owns: verification, automation, releases, deployments, recovery, R01–R10
 ---
 
@@ -14,17 +14,18 @@ See the [specification index](README.md) for ownership and the current bootstrap
 
 ## 1. Bootstrap and command scope
 
-The bootstrap contains canonical specifications, directory ownership guides, root policies, GitHub templates, and working repository checks. It contains no application, Rust engine, executor, or deployment implementation. M1 is not complete.
+The repository contains canonical specifications, directory ownership guides, root policies, GitHub templates, working repository checks, and the S0 offline seed evaluation: a Cargo workspace with a pinned toolchain, shared schemas with generated Rust bindings, the shared Rust core and a local replay harness. It contains no application, connected executor, or deployment implementation. M1 is not complete.
 
 Implemented commands:
 
 | Command | Behaviour |
 | --- | --- |
-| `pnpm verify` | Run repository checks and their regression tests. |
+| `pnpm verify` | Run repository checks and their regression tests, then Rust format, clippy, tests and the S0 offline replay. |
+| `cargo run --locked -p openquant-engine --bin s0-replay` | Replay the S0 fixture cases and write `local-runs/s0/report.md`. |
 | `pnpm generate:spec-index` | Generate the ownership/version index from the seven front-matter blocks. |
 | `pnpm generate:tree` | Generate the file map from the Git index, or files in an extracted archive. |
 
-Node can run the TypeScript tooling directly. No dependency install is needed for the bootstrap checks. Native type stripping is execution, not TypeScript type checking. S0 adds the Rust build toolchain and schema checks. S1 adds the TypeScript build toolchain, strict type checks and cross-runtime validation.
+Node can run the TypeScript tooling directly. No dependency install is needed for the Node checks. Native type stripping is execution, not TypeScript type checking. S0 added the Rust build toolchain (pinned in `rust-toolchain.toml`) and schema checks; the Rust steps fetch the crates locked in `Cargo.lock`. S1 adds the TypeScript build toolchain, strict type checks and cross-runtime validation.
 
 The root command must grow with the implemented checkpoint. A passing bootstrap check does not satisfy application acceptance. Do not add placeholder commands that print success for absent implementation.
 

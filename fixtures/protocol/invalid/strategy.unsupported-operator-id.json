@@ -1,0 +1,457 @@
+{
+  "contract": {
+    "assumptions": [
+      "Fills at the next session open under the declared cost model.",
+      "Signal prices are split-adjusted from actions available at the signal session."
+    ],
+    "benchmarks": [
+      "Declared by the evaluation policy, not by the strategy."
+    ],
+    "hypothesis": "A liquid stock above its 50-session mean that recently dipped to a weak RSI and now shows rising volume tends to recover over days to weeks.",
+    "intended_conditions": [
+      "Daily bars, one market and currency, long-only cash positions, five slots."
+    ],
+    "invalidation": [
+      "Entry signals fail to precede positive forward returns across the cohort."
+    ],
+    "rationale": "Corrected daily swing seed family from OQ-02 section 2.6: simple-mean RSI and ATR, lagged weakness without a required crossing, current volume mean, next-open fills, ATR protection."
+  },
+  "definition": {
+    "entry": {
+      "condition": {
+        "args": [
+          {
+            "args": [
+              {
+                "args": [],
+                "op": "operator:bar_field@1",
+                "params": {
+                  "field": "CLOSE"
+                }
+              },
+              {
+                "args": [],
+                "op": "operator:ref@1",
+                "params": {
+                  "name": "sma50"
+                }
+              }
+            ],
+            "op": "operator:gt@1",
+            "params": {}
+          },
+          {
+            "args": [
+              {
+                "args": [
+                  {
+                    "args": [],
+                    "op": "operator:ref@1",
+                    "params": {
+                      "name": "rsi_lag2"
+                    }
+                  },
+                  {
+                    "args": [],
+                    "op": "operator:ref@1",
+                    "params": {
+                      "name": "weak_threshold"
+                    }
+                  }
+                ],
+                "op": "operator:lte@1",
+                "params": {}
+              },
+              {
+                "args": [
+                  {
+                    "args": [],
+                    "op": "operator:ref@1",
+                    "params": {
+                      "name": "rsi_lag1"
+                    }
+                  },
+                  {
+                    "args": [],
+                    "op": "operator:ref@1",
+                    "params": {
+                      "name": "weak_threshold"
+                    }
+                  }
+                ],
+                "op": "operator:lte@1",
+                "params": {}
+              }
+            ],
+            "op": "operator:or@1",
+            "params": {}
+          },
+          {
+            "args": [
+              {
+                "args": [],
+                "op": "operator:ref@1",
+                "params": {
+                  "name": "rsi14"
+                }
+              },
+              {
+                "args": [],
+                "op": "operator:ref@1",
+                "params": {
+                  "name": "rsi_floor"
+                }
+              }
+            ],
+            "op": "operator:gt@1",
+            "params": {}
+          },
+          {
+            "args": [
+              {
+                "args": [],
+                "op": "operator:bar_field@1",
+                "params": {
+                  "field": "VOLUME"
+                }
+              },
+              {
+                "args": [],
+                "op": "operator:ref@1",
+                "params": {
+                  "name": "vol_sma20"
+                }
+              }
+            ],
+            "op": "operator:gt@1",
+            "params": {}
+          },
+          {
+            "args": [
+              {
+                "args": [],
+                "op": "operator:ref@1",
+                "params": {
+                  "name": "atr14"
+                }
+              },
+              {
+                "args": [],
+                "op": "operator:const@1",
+                "params": {
+                  "unit": "PRICE",
+                  "value": "0"
+                }
+              }
+            ],
+            "op": "operator:gt@1",
+            "params": {}
+          },
+          {
+            "args": [
+              {
+                "args": [],
+                "op": "operator:ref@1",
+                "params": {
+                  "name": "vol_sma20"
+                }
+              },
+              {
+                "args": [],
+                "op": "operator:const@1",
+                "params": {
+                  "unit": "SHARES",
+                  "value": "0"
+                }
+              }
+            ],
+            "op": "operator:gt@1",
+            "params": {}
+          }
+        ],
+        "op": "operator:and@1",
+        "params": {}
+      },
+      "rank": {
+        "args": [
+          {
+            "args": [
+              {
+                "args": [],
+                "op": "operator:const@1",
+                "params": {
+                  "unit": "POINTS",
+                  "value": "50"
+                }
+              },
+              {
+                "args": [
+                  {
+                    "args": [],
+                    "op": "operator:bar_field@1",
+                    "params": {
+                      "field": "VOLUME"
+                    }
+                  },
+                  {
+                    "args": [],
+                    "op": "operator:ref@1",
+                    "params": {
+                      "name": "vol_sma20"
+                    }
+                  }
+                ],
+                "op": "operator:div@1",
+                "params": {}
+              }
+            ],
+            "op": "operator:mul@1",
+            "params": {}
+          },
+          {
+            "args": [
+              {
+                "args": [],
+                "op": "operator:const@1",
+                "params": {
+                  "unit": "POINTS",
+                  "value": "100"
+                }
+              },
+              {
+                "args": [],
+                "op": "operator:ref@1",
+                "params": {
+                  "name": "rsi14"
+                }
+              }
+            ],
+            "op": "operator:sub@1",
+            "params": {}
+          }
+        ],
+        "op": "operator:add@1",
+        "params": {}
+      },
+      "snapshots": [
+        {
+          "expr": {
+            "args": [],
+            "op": "operator:ref@1",
+            "params": {
+              "name": "atr14"
+            }
+          },
+          "name": "entry_atr"
+        }
+      ]
+    },
+    "execution": {
+      "decision": "AFTER_CLOSE",
+      "entry_fill": "NEXT_OPEN"
+    },
+    "exits": {
+      "stop": {
+        "args": [
+          {
+            "args": [],
+            "op": "operator:entry_price@1",
+            "params": {}
+          },
+          {
+            "args": [
+              {
+                "args": [],
+                "op": "operator:const@1",
+                "params": {
+                  "unit": "RATIO",
+                  "value": "2"
+                }
+              },
+              {
+                "args": [],
+                "op": "operator:snapshot@1",
+                "params": {
+                  "name": "entry_atr"
+                }
+              }
+            ],
+            "op": "operator:mul@1",
+            "params": {}
+          }
+        ],
+        "op": "operator:sub@1",
+        "params": {}
+      },
+      "stop_adjustments": [],
+      "target": {
+        "args": [
+          {
+            "args": [],
+            "op": "operator:entry_price@1",
+            "params": {}
+          },
+          {
+            "args": [
+              {
+                "args": [],
+                "op": "operator:const@1",
+                "params": {
+                  "unit": "RATIO",
+                  "value": "5"
+                }
+              },
+              {
+                "args": [],
+                "op": "operator:snapshot@1",
+                "params": {
+                  "name": "entry_atr"
+                }
+              }
+            ],
+            "op": "operator:mul@1",
+            "params": {}
+          }
+        ],
+        "op": "operator:add@1",
+        "params": {}
+      }
+    },
+    "indicators": [
+      {
+        "expr": {
+          "args": [
+            {
+              "args": [],
+              "op": "operator:bar_field@1",
+              "params": {
+                "field": "CLOSE"
+              }
+            }
+          ],
+          "op": "operator:ema@1",
+          "params": {
+            "window": 50
+          }
+        },
+        "name": "sma50"
+      },
+      {
+        "expr": {
+          "args": [
+            {
+              "args": [],
+              "op": "operator:bar_field@1",
+              "params": {
+                "field": "VOLUME"
+              }
+            }
+          ],
+          "op": "operator:sma@1",
+          "params": {
+            "window": 20
+          }
+        },
+        "name": "vol_sma20"
+      },
+      {
+        "expr": {
+          "args": [
+            {
+              "args": [],
+              "op": "operator:bar_field@1",
+              "params": {
+                "field": "CLOSE"
+              }
+            }
+          ],
+          "op": "operator:rsi_simple@1",
+          "params": {
+            "window": 14
+          }
+        },
+        "name": "rsi14"
+      },
+      {
+        "expr": {
+          "args": [],
+          "op": "operator:atr_simple@1",
+          "params": {
+            "window": 14
+          }
+        },
+        "name": "atr14"
+      },
+      {
+        "expr": {
+          "args": [],
+          "op": "operator:const@1",
+          "params": {
+            "unit": "POINTS",
+            "value": "30"
+          }
+        },
+        "name": "rsi_floor"
+      },
+      {
+        "expr": {
+          "args": [],
+          "op": "operator:const@1",
+          "params": {
+            "unit": "POINTS",
+            "value": "30"
+          }
+        },
+        "name": "weak_threshold"
+      },
+      {
+        "expr": {
+          "args": [
+            {
+              "args": [],
+              "op": "operator:ref@1",
+              "params": {
+                "name": "rsi14"
+              }
+            }
+          ],
+          "op": "operator:lag@1",
+          "params": {
+            "periods": 1
+          }
+        },
+        "name": "rsi_lag1"
+      },
+      {
+        "expr": {
+          "args": [
+            {
+              "args": [],
+              "op": "operator:ref@1",
+              "params": {
+                "name": "rsi14"
+              }
+            }
+          ],
+          "op": "operator:lag@1",
+          "params": {
+            "periods": 2
+          }
+        },
+        "name": "rsi_lag2"
+      }
+    ],
+    "selection": {
+      "max_per_instrument": 1,
+      "slots": 5,
+      "tie_break": "ASCENDING_INSTRUMENT_ID"
+    },
+    "sizing": {
+      "method": "sizing:equal_cash_per_vacant_slot@1"
+    }
+  },
+  "operator_set": "daily-long-only-seed@1",
+  "schema_version": "strategy-artefact/1",
+  "strategy_id": "daily-swing-seed",
+  "version": 1
+}

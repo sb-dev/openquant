@@ -13,11 +13,19 @@ Run the bootstrap verification:
 node scripts/verify.ts
 ```
 
-No dependency installation or cloud credentials are required. The check verifies repository structure, spec metadata, local links, acceptance IDs, source hashes, workflow conventions, and regression cases. It does not start OpenQuant.
+No cloud, model, market-data or broker credentials are required. The Node checks need no dependency installation. The Rust steps need the toolchain pinned in `rust-toolchain.toml` (`rustup toolchain install`) and fetch the crates locked in `Cargo.lock`. The check verifies repository structure, spec metadata, local links, acceptance IDs, source hashes, workflow conventions, regression cases, Rust formatting, clippy, Rust tests and the S0 offline replay. It does not start a trading application.
+
+To replay the S0 fixture cases and read the report:
+
+```bash
+cargo run --locked -p openquant-engine --bin s0-replay
+```
+
+The report is `local-runs/s0/report.md`.
 
 ## Next implementation
 
-Read the [roadmap](../product/roadmap.md), then follow [M1 — Automated watchlist research](../guides/m1-watchlist-research.md). The first target is a durable competing research cycle with real data and numerical evidence. The [installed replay](../guides/public-cli-replay.md) is a separate public CLI release gate. Neither runtime is implemented yet.
+Read the [roadmap](../product/roadmap.md), then follow [M1 — Automated watchlist research](../guides/m1-watchlist-research.md). The first target is a durable competing research cycle with real data and numerical evidence. The [installed replay](../guides/public-cli-replay.md) is a separate public CLI release gate. Neither connected runtime is implemented yet. S0 provides the offline seed evaluation they reuse.
 
 Before changing files, read [CONTRIBUTING.md](../../CONTRIBUTING.md), [AGENTS.md](../../AGENTS.md), and the owning specification. Work on a branch. Run verification before committing and use the specified commit format. AI-authored commits require a verified model trailer.
 

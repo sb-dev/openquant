@@ -1,0 +1,288 @@
+{
+  "schema": "s0-protocol-manifest/1",
+  "note": "Paths are relative to the fixtures directory. expect: valid | schema_invalid (rejected while parsing the contract) | semantic_invalid (parses, rejected by the shared validator, run preparation or restore).",
+  "entries": [
+    {
+      "path": "s0/strategies/seed-1-rsi30-breakeven-off.json",
+      "contract": "strategy-artefact",
+      "expect": "valid"
+    },
+    {
+      "path": "s0/strategies/seed-2-rsi32-breakeven-off.json",
+      "contract": "strategy-artefact",
+      "expect": "valid"
+    },
+    {
+      "path": "s0/strategies/seed-3-rsi30-breakeven-on.json",
+      "contract": "strategy-artefact",
+      "expect": "valid"
+    },
+    {
+      "path": "s0/strategies/seed-4-rsi32-breakeven-on.json",
+      "contract": "strategy-artefact",
+      "expect": "valid"
+    },
+    {
+      "path": "s0/strategies/seed-5-rsi40-breakeven-off-data-only.json",
+      "contract": "strategy-artefact",
+      "expect": "valid"
+    },
+    {
+      "path": "s0/cases/F0-smoke/strategy.json",
+      "contract": "strategy-artefact",
+      "expect": "valid"
+    },
+    {
+      "path": "s0/cases/F0-smoke/input.json",
+      "contract": "evaluation-input",
+      "expect": "valid",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json"
+    },
+    {
+      "path": "protocol/valid/evaluation-result.f0.json",
+      "contract": "evaluation-result",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/checkpoint.pending-entry.json",
+      "contract": "checkpoint",
+      "expect": "valid",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "s0/cases/F0-smoke/input.json"
+    },
+    {
+      "path": "protocol/valid/checkpoint.open-position.json",
+      "contract": "checkpoint",
+      "expect": "valid",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "s0/cases/F0-smoke/input.json"
+    },
+    {
+      "path": "protocol/invalid/strategy.version-2.json",
+      "contract": "strategy-artefact",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/strategy.unknown-top-level-field.json",
+      "contract": "strategy-artefact",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/strategy.unknown-nested-field.json",
+      "contract": "strategy-artefact",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/strategy.operator-ref-malformed.json",
+      "contract": "strategy-artefact",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/strategy.decimal-exponent.json",
+      "contract": "strategy-artefact",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL"
+    },
+    {
+      "path": "protocol/invalid/strategy.parent-digest-malformed.json",
+      "contract": "strategy-artefact",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/strategy.unsupported-operator-id.json",
+      "contract": "strategy-artefact",
+      "expect": "semantic_invalid",
+      "code": "UNSUPPORTED_OPERATOR"
+    },
+    {
+      "path": "protocol/invalid/strategy.unsupported-operator-version.json",
+      "contract": "strategy-artefact",
+      "expect": "semantic_invalid",
+      "code": "UNSUPPORTED_OPERATOR"
+    },
+    {
+      "path": "protocol/invalid/strategy.unit-mismatch.json",
+      "contract": "strategy-artefact",
+      "expect": "semantic_invalid",
+      "code": "OPERATOR_UNIT_MISMATCH"
+    },
+    {
+      "path": "protocol/invalid/strategy.condition-not-a-flag.json",
+      "contract": "strategy-artefact",
+      "expect": "semantic_invalid",
+      "code": "OPERATOR_TYPE_MISMATCH"
+    },
+    {
+      "path": "protocol/invalid/strategy.operator-out-of-scope.json",
+      "contract": "strategy-artefact",
+      "expect": "semantic_invalid",
+      "code": "OPERATOR_TYPE_MISMATCH"
+    },
+    {
+      "path": "protocol/invalid/strategy.window-over-limit.json",
+      "contract": "strategy-artefact",
+      "expect": "semantic_invalid",
+      "code": "INVALID_PARAMETER"
+    },
+    {
+      "path": "protocol/invalid/strategy.missing-parameter.json",
+      "contract": "strategy-artefact",
+      "expect": "semantic_invalid",
+      "code": "INVALID_PARAMETER"
+    },
+    {
+      "path": "protocol/invalid/input.version-2.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/input.version-missing.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/input.unknown-nested-field.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/input.decimal-exponent.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL"
+    },
+    {
+      "path": "protocol/invalid/input.decimal-leading-zero.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL"
+    },
+    {
+      "path": "protocol/invalid/input.decimal-negative-zero.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL"
+    },
+    {
+      "path": "protocol/invalid/input.decimal-leading-plus.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL"
+    },
+    {
+      "path": "protocol/invalid/input.decimal-json-number.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/input.digest-malformed.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/input.two-instruments.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/input.missing-policy-field.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/input.strategy-hash-mismatch.json",
+      "contract": "evaluation-input",
+      "expect": "semantic_invalid",
+      "code": "IDENTITY_MISMATCH",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json"
+    },
+    {
+      "path": "protocol/invalid/input.price-excess-scale.json",
+      "contract": "evaluation-input",
+      "expect": "semantic_invalid",
+      "code": "INVALID_DECIMAL",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json"
+    },
+    {
+      "path": "protocol/invalid/input.money-scale-too-small.json",
+      "contract": "evaluation-input",
+      "expect": "semantic_invalid",
+      "code": "UNSUPPORTED_POLICY",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json"
+    },
+    {
+      "path": "protocol/invalid/result.version-2.json",
+      "contract": "evaluation-result",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/result.unknown-field.json",
+      "contract": "evaluation-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.version-2.json",
+      "contract": "checkpoint",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.unknown-state-field.json",
+      "contract": "checkpoint",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.decimal-exponent.json",
+      "contract": "checkpoint",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.strategy-hash-mismatch.json",
+      "contract": "checkpoint",
+      "expect": "semantic_invalid",
+      "code": "CHECKPOINT_MISMATCH",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "s0/cases/F0-smoke/input.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.input-hash-mismatch.json",
+      "contract": "checkpoint",
+      "expect": "semantic_invalid",
+      "code": "CHECKPOINT_MISMATCH",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "s0/cases/F0-smoke/input.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.engine-digest-mismatch.json",
+      "contract": "checkpoint",
+      "expect": "semantic_invalid",
+      "code": "CHECKPOINT_MISMATCH",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "s0/cases/F0-smoke/input.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.unknown-cursor.json",
+      "contract": "checkpoint",
+      "expect": "semantic_invalid",
+      "code": "CHECKPOINT_MISMATCH",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "s0/cases/F0-smoke/input.json"
+    }
+  ]
+}

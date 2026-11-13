@@ -1,10 +1,12 @@
 # Repository tooling
 
-The scripts use Node built-ins and erasable TypeScript syntax. Use `.node-version`. No dependency install is required.
+The scripts use Node built-ins and erasable TypeScript syntax. Use `.node-version`. No dependency install is required for the Node scripts. The Rust steps need the toolchain pinned in `rust-toolchain.toml`.
 
 | Script | Purpose |
 | --- | --- |
-| `verify.ts` | Run repository checks and their regression tests; fail on either failure. |
+| `verify.ts` | Run repository checks and their regression tests, then the Rust steps from `rust.ts`, then check the S0 replay report; fail on any failure. |
+| `rust.ts` | The Cargo commands run by `verify.ts` (format, clippy, tests, S0 replay), the pinned-toolchain check and the fixture-change guard. |
+| `s0.ts` | Static S0 rules: Rust workspace and toolchain pin, required Cargo steps in `verify.ts` and CI, fixture case layout, oracle hashes, S0 row coverage, protocol manifest completeness; and the replay report check. |
 | `check-repository.ts` | Check the seven specs, metadata/index, acceptance IDs, links/anchors, source hashes, file map, high-confidence credential patterns, and selected workflow conventions. |
 | `generate-spec-index.ts` | Generate the ownership/version table from document metadata. |
 | `generate-repository-tree.ts` | Generate the sorted file map from the Git index, or regular files in an extracted archive. |
@@ -17,4 +19,4 @@ In a Git checkout, stage intended added/deleted paths before generating the tree
 
 Imported source Markdown is excluded from local-link checks because its historical links and layouts are intentionally unchanged. Every imported file remains covered by its SHA-256 check.
 
-The workflow checks are static conventions, not an Actions emulator or full security audit. Type stripping does not type-check. M1 adds strict TypeScript checks, actual application tests and Rust verification. Public CLI release adds installed-package validation.
+The workflow checks are static conventions, not an Actions emulator or full security audit. Type stripping does not type-check. S0 adds Rust verification. S1 adds strict TypeScript checks and actual application tests. Public CLI release adds installed-package validation.

@@ -4,7 +4,7 @@ OpenQuant is an open-source platform for AI-assisted quantitative research, stra
 
 Proposers create strategies. Critics challenge them. Software produces official evidence and enforces risk. A steward approves real-capital authority.
 
-**Status: specification-first bootstrap.** This repository contains the agreed design, source layout, contributor policies, and executable repository checks. It does not yet contain a trading application, Rust engine, or deployed service.
+**Status: specification-first bootstrap with the S0 offline seed evaluation.** This repository contains the agreed design, source layout, contributor policies, executable repository checks, and the shared Rust core's offline seed evaluation on synthetic data (M1/S0). It does not yet contain a trading application, connected research, or deployed service. M1 is not complete.
 
 ## Start here
 
@@ -14,7 +14,7 @@ Proposers create strategies. Critics challenge them. Software produces official 
 
 ## Verify the bootstrap
 
-Use the Node version in `.node-version`. The checks need no cloud credentials or dependency installation.
+Use the Node version in `.node-version` and the Rust toolchain pinned in `rust-toolchain.toml` (`rustup toolchain install` installs it). The checks need no cloud, model, market-data or broker credentials. The repository checks need no dependency installation. The Rust steps fetch the crates locked in `Cargo.lock`.
 
 ```bash
 node scripts/verify.ts
@@ -25,6 +25,14 @@ With the pinned pnpm version, the equivalent command is:
 ```bash
 pnpm verify
 ```
+
+`verify` runs the repository checks, `cargo fmt`, `cargo clippy`, `cargo test` and the S0 replay. Replay the S0 fixture cases and read the report:
+
+```bash
+cargo run --locked -p openquant-engine --bin s0-replay
+```
+
+The report is `local-runs/s0/report.md`. See [S0 fixtures](fixtures/s0/README.md).
 
 GitHub Actions runs the same checks on pull requests and pushes to `main`. The required aggregate check is named `ci`. Maintainers must [verify remote settings](docs/getting-started/README.md#maintainer-setup); the workflow does not configure branch protection.
 

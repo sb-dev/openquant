@@ -1,0 +1,28 @@
+[package]
+name = "openquant-contracts"
+description = "Generated Rust bindings, runtime validation, canonical JSON and digests for the shared S0 schemas"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+build = "build.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+rust_decimal.workspace = true
+thiserror.workspace = true
+sha2.workspace = true
+regress.workspace = true
+jsonschema.workspace = true
+
+[build-dependencies]
+typify = "=0.8.0"
+schemars = "0.8"
+serde_json.workspace = true
+prettyplease = "0.3"
+syn = { version = "3", features = ["full"] }

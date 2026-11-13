@@ -8,4 +8,8 @@
 /packages/agents/ @sb-dev
 /packages/quant-core/ @sb-dev
 /apps/engine/ @sb-dev
+/fixtures/ @sb-dev
+/Cargo.toml @sb-dev
+/Cargo.lock @sb-dev
+/rust-toolchain.toml @sb-dev
 /infra/ @sb-dev

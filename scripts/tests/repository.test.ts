@@ -10,7 +10,7 @@ function mutationErrors(change: (directory: string) => void): string[] {
   const temporary = mkdtempSync(resolve(tmpdir(),'openquant-check-'));
   try {
     const copy = resolve(temporary,'repo');
-    cpSync(root,copy,{recursive:true,verbatimSymlinks:true,filter:(path)=>!/(^|\/)(\.git|node_modules)(\/|$)/.test(path)});
+    cpSync(root,copy,{recursive:true,verbatimSymlinks:true,filter:(path)=>!/(^|\/)(\.git|node_modules|target|local-runs)(\/|$)/.test(path)});
     change(copy);
     return checkRepository(copy);
   } finally { rmSync(temporary,{recursive:true,force:true}); }
@@ -196,3 +196,55 @@ test('affects_executable_rule follows affected elements',()=>mutated((base)=>edi
 test('every finding category stays covered',()=>mutated((base)=>editJson(base,criticCases,(value)=>{
   for (const item of value.cases) item.expected.findings = item.expected.findings.filter((finding: any)=>finding.category!=='operational_risk');
 }),/Uncovered finding category in .*: operational_risk/));
+
+// S0: Rust verification, fixtures and protocol rules.
+import { reportErrors } from '../s0.ts';
+
+test('a Cargo step cannot be dropped from the Rust verification',()=>mutated((base)=>edit(base,'scripts/rust.ts',(t)=>t.replace("  'cargo clippy --workspace --all-targets --locked -- -D warnings',\n",'')),/scripts\/rust\.ts must run: cargo clippy/));
+test('the replay cannot be dropped from the Rust verification',()=>mutated((base)=>edit(base,'scripts/rust.ts',(t)=>t.replace(/  'cargo run --locked -p openquant-engine[^\n]*\n/,'')),/scripts\/rust\.ts must run: cargo run/));
+test('verify must run the Cargo commands',()=>mutated((base)=>edit(base,'scripts/verify.ts',(t)=>t.replaceAll('runCargo','skipCargo')),/verify\.ts must run the Cargo commands/));
+test('verify must guard fixtures against changes',()=>mutated((base)=>edit(base,'scripts/verify.ts',(t)=>t.replaceAll('fixtureDigest','ignoreFixtures')),/guard fixtures against changes/));
+test('the Rust toolchain must be pinned exactly',()=>mutated((base)=>edit(base,'rust-toolchain.toml',(t)=>t.replace(/channel = "[^"]+"/,'channel = "stable"')),/must pin an exact toolchain version/));
+test('the toolchain file must keep rustfmt and clippy',()=>mutated((base)=>edit(base,'rust-toolchain.toml',(t)=>t.replace('"clippy"','"rust-docs"')),/must include clippy/));
+test('the lockfile is required',()=>mutated((base)=>rmSync(resolve(base,'Cargo.lock')),/Missing Rust workspace file: Cargo\.lock/));
+test('workspace members need manifests',()=>mutated((base)=>rmSync(resolve(base,'apps/engine/Cargo.toml')),/Workspace member has no tracked manifest: apps\/engine/));
+test('CI must install the pinned toolchain before verification',()=>mutated((base)=>edit(base,'.github/workflows/ci.yml',(t)=>t.replace(/      - name: Install pinned Rust toolchain\n        run: rustup toolchain install --profile minimal\n/,'')),/CI must install the pinned Rust toolchain/));
+test('CI needs time for a cold Cargo build',()=>mutated((base)=>edit(base,'.github/workflows/ci.yml',(t)=>t.replace('timeout-minutes: 30','timeout-minutes: 10')),/timeout-minutes of at least 20/));
+const f0Dir = 'fixtures/s0/cases/F0-smoke';
+test('a case without expected values fails',()=>mutated((base)=>rmSync(resolve(base,`${f0Dir}/expected.json`)),/Case F0-smoke: missing expected file expected\.json/));
+test('a case without a derivation fails',()=>mutated((base)=>rmSync(resolve(base,`${f0Dir}/derivation.md`)),/Case F0-smoke: missing derivation file derivation\.md/));
+test('a completed case must state its sections',()=>mutated((base)=>editJson(base,`${f0Dir}/expected.json`,(value)=>{ delete value.expect.fills; }),/a completed case must state fills/));
+test('a rejected case must state its failure code',()=>mutated((base)=>editJson(base,`${f0Dir}/expected.json`,(value)=>{ value.expect.outcome = { status: 'FAILED' }; }),/a rejected case must state its failure code/));
+test('an oracle-derived case binds the oracle script by hash',()=>mutated((base)=>editJson(base,`${f0Dir}/expected.json`,(value)=>{ value.origin = { kind: 'oracle', oracle: 'missing.py', oracle_sha256: 'abc' }; }),/oracle script missing/));
+test('a case cannot claim an unknown S0 row',()=>mutated((base)=>editJson(base,`${f0Dir}/case.json`,(value)=>{ value.covers.push('Imaginary row'); }),/unknown S0 row in covers: Imaginary row/));
+test('coverage cannot name a missing case',()=>mutated((base)=>editJson(base,'fixtures/s0/coverage.json',(value)=>{ value.rows['Local replay'] = ['NOPE']; }),/names a missing case: NOPE/));
+test('coverage must match what the case declares',()=>mutated((base)=>editJson(base,'fixtures/s0/coverage.json',(value)=>{ value.rows['Cash dividend'] = ['F0-smoke']; }),/listed for "Cash dividend" but does not declare it/));
+test('a protocol fixture missing from the manifest fails',()=>mutated((base)=>writeFileSync(resolve(base,'fixtures/protocol/valid/extra.json'),'{}\n'),/Protocol fixture is not in the manifest/));
+test('a manifest entry without a file fails',()=>mutated((base)=>rmSync(resolve(base,'fixtures/protocol/invalid/strategy.version-2.json')),/Protocol manifest lists a missing file/));
+
+function reportDirectory(change: (directory: string) => void): string[] {
+  const temporary = mkdtempSync(resolve(tmpdir(),'openquant-report-'));
+  try {
+    mkdirSync(resolve(temporary,'local-runs/s0'),{recursive:true});
+    change(resolve(temporary,'local-runs/s0'));
+    return reportErrors(temporary);
+  } finally { rmSync(temporary,{recursive:true,force:true}); }
+}
+const goodReport = '# S0 local replay report\n\n## Summary\n\n## CASE-1 — Title [PASS]\n\n## Remaining limitations\n';
+test('the replay report must exist',()=>assert.match(reportErrors(resolve(tmpdir(),'openquant-no-report'))[0] ?? '',/Missing replay report/));
+test('a complete passing report is accepted',()=>assert.deepEqual(reportDirectory((dir)=>{
+  writeFileSync(resolve(dir,'report.md'),goodReport);
+  writeFileSync(resolve(dir,'index.json'),JSON.stringify({cases:[{case:'CASE-1',passed:true}]}));
+}),[]));
+test('a failing case fails the report check',()=>assert.ok(reportDirectory((dir)=>{
+  writeFileSync(resolve(dir,'report.md'),goodReport);
+  writeFileSync(resolve(dir,'index.json'),JSON.stringify({cases:[{case:'CASE-1',passed:false}]}));
+}).some((e)=>/Replay case failed: CASE-1/.test(e))));
+test('a report without limitations fails',()=>assert.ok(reportDirectory((dir)=>{
+  writeFileSync(resolve(dir,'report.md'),goodReport.replace('## Remaining limitations\n',''));
+  writeFileSync(resolve(dir,'index.json'),JSON.stringify({cases:[{case:'CASE-1',passed:true}]}));
+}).some((e)=>/lacks the section: ## Remaining limitations/.test(e))));
+test('a report that omits a case fails',()=>assert.ok(reportDirectory((dir)=>{
+  writeFileSync(resolve(dir,'report.md'),goodReport);
+  writeFileSync(resolve(dir,'index.json'),JSON.stringify({cases:[{case:'CASE-1',passed:true},{case:'CASE-2',passed:true}]}));
+}).some((e)=>/no section for case CASE-2/.test(e))));

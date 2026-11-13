@@ -1,6 +1,6 @@
 # Shared wire schemas
 
-Status: planned; no implementation. First slice: M1/S0 for schema source and Rust validation; S1 adds TypeScript validation.
+Status: S0 implemented for the schema source and Rust validation (crate `openquant-contracts` in `rust`, bindings generated at build time from `schemas`). S1 adds TypeScript validation.
 
 Language-neutral contracts and runtime validation. Generate bindings and execute shared valid/invalid fixtures in TypeScript and Rust. Money and quantities are decimal strings.
 

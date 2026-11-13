@@ -22,11 +22,11 @@ Benchmark contributions need a purpose, reproducible inputs, independent expecte
 pnpm verify
 ```
 
-The bootstrap can also use `node scripts/verify.ts` with no dependency install. See [scripts](scripts/README.md) for the exact scope.
+`node scripts/verify.ts` runs the same checks. The Node checks need no dependency install. The Rust steps need the toolchain pinned in `rust-toolchain.toml` (`rustup toolchain install`). See [scripts](scripts/README.md) for the exact scope.
 
 Regenerate spec metadata and the repository file map when needed. In a Git checkout, stage intended added and removed paths before generating the map. Do not stage secrets or local output.
 
-New executable packages must add their required checks. M1 must include real Rust fixture evaluation and verified research execution. Public CLI release separately requires a clean installed demo. A mock or screenshot cannot satisfy those gates.
+New executable packages must add their required checks. S0 added real Rust fixture evaluation to `pnpm verify`. The remaining M1 slices must add verified research execution. Public CLI release separately requires a clean installed demo. A mock or screenshot cannot satisfy those gates.
 
 ## Commit and review
 

@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:strategy-artefact:1",
+  "title": "StrategyArtefact",
+  "description": "One versioned artefact: Strategy Contract plus Strategy Definition, bound by one content hash (OQ-02 section 2.1).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "strategy_id", "version", "operator_set", "contract", "definition"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["strategy-artefact/1"] },
+    "strategy_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "version": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+    "operator_set": { "type": "string", "enum": ["daily-long-only-seed@1"] },
+    "parent": { "$ref": "#/$defs/ParentRef" },
+    "contract": { "$ref": "#/$defs/StrategyContract" },
+    "definition": { "$ref": "#/$defs/StrategyDefinition" }
+  },
+  "$defs": {
+    "ParentRef": {
+      "title": "ParentRef",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hash", "changes"],
+      "properties": {
+        "hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "changes": { "type": "array", "maxItems": 32, "items": { "$ref": "#/$defs/StrategyChange" } }
+      }
+    },
+    "StrategyChange": {
+      "title": "StrategyChange",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "from", "to"],
+      "properties": {
+        "path": { "type": "string", "maxLength": 256 },
+        "from": { "type": "string", "maxLength": 256 },
+        "to": { "type": "string", "maxLength": 256 }
+      }
+    },
+    "StrategyContract": {
+      "title": "StrategyContract",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hypothesis", "rationale", "intended_conditions", "benchmarks", "assumptions", "invalidation"],
+      "properties": {
+        "hypothesis": { "type": "string", "maxLength": 2000 },
+        "rationale": { "type": "string", "maxLength": 2000 },
+        "intended_conditions": { "$ref": "#/$defs/TextList" },
+        "benchmarks": { "$ref": "#/$defs/TextList" },
+        "assumptions": { "$ref": "#/$defs/TextList" },
+        "invalidation": { "$ref": "#/$defs/TextList" }
+      }
+    },
+    "TextList": {
+      "title": "TextList",
+      "type": "array",
+      "maxItems": 32,
+      "items": { "type": "string", "maxLength": 1000 }
+    },
+    "StrategyDefinition": {
+      "title": "StrategyDefinition",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["indicators", "entry", "selection", "sizing", "exits", "execution"],
+      "properties": {
+        "indicators": { "type": "array", "maxItems": 32, "items": { "$ref": "#/$defs/NamedExpr" } },
+        "entry": { "$ref": "#/$defs/EntryRule" },
+        "selection": { "$ref": "#/$defs/SelectionRule" },
+        "sizing": { "$ref": "#/$defs/SizingRule" },
+        "exits": { "$ref": "#/$defs/ExitRules" },
+        "execution": { "$ref": "#/$defs/ExecutionRequest" }
+      }
+    },
+    "NamedExpr": {
+      "title": "NamedExpr",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "expr"],
+      "properties": {
+        "name": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "expr": { "$ref": "#/$defs/Expr" }
+      }
+    },
+    "EntryRule": {
+      "title": "EntryRule",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["condition", "rank", "snapshots"],
+      "properties": {
+        "condition": { "$ref": "#/$defs/Expr" },
+        "rank": { "$ref": "#/$defs/Expr" },
+        "snapshots": { "type": "array", "maxItems": 8, "items": { "$ref": "#/$defs/NamedExpr" } }
+      }
+    },
+    "SelectionRule": {
+      "title": "SelectionRule",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slots", "max_per_instrument", "tie_break"],
+      "properties": {
+        "slots": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "max_per_instrument": { "type": "integer", "minimum": 1, "maximum": 1 },
+        "tie_break": { "type": "string", "enum": ["ASCENDING_INSTRUMENT_ID"] }
+      }
+    },
+    "SizingRule": {
+      "title": "SizingRule",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method"],
+      "properties": {
+        "method": { "type": "string", "enum": ["sizing:equal_cash_per_vacant_slot@1"] }
+      }
+    },
+    "ExitRules": {
+      "title": "ExitRules",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stop", "target", "stop_adjustments"],
+      "properties": {
+        "stop": { "$ref": "#/$defs/Expr" },
+        "target": { "$ref": "#/$defs/Expr" },
+        "stop_adjustments": { "type": "array", "maxItems": 4, "items": { "$ref": "#/$defs/StopAdjustment" } }
+      }
+    },
+    "StopAdjustment": {
+      "title": "StopAdjustment",
+      "description": "One-time stop change. The new level takes effect at the start of the next session.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "trigger", "new_level", "effective"],
+      "properties": {
+        "id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "trigger": { "$ref": "#/$defs/Expr" },
+        "new_level": { "$ref": "#/$defs/Expr" },
+        "effective": { "type": "string", "enum": ["NEXT_SESSION"] }
+      }
+    },
+    "ExecutionRequest": {
+      "title": "ExecutionRequest",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entry_fill", "decision"],
+      "properties": {
+        "entry_fill": { "type": "string", "enum": ["NEXT_OPEN"] },
+        "decision": { "type": "string", "enum": ["AFTER_CLOSE"] }
+      }
+    },
+    "Expr": {
+      "title": "Expr",
+      "description": "Typed operator tree node. Arity, units and parameters are checked by the shared validator.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "args", "params"],
+      "properties": {
+        "op": { "$ref": "urn:openquant:schema:common:1#/$defs/OperatorRef" },
+        "args": { "type": "array", "maxItems": 8, "items": { "$ref": "#/$defs/Expr" } },
+        "params": { "$ref": "#/$defs/ExprParams" }
+      }
+    },
+    "ExprParams": {
+      "title": "ExprParams",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "window": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "periods": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "field": { "type": "string", "enum": ["OPEN", "HIGH", "LOW", "CLOSE", "VOLUME"] },
+        "value": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "unit": { "$ref": "urn:openquant:schema:common:1#/$defs/Unit" },
+        "name": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" }
+      }
+    }
+  }
+}

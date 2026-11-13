@@ -1,0 +1,15 @@
+{
+  "id": "F0-smoke",
+  "title": "Smoke: reduced strategy, next-open entry, target exit, re-entry, restore",
+  "covers": [
+    "Local replay",
+    "Entry and exit phases",
+    "Cash and quantities",
+    "Shared payloads"
+  ],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}
