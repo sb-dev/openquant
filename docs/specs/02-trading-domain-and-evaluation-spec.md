@@ -1,9 +1,9 @@
 ---
 id: OQ-02
 title: OpenQuant — Trading Domain and Evaluation
-version: 1.3.0
+version: 1.3.1
 status: canonical
-updated: 2026-11-11
+updated: 2026-11-13
 owns: strategy semantics, evaluation, lifecycle, portfolio, risk, A01–A18
 ---
 
@@ -129,7 +129,7 @@ For the initial simulated cash-cap model, freeze each entry's maximum total spen
 
 For a long position that gaps through an active stop, use the opening price with adverse execution costs, not the stop price. A gap above a target fills at the target before costs in this conservative model. Otherwise an intraday stop/target touch fills at its level before costs. If both are touched and their order is unknown, the stop takes precedence. Record ambiguous bars. Reject invalid levels or unsupported fills rather than inventing a price. A stop moved to entry does not remove fees, gaps or loss risk.
 
-Align by session/time, never by row number. Declare the warm-up range separately from the scored period. Missing required bars or a required valuation at the common cutoff make joint evidence insufficient; do not shrink the universe, advance one stock to a later date, or forward-fill a tradable bar. Expected market closures and causally established ineligibility remain distinct from missing observations. Optional company-research failures do not block a price-only strategy unless its mission requires that evidence.
+Align by session/time, never by row number. Declare the warm-up range separately from the scored period. Missing required bars or a required valuation at the common cutoff make joint evidence insufficient; do not shrink the universe, advance one stock to a later date, or forward-fill a tradable bar. Evidence that exists but becomes available after the earlier of the next intended open and the run's information cutoff is future data. It fails the run with `FUTURE_DATA`; it is not a missing observation. Availability exactly at that instant is usable. At the final session the cutoff alone bounds the closing valuation. Expected market closures and causally established ineligibility remain distinct from missing observations. Optional company-research failures do not block a price-only strategy unless its mission requires that evidence.
 
 M1 explicitly limits evidence for unplanned halts, delistings and acquisitions. An absent bar alone does not establish that no qualifying trades occurred. Require dated source evidence and apply any eligibility change only from its verified availability time, no earlier than its effective time. A confirmed non-trading instrument cannot create a signal or fill; expire its pending entry at the intended opening phase and release the reservation. Keep it in the frozen universe and coverage report. If it is held and the required valuation or terminal settlement is unsupported, mark joint evidence `INSUFFICIENT`. Report the instrument, event, missing evidence and affected period. Do not invent a liquidation price or remove the instrument and rerun the same comparison. This M1 limitation can bias the set of completed runs; report it alongside cohort results. A later policy for stale marks or terminal settlement requires separately versioned semantics and acceptance evidence under §3.3.
 

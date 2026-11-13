@@ -1,9 +1,9 @@
 ---
 id: OQ-05
 title: OpenQuant — System Architecture and Data
-version: 1.3.0
+version: 1.3.1
 status: canonical
-updated: 2026-11-11
+updated: 2026-11-13
 owns: stack, hosting, source boundaries, persistence, protocols, authentication
 ---
 
@@ -134,7 +134,7 @@ Prices, quantities, and money use explicit decimal strings. The Rust core owns c
 
 Hono route inference can supplement TypeScript typing. It does not replace runtime validation or define Rust's contract.
 
-Evaluation input identity binds strategy, watchlist/profile versions, engine/operator compatibility, per-instrument dataset manifests, calendar, warm-up/scored windows, initial capital, execution/cost policy, suite, and seed. Result identity also binds the logical run, current attempt, ownership revision, and actual executable digest. Verify these before accepting an artefact.
+Evaluation input identity binds strategy, watchlist/profile versions, engine/operator compatibility, per-instrument dataset manifests, calendar, warm-up/scored windows, information cutoff, initial capital, execution/cost policy, suite, and seed. Result identity also binds the logical run, current attempt, ownership revision, and actual executable digest. Verify these before accepting an artefact.
 
 Joint market events carry session/phase, availability times, instrument identities and explicit coverage. Checkpoints bind that event cursor to positions, cash, reservations, pending entries and scheduled stop changes. Results expose joint ledger/metrics, per-stock contributions, selection/skipped-entry diagnostics and incomplete coverage. Generate cross-runtime bindings and valid/invalid fixtures from the existing schema owners. No provider payload or agent score bypasses the reviewed strategy operators. OQ-02 §§2–3 owns the numerical and event-order rules.
 
