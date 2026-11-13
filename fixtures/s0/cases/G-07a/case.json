@@ -1,0 +1,10 @@
+{
+  "id": "G-07a",
+  "title": "Grid tie: a stop of exactly 0 = 5 - 6 * 5/6 is an invalid level (ATR6 rounds below)",
+  "covers": ["Invalid inputs", "Entry and exit phases"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}

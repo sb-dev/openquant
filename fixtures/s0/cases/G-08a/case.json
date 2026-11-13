@@ -1,0 +1,10 @@
+{
+  "id": "G-08a",
+  "title": "Grid tie: break-even trigger high >= 5 + 3 * ATR3 fires at exactly 5.68 (ATR3 = 0.68/3)",
+  "covers": ["Entry and exit phases", "Definition execution"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

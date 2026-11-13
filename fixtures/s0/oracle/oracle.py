@@ -10,6 +10,10 @@ S0 research log (docs/research-logs/2026-11-13-s0-offline-seed-evaluation.md: th
 arithmetic uses fractions.Fraction (exact rationals). Rounding happens only at
 the explicit policy points: floor, ceil and half-even.
 
+The grid-tie cases G-01 to G-11b pin exact decisions where the exact value is a price on the grid although an
+intermediate value (ATR = sum / 3, a mean, a split-converted level) has no finite decimal form. They are written
+before and apart from the engine; see the section "grid ties" below and fixtures/s0/README.md.
+
 Run:  python3 -I fixtures/s0/oracle/oracle.py   (from the repository root)
 It writes case.json, input.json, expected.json, derivation.md (and strategy.json
 where a case has its own strategy) for every case, fixtures/s0/coverage.json and
@@ -545,7 +549,7 @@ def explain_indicators(strat_eval, series, t, sess):
             what = describe_series_op(expr["args"][0], tr.named)
             vals = [tr.ev(series, expr["args"][0], t - i, {}) for i in range(w)]
             lines.append("%s = mean of the last %d %s values (indices %d..%d): sum %s / %d = %s -> %s"
-                         % (name, w, what, t - w + 1, t, fmt_exact(sum(vals, F(0))), w,
+                         % (name, w, what, t - w + 1, t, fmt_dec(sum(vals, F(0))), w,
                             fmt_dec(val), diag(val)))
         elif op == "rsi_simple":
             w = p["window"]
@@ -553,8 +557,8 @@ def explain_indicators(strat_eval, series, t, sess):
             l = sum((max(closes[j - 1] - closes[j], F(0)) for j in range(t - w + 1, t + 1)), F(0))
             lines.append("%s: over the %d changes (indices %d..%d) gains sum %s, losses sum %s; "
                          "RSI = 100 * %s / (%s + %s) = %s -> %s"
-                         % (name, w, t - w + 1, t, fmt_exact(g), fmt_exact(l), fmt_exact(g), fmt_exact(g),
-                            fmt_exact(l), fmt_dec(val), diag(val)))
+                         % (name, w, t - w + 1, t, fmt_dec(g), fmt_dec(l), fmt_dec(g), fmt_dec(g),
+                            fmt_dec(l), fmt_dec(val), diag(val)))
         elif op == "atr_simple":
             w = p["window"]
             trs = []
@@ -562,7 +566,7 @@ def explain_indicators(strat_eval, series, t, sess):
                 b, pc = series[j], series[j - 1]["c"]
                 trs.append(max(b["h"] - b["l"], abs(b["h"] - pc), abs(b["l"] - pc)))
             lines.append("%s: true ranges (indices %d..%d) sum to %s; ATR = %s / %d = %s -> %s"
-                         % (name, t - w + 1, t, fmt_exact(sum(trs, F(0))), fmt_exact(sum(trs, F(0))), w,
+                         % (name, t - w + 1, t, fmt_dec(sum(trs, F(0))), fmt_dec(sum(trs, F(0))), w,
                             fmt_dec(val), diag(val)))
         elif op == "lag":
             lines.append("%s = %s evaluated %d session(s) earlier = %s -> %s"
@@ -1222,9 +1226,12 @@ class Sim:
         return out
 
     def pos_json(self, p):
-        """A level or snapshot with no finite decimal form (for example 367/6) is left out: the wire view carries a
-        rounded decimal there and the oracle does not copy the engine's rounding. The fill that uses it is stated."""
-        o = {"trade_id": p["trade_id"], "quantity": fmt(p["qty"], self.qs), "entry_price": fmt_exact(p["entry"])}
+        """An entry price, level or snapshot with no finite decimal form (for example 367/6, or an entry price of 5
+        after a 3-for-1 split) is left out: the wire view carries a rounded decimal there and the oracle does not copy
+        the engine's rounding. The fill that uses it is stated."""
+        o = {"trade_id": p["trade_id"], "quantity": fmt(p["qty"], self.qs)}
+        if terminates(p["entry"]):
+            o["entry_price"] = fmt_exact(p["entry"])
         for key in ("stop", "target"):
             if terminates(p[key]):
                 o[key] = fmt_exact(p[key])
@@ -1255,14 +1262,20 @@ def ref(name):
 
 
 def reduced_strategy(sid, version=1, sma_w=3, atr_w=3, stop_mult=2, target_mult=5, break_even=False,
-                     hypothesis="Reduced fixture strategy: enter when the close is above its short mean."):
+                     hypothesis="Reduced fixture strategy: enter when the close is above its short mean.",
+                     be_mult=None, condition=None):
+    """be_mult scales the entry ATR in the break-even trigger (default: the seed's 1 x ATR). condition replaces the
+    entry condition (default: close > mean). Both defaults reproduce the earlier cases byte for byte."""
     sma = "sma%d" % sma_w
     atr = "atr%d" % atr_w
     adjustments = []
     if break_even:
+        trigger_leg = ex("snapshot", name="entry_atr")
+        if be_mult is not None:
+            trigger_leg = ex("mul", [cst(be_mult, "RATIO"), trigger_leg])
         adjustments = [{
             "id": "break_even",
-            "trigger": ex("gte", [bf("HIGH"), ex("add", [ex("entry_price"), ex("snapshot", name="entry_atr")])]),
+            "trigger": ex("gte", [bf("HIGH"), ex("add", [ex("entry_price"), trigger_leg])]),
             "new_level": ex("entry_price"),
             "effective": "NEXT_SESSION"}]
     return {
@@ -1283,7 +1296,7 @@ def reduced_strategy(sid, version=1, sma_w=3, atr_w=3, stop_mult=2, target_mult=
                 {"name": sma, "expr": ex("sma", [bf("CLOSE")], window=sma_w)},
                 {"name": atr, "expr": ex("atr_simple", window=atr_w)}],
             "entry": {
-                "condition": ex("gt", [bf("CLOSE"), ref(sma)]),
+                "condition": ex("gt", [bf("CLOSE"), ref(sma)]) if condition is None else condition,
                 "rank": cst(1, "POINTS"),
                 "snapshots": [{"name": "entry_atr", "expr": ref(atr)}]},
             "selection": {"slots": 5, "max_per_instrument": 1, "tie_break": "ASCENDING_INSTRUMENT_ID"},
@@ -3356,6 +3369,506 @@ position stays open: 39 * 56.00 = 2184.00, final equity 10532.67.
 """
 
 
+# ---------------------------------------------------------------- grid ties (G-xx)
+#
+# A grid tie is a stop, target, trigger, signal comparison or split-converted level whose exact value is a price on the
+# grid although an intermediate value has no finite decimal form (ATR3 = x / 3, SMA3 = sum / 3, a level divided by a
+# split ratio). Every comparison and every fill below uses the exact value: the oracle never rounds an intermediate.
+# A computation that rounds the intermediate to finitely many digits lands one unit of its last digit away from the
+# grid price, below or above it according to the repeating digit (0.2233... rounds down, 0.2266... rounds up), and can
+# then decide a touch, a gap, a trigger or a level check the wrong way, or floor a fill to the grid price below.
+# A comparison is only misjudged in one of the two directions: a target test (high >= level) misses when the rounded
+# level lies above the exact one and fills one tick low when it lies below; a stop test (low <= level) misses when the
+# rounded level lies below the exact one. The families therefore have a case per direction.
+
+G_POLICY = make_policy(fixed="1.00", bps="0", slip="100")
+G_ZERO = make_policy(fixed="0", bps="0", slip="100")
+
+
+def P(v):
+    """A price with exactly two decimals."""
+    return fmt(F(v), 2)
+
+
+def trunc4(v):
+    """The first four decimals of a non-terminating value, followed by an ellipsis."""
+    return fmt(floor_to(v, 4), 4) + "..."
+
+
+def g_head(x):
+    """Rows 0 to 4. Four flat bars (5, 5.10, 4.90, 5) of true range 0.20 and a signal bar (5, high, 4.90, 5.05) whose true
+    range makes the three true ranges of indices 2, 3, 4 add up to exactly x, so that ATR3 = x / 3."""
+    a = F(x) - F(1, 2)
+    assert a >= 0 and (a * 100).denominator == 1
+    return [FL(5, "0.2")] * 4 + [(5, 5 + a, "4.9", "5.05")]
+
+
+def g_dir(x):
+    """Where ATR3 = x / 3 falls when rounded to finitely many digits: below its exact value when the cent remainder of
+    x / 3 is 1 (0.2233...), above it when the remainder is 2 (0.2266...)."""
+    r = int(F(x) * 100) % 3
+    assert r in (1, 2)
+    return "below" if r == 1 else "above"
+
+
+def g_steps_1_4(x):
+    """Numbered steps 1 to 4 shared by G-01 to G-06b: the ATR3 window, the signal, the entry and the two exact levels."""
+    x = F(x)
+    a = x - F(1, 2)
+    hi, tr4, s, t = 5 + a, a + F(1, 10), 5 - x, 5 + x
+    d = g_dir(x)
+    return (
+        f"1. ATR3 window, indices 2, 3, 4. Indices 2 and 3 are (5, 5.10, 4.90, 5) after a close of 5: max(0.20, 0.10, 0.10) = "
+        f"0.20 each. Index 4 is (5, {P(hi)}, 4.90, 5.05) after a close of 5: max({P(hi)} - 4.90, {P(hi)} - 5, 5 - 4.90) = "
+        f"max({P(tr4)}, {P(a)}, 0.10) = {P(tr4)}. The sum is 0.20 + 0.20 + {P(tr4)} = {P(x)}.\n"
+        f"2. ATR3 = {P(x)} / 3 = {int(x * 100)}/300 = {trunc4(x / 3)} It has no finite decimal form, because {int(x * 100)} cents "
+        f"is not a multiple of 3 cents. The close 5.05 is above SMA3 = (5 + 5 + 5.05) / 3 = 5.0166..., so the close of index 4 "
+        f"creates an entry intent: cap = floor(5000.00 / 5) = 1000.00, reserved.\n"
+        f"3. Entry. Index 5 opens at 5.00 and the fee is 1.00 per fill. 200 shares cost 1000.00 + 1.00 = 1001.00 > 1000.00; 199 "
+        f"shares cost 995.00 + 1.00 = 996.00 <= 1000.00. Quantity 199; available 5000.00 - 996.00 = 4004.00.\n"
+        f"4. Levels. Stop = 5 - 3 * ({P(x)} / 3) = 5 - {P(x)} = {P(s)}. Target = 5 + 3 * ({P(x)} / 3) = 5 + {P(x)} = {P(t)}. The "
+        f"multiplier 3 cancels the divisor 3, so both levels are exact prices on the grid although ATR3 is not. An ATR3 rounded "
+        f"to finitely many digits lies {d} its exact value, so a level computed from it lies {'above' if d == 'below' else 'below'} "
+        f"the exact stop and {d} the exact target, by about one unit of its last digit. The expectation states both exact levels "
+        f"in the daily positions and omits the ATR snapshot (no finite decimal form).\n")
+
+
+def g_hand(x, final_cash, notional, delta):
+    """Hand-derived values shared by G-01 to G-06b (steps 1 to 4 of the text and the exit step of each case)."""
+    x = F(x)
+    return {
+        "entries.0.cap": ("1000.00", "floor(5000.00 / 5)"),
+        "entries.0.quantity": ("199", "200 shares 1001.00 > 1000.00; 199 shares 996.00"),
+        "cash_ledger.0.amount": ("1000.00", "the reserved cap"),
+        "daily.5.cash_available": ("4004.00", "5000.00 - 996.00"),
+        "daily.5.positions.0.stop": (fmt_exact(5 - x), "5 - 3 * (%s / 3)" % fmt_exact(x)),
+        "daily.5.positions.0.target": (fmt_exact(5 + x), "5 + 3 * (%s / 3)" % fmt_exact(x)),
+        "fills.1.notional": (notional, "199 * the exit price"),
+        "fills.1.fee": ("1.00", "fixed fee"),
+        "fills.1.cash_delta": (delta, "notional - 1.00"),
+        "final.cash_available": (final_cash, "4004.00 + the proceeds"),
+    }
+
+
+def g_case(cid, title, x, rows, text, what, final_cash, notional, delta, extra_hand):
+    """G-01 to G-06b: one tie bar after an entry at 5.00 with ATR3 = x / 3 and stop and target 3 * ATR3 away."""
+    hand = g_hand(x, final_cash, notional, delta)
+    hand.update(extra_hand)
+    notes = (f"{len(rows)} sessions. Indices 0 to 3 are flat bars; the signal bar (index 4) makes the true-range sum {P(x)}, so ATR3 "
+             f"= {P(x)} / 3 has no finite decimal form while 3 * ATR3 = {P(x)} is a price on the grid. {what}")
+    return rc(cid, title, ["Entry and exit phases", "Cash and quantities"], rows, G_POLICY,
+              skw={"stop_mult": 3, "target_mult": 3}, notes=notes, hand=hand, hand_text=g_steps_1_4(x) + text, focus=[D[4]])
+
+
+def make_g01():
+    x = F("0.67")
+    rows = g_head(x) + [FL(5, "0.2"), (5, "5.66", "4.9", 5), (5, "5.67", "4.9", 5), FL(5, "0.2")]
+    text = (
+        "5. Index 6 (5, 5.66, 4.90, 5): high 5.66 < 5.67, one tick below the target: no touch. The low 4.90 stays above the stop "
+        "4.33.\n"
+        "6. Index 7 (5, 5.67, 4.90, 5): the open 5.00 is below the target (no gap) and the low 4.90 is above the stop. The high "
+        "5.67 >= 5.67 by equality: the target is touched. The fill is the level floored to the price scale: floor(5.67) = 5.67, "
+        "before costs and without slippage (the policy's 100 bps apply to a gap through a stop only). Notional 199 * 5.67 = "
+        "1128.33; fee 1.00; proceeds 1127.33; available 4004.00 + 1127.33 = 5131.33.\n"
+        "7. The closes of indices 7 and 8 equal SMA3 = 5.00 (not above it), so no new entry arises. The run ends with no "
+        "position.\n")
+    hand = {"fills.1.session": (D[7], "index 7"), "fills.1.reason": ("TARGET", "high 5.67 >= target 5.67"),
+            "fills.1.price": ("5.67", "floor(5.67), not 5.66"), "trades.0.exit_price": ("5.67", "the exit price")}
+    return g_case("G-01", "Grid tie: intraday target touch at 5.67 = 5 + 3 * 0.67/3 fills at 5.67 (ATR3 rounds below)", x, rows,
+                  text,
+                  "One bar stops one tick below the target 5.67 and is no touch; the next bar's high equals it and the target fills at "
+                  "5.67. A target computed from a rounded ATR3 lies one unit of the last digit below 5.67, so its floor is 5.66.",
+                  "5131.33", "1128.33", "1127.33", hand)
+
+
+def make_g02():
+    x = F("0.68")
+    rows = g_head(x) + [FL(5, "0.2"), (5, "5.67", "4.9", 5), (5, "5.68", "4.9", 5), FL(5, "0.2")]
+    text = (
+        "5. Index 6 (5, 5.67, 4.90, 5): high 5.67 < 5.68, one tick below the target: no touch. The low 4.90 stays above the stop "
+        "4.32.\n"
+        "6. Index 7 (5, 5.68, 4.90, 5): the open 5.00 is below the target (no gap) and the low 4.90 is above the stop. The high "
+        "5.68 >= 5.68 by equality: the target is touched. The fill is floor(5.68) = 5.68, before costs and without slippage. "
+        "Notional 199 * 5.68 = 1130.32; fee 1.00; proceeds 1129.32; available 4004.00 + 1129.32 = 5133.32.\n"
+        "7. The closes of indices 7 and 8 equal SMA3 = 5.00 (not above it), so no new entry arises. The run ends with no "
+        "position.\n")
+    hand = {"fills.1.session": (D[7], "index 7"), "fills.1.reason": ("TARGET", "high 5.68 >= target 5.68"),
+            "fills.1.price": ("5.68", "floor(5.68)"), "trades.0.exit_price": ("5.68", "the exit price")}
+    return g_case("G-02", "Grid tie: intraday target touch at 5.68 = 5 + 3 * 0.68/3 fills at 5.68 (ATR3 rounds above)", x, rows,
+                  text,
+                  "One bar stops one tick below the target 5.68 and is no touch; the next bar's high equals it and the target fills at "
+                  "5.68. A target computed from a rounded ATR3 lies one unit of the last digit above 5.68, so a high of exactly 5.68 "
+                  "would miss it and the position would stay open.",
+                  "5133.32", "1130.32", "1129.32", hand)
+
+
+def make_g03():
+    x = F("0.68")
+    rows = g_head(x) + [FL(5, "0.2"), ("4.4", "4.4", "4.33", "4.35"), ("4.35", "4.45", "4.32", "4.4")]
+    text = (
+        "5. Index 6 (4.40, 4.40, 4.33, 4.35): the open 4.40 is above the stop 4.32 (no gap); the low 4.33 > 4.32, one tick above "
+        "the stop: no touch.\n"
+        "6. Index 7 (4.35, 4.45, 4.32, 4.40): the open 4.35 is above the stop (no gap). The low 4.32 <= 4.32 by equality: the "
+        "stop is touched; the high 4.45 is below the target 5.68, so the bar is not ambiguous. The fill is the level floored to "
+        "the price scale: floor(4.32) = 4.32, before costs and without slippage (touched, not gapped). Notional 199 * 4.32 = "
+        "859.68; fee 1.00; proceeds 858.68; available 4004.00 + 858.68 = 4862.68.\n"
+        "7. Index 7 is the last session, so its close creates no entry intent.\n")
+    hand = {"fills.1.session": (D[7], "index 7"), "fills.1.reason": ("STOP", "low 4.32 <= stop 4.32"),
+            "fills.1.price": ("4.32", "floor(4.32)"), "trades.0.exit_price": ("4.32", "the exit price")}
+    return g_case("G-03", "Grid tie: intraday stop touch at 4.32 = 5 - 3 * 0.68/3 fills at 4.32 (stop from a rounded ATR3 lies below)",
+                  x, rows, text,
+                  "One bar keeps its low one tick above the stop 4.32 and is no touch; the next bar's low equals it and the stop fills "
+                  "at 4.32. A stop computed from a rounded ATR3 lies one unit of the last digit below 4.32, so a low of exactly "
+                  "4.32 would miss it.",
+                  "4862.68", "859.68", "858.68", hand)
+
+
+def make_g04():
+    x = F("0.67")
+    rows = g_head(x) + [FL(5, "0.2"), ("4.4", "4.4", "4.34", "4.35"), ("4.35", "4.45", "4.33", "4.4")]
+    text = (
+        "5. Index 6 (4.40, 4.40, 4.34, 4.35): the open 4.40 is above the stop 4.33 (no gap); the low 4.34 > 4.33, one tick above "
+        "the stop: no touch.\n"
+        "6. Index 7 (4.35, 4.45, 4.33, 4.40): the open 4.35 is above the stop (no gap). The low 4.33 <= 4.33 by equality: the "
+        "stop is touched; the high 4.45 is below the target 5.67, so the bar is not ambiguous. The fill is floor(4.33) = 4.33, "
+        "before costs and without slippage. Notional 199 * 4.33 = 861.67; fee 1.00; proceeds 860.67; available 4004.00 + "
+        "860.67 = 4864.67.\n"
+        "7. Index 7 is the last session, so its close creates no entry intent.\n")
+    hand = {"fills.1.session": (D[7], "index 7"), "fills.1.reason": ("STOP", "low 4.33 <= stop 4.33"),
+            "fills.1.price": ("4.33", "floor(4.33)"), "trades.0.exit_price": ("4.33", "the exit price")}
+    return g_case("G-04", "Grid tie: intraday stop touch at 4.33 = 5 - 3 * 0.67/3 fills at 4.33 (stop from a rounded ATR3 lies above)",
+                  x, rows, text,
+                  "The mirror of G-03. A stop computed from a rounded ATR3 lies one unit of the last digit above 4.33; no price on the "
+                  "grid lies between the two, so the touch and the floored fill are the same either way and only the stored level "
+                  "differs. The case pins the exact level and the other direction.",
+                  "4864.67", "861.67", "860.67", hand)
+
+
+def make_g05(sfx, x, below, tie, final_cash, notional, delta, what):
+    """Gap above the target: index 6 opens one tick below the target (no gap), index 7 opens exactly at it."""
+    x = F(x)
+    rows = g_head(x) + [FL(5, "0.2"), (below, below, "5.6", "5.65"), (tie, F(tie) + F("0.03"), "5", "5"), FL(5, "0.2")]
+    text = (
+        f"5. Index 6 ({below}, {below}, 5.60, 5.65): the open {below} < the target {tie} (one tick below): no gap; the high {below} < "
+        f"{tie}: no touch. The position is held. The close 5.65 is above SMA3 = (5.05 + 5 + 5.65) / 3 = 5.2333..., which creates no "
+        f"intent because the instrument is held.\n"
+        f"6. Index 7 opens at {tie} >= the target {tie} by equality: a gap above the target, GAP_TARGET at OPEN. The fill is at the "
+        f"target level floored to the price scale, floor({tie}) = {tie}, before costs and without slippage (the policy's 100 bps "
+        f"apply to a gap through a stop only). Notional 199 * {tie} = {notional}; fee 1.00; proceeds {delta}; available 4004.00 + "
+        f"{delta} = {final_cash}.\n"
+        f"7. The close of index 7 is 5.00, below SMA3 = (5 + 5.65 + 5) / 3 = 5.2166..., and so are the later closes: no new entry. "
+        f"The run ends with no position.\n")
+    hand = {"fills.1.session": (D[7], "index 7"), "fills.1.reason": ("GAP_TARGET", "open == target"),
+            "fills.1.phase": ("OPEN", "a gap exit happens at the open"), "fills.1.price": (tie, f"floor({tie})"),
+            "trades.0.exit_price": (tie, "the exit price")}
+    return g_case("G-05" + sfx, f"Grid tie: gap above the target, the open {tie} equals the target 5 + 3 * {P(x)}/3 exactly", x, rows,
+                  text, what, final_cash, notional, delta, hand)
+
+
+def make_g06(sfx, x, stop, above, slipped, final_cash, notional, delta, what):
+    """Gap through the stop: index 6 stays one tick above the stop, index 7 opens exactly at it."""
+    x = F(x)
+    rows = g_head(x) + [FL(5, "0.2"), ("4.4", "4.4", above, "4.35"), (stop, "4.4", "4.3", "4.35"), ("4.35", "4.4", "4.3", "4.35")]
+    text = (
+        f"5. Index 6 (4.40, 4.40, {above}, 4.35): the open 4.40 is above the stop {stop} (no gap); the low {above} > {stop}, one tick "
+        f"above the stop: no touch.\n"
+        f"6. Index 7 opens at {stop} <= the stop {stop} by equality: a gap through the stop, GAP_STOP at OPEN. The fill is the open "
+        f"less slippage, floored to the price scale: {stop} * (1 - 100/10000) = {stop} * 0.99 = {fmt_exact(F(stop) * F('0.99'))}, "
+        f"floored to 2 decimals = {slipped}. It is neither the stop level nor the nearest price. Notional 199 * {slipped} = "
+        f"{notional}; fee 1.00; proceeds {delta}; available 4004.00 + {delta} = {final_cash}.\n"
+        f"7. The closes of indices 7 and 8 (4.35) are not above SMA3, so no new entry arises. The run ends with no position.\n")
+    hand = {"fills.1.session": (D[7], "index 7"), "fills.1.reason": ("GAP_STOP", "open == stop"),
+            "fills.1.phase": ("OPEN", "a gap exit happens at the open"), "fills.1.price": (slipped, f"floor({stop} * 0.99)"),
+            "trades.0.exit_price": (slipped, "the exit price")}
+    return g_case("G-06" + sfx, f"Grid tie: gap through the stop, the open {stop} equals the stop 5 - 3 * {P(x)}/3 exactly, slippage applies",
+                  x, rows, text, what, final_cash, notional, delta, hand)
+
+
+def make_g07(sfx, price, rng, hi, lo, close, flat_txt, sig_txt, total, atr_frac, atr_dec, qty, size_txt, rounded_txt, title):
+    """ATR6 = total / 6 with a stop 6 * ATR6 below the entry price: the exact stop is 0, so the level is invalid."""
+    p = P(price)
+    rows = [FL(price, rng)] * 7 + [(price, hi, lo, close)] + [FL(price, rng)] * 2
+    text = (
+        f"1. ATR6 window, indices 2 to 7 (six bars). {flat_txt} {sig_txt} The sum is {total}.\n"
+        f"2. ATR6 = {total} / 6 = {atr_frac} = {atr_dec} It has no finite decimal form. The close {close} is above SMA3 = ({p} + {p} "
+        f"+ {close}) / 3, so the close of index 7 creates an entry intent: cap = floor(5000.00 / 5) = 1000.00, reserved (available "
+        f"4000.00, reserved 1000.00).\n"
+        f"3. Index 8 opens at {p}. Sizing with the fee of 1.00 per fill: {size_txt} Sizing succeeds, so the levels are validated.\n"
+        f"4. Levels. Stop = {p} - 6 * ATR6 = {p} - 6 * {atr_frac} = {p} - {total} = 0 exactly; target = {p} + 2 * ATR6 is above the "
+        f"entry. The rule 0 < stop < entry < target fails because the stop is not above 0: the run ends with FAILED INVALID_LEVEL "
+        f"at OPEN of index 8. The whole OPEN event is rolled back (the declared policy for an invalid level): there is no BUY fill, the reservation made "
+        f"at the close of index 7 stays in the journal (entry RESERVED, one RESERVE line of 1000.00, cash reserved 1000.00) and "
+        f"index 9 is never processed.\n"
+        f"5. {rounded_txt}\n")
+    hand = {"outcome.status": ("FAILED", "the level check fails"), "outcome.code": ("INVALID_LEVEL", "the stop 0 is not above 0"),
+            "outcome.at.session": (D[8], "the entry session"), "outcome.at.phase": ("OPEN", "the entry fill"),
+            "signals.7.decision": ("ENTER", "close above SMA3"), "entries.0.status": ("RESERVED", "never filled"),
+            "entries.0.cap": ("1000.00", "floor(5000.00 / 5)"), "cash_ledger.0.kind": ("RESERVE", "the only journal line"),
+            "daily.7.cash_reserved": ("1000.00", "reserved at the close of index 7"),
+            "daily.7.cash_available": ("4000.00", "5000.00 - 1000.00")}
+    return rc("G-07" + sfx, title, ["Invalid inputs", "Entry and exit phases"], rows, G_POLICY,
+              skw={"atr_w": 6, "stop_mult": 6, "target_mult": 2}, kind="partial",
+              sections=("signals", "entries", "fills", "cash_ledger", "daily", "corporate_actions"),
+              notes=f"{len(rows)} sessions at price {p}. The ATR6 window of the signal bar has true-range sum {total}, so ATR6 = "
+                    f"{atr_frac} has no finite decimal form while the stop 6 * ATR6 below the entry price {p} is exactly 0, which "
+                    f"breaks 0 < stop. The run must fail with INVALID_LEVEL at the entry open, and nothing is filled.",
+              hand=hand, hand_text=text, focus=[D[7]])
+
+
+def make_g08(sfx, x, tick_below, level, compare_to):
+    """Break-even trigger high >= entry + 3 * ATR3 with ATR3 = x / 3: the trigger level is the grid price 5 + x."""
+    x = F(x)
+    s_off, t_off = 5 - 2 * x / 3, 5 + 5 * x / 3
+    d = g_dir(x)
+    rows = g_head(x) + [(5, tick_below, "4.9", 5), (5, level, "4.9", 5), ("5.2", "5.3", "4.95", 5), FL(5, "0.2")]
+    text = (
+        f"1. ATR3 window as in {compare_to}: the true ranges of indices 2, 3, 4 are 0.20, 0.20 and {P(x - F('0.4'))}, so the sum "
+        f"is {P(x)} and ATR3 = {P(x)} / 3 (no finite decimal form). The close 5.05 is above SMA3 = 5.0166..., so the close of "
+        f"index 4 creates an entry intent (cap 1000.00). Index 5 opens at 5.00: quantity 199 (996.00 with the fee), available "
+        f"4004.00.\n"
+        f"2. Levels. Stop = 5 - 2 * ({P(x)} / 3) = {fmt_dec(s_off)} = {trunc4(s_off)} and target = 5 + 5 * ({P(x)} / 3) = "
+        f"{fmt_dec(t_off)} = {trunc4(t_off)}; both are off the grid, so the expectation omits them. The break-even rule fires when "
+        f"high >= entry + 3 * entry_atr = 5 + 3 * ({P(x)} / 3) = 5 + {P(x)} = {level}, an exact price on the grid, and then moves "
+        f"the stop to the entry price 5.00 effective at the next session.\n"
+        f"3. Index 5 (5, {tick_below}, 4.90, 5), the entry session: the high {tick_below} < {level}, one tick below the trigger: no "
+        f"trigger. The low 4.90 is above the stop and the high is below the target.\n"
+        f"4. Index 6 (5, {level}, 4.90, 5): the high {level} >= {level} by equality: the trigger holds at the close and the stop "
+        f"is scheduled once, at the level 5.00 (the entry price), effective at index 7 ({D[7]}). The stop in force during index 6 is "
+        f"still the original one, so the daily record of index 6 shows the scheduled stop 5 effective {D[7]}.\n"
+        f"5. Index 7 (5.20, 5.30, 4.95, 5): BEFORE_OPEN activates the stop 5.00. The open 5.20 is above 5.00 (no gap); the low "
+        f"4.95 <= 5.00: STOP at floor(5.00) = 5.00, before costs. Notional 199 * 5.00 = 995.00; fee 1.00; proceeds 994.00; "
+        f"available 4004.00 + 994.00 = 4998.00.\n"
+        f"6. The close of index 7 equals SMA3 = 5.00 (not above it), so no new entry arises. The run ends with no position.\n")
+    hand = {"entries.0.quantity": ("199", "996.00 with the fee"),
+            "daily.5.cash_available": ("4004.00", "5000.00 - 996.00"),
+            "daily.6.positions.0.scheduled_stop.level": ("5", "the entry price"),
+            "daily.6.positions.0.scheduled_stop.effective_session": (D[7], "next session"),
+            "fills.1.session": (D[7], "index 7"),
+            "fills.1.reason": ("STOP", "the activated stop 5.00 is touched by the low 4.95"),
+            "fills.1.price": ("5.00", "floor(5.00)"), "fills.1.cash_delta": ("994.00", "995.00 - 1.00"),
+            "final.cash_available": ("4998.00", "4004.00 + 994.00")}
+    if d == "above":
+        why = (f"a trigger level computed from it lies one unit of the last digit above {level}, so a high of exactly {level} would "
+               f"miss the trigger and the position would keep its old stop.")
+    else:
+        why = (f"a trigger level computed from it lies one unit of the last digit below {level}, so the bar at {level} is a trigger "
+               f"either way and a rounded computation still decides this case correctly. The case pins the other direction.")
+    return rc("G-08" + sfx, f"Grid tie: break-even trigger high >= 5 + 3 * ATR3 fires at exactly {level} (ATR3 = {P(x)}/3)",
+              ["Entry and exit phases", "Definition execution"], rows, G_POLICY,
+              skw={"break_even": True, "be_mult": 3, "stop_mult": 2, "target_mult": 5}, version=2,
+              notes=f"{len(rows)} sessions. The break-even trigger of this variant is high >= entry_price + 3 * entry_atr, so with "
+                    f"ATR3 = {P(x)}/3 the trigger level is the grid price {level} although ATR3 has no finite decimal form. One bar "
+                    f"stays one tick below it (no trigger) and the next bar's high equals it (trigger). A rounded ATR3 lies {d} its "
+                    f"exact value: {why}",
+              hand=hand, hand_text=text, focus=[D[4], D[6]])
+
+
+def make_g09(sfx, title, rows, op, k, closes_txt, mean, rounded_txt, entry, qty, fits, cash, final_equity, after_txt):
+    """Entry condition op(3 * SMA3(close), k) where the sum of the three closes at index 4 equals k exactly."""
+    cond = ex(op, [ex("mul", [cst(3, "RATIO"), ref("sma3")]), cst(k, "PRICE")])
+    cmp_txt = {"gte": ">=", "lte": "<="}[op]
+    cost = F(qty) * F(entry) + 1
+    text = (
+        f"1. The entry condition is 3 * SMA3(close) {cmp_txt} {k}. SMA3 is the mean of the last three closes, so 3 * SMA3 is their "
+        f"sum.\n"
+        f"2. {closes_txt}\n"
+        f"3. At index 4 the three closes (indices 2, 3, 4) sum to {k} exactly. Their mean is {mean}, which has no finite decimal "
+        f"form, and 3 * mean = {k} exactly, so {k} {cmp_txt} {k} holds by equality: the condition is TRUE and the close of index 4 "
+        f"creates an entry intent (cap = floor(5000.00 / 5) = 1000.00). {rounded_txt}\n"
+        f"4. Entry. Index 5 opens at {entry}. Quantity {qty} ({fits}). Available 5000.00 - {P(cost)} = {cash}.\n"
+        f"5. ATR3 = (0.20 + 0.20 + 0.20) / 3 = 0.20 exactly. Stop = {entry} - 2 * 0.20 = {P(F(entry) - F('0.4'))}; target = {entry} "
+        f"+ 5 * 0.20 = {P(F(entry) + 1)}. No later bar touches them.\n"
+        f"6. {after_txt}\n")
+    hand = {"signals.4.condition": ("TRUE", f"the sum equals {k}"), "signals.4.decision": ("ENTER", "condition TRUE, not held"),
+            "entries.0.cap": ("1000.00", "floor(5000.00 / 5)"), "entries.0.quantity": (str(qty), fits),
+            "fills.0.price": (entry, "the open of index 5"), "daily.5.cash_available": (cash, "5000.00 - the entry cost"),
+            "final.equity": (final_equity, "see step 6")}
+    return rc("G-09" + sfx, title, ["Entry variants", "Entry and exit phases"], rows, G_POLICY,
+              skw={"condition": cond,
+                   "hypothesis": "Reduced fixture strategy: enter when three times the short mean %s a price level."
+                                 % ("reaches" if op == "gte" else "falls to")},
+              notes=f"{len(rows)} sessions. The entry condition is {op}(3 * SMA3(close), {k}). The three closes of the signal "
+                    f"session sum to {k}, so SMA3 = {mean} has no finite decimal form while 3 * SMA3 = {k} is a price on the grid. "
+                    f"{rounded_txt}",
+              hand=hand, hand_text=text, focus=[D[3], D[4]])
+
+
+def make_g09a():
+    rows = [FL(2, "0.2")] * 4 + [(2, "2.1", "1.9", "2.01"), FL(2, "0.2"), FL(2, "0.2"), FL(2, "0.2")]
+    return make_g09(
+        "a", "Grid tie: entry signal 3 * SMA3 >= 6.01 holds at the exact sum 6.01 (SMA3 rounds below)", rows, "gte", "6.01",
+        "Closes by index: 2.00, 2.00, 2.00, 2.00, 2.01, 2.00, 2.00, 2.00. At index 3 the last three closes (indices 1, 2, 3) sum "
+        "to 6.00, so 3 * SMA3 = 6.00 < 6.01: FALSE, no entry.",
+        "601/300 = 2.0033...",
+        "A mean rounded to finitely many digits lies below 601/300 (its digits end in 3), so 3 times it is below 6.01 and a "
+        "comparison made after the rounding would say false and miss the entry.",
+        "2.00", 499, "500 shares: 1000.00 + 1.00 = 1001.00 > 1000.00; 499 shares: 998.00 + 1.00 = 999.00 <= 1000.00", "4001.00",
+        "4999.00",
+        "Indices 5 and 6 sum to 6.01 again (2.00 + 2.01 + 2.00 and 2.01 + 2.00 + 2.00): the condition is TRUE while the instrument "
+        "is held (SKIPPED, HELD). Index 7 sums to 6.00: FALSE. The position is open at the end and is valued at the last close "
+        "2.00: 4001.00 + 499 * 2.00 = 4001.00 + 998.00 = 4999.00.")
+
+
+def make_g09b():
+    rows = [FL(2, "0.2")] * 4 + [(2, "2.1", "1.9", "2.02"), FL(2, "0.2"), FL(2, "0.2"), FL(2, "0.2")]
+    return make_g09(
+        "b", "Grid tie: entry signal 3 * SMA3 >= 6.02 holds at the exact sum 6.02 (SMA3 rounds above)", rows, "gte", "6.02",
+        "Closes by index: 2.00, 2.00, 2.00, 2.00, 2.02, 2.00, 2.00, 2.00. At index 3 the last three closes sum to 6.00, so "
+        "3 * SMA3 = 6.00 < 6.02: FALSE, no entry.",
+        "602/300 = 2.0066...",
+        "A mean rounded to finitely many digits lies above 602/300 (its digits end in 7), so 3 times it is above 6.02 and a "
+        "greater-or-equal comparison still holds: a >= test is not misjudged in this direction (G-09c uses <=). The case pins the "
+        "entry at the exact sum in the other direction.",
+        "2.00", 499, "500 shares: 1000.00 + 1.00 = 1001.00 > 1000.00; 499 shares: 998.00 + 1.00 = 999.00 <= 1000.00", "4001.00",
+        "4999.00",
+        "Indices 5 and 6 sum to 6.02 again: TRUE while held (SKIPPED, HELD). Index 7 sums to 6.00: FALSE. The position is open at "
+        "the end and is valued at the last close 2.00: 4001.00 + 499 * 2.00 = 4999.00.")
+
+
+def make_g09c():
+    rows = [FL("2.05", "0.2")] * 4 + [("2.05", "2.1", "1.9", "1.92"), ("1.95", "2.15", "1.85", "2.1"), ("2.1", "2.2", "2", "2.1"),
+                                      ("2.1", "2.2", "2", "2.1")]
+    return make_g09(
+        "c", "Grid tie: entry signal 3 * SMA3 <= 6.02 holds at the exact sum 6.02 (SMA3 rounds above)", rows, "lte", "6.02",
+        "Closes by index: 2.05, 2.05, 2.05, 2.05, 1.92, 2.10, 2.10, 2.10. At index 3 the last three closes sum to 6.15, so "
+        "3 * SMA3 = 6.15 > 6.02: FALSE, no entry. The ATR3 window holds the flat bars (2.05, 2.15, 1.95, 2.05) with true range 0.20 "
+        "and the signal bar (2.05, 2.10, 1.90, 1.92) with true range max(0.20, 0.05, 0.15) = 0.20.",
+        "602/300 = 2.0066...",
+        "A mean rounded to finitely many digits lies above 602/300, so 3 times it is above 6.02 and a less-or-equal comparison made "
+        "after the rounding would say false and miss the entry.",
+        "1.95", 512, "513 shares: 1000.35 + 1.00 > 1000.00; 512 shares: 998.40 + 1.00 = 999.40 <= 1000.00", "4000.60", "5075.80",
+        "Index 5 sums to 2.05 + 1.92 + 2.10 = 6.07 > 6.02: FALSE, and later sums are larger. The position is open at the end and is "
+        "valued at the last close 2.10: 4000.60 + 512 * 2.10 = 4000.60 + 1075.20 = 5075.80.")
+
+
+def make_g10(cid, fnew, fold, tie):
+    """A fnew-for-fold split at index 6 and its reverse at index 8 around levels 4.78 and 5.66 (ATR3 = 0.22 is exact)."""
+    r, rr = F(fnew, fold), F(fold, fnew)
+    qm = 200 * r
+    assert qm.denominator == 1 and qm * rr == 200
+    qm = int(qm)
+    rs = f"{fnew}/{fold}" if fold != 1 else f"{fnew}"
+    rrs = f"{fold}/{fnew}"
+    rp = f"({rs})" if fold != 1 else rs
+    rrp = f"({rrs})"
+    px = "1.67" if fnew == 3 else "1.43"
+    post = [(px, F(px) + F("0.08"), F(px) - F("0.05"), px), (px, F(px) + F("0.08"), F(px) - F("0.05"), F(px) - F("0.01"))]
+    s0, t0, e0, a0 = F("4.78"), F("5.66"), F(5), F("0.22")
+    rows = g_head(F("0.66")) + [FL(5, "0.2")] + post + [FL(5, "0.2"), (5, "5.65", "4.79", 5)]
+    rows += [(5, "5.1", "4.78", "4.85")] if tie == "stop" else [(5, "5.66", "4.9", 5)]
+    rows += [FL(5, "0.2")]
+    sp1, sp2 = f"SPLIT-{fnew}-{fold}", f"SPLIT-{fold}-{fnew}"
+    text = (
+        f"1. ATR3 window, indices 2, 3, 4. Indices 2 and 3 are (5, 5.10, 4.90, 5): true range 0.20 each. Index 4 is (5, 5.16, 4.90, "
+        f"5.05): max(0.26, 0.16, 0.10) = 0.26. The sum is 0.66 and ATR3 = 0.66 / 3 = 0.22 exactly, so nothing is off the grid before "
+        f"the first split. The close 5.05 is above SMA3 = 5.0166...: entry intent with cap floor(5000.00 / 5) = 1000.00.\n"
+        f"2. Entry. Index 5 opens at 5.00 with zero fees: 200 shares cost 1000.00 <= 1000.00. Quantity 200, available 4000.00. "
+        f"Stop = 5 - 1 * 0.22 = 4.78 and target = 5 + 3 * 0.22 = 5.66, both exact prices on the grid.\n"
+        f"3. Index 6 is the ex-date of {sp1} ({fnew}-for-{fold}, ratio r = {rs}). Quantity 200 * {rp} = {qm} (a whole number). Every "
+        f"price-unit value is divided by r: entry 5 / {rp} = {fmt_dec(e0 / r)}, stop 4.78 / {rp} = {fmt_dec(s0 / r)} = "
+        f"{trunc4(s0 / r)}, target 5.66 / {rp} = {fmt_dec(t0 / r)} = {trunc4(t0 / r)}, ATR snapshot 0.22 / {rp} = "
+        f"{fmt_dec(a0 / r)}. None of them has a finite decimal form. The raw bars of indices 6 and 7 trade near {px}, between "
+        f"the stop and the target: no gap and no touch.\n"
+        f"4. Index 8 is the ex-date of {sp2} ({fold}-for-{fnew}, ratio r' = {rrs}). Quantity {qm} * {rrp} = 200 (whole). Every "
+        f"price-unit value is divided by r', that is multiplied by {fmt_dec(r)}: stop {fmt_dec(s0 / r)} * {fmt_dec(r)} = 4.78, target "
+        f"{fmt_dec(t0 / r)} * {fmt_dec(r)} = 5.66, entry {fmt_dec(e0 / r)} * {fmt_dec(r)} = 5, snapshot {fmt_dec(a0 / r)} * "
+        f"{fmt_dec(r)} = 0.22. A division and a multiplication by the same ratio are exact inverses in rational arithmetic, so every "
+        f"value returns to the exact value it had before the first split. Bar 8 (5, 5.10, 4.90, 5) touches neither level.\n"
+        f"5. Index 9 (5, 5.65, 4.79, 5): the high 5.65 < 5.66 and the low 4.79 > 4.78, one tick inside each level: no touch.\n")
+    if tie == "stop":
+        text += (
+            "6. Index 10 (5, 5.10, 4.78, 4.85): the open 5.00 is above the stop (no gap). The low 4.78 <= 4.78 by equality: the stop "
+            "is touched (the high 5.10 is below the target 5.66). The fill is floor(4.78) = 4.78, before costs and without "
+            "slippage. Notional 200 * 4.78 = 956.00; fee 0.00; proceeds 956.00; available 4000.00 + 956.00 = 4956.00.\n")
+        hand_t = {"fills.1.reason": ("STOP", "low 4.78 <= stop 4.78"), "fills.1.price": ("4.78", "floor(4.78)"),
+                  "fills.1.notional": ("956.00", "200 * 4.78"), "final.cash_available": ("4956.00", "4000.00 + 956.00")}
+        what = ("The stop is touched at exactly 4.78 after a split and its reverse. A stop that was divided and multiplied again with "
+                "finitely many digits can come back one unit of the last digit below 4.78, and a low of exactly 4.78 would then "
+                "miss it.")
+        level = "4.78"
+    else:
+        text += (
+            "6. Index 10 (5, 5.66, 4.90, 5): the open 5.00 is below the target (no gap) and the low 4.90 is above the stop. The high "
+            "5.66 >= 5.66 by equality: the target is touched. The fill is floor(5.66) = 5.66, before costs. Notional 200 * 5.66 = "
+            "1132.00; fee 0.00; proceeds 1132.00; available 4000.00 + 1132.00 = 5132.00.\n")
+        hand_t = {"fills.1.reason": ("TARGET", "high 5.66 >= target 5.66"), "fills.1.price": ("5.66", "floor(5.66)"),
+                  "fills.1.notional": ("1132.00", "200 * 5.66"), "final.cash_available": ("5132.00", "4000.00 + 1132.00")}
+        what = ("The target is touched at exactly 5.66 after a split and its reverse. A target that was divided and multiplied again "
+                "with finitely many digits can come back one unit of the last digit above 5.66 (a high of exactly 5.66 would miss "
+                "it) or below it (the floored fill would be 5.65).")
+        level = "5.66"
+    text += ("7. Index 11 is a flat bar and the last session, so no new position is opened. The run ends with no position; the closed "
+             "trade states the restored quantity 200 and the entry price 5.00.\n")
+    hand = {"entries.0.quantity": ("200", "1000.00 / 5.00, zero fees"), "daily.5.cash_available": ("4000.00", "5000.00 - 1000.00"),
+            "daily.5.positions.0.stop": ("4.78", "5 - 0.22"), "daily.5.positions.0.target": ("5.66", "5 + 3 * 0.22"),
+            "daily.6.positions.0.quantity": (str(qm), f"200 * {rp}"),
+            "daily.7.positions.0.quantity": (str(qm), "unchanged"),
+            "daily.8.positions.0.quantity": ("200", f"{qm} * {rrp}"),
+            "daily.8.positions.0.entry_price": ("5", "restored exactly"),
+            "daily.8.positions.0.stop": ("4.78", "restored exactly"), "daily.8.positions.0.target": ("5.66", "restored exactly"),
+            "daily.8.positions.0.snapshots.0.value": ("0.22", "restored exactly"),
+            "daily.9.positions.0.stop": ("4.78", "still exact"), "daily.9.positions.0.target": ("5.66", "still exact"),
+            "corporate_actions.0.action_id": (sp1, "input order"), "corporate_actions.1.action_id": (sp2, "input order"),
+            "fills.1.session": (D[10], "index 10"), "fills.1.quantity": ("200", "restored quantity"),
+            "trades.0.quantity": ("200", "restored quantity"), "trades.0.entry_price": ("5.00", "restored entry price")}
+    hand.update(hand_t)
+    return rc(cid, f"Grid tie: {tie} touched at exactly {level} after a {fnew}-for-{fold} split and its reverse (exact round trip)",
+              ["Split across an ex-date", "Entry and exit phases"], rows, G_ZERO, skw={"stop_mult": 1, "target_mult": 3},
+              actions=[split_action(sp1, D[6], fnew, fold), split_action(sp2, D[8], fold, fnew)],
+              notes=f"{len(rows)} sessions with zero fees. ATR3 = 0.22 is exact, so the stop 4.78 and the target 5.66 are on the grid "
+                    f"before the splits. A {fnew}-for-{fold} split at index 6 and its reverse at index 8 convert the quantity (200, "
+                    f"{qm}, 200 shares) and divide then multiply every level by {rs}, which leaves no finite decimal form in "
+                    f"between; the levels must come back exactly. {what}",
+              hand=hand, hand_text=text, focus=[D[4], D[6], D[8], D[10]],
+              policy_text="the fixed fee is 0, so quantity and cash are whole numbers.")
+
+
+def build_grid_ties():
+    make_g01()
+    make_g02()
+    make_g03()
+    make_g04()
+    make_g05("a", "0.67", "5.66", "5.67", "5131.33", "1128.33", "1127.33",
+             "Index 6 opens one tick below the target 5.67 (no gap) and index 7 opens exactly at it. A target computed from a rounded "
+             "ATR3 lies one unit of the last digit below 5.67: the open still gaps through it but the floored fill would be 5.66.")
+    make_g05("b", "0.68", "5.67", "5.68", "5133.32", "1130.32", "1129.32",
+             "Index 6 opens one tick below the target 5.68 (no gap) and index 7 opens exactly at it. A target computed from a rounded "
+             "ATR3 lies one unit of the last digit above 5.68: the open would not count as a gap and the exit would be a later "
+             "touch (or none).")
+    make_g06("", "0.68", "4.32", "4.33", "4.27", "4852.73", "849.73", "848.73",
+             "Index 6 stays one tick above the stop 4.32 and index 7 opens exactly at it. A stop computed from a rounded ATR3 lies one "
+             "unit of the last digit below 4.32: the open would not count as a gap and the exit would be a later touch filled "
+             "at 4.31.")
+    make_g06("b", "0.67", "4.33", "4.34", "4.28", "4854.72", "851.72", "850.72",
+             "The mirror of G-06. A stop computed from a rounded ATR3 lies one unit of the last digit above 4.33; the open is a gap "
+             "either way and the fill is the same, so only the stored level differs. The case pins the other direction.")
+    make_g07("a", 5, "0.8", "5.5", "4.5", "5.05",
+             "Indices 2 to 6 are (5, 5.40, 4.60, 5) after a close of 5: max(0.80, 0.40, 0.40) = 0.80 each, 4.00 in total.",
+             "Index 7 is (5, 5.50, 4.50, 5.05) after a close of 5: max(1.00, 0.50, 0.50) = 1.00.", "5.00", "5/6", "0.8333...", 199,
+             "200 shares cost 1000.00 + 1.00 = 1001.00 > 1000.00; 199 shares cost 995.00 + 1.00 = 996.00 <= 1000.00, so the quantity "
+             "is 199.",
+             "ATR6 rounded to finitely many digits is below 5/6 (0.8333...), so 6 * ATR6 is below 5 and a stop computed from it is a "
+             "small positive number: a level check applied to that number would accept it. The exact stop is 0 and must be rejected.",
+             "Grid tie: a stop of exactly 0 = 5 - 6 * 5/6 is an invalid level (ATR6 rounds below)")
+    make_g07("b", 7, "1.0", "8", "6", "7.05",
+             "Indices 2 to 6 are (7, 7.50, 6.50, 7) after a close of 7: max(1.00, 0.50, 0.50) = 1.00 each, 5.00 in total.",
+             "Index 7 is (7, 8.00, 6.00, 7.05) after a close of 7: max(2.00, 1.00, 1.00) = 2.00.", "7.00", "7/6", "1.1666...", 142,
+             "143 shares cost 1001.00 + 1.00 > 1000.00; 142 shares cost 994.00 + 1.00 = 995.00 <= 1000.00, so the quantity is 142.",
+             "ATR6 rounded to finitely many digits is above 7/6 (1.1666... rounds up), so 6 * ATR6 is above 7 and a stop computed from "
+             "it is a small negative number, which a level check rejects as well. A rounded computation reaches the same outcome in "
+             "this direction; the case pins that the exact stop 0 is rejected here too.",
+             "Grid tie: a stop of exactly 0 = 7 - 6 * 7/6 is an invalid level (ATR6 rounds above)")
+    make_g08("a", "0.68", "5.67", "5.68", "G-02")
+    make_g08("b", "0.67", "5.66", "5.67", "G-01")
+    make_g09a()
+    make_g09b()
+    make_g09c()
+    make_g10("G-10", 3, 1, "stop")
+    make_g10("G-10b", 3, 1, "target")
+    make_g10("G-11", 7, 2, "stop")
+    make_g10("G-11b", 7, 2, "target")
+
+
 # ---------------------------------------------------------------- protocol payloads
 
 
@@ -3473,6 +3986,7 @@ def build_all():
     make_i10()
     make_i11()
     make_r01()
+    build_grid_ties()
     return make_sem01_case
 
 

@@ -1,0 +1,10 @@
+{
+  "id": "G-02",
+  "title": "Grid tie: intraday target touch at 5.68 = 5 + 3 * 0.68/3 fills at 5.68 (ATR3 rounds above)",
+  "covers": ["Entry and exit phases", "Cash and quantities"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}
