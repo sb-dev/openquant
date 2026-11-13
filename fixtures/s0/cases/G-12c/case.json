@@ -1,0 +1,10 @@
+{
+  "id": "G-12c",
+  "title": "Off-grid target 367/6: an open at 61.17 above it is a gap and fills at the floored target 61.16",
+  "covers": ["Entry and exit phases", "Cash and quantities"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

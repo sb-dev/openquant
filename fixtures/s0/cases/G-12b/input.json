@@ -1,0 +1,49 @@
+{
+  "schema_version": "evaluation-input/1",
+  "strategy_hash": "sha256:95ac7b73e7e8d85f1f17ab7bc73f0a2705bd05aa37aeac0fd2c6840c0eb3b0b5",
+  "operator_set": "daily-long-only-seed@1",
+  "seed": 0,
+  "dataset": {"id": "g-12b-bars", "version": "1", "source": "SYNTHETIC", "licence": "Apache-2.0, generated for this repository"},
+  "instruments": [
+    {
+      "instrument_id": "SYN",
+      "bars": [
+        {"session": "2026-01-05", "open": "50", "high": "51", "low": "49", "close": "50", "volume": "1000", "event_time": "2026-01-05T21:00:00Z", "available_at": "2026-01-05T21:00:00Z"},
+        {"session": "2026-01-06", "open": "50", "high": "51", "low": "49", "close": "50", "volume": "1000", "event_time": "2026-01-06T21:00:00Z", "available_at": "2026-01-06T21:00:00Z"},
+        {"session": "2026-01-07", "open": "50", "high": "51", "low": "49", "close": "50", "volume": "1000", "event_time": "2026-01-07T21:00:00Z", "available_at": "2026-01-07T21:00:00Z"},
+        {"session": "2026-01-08", "open": "50", "high": "51", "low": "49", "close": "50", "volume": "1000", "event_time": "2026-01-08T21:00:00Z", "available_at": "2026-01-08T21:00:00Z"},
+        {"session": "2026-01-09", "open": "50", "high": "52", "low": "49.5", "close": "51", "volume": "1000", "event_time": "2026-01-09T21:00:00Z", "available_at": "2026-01-09T21:00:00Z"},
+        {"session": "2026-01-12", "open": "50", "high": "51", "low": "49", "close": "50", "volume": "1000", "event_time": "2026-01-12T21:00:00Z", "available_at": "2026-01-12T21:00:00Z"},
+        {"session": "2026-01-13", "open": "45.67", "high": "45.7", "low": "45.67", "close": "45.68", "volume": "1000", "event_time": "2026-01-13T21:00:00Z", "available_at": "2026-01-13T21:00:00Z"},
+        {"session": "2026-01-14", "open": "45.67", "high": "45.7", "low": "45.66", "close": "45.68", "volume": "1000", "event_time": "2026-01-14T21:00:00Z", "available_at": "2026-01-14T21:00:00Z"}
+      ],
+      "corporate_actions": [],
+      "unplanned_events": []
+    }
+  ],
+  "calendar": {
+    "sessions": [
+      {"session": "2026-01-05", "open_at": "2026-01-05T14:30:00Z", "close_at": "2026-01-05T21:00:00Z"},
+      {"session": "2026-01-06", "open_at": "2026-01-06T14:30:00Z", "close_at": "2026-01-06T21:00:00Z"},
+      {"session": "2026-01-07", "open_at": "2026-01-07T14:30:00Z", "close_at": "2026-01-07T21:00:00Z"},
+      {"session": "2026-01-08", "open_at": "2026-01-08T14:30:00Z", "close_at": "2026-01-08T21:00:00Z"},
+      {"session": "2026-01-09", "open_at": "2026-01-09T14:30:00Z", "close_at": "2026-01-09T21:00:00Z"},
+      {"session": "2026-01-12", "open_at": "2026-01-12T14:30:00Z", "close_at": "2026-01-12T21:00:00Z"},
+      {"session": "2026-01-13", "open_at": "2026-01-13T14:30:00Z", "close_at": "2026-01-13T21:00:00Z"},
+      {"session": "2026-01-14", "open_at": "2026-01-14T14:30:00Z", "close_at": "2026-01-14T21:00:00Z"}
+    ]
+  },
+  "windows": {"warmup_start": "2026-01-05", "scored_start": "2026-01-08", "scored_end": "2026-01-14", "information_cutoff": "2026-01-15T00:00:00Z"},
+  "initial_capital": "5000.00",
+  "policy": {
+    "id": "daily-long-only-cash@1",
+    "currency": "USD",
+    "price_scale": 2,
+    "quantity_scale": 0,
+    "money_scale": 2,
+    "diagnostic_scale": 4,
+    "lot_size": "1",
+    "cost_model": {"id": "fixed_plus_bps@1", "fixed_fee_per_fill": "1.00", "fee_bps": "0", "gap_exit_slippage_bps": "150"},
+    "corporate_actions": {"id": "split_cash_dividend_ex_date@1", "fractional": "INSUFFICIENT", "withholding_bps": "0"}
+  }
+}

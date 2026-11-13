@@ -1,0 +1,10 @@
+{
+  "id": "G-12b",
+  "title": "Off-grid stop 137/3: an open at 45.67 = ceil(stop) is no gap, the intraday touch fills at 45.66",
+  "covers": ["Entry and exit phases", "Cash and quantities"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}
