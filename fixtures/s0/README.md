@@ -182,4 +182,6 @@ case) and the oracle's entries in `fixtures/protocol/manifest.json`, and writes 
 script into every `expected.json`. `F0-smoke` is hand-derived and the oracle never writes it. Review
 the diff before committing: apart from that hash, a change to an existing `input.json` or an expected
 value needs an explanation, and the tests never regenerate anything. Delete a `__pycache__` that the
-run leaves behind.
+run leaves behind. The oracle writes its own manifest entries after all others, so a run can reorder
+`fixtures/protocol/manifest.json` without changing the set of entries. Review that diff as a reorder
+and restore it with `git checkout fixtures/protocol/manifest.json`.
