@@ -3,12 +3,15 @@
 
 use openquant_contracts::generated as g;
 
-use super::accounting::{position_view, positions_value, reserve};
+use super::{
+    accounting::{equity, position_view, positions_value, receivables_total, reserve},
+    corporate_actions::pay_due,
+};
 use crate::{
     format::{ident, session_date},
     interfaces::MarketEvent,
     model::{Failure, FailureCode, Result, SkipReason},
-    numeric::{Decimal, add, div, floor_to},
+    numeric::{Decimal, floor_div_to_grid},
     operators::{PriceBar, Value},
     run::Run,
     signals::{AppliedSplit, LevelEnv, build_series, eval_position_expr, evaluate_signals},
@@ -23,6 +26,7 @@ pub fn run(
     notes: &mut Vec<String>,
 ) -> Result<()> {
     let date = event.cursor.session.clone();
+    pay_due(run, state, event, notes)?;
     let Some(observation) = &event.observation else {
         if !state.positions.is_empty() {
             return Err(Failure::new(
@@ -77,12 +81,9 @@ pub fn run(
 }
 
 fn push_daily(run: &Run, state: &mut State, date: &str) -> Result<()> {
-    let value = positions_value(state)?;
-    let receivables = state.receivables_total();
-    let equity = add(
-        add(add(state.cash_available, state.cash_reserved)?, receivables)?,
-        value,
-    )?;
+    let value = positions_value(run, state)?;
+    let receivables = receivables_total(state)?;
+    let equity = equity(run, state)?;
     let mut positions = Vec::with_capacity(state.positions.len());
     for position in &state.positions {
         positions.push(position_view(run, position)?);
@@ -123,14 +124,16 @@ fn schedule_stop_changes(
             if eval_position_expr(&adjustment.trigger, &env)? != Value::Flag(true) {
                 continue;
             }
+            // A new stop must be a positive price below the target; anything else is an invalid
+            // level and is rejected rather than replaced by an invented one.
             let level = match eval_position_expr(&adjustment.new_level, &env)? {
-                Value::Num(level) if level > Decimal::ZERO => level,
+                Value::Num(level) if level > Decimal::ZERO && level < position.target => level,
                 other => {
                     return Err(Failure::new(
                         FailureCode::InvalidLevel,
                         format!(
-                            "{}: new stop level is invalid: {other:?}",
-                            position.trade_id
+                            "{}: new stop level {other:?} must be a positive price below the target {}",
+                            position.trade_id, position.target
                         ),
                     ));
                 }
@@ -202,7 +205,10 @@ fn decide_entry(
 
     let mut decision = g::SignalRecordDecision::Skipped;
     let mut skip_reason = None;
-    let mut rank_shown = None;
+    let rank_shown = match signals.rank {
+        Value::Num(rank) => Some(run.fmt.diag(rank)?),
+        _ => None,
+    };
     let scored = event.session_index >= run.input.scored_start;
     if !scored {
         skip_reason = Some(SkipReason::NotScoredYet);
@@ -221,9 +227,6 @@ fn decide_entry(
     } else {
         let occupied = state.positions.len() + state.pending.len();
         let vacant = run.strategy.slots.saturating_sub(occupied);
-        if let Value::Num(rank) = signals.rank {
-            rank_shown = Some(run.fmt.diag(rank)?);
-        }
         let snapshot_values: Option<Vec<(String, Decimal)>> = signals
             .snapshots
             .iter()
@@ -235,10 +238,11 @@ fn decide_entry(
         match (vacant, signals.rank, snapshot_values) {
             (0, _, _) => skip_reason = Some(SkipReason::NoVacantSlot),
             (_, Value::Num(rank), Some(snapshots)) => {
-                let cap = floor_to(
-                    div(state.cash_available, Decimal::from(vacant as u64))?,
+                let cap = floor_div_to_grid(
+                    state.cash_available,
+                    vacant as u64,
                     run.input.policy.money_scale,
-                );
+                )?;
                 if cap <= Decimal::ZERO {
                     skip_reason = Some(SkipReason::CapBelowOneLot);
                 } else {

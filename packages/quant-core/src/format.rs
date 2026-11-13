@@ -44,6 +44,18 @@ impl Fmt {
         gdec(&fixed_string(value, self.money)?)
     }
 
+    /// A price on the price grid when it is on the grid, otherwise the exact value.
+    ///
+    /// Trade records keep the as-filled price on the grid until a split moves it to a basis
+    /// where it can be a non-terminating decimal.
+    pub fn price_or_exact(&self, value: Decimal) -> Result<g::Decimal> {
+        if value.normalize().scale() <= self.price {
+            self.price(value)
+        } else {
+            self.exact(value)
+        }
+    }
+
     /// Exact value without trailing zeros (levels and snapshots that may be off-grid).
     pub fn exact(&self, value: Decimal) -> Result<g::Decimal> {
         gdec(&exact_string(value))
