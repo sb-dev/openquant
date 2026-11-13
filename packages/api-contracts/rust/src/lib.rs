@@ -24,7 +24,7 @@ pub use strict::parse_json;
 ///
 /// Every workspace lint applies to this module except `unwrap_used`: typify compiles each
 /// `pattern` once, in a `LazyLock`, with `Regex::new("<constant>").unwrap()`. Removing the allow
-/// reports exactly those six unwraps and nothing else, so a panic, an index or a float operation
+/// reports exactly those seven unwraps and nothing else, so a panic, an index or a float operation
 /// in newly generated code still fails `cargo clippy -- -D warnings`.
 #[allow(clippy::unwrap_used)]
 pub mod generated {

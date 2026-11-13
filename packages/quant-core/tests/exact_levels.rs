@@ -24,7 +24,7 @@ mod execution_support;
 
 use execution_support::*;
 use openquant_contracts::{canonical_json, to_value};
-use openquant_core::{Failure, Run, State};
+use openquant_core::{Failure, Run, State, numeric::Ratio};
 use serde_json::{Value, json};
 
 /// Sessions 0 to 4: four quiet bars and the signal bar, then `tail` from session 5. The signal
@@ -766,4 +766,240 @@ fn the_checkpoint_of_a_pending_entry_and_an_open_position_keeps_non_terminating_
     assert_eq!(position["stop"], "341/75");
     assert_eq!(position["target"], "5.68");
     assert_eq!(position["entry_price"], "5");
+}
+
+// ---------------------------------------------------------------------------------------------
+// Validity boundaries: exactly equal, and one exact fraction on either side
+// ---------------------------------------------------------------------------------------------
+//
+// A level is valid at the entry open when 0 < stop < entry < target, and a break-even level when
+// 0 < new stop < target. Every comparison is exact. A level that differs from its bound by less
+// than one price unit has the bound itself as its grid ceiling (below it) or as its grid floor
+// (above it), so a rule that read the level on the grid would decide one of the two directions
+// wrongly: 1/300 below a bound is valid although its ceiling is the bound, and 1/300 above a
+// bound is invalid although its floor is the bound. A positive level below one price unit has
+// the grid floor 0 and is still positive.
+//
+// ATR over 3 sessions with a signal-bar high of 5.50 is (0.20 + 0.20 + 0.60) / 3 = 1/3, so a
+// level `5.00 + m * ATR` is `5 + m / 3` and a multiple m of 0.01 moves it by exactly 1/300.
+
+/// Entry at 5.00 on session 5 with ATR 1/3. The two bars from the entry session on are flat at
+/// 5.00, so they touch no stop below 5.00 and no target above 5.00, and a valid position is still
+/// open at the end.
+fn third_atr() -> Scenario {
+    let flat = || quiet_bar("5.00", "5.00", "5.00", "5.00");
+    atr3("5.50", vec![flat(), flat()])
+}
+
+/// The failure of a run that ends at the entry open with an invalid level (session 5), and the
+/// reservation that stays because no fill was made.
+fn assert_invalid_at_the_entry_open(out: &Outcome, detail: &str, what: &str) {
+    assert_eq!(out.status(), "FAILED", "{what}");
+    assert_eq!(out.code(), "INVALID_LEVEL", "{what}");
+    assert_eq!(out.text("/outcome/at/session"), date(5), "{what}");
+    assert_eq!(out.text("/outcome/at/phase"), "OPEN", "{what}");
+    assert_eq!(out.text("/outcome/detail"), detail, "{what}");
+    assert!(out.fills().is_empty(), "{what}");
+    assert_eq!(out.entries()[0]["status"], "RESERVED", "{what}");
+}
+
+#[test]
+fn a_stop_is_valid_one_exact_fraction_below_the_entry_and_invalid_at_or_above_it() {
+    // Target 5 + 3 / 3 = 6. The stop is 5 - m / 3.
+    //   m = 0      stop 5           equal to the entry: invalid.
+    //   m = 0.01   stop 1499/300    1/300 below the entry, grid ceiling 5.00 = entry: valid.
+    //   m = -0.01  stop 1501/300    1/300 above the entry, grid floor 5.00 = entry: invalid.
+    //   m = 0.03   stop 4.99        one price unit below, on the grid: valid.
+    // A rule on the grid, 0 < ceil(stop) < entry, rejects the second row.
+    let intent = format!("I-{}-SYN", date(4));
+    let invalid = |level: &str| {
+        format!(
+            "{intent}: levels must satisfy 0 < stop < entry < target, found stop {level}, entry 5, target 6"
+        )
+    };
+    for (multiple, level, valid) in [
+        ("0", "5", None),
+        ("0.01", "1499/300", Some("4.9966666666666666666666666667")),
+        ("-0.01", "1501/300", None),
+        ("0.03", "4.99", Some("4.99")),
+    ] {
+        let out = third_atr().multiples(multiple, "3").evaluate();
+        let what = format!("stop multiple {multiple}, stop {level}");
+        match valid {
+            None => assert_invalid_at_the_entry_open(&out, &invalid(level), &what),
+            Some(shown) => {
+                assert_eq!(out.status(), "COMPLETED", "{what}");
+                assert_eq!(out.fills().len(), 1, "{what}: only the entry");
+                assert_eq!(out.at("/final/open_positions/0/stop"), shown, "{what}");
+                assert_eq!(out.at("/final/open_positions/0/target"), "6", "{what}");
+                // The state holds the exact fraction, not the shown decimal.
+                let held = &out.state.positions[0];
+                assert_eq!(held.stop.to_string(), level, "{what}");
+                assert_eq!(held.target, Ratio::from_i64(6), "{what}");
+            }
+        }
+    }
+}
+
+#[test]
+fn a_target_is_valid_one_exact_fraction_above_the_entry_and_invalid_at_or_below_it() {
+    // Stop 5 - 2 / 3 = 13/3. The target is 5 + t / 3.
+    //   t = 0      target 5          equal to the entry: invalid.
+    //   t = 0.01   target 1501/300   1/300 above the entry, grid floor 5.00 = entry: valid.
+    //   t = -0.01  target 1499/300   1/300 below the entry, grid ceiling 5.00 = entry: invalid.
+    //   t = 0.03   target 5.01       one price unit above, on the grid: valid.
+    // A rule on the grid, entry < floor(target), rejects the second row.
+    let intent = format!("I-{}-SYN", date(4));
+    let invalid = |level: &str| {
+        format!(
+            "{intent}: levels must satisfy 0 < stop < entry < target, found stop 13/3, entry 5, target {level}"
+        )
+    };
+    for (multiple, level, valid) in [
+        ("0", "5", None),
+        ("0.01", "1501/300", Some("5.0033333333333333333333333333")),
+        ("-0.01", "1499/300", None),
+        ("0.03", "5.01", Some("5.01")),
+    ] {
+        let out = third_atr().multiples("2", multiple).evaluate();
+        let what = format!("target multiple {multiple}, target {level}");
+        match valid {
+            None => assert_invalid_at_the_entry_open(&out, &invalid(level), &what),
+            Some(shown) => {
+                assert_eq!(out.status(), "COMPLETED", "{what}");
+                assert_eq!(out.fills().len(), 1, "{what}: only the entry");
+                assert_eq!(out.at("/final/open_positions/0/target"), shown, "{what}");
+                let held = &out.state.positions[0];
+                assert_eq!(held.target.to_string(), level, "{what}");
+                assert_eq!(held.stop.to_string(), "13/3", "{what}");
+            }
+        }
+    }
+}
+
+/// ATR over 6 sessions 5 / 6 (true ranges 1, 1, 1, 1, 0.5, 0.5), entry 5.00 on session 7.
+fn five_sixths() -> Scenario {
+    atr6(
+        "5.00",
+        [
+            ("5.50", "4.50"),
+            ("5.50", "4.50"),
+            ("5.50", "4.50"),
+            ("5.50", "4.50"),
+            ("5.25", "4.75"),
+            ("5.25", "4.75"),
+        ],
+    )
+    .atr_window(6)
+}
+
+#[test]
+fn a_positive_stop_below_one_price_unit_is_valid_and_a_negative_one_is_not() {
+    // Stop 5 - m * 5/6, target 5 + 5 * 5/6 = 55/6.
+    //   m = 5.998  stop 1/600 > 0: its grid floor is 0.00, and it is a valid level.
+    //   m = 6.002  stop -1/600 < 0: invalid, although its grid ceiling is 0.00 as well.
+    // A rule on the grid, 0 < floor(stop), rejects the first row.
+    let out = five_sixths().multiples("5.998", "5").evaluate();
+    assert_eq!(out.status(), "COMPLETED");
+    assert_eq!(out.fills().len(), 1);
+    assert_eq!(
+        out.at("/final/open_positions/0/stop"),
+        "0.0016666666666666666666666667"
+    );
+    assert_eq!(out.state.positions[0].stop, Ratio::new(1, 600).unwrap());
+    let out = five_sixths().multiples("6.002", "5").evaluate();
+    assert_eq!(out.status(), "FAILED");
+    assert_eq!(out.code(), "INVALID_LEVEL");
+    assert_eq!(out.text("/outcome/at/session"), date(7));
+    assert_eq!(
+        out.text("/outcome/detail"),
+        format!(
+            "I-{}-SYN: levels must satisfy 0 < stop < entry < target, found stop -1/600, entry 5, target 55/6",
+            date(6)
+        )
+    );
+    assert!(out.fills().is_empty());
+}
+
+#[test]
+fn a_break_even_new_stop_of_exactly_zero_is_an_invalid_level_at_the_close() {
+    // ATR over 6 sessions is 5 / 6, the entry is 5.00 on session 7, and the new stop is
+    // entry + (-6) * ATR = 5 - 5 = 0 exactly. The trigger multiple 0 makes the rule fire at the
+    // close of the entry session (the high 5.00 reaches entry + 0 * ATR). Stop 5 - 2 * 5/6 =
+    // 10/3 and target 5 + 5 * 5/6 = 55/6 are valid, so the run fails at the break-even decision
+    // and not before.
+    let mut scenario = five_sixths().break_even_trigger("0").break_even_level("-6");
+    // A session after the entry, so that the stop change has a session to take effect in.
+    scenario
+        .bars
+        .push(Some(quiet_bar("5.00", "5.00", "5.00", "5.00")));
+    scenario.last += 1;
+    let out = scenario.evaluate();
+    assert_eq!(out.status(), "FAILED");
+    assert_eq!(out.code(), "INVALID_LEVEL");
+    assert_eq!(out.text("/outcome/at/session"), date(7));
+    assert_eq!(out.text("/outcome/at/phase"), "AFTER_CLOSE");
+    assert_eq!(
+        out.text("/outcome/detail"),
+        format!(
+            "T-{}-SYN: new stop level 0 must be a positive price below the target 55/6",
+            date(7)
+        )
+    );
+    // The entry at the open of session 7 is complete; the close event that failed is discarded:
+    // the journal keeps no daily record for session 7, and the position keeps its entry stop.
+    assert_eq!(out.fills().len(), 1);
+    assert_eq!(out.daily().last().unwrap()["session"], date(6).as_str());
+    assert_eq!(out.state.positions[0].stop, Ratio::new(10, 3).unwrap());
+    assert!(out.state.positions[0].scheduled.is_none());
+}
+
+#[test]
+fn a_break_even_new_stop_is_valid_one_exact_fraction_inside_each_bound_and_invalid_on_it() {
+    // Entry 5.00, ATR 1/3, target 5 + 3 / 3 = 6, stop 13/3. The trigger multiple 0 fires at the
+    // close of the entry session (session 5). The new stop is 5 + m / 3.
+    //   m = -15     0          equal to the lower bound: invalid.
+    //   m = -14.99  1/300      1/300 above 0, grid floor 0.00: valid.
+    //   m = -15.01  -1/300     1/300 below 0, grid ceiling 0.00: invalid.
+    //   m = 3       6          equal to the target: invalid.
+    //   m = 2.99    1799/300   1/300 below the target, grid ceiling 6.00 = target: valid.
+    //   m = 3.01    1801/300   1/300 above the target, grid floor 6.00 = target: invalid.
+    let trade = format!("T-{}-SYN", date(5));
+    for (multiple, level, valid) in [
+        ("-15", "0", false),
+        ("-14.99", "1/300", true),
+        ("-15.01", "-1/300", false),
+        ("3", "6", false),
+        ("2.99", "1799/300", true),
+        ("3.01", "1801/300", false),
+    ] {
+        let scenario = third_atr()
+            .multiples("2", "3")
+            .break_even_trigger("0")
+            .break_even_level(multiple);
+        let what = format!("new stop multiple {multiple}, new stop {level}");
+        if valid {
+            // The stop is scheduled for the next session, exactly.
+            let run = scenario.run();
+            let state = state_after(&run, event_index(&run, 6, "BEFORE_OPEN"));
+            let scheduled = state.positions[0].scheduled.clone().expect(&what);
+            assert_eq!(scheduled.level.to_string(), level, "{what}");
+            assert_eq!(scheduled.effective_session, date(6), "{what}");
+            assert_eq!(scenario.evaluate().status(), "COMPLETED", "{what}");
+        } else {
+            let out = scenario.evaluate();
+            assert_eq!(out.status(), "FAILED", "{what}");
+            assert_eq!(out.code(), "INVALID_LEVEL", "{what}");
+            assert_eq!(out.text("/outcome/at/session"), date(5), "{what}");
+            assert_eq!(out.text("/outcome/at/phase"), "AFTER_CLOSE", "{what}");
+            assert_eq!(
+                out.text("/outcome/detail"),
+                format!(
+                    "{trade}: new stop level {level} must be a positive price below the target 6"
+                ),
+                "{what}"
+            );
+            assert_eq!(out.fills().len(), 1, "{what}: only the entry");
+        }
+    }
 }
