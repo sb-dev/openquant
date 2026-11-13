@@ -19,6 +19,11 @@
 //! checkpoint can hold more than [`MAX_NODES`] values (4,000 ledger entries alone hold about
 //! 36,000). Such a document is accepted when it is valid. When it is invalid, it reports
 //! `SCHEMA_VIOLATION` with the first violation, even if that violation is a decimal-grammar one.
+//!
+//! The depth limit does not protect the first-error pass. That pass recurses over the depth of a
+//! recursive schema such as an expression. A [`serde_json::Value`] built by hand and nested
+//! about 2,000 levels deep can overflow the stack there. The strict text parser refuses depth
+//! above 128 first, so a document that comes from text is safe.
 
 use std::{iter::Enumerate, slice::Iter as SliceIter};
 

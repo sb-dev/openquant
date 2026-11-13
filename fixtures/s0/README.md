@@ -31,7 +31,7 @@ In `X-01` to `X-11` every stop and target lies on the price grid, so rounding a 
 
 ## Information cutoff
 
-Every input states `windows.information_cutoff`. The deadline for a bar, a corporate action or halt evidence is the earlier of the session open (the next open for a bar) and the cutoff. The final session has only the cutoff. Cases `I-10`, `I-11` and `C-08` pin this rule. `I-09` pins the rejection of a bar on a session with a confirmed halt.
+Every input states `windows.information_cutoff`. The deadline for a bar, a corporate action or halt evidence is the earlier of the session open (the next open for a bar) and the cutoff. The final session has only the cutoff. A bar or action available after its deadline fails with `FUTURE_DATA`. Halt evidence available after its deadline confirms nothing and does not fail the run. Cases `I-10`, `I-11` and `C-08` pin this rule. `I-09` pins the rejection of a bar on a session with a confirmed halt.
 
 ## Case format
 

@@ -266,9 +266,10 @@ impl Run {
     ///   open trade record; and, at a before-open cursor or after the last event, the positions
     ///   value against the last daily record.
     ///
-    /// What is not checked, because the stored data cannot decide it exactly: a mark, stop,
-    /// target or snapshot inside a session (no journal line states it), the intermediate
-    /// ledger lines, fills and signal records, and the daily positions. A checkpoint whose
+    /// What is not checked, because the stored data cannot decide it exactly: a stop, target,
+    /// scheduled stop, snapshot, fired adjustment or pending rank at any cursor, a mark inside a
+    /// session (no journal line states them), the amount of the last ledger line, the
+    /// intermediate ledger lines, fills and signal records, and the daily positions. A checkpoint whose
     /// edits keep all of the above consistent is not detected here. Beyond these consistency
     /// checks, integrity of a stored checkpoint relies on the content hash it is stored with
     /// (docs/specs/05, R2), which is not part of S0.
