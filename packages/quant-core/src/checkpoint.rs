@@ -10,12 +10,58 @@ use openquant_contracts::generated as g;
 
 use crate::{
     data::ActionKind,
+    execution::accounting::{positions_value, receivables_total},
     format::{core_cursor, ident, parse_decimal, session_date, wire_cursor},
     model::{Failure, FailureCode, PHASES, Phase, Result},
     numeric::Decimal,
     run::Run,
     state::{Pending, Position, Receivable, Scheduled, State},
 };
+
+/// A restored state that this engine could not have produced.
+fn bad(what: &str) -> Failure {
+    Failure::new(
+        FailureCode::CheckpointMismatch,
+        format!("checkpoint state is inconsistent: {what}"),
+    )
+}
+
+/// Cash and receivables at one point of the journal.
+#[derive(Clone, Copy, Debug)]
+struct Balances {
+    available: Decimal,
+    reserved: Decimal,
+    receivables: Decimal,
+}
+
+impl Balances {
+    /// The first balance that differs from `other`, compared by value.
+    fn difference(&self, other: &Self) -> Option<&'static str> {
+        if self.available != other.available {
+            Some("available cash")
+        } else if self.reserved != other.reserved {
+            Some("reserved cash")
+        } else if self.receivables != other.receivables {
+            Some("receivables")
+        } else {
+            None
+        }
+    }
+}
+
+/// A decimal stored in the journal.
+fn stored(value: &g::Decimal) -> Result<Decimal> {
+    parse_decimal(value).map_err(|_| bad("unreadable journal amount"))
+}
+
+/// The balances a ledger line states after its change.
+fn ledger_balances(line: &g::LedgerEntry) -> Result<Balances> {
+    Ok(Balances {
+        available: stored(&line.available_after)?,
+        reserved: stored(&line.reserved_after)?,
+        receivables: stored(&line.receivables_after)?,
+    })
+}
 
 fn snapshots_to_wire(run: &Run, snapshots: &[(String, Decimal)]) -> Result<Vec<g::SnapshotValue>> {
     snapshots
@@ -206,16 +252,27 @@ impl Run {
     /// Reject a restored state that this engine could not have produced at its cursor.
     ///
     /// The identities already match, so the state belongs to this strategy and input. These
-    /// checks catch a damaged or edited payload before it is run: applied-action identities
-    /// that disagree with the cursor would apply a split twice or never, and balances that
-    /// disagree with the journal would make the continued run inconsistent.
+    /// checks catch a damaged or edited payload before it is run. What is checked:
+    ///
+    /// - applied-action identities against the cursor (a split would apply twice or never);
+    /// - the daily record count, the journal sequence number against its fills and ledger
+    ///   lines, non-negative cash, reserved cash against the sum of the pending caps, open trade
+    ///   records against the positions, snapshot and adjustment names, and receivables against
+    ///   the declared dividends and their payment time;
+    /// - balances against the journal (`check_journal_balances`): available cash,
+    ///   reserved cash and receivables against the last cash ledger line (or the initial
+    ///   capital when the ledger is empty); every daily record against the ledger as it stood at
+    ///   the close of its session and against its own equity sum; each position against its
+    ///   open trade record; and, at a before-open cursor or after the last event, the positions
+    ///   value against the last daily record.
+    ///
+    /// What is not checked, because the stored data cannot decide it exactly: a mark, stop,
+    /// target or snapshot inside a session (no journal line states it), the intermediate
+    /// ledger lines, fills and signal records, and the daily positions. A checkpoint whose
+    /// edits keep all of the above consistent is not detected here. Beyond these consistency
+    /// checks, integrity of a stored checkpoint relies on the content hash it is stored with
+    /// (docs/specs/05, R2), which is not part of S0.
     fn validate_state(&self, state: &State) -> Result<()> {
-        let bad = |what: &str| {
-            Failure::new(
-                FailureCode::CheckpointMismatch,
-                format!("checkpoint state is inconsistent: {what}"),
-            )
-        };
         let (cursor_index, phase) = match &state.next {
             Some(cursor) => (
                 self.index_of(&cursor.session)
@@ -293,9 +350,17 @@ impl Run {
             let open_record = journal
                 .trades
                 .iter()
-                .any(|t| t.trade_id.as_str() == position.trade_id && t.exit_session.is_none());
-            if !open_record {
+                .find(|t| t.trade_id.as_str() == position.trade_id && t.exit_session.is_none());
+            let Some(open_record) = open_record else {
                 return Err(bad("position without an open trade record"));
+            };
+            // The trade record follows the position's share basis, split included, so the
+            // two always agree at an event boundary.
+            let agrees = parse_decimal(&open_record.quantity).ok() == Some(position.quantity)
+                && parse_decimal(&open_record.entry_price).ok() == Some(position.entry_price)
+                && open_record.entry_session.as_str() == position.entry_session;
+            if !agrees {
+                return Err(bad("position does not match its open trade record"));
             }
             self.check_snapshot_names(&position.snapshots)
                 .map_err(|_| bad("position snapshot names"))?;
@@ -335,6 +400,89 @@ impl Run {
             });
             if !declared || receivable.amount <= Decimal::ZERO {
                 return Err(bad("receivable does not match a declared dividend"));
+            }
+        }
+        self.check_journal_balances(state, phase)
+    }
+
+    /// Cross-check the balances of a restored state against the journal.
+    ///
+    /// Every cash change appends a ledger line with the balances after it, and the line is the
+    /// last thing a handler does to the balances, so at any event boundary the last ledger
+    /// line states the state's balances exactly. An empty ledger means no cash has moved, so
+    /// the balances are the opening ones. A daily record is pushed after the last ledger line
+    /// of its session, so it equals the ledger as it stood at that session's close. Its equity
+    /// is the sum of its other money fields. After a close (a before-open cursor, or the end of
+    /// the run) nothing has changed since the last daily record, so the positions value must
+    /// equal its stored value as well. Inside a session a mark has no journal line, so it is
+    /// not checked.
+    fn check_journal_balances(&self, state: &State, phase: Option<Phase>) -> Result<()> {
+        let journal = &state.journal;
+        let opening = Balances {
+            available: self.input.initial_capital,
+            reserved: Decimal::ZERO,
+            receivables: Decimal::ZERO,
+        };
+        let held = Balances {
+            available: state.cash_available,
+            reserved: state.cash_reserved,
+            receivables: receivables_total(state).map_err(|_| bad("receivables overflow"))?,
+        };
+        let tail = match journal.cash_ledger.last() {
+            Some(line) => ledger_balances(line)?,
+            None => opening,
+        };
+        if let Some(what) = held.difference(&tail) {
+            return Err(bad(&format!(
+                "{what} does not match the last cash ledger line"
+            )));
+        }
+        let mut lines = journal.cash_ledger.iter().peekable();
+        let mut at_close = opening;
+        for (offset, daily) in journal.daily.iter().enumerate() {
+            let session = self
+                .session(self.input.first.saturating_add(offset))
+                .map_err(|_| bad("daily record without a calendar session"))?;
+            if daily.session.as_str() != session.date {
+                return Err(bad("daily record is not for its calendar session"));
+            }
+            while let Some(line) = lines.next_if(|l| l.session.as_str() <= session.date.as_str()) {
+                at_close = ledger_balances(line)?;
+            }
+            let recorded = Balances {
+                available: stored(&daily.cash_available)?,
+                reserved: stored(&daily.cash_reserved)?,
+                receivables: stored(&daily.receivables)?,
+            };
+            if let Some(what) = recorded.difference(&at_close) {
+                return Err(bad(&format!(
+                    "daily {what} for {} does not match the cash ledger at its close",
+                    session.date
+                )));
+            }
+            let value = stored(&daily.positions_value)?;
+            let sum = [
+                recorded.available,
+                recorded.reserved,
+                recorded.receivables,
+                value,
+            ]
+            .into_iter()
+            .try_fold(Decimal::ZERO, Decimal::checked_add)
+            .ok_or_else(|| bad("daily equity overflow"))?;
+            if sum != stored(&daily.equity)? {
+                return Err(bad(&format!(
+                    "daily equity for {} is not the sum of its parts",
+                    session.date
+                )));
+            }
+        }
+        if matches!(phase, None | Some(Phase::BeforeOpen))
+            && let Some(last) = journal.daily.last()
+        {
+            let value = positions_value(self, state).map_err(|_| bad("positions value"))?;
+            if value != stored(&last.positions_value)? {
+                return Err(bad("positions do not match the last daily record"));
             }
         }
         Ok(())
