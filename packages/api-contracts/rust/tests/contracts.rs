@@ -131,6 +131,57 @@ fn decimal_format_pads_and_refuses_to_round() {
 }
 
 #[test]
+fn decimal_format_rejects_scales_above_the_decimal_maximum() {
+    for scale in [29, 40, u32::MAX] {
+        for value in [Decimal::ZERO, Decimal::ONE, Decimal::new(-5, 1)] {
+            assert!(
+                matches!(
+                    decimal::format(&value, scale),
+                    Err(ContractError::Decimal { .. })
+                ),
+                "{value} at scale {scale}"
+            );
+        }
+    }
+    // 28 is the largest scale a Decimal carries and stays supported.
+    assert_eq!(
+        decimal::format(&Decimal::ZERO, 28).unwrap(),
+        format!("0.{}", "0".repeat(28))
+    );
+    assert_eq!(
+        decimal::format(&Decimal::ONE, 28).unwrap(),
+        format!("1.{}", "0".repeat(28))
+    );
+}
+
+#[test]
+fn decimal_format_rejects_a_value_too_large_to_carry_the_requested_scale() {
+    let huge = decimal::parse("10000000000000000000000000000", 0).unwrap();
+    assert!(matches!(
+        decimal::format(&huge, 2),
+        Err(ContractError::Decimal { .. })
+    ));
+    assert_eq!(
+        decimal::format(&huge, 0).unwrap(),
+        "10000000000000000000000000000"
+    );
+    assert!(matches!(
+        decimal::format(&Decimal::MAX, 1),
+        Err(ContractError::Decimal { .. })
+    ));
+    assert_eq!(
+        decimal::format(&Decimal::MAX, 0).unwrap(),
+        "79228162514264337593543950335"
+    );
+    // The largest value that does carry two digits keeps them.
+    let fits = decimal::parse("792281625142643375935439503.35", 2).unwrap();
+    assert_eq!(
+        decimal::format(&fits, 2).unwrap(),
+        "792281625142643375935439503.35"
+    );
+}
+
+#[test]
 fn schema_decimal_failures_report_invalid_decimal() {
     let mut value: serde_json::Value = serde_json::from_str(include_str!(
         "../../../../fixtures/s0/cases/F0-smoke/input.json"
