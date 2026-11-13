@@ -176,6 +176,62 @@ fn a_partial_run_leaves_other_results_in_place() {
     assert!(out.join("results/OTHER.result.json").exists());
 }
 
+#[test]
+fn a_run_of_the_committed_fixtures_replays_every_case_directory() {
+    // The scripts read the report the binary writes, so the binary itself must not drop a case:
+    // with no filter, the index lists exactly the directories below fixtures/s0/cases.
+    let out = fresh_dir("cli-committed").join("out");
+    let run = s0_replay(&["--fixtures", arg(&fixtures()), "--out", arg(&out)]);
+    assert!(
+        run.status.success(),
+        "{}\n{}",
+        text(&run.stdout),
+        text(&run.stderr)
+    );
+
+    let mut directories: Vec<String> = fs::read_dir(fixtures().join("cases"))
+        .expect("cases directory")
+        .map(|entry| entry.expect("entry"))
+        .filter(|entry| entry.path().is_dir())
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .collect();
+    directories.sort();
+    assert!(!directories.is_empty());
+
+    let index: Value =
+        serde_json::from_str(&fs::read_to_string(out.join("index.json")).expect("index"))
+            .expect("json");
+    let cases = index["cases"].as_array().expect("cases");
+    assert_eq!(cases.len(), directories.len(), "cases in index.json");
+    let mut listed: Vec<String> = cases
+        .iter()
+        .map(|case| case["case"].as_str().expect("case id").to_owned())
+        .collect();
+    listed.sort();
+    for directory in &directories {
+        assert!(
+            listed.contains(directory),
+            "{directory} is a case directory but is not in the index"
+        );
+    }
+    assert_eq!(listed, directories);
+    assert!(cases.iter().all(|case| case["passed"] == true));
+
+    let report = fs::read_to_string(out.join("report.md")).expect("report");
+    assert!(
+        report.contains(&format!(
+            "- cases: {}, passed: {}, failed: 0",
+            directories.len(),
+            directories.len()
+        )),
+        "the report header states the case count"
+    );
+    assert!(text(&run.stdout).contains(&format!(
+        "{} case(s), 0 failed, 0 coverage problem(s)",
+        directories.len()
+    )));
+}
+
 /// A fixture directory holding a copy of case I-07 (a halt while holding) only, with
 /// `outcome_detail_includes` added to its expectation.
 fn halt_case_with_detail_expectation(name: &str, substrings: &[&str]) -> (PathBuf, PathBuf) {
