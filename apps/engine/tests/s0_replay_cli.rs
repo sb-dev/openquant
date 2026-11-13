@@ -175,3 +175,44 @@ fn a_partial_run_leaves_other_results_in_place() {
     assert!(run.status.success(), "{}", text(&run.stderr));
     assert!(out.join("results/OTHER.result.json").exists());
 }
+
+/// A fixture directory holding a copy of case I-07 (a halt while holding) only, with
+/// `outcome_detail_includes` added to its expectation.
+fn halt_case_with_detail_expectation(name: &str, substrings: &[&str]) -> (PathBuf, PathBuf) {
+    let root = fresh_dir(name);
+    let case = root.join("fixtures").join("cases").join("I-07");
+    copy_files(&fixtures().join("cases").join("I-07"), &case);
+    let path = case.join("expected.json");
+    let mut expected: Value =
+        serde_json::from_str(&fs::read_to_string(&path).expect("expected")).expect("json");
+    expected["expect"]["outcome_detail_includes"] = Value::from(substrings.to_vec());
+    fs::write(
+        &path,
+        serde_json::to_string_pretty(&expected).expect("serialise"),
+    )
+    .expect("write");
+    (root.join("fixtures"), root.join("out"))
+}
+
+#[test]
+fn an_outcome_detail_expectation_is_checked_against_the_engine_detail() {
+    // I-07: instrument SYN holds a position through the confirmed halt HALT-1 of 2026-01-15, and
+    // the scored window ends 2026-01-16.
+    let (fx, out) = halt_case_with_detail_expectation(
+        "cli-detail-pass",
+        &["SYN", "HALT-1", "2026-01-15", "2026-01-16"],
+    );
+    let run = s0_replay(&["--fixtures", arg(&fx), "--out", arg(&out), "--case", "I-07"]);
+    assert!(run.status.success(), "{}", text(&run.stderr));
+    assert!(text(&run.stdout).contains("I-07"));
+
+    let (fx, out) = halt_case_with_detail_expectation("cli-detail-fail", &["SYN", "HALT-9"]);
+    let run = s0_replay(&["--fixtures", arg(&fx), "--out", arg(&out), "--case", "I-07"]);
+    assert_eq!(run.status.code(), Some(1));
+    let stderr = text(&run.stderr);
+    assert!(stderr.contains("FAIL I-07"), "{stderr}");
+    assert!(
+        stderr.contains("/outcome_detail_includes/1: expected \"HALT-9\""),
+        "{stderr}"
+    );
+}

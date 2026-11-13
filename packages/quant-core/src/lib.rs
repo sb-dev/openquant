@@ -9,6 +9,7 @@ pub mod data;
 pub mod execution;
 pub mod format;
 pub mod identity;
+mod insufficient;
 pub mod interfaces;
 pub mod model;
 pub mod numeric;
