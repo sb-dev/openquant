@@ -84,6 +84,10 @@ Fills and ledger lines share one counter: 0 RESERVE, 1 RELEASE, 2 BUY fill, 3 FI
 
 The run stops with status INSUFFICIENT, code FRACTIONAL_ENTITLEMENT at 2026-01-14 BEFORE_OPEN. The expected journal is the journal through the last completed event.
 
+### Detail expectation
+
+OQ-02 section 2.5 requires an INSUFFICIENT result to report the instrument, the event, the missing evidence and the affected period. `outcome.detail` must contain each of these strings (`expect.outcome_detail_includes`): `SYN`, `SPLIT-3-2`, `2026-01-14`. They come from the case input only: the instrument id, the id of the split and its effective session date. The expectation fixes the facts the text must name, not its wording.
+
 ## Hand check
 
 - Cap 1000.00, open 142.00, fee 1.00: 7 shares = 994.00 + 1.00 = 995.00 <= 1000.00; 8 shares = 1136.00 + 1.00 > 1000.00. The split multiplies 7 by 3/2 = 10.5, which is not a whole share, so the evidence is insufficient; nothing is rounded.
