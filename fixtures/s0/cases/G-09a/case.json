@@ -1,0 +1,10 @@
+{
+  "id": "G-09a",
+  "title": "Grid tie: entry signal 3 * SMA3 >= 6.01 holds at the exact sum 6.01 (SMA3 rounds below)",
+  "covers": ["Entry variants", "Entry and exit phases"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

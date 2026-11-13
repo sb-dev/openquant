@@ -16,10 +16,11 @@ provider data, credentials or private account data. Licence: Apache-2.0.
 
 An id is `<prefix>-<number>`, optionally followed by one lowercase letter or a `-vN` suffix, and it is the directory name.
 
-- Prefixes: `F0` the lead's smoke case (`F0-smoke`, hand-derived, not produced by the oracle), `SEM` seed semantics, `ENT` and `DEF` entry variants and definition execution, `X` execution and cash, `C` corporate actions, `I` invalid inputs and non-trading events, `R` replay.
+- Prefixes: `F0` the lead's smoke case (`F0-smoke`, hand-derived, not produced by the oracle), `SEM` seed semantics, `ENT` and `DEF` entry variants and definition execution, `X` execution and cash, `C` corporate actions, `I` invalid inputs and non-trading events, `R` replay, `G` grid ties (see Grid ties).
 - A `-vN` suffix names the seed variant that runs the bars of its family: `ENT-01-v1` to `ENT-01-v4`, `ENT-02-v1` to `ENT-02-v4`, `DEF-01-v1` to `DEF-01-v4` and `DEF-02-v1` to `DEF-02-v4` run the four seed variants on the same bars. `ENT-03` runs the data-only fifth variant. `ENT-03-v1` and `ENT-03-v2` run the first two variants on the same bars, because one case runs one strategy.
 - A lowercase letter (`X-02a`, `X-09b`, `C-01c`, `C-04a`, `I-05c`) marks a sub-case that varies one input of a sibling case. `SEM-04b` varies `SEM-04` in the same way.
 - `X-12` to `X-14` are off-grid execution cases (next section).
+- `G-01` to `G-11b` are grid ties. Where a number holds two cases, the lowercase letters name the two rounding directions (`G-05a`, `G-05b`, `G-07a`, `G-07b`, `G-08a`, `G-08b`, `G-09a`, `G-09b`, `G-09c`), and a bare id with a `b` sibling names the first direction or the stop variant (`G-06` and `G-06b`, `G-10` and `G-10b`, `G-11` and `G-11b`).
 
 ## Off-grid levels
 
@@ -28,6 +29,31 @@ In `X-01` to `X-11` every stop and target lies on the price grid, so rounding a 
 - The position keeps the exact level. A bar that stops short of it is not a touch, even where the level rounded to the grid would be touched.
 - A touched level fills at the level floored to the price scale (`floor(367/6) = 61.16`; nearest or upward rounding would give 61.17), before costs. A gap above a target also fills at the floored level. Slippage applies to a gap through a stop only, never to these fills. This is the declared policy: sale levels round down (OQ-02 section 2.5, a fill "at its level").
 - These levels have no finite decimal form, so the expected `daily` positions omit `stop`, `target` and the `entry_atr` snapshot value. The fill price, fee and cash state their effect.
+
+## Grid ties
+
+`X-12` to `X-14` put the level between two grid prices. `G-01` to `G-11b` pin the opposite situation: the exact decision value is a price on the grid, although an intermediate value has no finite decimal form. A true-range sum of 0.67 gives ATR3 = 67/300 = 0.2233..., yet 3 x ATR3 is exactly 0.67, so a target of 5 + 3 x ATR3 is the grid price 5.67. The same happens to the mean of three closes that sum to 6.01 (3 x SMA3 = 6.01 although SMA3 = 601/300) and to a level that a 3-for-1 split divides by 3 and a later 1-for-3 split multiplies by 3. Such a value is a grid tie, and the exact value decides it: a high of 5.67 touches the target 5.67 and the sale fills at floor(5.67) = 5.67, before costs. The oracle never rounds an intermediate value, so it states the exact decision.
+
+A computation that rounds the intermediate value to finitely many digits ends one unit of its last digit away from the grid price, and then can decide a touch, a gap, a trigger or a signal the wrong way, floor the fill to the price below, or accept a level that must be rejected (a stop of exactly 0). The repeating digit sets the direction. A sum of 0.67 gives 0.2233..., which rounds below the exact value; a sum of 0.68 gives 0.2266..., which rounds above it. In general the cent remainder of the sum divided by 3 is 1 (below) or 2 (above); a remainder of 0 terminates and is no tie.
+
+A comparison is misjudged in only one of the two directions, so each family has a case for each direction:
+
+| Cases | Tie pinned | Misjudged when the rounded value lies |
+| --- | --- | --- |
+| `G-01`, `G-02` | intraday target touch at 5.67 and 5.68 (high equals the target, the bar before is one tick below) | below (fill 5.66 instead of 5.67, `G-01`); above (no touch, `G-02`) |
+| `G-03`, `G-04` | intraday stop touch at 4.32 and 4.33 (low equals the stop) | below the stop (no touch, `G-03`); never above, because no grid price lies between (`G-04` pins the stored level and the other direction) |
+| `G-05a`, `G-05b` | gap above the target, the open equals the target 5.67 and 5.68 | below (fill 5.66, `G-05a`); above (no gap, `G-05b`) |
+| `G-06`, `G-06b` | gap through the stop, the open equals the stop 4.32 and 4.33, slippage applies (fill floor(open x 0.99)) | below the stop (no gap, `G-06`); never above (`G-06b`) |
+| `G-07a`, `G-07b` | a stop of exactly 0 (ATR6 = 5/6 and 7/6, stop multiplier 6) is `INVALID_LEVEL` at the entry open, partial journal as in `I-03` | ATR below, so the stop is a small positive number and is accepted (`G-07a`); never when the ATR rounds above, because the stop is then negative and is rejected as well (`G-07b`) |
+| `G-08a`, `G-08b` | break-even trigger `high >= entry + 3 x entry_atr` fires on a high that equals the level (5.68, 5.67) and not on the bar one tick below | above (no trigger, `G-08a`); never below (`G-08b`) |
+| `G-09a`, `G-09b`, `G-09c` | entry signal `3 x SMA3 >= K` (`<= K` in `G-09c`) where the three closes sum to K exactly (6.01, 6.02) | below for `>=` (`G-09a`); above for `<=` (`G-09c`); never above for `>=` (`G-09b`) |
+| `G-10`, `G-10b`, `G-11`, `G-11b` | stop (`G-10`, `G-11`) or target (`G-10b`, `G-11b`) touched at exactly 4.78 or 5.66 after a 3-for-1 or 7-for-2 split at index 6 and its reverse split at index 8; quantities 200, 600, 200 and 200, 700, 200 are whole | depends on how the division and the later multiplication are rounded: below makes the stop miss and floors the target fill to 5.65, above makes the target miss |
+
+The cases marked "never" in the last column pin the direction that a rounding computation would still decide correctly. They exist so that a repair cannot swap one direction for the other.
+
+Derivation method. Every case is a reduced strategy: the SMA and ATR windows, the multipliers and the comparison are data, and the instrument has one entry and few sessions. Indices 0 to 3 are flat bars of true range 0.20 and the signal bar (index 4) is chosen so that the three true ranges add up to the stated sum. The multiplier 3 cancels the divisor 3, so the level is the grid price entry plus or minus the sum. The bar before the tie stays one tick inside the level and the tie bar equals it exactly. `derivation.md` lists numbered rational steps (the true ranges, the sum, ATR = sum / 3, the exact levels, the sizing, the touch or gap test, the fill and the cash) that a reviewer can check by hand, and the oracle asserts a set of hand-derived values against its own output. The split cases use ATR3 = 0.22, which terminates, so that only the split conversion leaves the grid: 4.78 and 5.66 are not multiples of 3 cents (478 = 3 x 159 + 1, 566 = 3 x 188 + 2) and the divisions by 3 and by 7/2 have no finite decimal form, while the reverse split restores every value exactly.
+
+The expected daily positions state an entry price, stop or target only when it terminates, so the positions of `G-10` to `G-11b` between the two splits state their quantities only.
 
 ## Information cutoff
 
@@ -129,7 +155,7 @@ required sections, and that two complete runs write byte-identical result files 
 - Fills, ledger lines, daily cash and equity: money scale of the policy. Prices: price scale.
   Quantities: quantity scale.
 - Position levels, snapshots and scheduled stops: exact value without trailing zeros. A value with no
-  finite decimal form (see Off-grid levels) is a long rounded decimal, and expectations do not state it.
+  finite decimal form (see Off-grid levels and Grid ties) is a long rounded decimal, and expectations do not state it.
 - Indicator values and ranks in signals: rounded half-even to the diagnostic scale (display only).
 - Fills and ledger lines share one sequence counter (`seq`).
 - A daily record is the end-of-session state, after reservations for the next open.

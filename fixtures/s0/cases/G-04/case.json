@@ -1,0 +1,10 @@
+{
+  "id": "G-04",
+  "title": "Grid tie: intraday stop touch at 4.33 = 5 - 3 * 0.67/3 fills at 4.33 (stop from a rounded ATR3 lies above)",
+  "covers": ["Entry and exit phases", "Cash and quantities"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}
