@@ -4,7 +4,7 @@
   "origin": {
     "kind": "oracle",
     "oracle": "oracle.py",
-    "oracle_sha256": "f7ddc552c51af30ea760776a36e60e94789f7b2f7f62545151a1cbf839c1e9ba",
+    "oracle_sha256": "ad00d2031c9e3f337b3dba709d30840d1856010e3acd432db5b10f412890a5f3",
     "note": "Derived from OQ-02 sections 2.1 to 2.6 with exact rational arithmetic; see derivation.md. Not produced by the Rust engine."
   },
   "expect": {

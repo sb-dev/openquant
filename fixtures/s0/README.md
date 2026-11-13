@@ -48,6 +48,17 @@ derivation covers:
 
 - `outcome`: `status` and, for a failed or insufficient case, `code`, plus `at` (session and phase)
   when the run processed events.
+- `outcome_detail_includes`: stated by every INSUFFICIENT case (`I-02`, `I-07`, `C-02`, `C-06`). An
+  array of strings that must each occur as a substring of `outcome.detail`. OQ-02 section 2.5
+  requires an INSUFFICIENT result to report the instrument, the event, the missing evidence and the
+  affected period. The oracle derives the strings from the case input only, never from the engine,
+  so they fix the facts the text names and not its wording. Each array starts with the
+  `instrument_id`, then, in this order:
+  - `MISSING_REQUIRED_BAR`: the session date that has no bar.
+  - `UNSUPPORTED_VALUATION`: the `event_id` of every confirmed halt covering the failing session, the
+    failing session date and `windows.scored_end`.
+  - `UNSUPPORTED_CORPORATE_ACTION` and `FRACTIONAL_ENTITLEMENT`: the `action_id` and the effective
+    session date.
 - `signals`: records matched by `session`. A case lists only the sessions it derives.
 - `entries`, `fills`, `trades`, `cash_ledger`, `daily`, `corporate_actions`: arrays with the same
   length as the actual array. Each record states the fields it derives.
@@ -55,8 +66,8 @@ derivation covers:
 
 A completed case states all nine sections. A case that fails or is insufficient after processing
 events states `outcome` and the journal sections through the last completed event (`signals`,
-`entries`, `fills`, `cash_ledger`, `daily`, `corporate_actions`). A case rejected before the first
-event states `outcome` only.
+`entries`, `fills`, `cash_ledger`, `daily`, `corporate_actions`); an INSUFFICIENT case also states
+`outcome_detail_includes`. A case rejected before the first event states `outcome` only.
 
 ## How a case is compared
 
@@ -69,6 +80,8 @@ one check. The report shows checks, matches and differences per section and in t
 - An object in the expectation need only list the fields it derives; extra actual fields are not
   compared. Arrays must have the same length.
 - Signals are matched by `session`, so a case can list a few sessions out of many.
+- `outcome_detail_includes` is not compared as a subset of the result: each string is a substring
+  test on `outcome.detail`, and the result has no section of that name.
 - Expected numbers come from the independent derivation, never from the engine. Tests never
   regenerate them. A case that disagrees with the engine is reported, not edited.
 

@@ -89,3 +89,7 @@ Fills and ledger lines share one counter: 0 RESERVE, 1 RELEASE, 2 BUY fill, 3 FI
 ### Outcome
 
 The run stops with status INSUFFICIENT, code UNSUPPORTED_VALUATION at 2026-01-15 AFTER_CLOSE. The expected journal is the journal through the last completed event.
+
+### Detail expectation
+
+OQ-02 section 2.5 requires an INSUFFICIENT result to report the instrument, the event, the missing evidence and the affected period. `outcome.detail` must contain each of these strings (`expect.outcome_detail_includes`): `SYN`, `HALT-1`, `2026-01-15`, `2026-01-16`. They come from the case input only: the instrument id, the event id of every confirmed halt covering the failing session, the failing session date and `windows.scored_end` (the end of the period that cannot be valued). The expectation fixes the facts the text must name, not its wording.

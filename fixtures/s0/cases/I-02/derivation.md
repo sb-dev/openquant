@@ -65,3 +65,7 @@ Fills and ledger lines share one counter: 0 RESERVE.
 ### Outcome
 
 The run stops with status INSUFFICIENT, code MISSING_REQUIRED_BAR at 2026-01-12 BEFORE_OPEN. The expected journal is the journal through the last completed event.
+
+### Detail expectation
+
+OQ-02 section 2.5 requires an INSUFFICIENT result to report the instrument, the event, the missing evidence and the affected period. `outcome.detail` must contain each of these strings (`expect.outcome_detail_includes`): `SYN`, `2026-01-12`. They come from the case input only: the instrument id, the session date that has no bar. The expectation fixes the facts the text must name, not its wording.

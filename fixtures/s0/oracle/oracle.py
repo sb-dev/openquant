@@ -504,9 +504,13 @@ class SeedStrategy(TreeStrategy):
 
 
 class Fail(Exception):
-    def __init__(self, status, code, session, phase, detail=""):
+    """A failure of one event. `facts` lists the strings an INSUFFICIENT detail must contain (OQ-02 section 2.5:
+    report the instrument, event, missing evidence and affected period). They are derived from the case input only."""
+
+    def __init__(self, status, code, session, phase, detail="", facts=None):
         Exception.__init__(self, "%s %s at %s %s %s" % (status, code, session, phase, detail))
         self.status, self.code, self.session, self.phase, self.detail = status, code, session, phase, detail
+        self.facts = facts
 
 
 class StopRun(Exception):
@@ -619,6 +623,7 @@ class Sim:
             applied=[], splits=[], seq=0, signals=[], entries=[], fills=[], trades=[], ledger=[],
             daily=[], actions=[], trace=[])
         self.outcome = {"status": "COMPLETED"}
+        self.facts = None
         self.completed = True
 
     # ---- helpers
@@ -644,6 +649,11 @@ class Sim:
     def is_halted(self, s):
         return any(e["kind"] == "CONFIRMED_HALT" and e["effective_session"] == s
                    and e["available_at"] <= self.deadline(open_at(s)) for e in self.events)
+
+    def halts_covering(self, s):
+        """Event ids of every confirmed halt that covers session s (effective at s and known by its deadline)."""
+        return [e["event_id"] for e in self.events if e["kind"] == "CONFIRMED_HALT" and e["effective_session"] == s
+                and e["available_at"] <= self.deadline(open_at(s))]
 
     def led(self, s, phase, kind, amount):
         S = self.S
@@ -700,6 +710,7 @@ class Sim:
                         self.outcome = {"status": f.status, "code": f.code,
                                         "at": {"session": f.session, "phase": f.phase}}
                         self.completed = False
+                        self.facts = f.facts
                         self.L(f.session, f.phase, "FAILURE %s %s: %s Journal kept through the last completed event."
                                % (f.status, f.code, f.detail))
                         raise StopRun()
@@ -714,7 +725,8 @@ class Sim:
         halted = self.is_halted(s)
         if not halted and s not in self.bars:
             raise Fail("INSUFFICIENT", "MISSING_REQUIRED_BAR", s, "BEFORE_OPEN",
-                       "no bar for %s and no confirmed halt effective and available at %s." % (s, open_at(s)))
+                       "no bar for %s and no confirmed halt effective and available at %s." % (s, open_at(s)),
+                       facts=[self.iid, s])
         ent_qty = sum((p["qty"] for p in S.positions), F(0))
         acts = [a for a in self.actions if a["effective_session"] == s and a["action_id"] not in S.applied]
         for a in acts:
@@ -725,7 +737,8 @@ class Sim:
                            % (a["action_id"], a["available_at"], self.deadline(open_at(s)), open_at(s), self.cutoff))
             if a["kind"] not in ("SPLIT", "CASH_DIVIDEND"):
                 raise Fail("INSUFFICIENT", "UNSUPPORTED_CORPORATE_ACTION", s, "BEFORE_OPEN",
-                           "action %s has unsupported kind %s." % (a["action_id"], a["kind"]))
+                           "action %s has unsupported kind %s." % (a["action_id"], a["kind"]),
+                           facts=[self.iid, a["action_id"], a["effective_session"]])
         for a in acts:
             if a["kind"] == "SPLIT":
                 self.apply_split(s, a)
@@ -750,7 +763,8 @@ class Sim:
             if nq.denominator != 1:
                 raise Fail("INSUFFICIENT", "FRACTIONAL_ENTITLEMENT", s, "BEFORE_OPEN",
                            "split %s: quantity %s * %d / %d = %s is not a whole share."
-                           % (a["action_id"], fmt_dec(p["qty"]), a["ratio_new"], a["ratio_old"], fmt_dec(nq)))
+                           % (a["action_id"], fmt_dec(p["qty"]), a["ratio_new"], a["ratio_old"], fmt_dec(nq)),
+                           facts=[self.iid, a["action_id"], a["effective_session"]])
         self.L(s, "BEFORE_OPEN", "Split %s: ratio r = %d/%d = %s, applied exactly once."
                % (a["action_id"], a["ratio_new"], a["ratio_old"], fmt_dec(r)))
         for p in S.positions:
@@ -981,7 +995,8 @@ class Sim:
             if S.positions:
                 raise Fail("INSUFFICIENT", "UNSUPPORTED_VALUATION", s, "AFTER_CLOSE",
                            "confirmed halt on %s while holding %s: no close to value the position, no "
-                           "liquidation price is invented." % (s, S.positions[0]["trade_id"]))
+                           "liquidation price is invented." % (s, S.positions[0]["trade_id"]),
+                           facts=[self.iid] + self.halts_covering(s) + [s, self.inp["windows"]["scored_end"]])
             self.L(s, "AFTER_CLOSE", "Confirmed halt, nothing held: no signal can be created.")
             self.record_daily(s, None)
             return
@@ -1115,6 +1130,9 @@ class Sim:
         if sections is None:
             sections = all_sections
         out = {"outcome": self.outcome}
+        if self.outcome["status"] == "INSUFFICIENT":
+            assert self.facts, "an INSUFFICIENT outcome needs derived detail facts"
+            out["outcome_detail_includes"] = list(self.facts)
         if "signals" in sections:
             sel = None if signal_sessions is None else set(signal_sessions)
             sigs = []
@@ -1481,6 +1499,15 @@ def policy_line(pol):
                pol["corporate_actions"]["withholding_bps"]))
 
 
+DETAIL_FACTS = {
+    "MISSING_REQUIRED_BAR": "the session date that has no bar",
+    "UNSUPPORTED_VALUATION": "the event id of every confirmed halt covering the failing session, the failing session "
+                             "date and `windows.scored_end` (the end of the period that cannot be valued)",
+    "UNSUPPORTED_CORPORATE_ACTION": "the id of the unsupported action and its effective session date",
+    "FRACTIONAL_ENTITLEMENT": "the id of the split and its effective session date",
+}
+
+
 def render_derivation(c, expect):
     inp = c.inp
     inst = inp["instruments"][0]
@@ -1551,6 +1578,14 @@ def render_derivation(c, expect):
         else:
             out.append("The run stops with status %s, code %s at %s %s. The expected journal is the journal through "
                        "the last completed event.\n" % (o["status"], o["code"], o["at"]["session"], o["at"]["phase"]))
+            if "outcome_detail_includes" in expect:
+                out.append("### Detail expectation\n")
+                out.append("OQ-02 section 2.5 requires an INSUFFICIENT result to report the instrument, the event, the "
+                           "missing evidence and the affected period. `outcome.detail` must contain each of these "
+                           "strings (`expect.outcome_detail_includes`): %s. They come from the case input only: the "
+                           "instrument id, %s. The expectation fixes the facts the text must name, not its wording.\n"
+                           % (", ".join("`%s`" % x for x in expect["outcome_detail_includes"]),
+                              DETAIL_FACTS[o["code"]]))
     else:
         out.append("## Expected result\n")
         out.append("Rejected before evaluation: status %s, code %s. No journal is produced.\n"
