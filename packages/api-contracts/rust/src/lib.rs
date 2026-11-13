@@ -7,6 +7,7 @@
 pub mod canonical;
 pub mod decimal;
 pub mod error;
+pub mod exact;
 mod limits;
 mod schema;
 pub mod strict;
