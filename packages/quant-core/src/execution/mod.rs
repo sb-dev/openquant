@@ -6,5 +6,6 @@
 pub mod accounting;
 pub mod after_close;
 pub mod before_open;
+pub mod corporate_actions;
 pub mod open;
 pub mod session;

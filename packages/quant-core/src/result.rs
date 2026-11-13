@@ -3,15 +3,22 @@
 use openquant_contracts::generated as g;
 
 use crate::{
-    execution::accounting::{position_view, positions_value},
+    execution::accounting::{
+        equity as equity_of, position_view, positions_value, receivables_total,
+    },
     format::wire_cursor,
     model::{Failure, Result, Status},
-    numeric::{Decimal, add},
+    numeric::{Decimal, truncate_on_boundary},
     run::Run,
     state::State,
 };
 
 const MAX_DETAIL: usize = 1000;
+
+/// A failure detail that fits the schema limit, cut on a character boundary.
+fn detail_text(detail: &str) -> String {
+    truncate_on_boundary(detail, MAX_DETAIL).to_owned()
+}
 
 fn gdigest(text: &str) -> Result<g::Digest> {
     text.parse::<g::Digest>()
@@ -24,12 +31,9 @@ impl Run {
     /// # Errors
     /// A formatting failure if a value cannot be represented.
     pub fn result(&self, state: &State, failure: Option<&Failure>) -> Result<g::EvaluationResult> {
-        let value = positions_value(state)?;
-        let receivables = state.receivables_total();
-        let equity = add(
-            add(add(state.cash_available, state.cash_reserved)?, receivables)?,
-            value,
-        )?;
+        let value = positions_value(self, state)?;
+        let receivables = receivables_total(state)?;
+        let equity = equity_of(self, state)?;
         let mut open_positions = Vec::new();
         for position in &state.positions {
             open_positions.push(position_view(self, position)?);
@@ -41,16 +45,12 @@ impl Run {
                 detail: None,
                 status: Status::Completed,
             },
-            Some(failure) => {
-                let mut detail = failure.detail.clone();
-                detail.truncate(MAX_DETAIL);
-                g::Outcome {
-                    at: failure.at.as_ref().map(wire_cursor).transpose()?,
-                    code: Some(failure.code),
-                    detail: g::OutcomeDetail::try_from(detail).ok(),
-                    status: failure.status(),
-                }
-            }
+            Some(failure) => g::Outcome {
+                at: failure.at.as_ref().map(wire_cursor).transpose()?,
+                code: Some(failure.code),
+                detail: g::OutcomeDetail::try_from(detail_text(&failure.detail)).ok(),
+                status: failure.status(),
+            },
         };
         Ok(g::EvaluationResult {
             engine: self.engine.clone(),
@@ -86,8 +86,6 @@ pub fn early_failure(
     let engine = crate::identity::engine_identity()?;
     let engine_digest = crate::identity::engine_digest(&engine)?;
     let zero = zero(2)?;
-    let mut detail = failure.detail.clone();
-    detail.truncate(MAX_DETAIL);
     Ok(g::EvaluationResult {
         engine,
         engine_digest: gdigest(&engine_digest)?,
@@ -104,7 +102,7 @@ pub fn early_failure(
         outcome: g::Outcome {
             at: failure.at.as_ref().map(wire_cursor).transpose()?,
             code: Some(failure.code),
-            detail: g::OutcomeDetail::try_from(detail).ok(),
+            detail: g::OutcomeDetail::try_from(detail_text(&failure.detail)).ok(),
             status: failure.status(),
         },
         schema_version: g::EvaluationResultSchemaVersion::EvaluationResult1,

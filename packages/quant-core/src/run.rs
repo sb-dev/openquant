@@ -45,6 +45,69 @@ fn policy_failure(detail: &str) -> Failure {
     Failure::new(FailureCode::UnsupportedPolicy, detail.to_owned())
 }
 
+/// Largest scales the shared schema allows. A policy built without the schema is held to them
+/// as well, so the grid arithmetic below stays within the range it was reviewed for.
+const MAX_PRICE_SCALE: u32 = 8;
+const MAX_QUANTITY_SCALE: u32 = 8;
+const MAX_MONEY_SCALE: u32 = 12;
+const MAX_DIAGNOSTIC_SCALE: u32 = 12;
+
+/// Longest instrument id that keeps `T-<date>-<id>` and `I-<date>-<id>` within the 64
+/// characters of an identifier: the prefix and date take 13.
+const MAX_INSTRUMENT_ID_LEN: usize = 51;
+
+fn digits(text: &str, start: usize, end: usize) -> Option<u32> {
+    text.get(start..end)?.parse().ok()
+}
+
+/// Whether `text` (`YYYY-MM-DD`) names a real calendar date.
+fn valid_date(text: &str) -> bool {
+    let (Some(year), Some(month), Some(day)) =
+        (digits(text, 0, 4), digits(text, 5, 7), digits(text, 8, 10))
+    else {
+        return false;
+    };
+    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    let days = match month {
+        2 if leap => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        _ => return false,
+    };
+    (1..=days).contains(&day)
+}
+
+/// Whether `text` (`YYYY-MM-DDTHH:MM:SSZ`) names a real UTC instant.
+fn valid_timestamp(text: &str) -> bool {
+    let (Some(hour), Some(minute), Some(second)) = (
+        digits(text, 11, 13),
+        digits(text, 14, 16),
+        digits(text, 17, 19),
+    ) else {
+        return false;
+    };
+    text.get(..10).is_some_and(valid_date) && hour < 24 && minute < 60 && second < 60
+}
+
+fn check_timestamp(text: &str, what: &str) -> Result<()> {
+    if valid_timestamp(text) {
+        Ok(())
+    } else {
+        Err(invalid(format!("{what} {text} is not a real UTC instant")))
+    }
+}
+
+fn check_date(text: &str, what: &str) -> Result<()> {
+    if valid_date(text) {
+        Ok(())
+    } else {
+        Err(invalid(format!(
+            "{what} {text} is not a real calendar date"
+        )))
+    }
+}
+
 fn parse(value: &g::Decimal, scale: u32, what: &str) -> Result<Decimal> {
     parse_decimal_str(value.as_str(), scale)
         .map_err(|e| Failure::new(FailureCode::InvalidDecimal, format!("{what}: {e}")))
@@ -59,6 +122,16 @@ fn convert_policy(policy: &g::ExecutionPolicy) -> Result<Policy> {
     let quantity_scale = scale_of(policy.quantity_scale, "quantity_scale")?;
     let money_scale = scale_of(policy.money_scale, "money_scale")?;
     let diagnostic_scale = scale_of(policy.diagnostic_scale, "diagnostic_scale")?;
+    for (value, limit, what) in [
+        (price_scale, MAX_PRICE_SCALE, "price_scale"),
+        (quantity_scale, MAX_QUANTITY_SCALE, "quantity_scale"),
+        (money_scale, MAX_MONEY_SCALE, "money_scale"),
+        (diagnostic_scale, MAX_DIAGNOSTIC_SCALE, "diagnostic_scale"),
+    ] {
+        if value > limit {
+            return Err(policy_failure(&format!("{what} {value} exceeds {limit}")));
+        }
+    }
     if price_scale.saturating_add(quantity_scale) > money_scale {
         return Err(policy_failure(
             "money_scale must be at least price_scale + quantity_scale so notional is exact",
@@ -157,13 +230,22 @@ fn convert_bars(
                 "{date} bar violates low <= open,close <= high"
             )));
         }
+        let event_time = raw.event_time.to_string();
+        let available_at = raw.available_at.to_string();
+        check_timestamp(&event_time, &format!("{date} event_time"))?;
+        check_timestamp(&available_at, &format!("{date} available_at"))?;
+        if available_at < event_time {
+            return Err(invalid(format!(
+                "{date} bar is available at {available_at} before its event time {event_time}"
+            )));
+        }
         let bar = Bar {
             open,
             high,
             low,
             close,
             volume,
-            available_at: raw.available_at.to_string(),
+            available_at,
         };
         if bars.insert(date.clone(), bar).is_some() {
             return Err(invalid(format!("duplicate bar for {date}")));
@@ -175,7 +257,6 @@ fn convert_bars(
 fn convert_actions(
     instrument: &g::InstrumentInput,
     sessions: &[SessionInfo],
-    policy: &Policy,
 ) -> Result<Vec<Action>> {
     let mut actions: Vec<Action> = Vec::new();
     for raw in &instrument.corporate_actions {
@@ -213,17 +294,30 @@ fn convert_actions(
                 "action {id} is effective on a non-session date"
             )));
         }
+        check_timestamp(&available, &format!("action {id} available_at"))?;
         if actions.iter().any(|a| a.id == id) {
             return Err(invalid(format!("duplicate action id {id}")));
         }
         if let ActionKind::CashDividend {
-            amount_per_share, ..
+            amount_per_share,
+            payment_session,
+            ..
         } = &kind
-            && *amount_per_share < Decimal::ZERO
         {
-            return Err(invalid(format!("action {id} has a negative amount")));
+            if *amount_per_share < Decimal::ZERO {
+                return Err(invalid(format!("action {id} has a negative amount")));
+            }
+            if !sessions.iter().any(|s| s.date == *payment_session) {
+                return Err(invalid(format!(
+                    "action {id} pays on {payment_session}, which is not a calendar session"
+                )));
+            }
+            if *payment_session < effective {
+                return Err(invalid(format!(
+                    "action {id} pays on {payment_session}, before its ex-date {effective}"
+                )));
+            }
         }
-        let _ = policy;
         actions.push(Action {
             id,
             effective_session: effective,
@@ -234,6 +328,32 @@ fn convert_actions(
     Ok(actions)
 }
 
+fn convert_halts(instrument: &g::InstrumentInput, sessions: &[SessionInfo]) -> Result<Vec<Halt>> {
+    let mut halts: Vec<Halt> = Vec::new();
+    for raw in &instrument.unplanned_events {
+        let halt = Halt {
+            id: raw.event_id.to_string(),
+            effective_session: raw.effective_session.to_string(),
+            available_at: raw.available_at.to_string(),
+        };
+        if !sessions.iter().any(|s| s.date == halt.effective_session) {
+            return Err(invalid(format!(
+                "event {} is effective on a non-session date",
+                halt.id
+            )));
+        }
+        check_timestamp(
+            &halt.available_at,
+            &format!("event {} available_at", halt.id),
+        )?;
+        if halts.iter().any(|h| h.id == halt.id) {
+            return Err(invalid(format!("duplicate event id {}", halt.id)));
+        }
+        halts.push(halt);
+    }
+    Ok(halts)
+}
+
 fn convert_sessions(calendar: &g::CalendarSpec) -> Result<Vec<SessionInfo>> {
     let mut sessions: Vec<SessionInfo> = Vec::new();
     for raw in &calendar.sessions {
@@ -242,6 +362,15 @@ fn convert_sessions(calendar: &g::CalendarSpec) -> Result<Vec<SessionInfo>> {
             open_at: raw.open_at.to_string(),
             close_at: raw.close_at.to_string(),
         };
+        check_date(&session.date, "session")?;
+        check_timestamp(
+            &session.open_at,
+            &format!("session {} open_at", session.date),
+        )?;
+        check_timestamp(
+            &session.close_at,
+            &format!("session {} close_at", session.date),
+        )?;
         if session.open_at >= session.close_at {
             return Err(invalid(format!(
                 "session {} opens at or after it closes",
@@ -312,14 +441,24 @@ impl Run {
         let sessions = convert_sessions(&input.calendar)?;
         let [instrument] = &input.instruments;
         let bars = convert_bars(instrument, &sessions, &policy)?;
-        let actions = convert_actions(instrument, &sessions, &policy)?;
-        let mut halts = Vec::new();
-        for raw in &instrument.unplanned_events {
-            halts.push(Halt {
-                id: raw.event_id.to_string(),
-                effective_session: raw.effective_session.to_string(),
-                available_at: raw.available_at.to_string(),
-            });
+        let actions = convert_actions(instrument, &sessions)?;
+        if instrument.instrument_id.as_str().len() > MAX_INSTRUMENT_ID_LEN {
+            return Err(invalid(format!(
+                "instrument_id is longer than {MAX_INSTRUMENT_ID_LEN} characters, so trade and intent ids would not fit an identifier"
+            )));
+        }
+        let halts = convert_halts(instrument, &sessions)?;
+        for halt in &halts {
+            let confirmed = sessions
+                .iter()
+                .find(|s| s.date == halt.effective_session)
+                .is_some_and(|s| halt.available_at <= s.open_at);
+            if confirmed && bars.contains_key(&halt.effective_session) {
+                return Err(invalid(format!(
+                    "a bar is supplied for {}, a session with confirmed halt {}",
+                    halt.effective_session, halt.id
+                )));
+            }
         }
         let first = session_index(&sessions, &input.windows.warmup_start, "warmup_start")?;
         let scored_start = session_index(&sessions, &input.windows.scored_start, "scored_start")?;
