@@ -20,7 +20,7 @@ use openquant_core::{
     Failure, ValidatedStrategy,
     data::{Bar as RawBar, Policy, RunInput, SessionInfo},
     model::MissingReason,
-    numeric::Decimal,
+    numeric::{Decimal, Ratio},
     operators::{PriceBar, Value},
     signals::{SignalEval, evaluate_signals},
     validate_strategy,
@@ -100,6 +100,11 @@ impl Frac {
         Self::new(value.mantissa(), 10_i128.pow(value.scale()))
     }
 
+    /// The engine's exact value as a fraction.
+    pub fn from_ratio(value: Ratio) -> Self {
+        Self::new(value.numerator(), value.denominator())
+    }
+
     pub fn add(self, o: Self) -> Self {
         Self::new(mulc(self.n, o.d) + mulc(o.n, self.d), mulc(self.d, o.d))
     }
@@ -143,15 +148,10 @@ impl Frac {
         d == 1
     }
 
-    /// Does `value` equal this fraction? Terminating fractions must match exactly. Others must
-    /// match to 1e-20, since the engine rounds a non-terminating quotient at 28 digits.
-    pub fn matches(self, value: Decimal) -> bool {
-        let actual = Self::from_decimal(value);
-        if self.terminates() {
-            actual == self
-        } else {
-            actual.sub(self).abs().cmp_to(Self::new(1, 10_i128.pow(20))) != Ordering::Greater
-        }
+    /// Does `value` equal this fraction? The engine is exact, so every fraction must match
+    /// exactly, terminating or not.
+    pub fn matches(self, value: Ratio) -> bool {
+        Self::from_ratio(value) == self
     }
 }
 
@@ -181,13 +181,13 @@ impl Bar {
     }
 
     pub fn price_bar(self) -> PriceBar {
-        PriceBar {
-            open: Decimal::new(self.o, 2),
-            high: Decimal::new(self.h, 2),
-            low: Decimal::new(self.l, 2),
-            close: Decimal::new(self.c, 2),
-            volume: Decimal::from(self.v),
-        }
+        PriceBar::from_decimals(
+            Decimal::new(self.o, 2),
+            Decimal::new(self.h, 2),
+            Decimal::new(self.l, 2),
+            Decimal::new(self.c, 2),
+            Decimal::from(self.v),
+        )
     }
 }
 
@@ -279,18 +279,17 @@ pub fn run_input(bars: &[Option<Bar>], late: &BTreeMap<usize, &str>) -> RunInput
     let mut raw = BTreeMap::new();
     for (i, bar) in bars.iter().enumerate() {
         if let Some(bar) = bar {
-            let pb = bar.price_bar();
             let available_at = late
                 .get(&i)
                 .map_or_else(|| format!("{}T21:05:00Z", date_of(i)), |s| (*s).to_owned());
             raw.insert(
                 date_of(i),
                 RawBar {
-                    open: pb.open,
-                    high: pb.high,
-                    low: pb.low,
-                    close: pb.close,
-                    volume: pb.volume,
+                    open: Decimal::new(bar.o, 2),
+                    high: Decimal::new(bar.h, 2),
+                    low: Decimal::new(bar.l, 2),
+                    close: Decimal::new(bar.c, 2),
+                    volume: Decimal::from(bar.v),
                     available_at,
                 },
             );
@@ -615,7 +614,7 @@ pub fn assert_agrees(want: Exp, got: Value, what: &str) {
     );
 }
 
-pub fn num(value: Value) -> Decimal {
+pub fn num(value: Value) -> Ratio {
     match value {
         Value::Num(n) => n,
         other => panic!("expected a number, got {other:?}"),

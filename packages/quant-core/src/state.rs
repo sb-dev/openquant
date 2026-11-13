@@ -5,12 +5,12 @@ use std::collections::BTreeSet;
 
 use openquant_contracts::generated::Journal;
 
-use crate::{model::Cursor, numeric::Decimal};
+use crate::{model::Cursor, numeric::Decimal, ratio::Ratio};
 
 /// A stop change decided at a close and effective at the start of a later session.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Scheduled {
-    pub level: Decimal,
+    pub level: Ratio,
     pub effective_session: String,
 }
 
@@ -21,12 +21,14 @@ pub struct Position {
     pub trade_id: String,
     pub entry_session: String,
     pub quantity: Decimal,
-    pub entry_price: Decimal,
+    /// Levels, snapshots and the scheduled stop are exact fractions: every decision on a level
+    /// is taken on the exact value, and a split converts it without rounding.
+    pub entry_price: Ratio,
     /// Values snapshotted at the signal session, in strategy order, with their units known to
     /// the strategy. Split conversion uses those units.
-    pub snapshots: Vec<(String, Decimal)>,
-    pub stop: Decimal,
-    pub target: Decimal,
+    pub snapshots: Vec<(String, Ratio)>,
+    pub stop: Ratio,
+    pub target: Ratio,
     /// Latest valuation price (last close, or entry price before the first close).
     pub mark: Decimal,
     pub fired: Vec<String>,
@@ -41,7 +43,7 @@ pub struct Pending {
     pub signal_session: String,
     pub rank: Decimal,
     pub cap: Decimal,
-    pub snapshots: Vec<(String, Decimal)>,
+    pub snapshots: Vec<(String, Ratio)>,
 }
 
 /// A dividend entitlement recorded on the ex-date and not yet paid.

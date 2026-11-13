@@ -13,6 +13,7 @@ use crate::{
     interfaces::MarketEvent,
     model::{Failure, FailureCode, Result, Unit},
     numeric::{Decimal, div, exact_add, exact_bps_of, exact_mul, exact_sub, floor_to, mul},
+    ratio::Ratio,
     run::Run,
     state::{Receivable, State},
 };
@@ -103,18 +104,29 @@ fn per_share_up(value: Decimal, new: u64, old: u64) -> Result<Decimal> {
     div(mul(value, Decimal::from(new))?, Decimal::from(old))
 }
 
-/// Convert snapshot values by unit: PRICE divides by `r`, SHARES multiplies by `r`, RATIO and
-/// POINTS are unchanged.
+/// The exact factor `old / new` that moves a price to the new share basis.
+fn price_factor(new: u64, old: u64) -> Result<Ratio> {
+    Ratio::new(i128::from(old), i128::from(new))
+}
+
+/// Convert an exact price level to the new share basis: divide by `r = new / old`, without
+/// rounding. A split and its reverse return the level to its exact value.
+fn level_down(value: Ratio, new: u64, old: u64) -> Result<Ratio> {
+    value.mul(price_factor(new, old)?)
+}
+
+/// Convert snapshot values by unit, exactly: PRICE divides by `r`, SHARES multiplies by `r`, RATIO
+/// and POINTS are unchanged.
 pub fn convert_snapshots(
     run: &Run,
-    snapshots: &mut [(String, Decimal)],
+    snapshots: &mut [(String, Ratio)],
     new: u64,
     old: u64,
 ) -> Result<()> {
     for (name, value) in snapshots.iter_mut() {
         match unit_of_snapshot(run, name)? {
-            Unit::Price => *value = per_share_down(*value, new, old)?,
-            Unit::Shares => *value = per_share_up(*value, new, old)?,
+            Unit::Price => *value = level_down(*value, new, old)?,
+            Unit::Shares => *value = value.mul(price_factor(old, new)?)?,
             Unit::Ratio | Unit::Points | Unit::Flag => {}
         }
     }
@@ -122,8 +134,9 @@ pub fn convert_snapshots(
 }
 
 /// A split with ratio `r = new / old`: quantities multiply by `r`; entry price, stop, target,
-/// mark, scheduled stop levels and price snapshots divide by `r`. Pending entry intents convert
-/// their snapshots and keep their cap and rank.
+/// mark, scheduled stop levels and price snapshots divide by `r`. Levels, scheduled stops and
+/// snapshots convert exactly; the mark is a valuation price and converts as before, rounded.
+/// Pending entry intents convert their snapshots and keep their cap and rank.
 fn apply_split(run: &Run, state: &mut State, action: &Action, new: u64, old: u64) -> Result<()> {
     // Check every entitlement first so a refusal leaves the state exactly as it was.
     let mut quantities = Vec::with_capacity(state.positions.len());
@@ -141,12 +154,12 @@ fn apply_split(run: &Run, state: &mut State, action: &Action, new: u64, old: u64
     }
     for (position, quantity) in state.positions.iter_mut().zip(quantities) {
         position.quantity = quantity;
-        position.entry_price = per_share_down(position.entry_price, new, old)?;
-        position.stop = per_share_down(position.stop, new, old)?;
-        position.target = per_share_down(position.target, new, old)?;
+        position.entry_price = level_down(position.entry_price, new, old)?;
+        position.stop = level_down(position.stop, new, old)?;
+        position.target = level_down(position.target, new, old)?;
         position.mark = per_share_down(position.mark, new, old)?;
         if let Some(scheduled) = &mut position.scheduled {
-            scheduled.level = per_share_down(scheduled.level, new, old)?;
+            scheduled.level = level_down(scheduled.level, new, old)?;
         }
         convert_snapshots(run, &mut position.snapshots, new, old)?;
     }
@@ -163,7 +176,7 @@ fn apply_split(run: &Run, state: &mut State, action: &Action, new: u64, old: u64
             .find(|t| t.trade_id.as_str() == position.trade_id)
             .ok_or_else(|| Failure::internal("trade record for a split"))?;
         trade.quantity = run.fmt.qty(position.quantity)?;
-        trade.entry_price = run.fmt.price_or_exact(position.entry_price)?;
+        trade.entry_price = run.fmt.price_or_level(position.entry_price)?;
     }
     Ok(())
 }

@@ -125,6 +125,10 @@ pub struct StrategyOpts {
     pub break_even: bool,
     /// New stop level of the break-even rule as `entry + k * ATR`; `None` is the entry price.
     pub break_even_multiple: Option<String>,
+    /// The break-even rule fires when the high reaches `entry + k * ATR`; `None` is `k = 1`.
+    pub break_even_trigger_multiple: Option<String>,
+    /// Replaces the entry condition (the default is a volume above 1000 shares).
+    pub condition: Option<Value>,
     /// Extra snapshots `(name, unit, kind)` where kind is `volume`, `close` or a constant.
     pub extra_snapshots: Vec<(String, String, String)>,
     /// Extra indicators `(name, kind)` where kind is `lag_close` or `lag_volume` (one session).
@@ -140,6 +144,8 @@ impl Default for StrategyOpts {
             target_mult: "5".to_owned(),
             break_even: false,
             break_even_multiple: None,
+            break_even_trigger_multiple: None,
+            condition: None,
             extra_snapshots: Vec::new(),
             extra_indicators: Vec::new(),
         }
@@ -221,6 +227,24 @@ impl Scenario {
     pub fn break_even_level(mut self, multiple: &str) -> Self {
         self.strategy.break_even = true;
         self.strategy.break_even_multiple = Some(multiple.to_owned());
+        self
+    }
+
+    /// The break-even rule fires when the high reaches `entry + k * ATR`.
+    pub fn break_even_trigger(mut self, multiple: &str) -> Self {
+        self.strategy.break_even = true;
+        self.strategy.break_even_trigger_multiple = Some(multiple.to_owned());
+        self
+    }
+
+    /// Replace the entry condition by an expression over the signal scope.
+    pub fn condition(mut self, expr: Value) -> Self {
+        self.strategy.condition = Some(expr);
+        self
+    }
+
+    pub fn atr_window(mut self, window: u64) -> Self {
+        self.strategy.atr_window = window;
         self
     }
 
@@ -381,7 +405,18 @@ impl Scenario {
                     "op": "operator:gte@1",
                     "args": [
                         {"op": "operator:bar_field@1", "args": [], "params": {"field": "HIGH"}},
-                        {"op": "operator:add@1", "args": [entry_price.clone(), snapshot("entry_atr")], "params": {}},
+                        match &s.break_even_trigger_multiple {
+                            None => json!({"op": "operator:add@1", "args": [entry_price.clone(), snapshot("entry_atr")], "params": {}}),
+                            Some(k) => json!({
+                                "op": "operator:add@1",
+                                "args": [entry_price.clone(), {
+                                    "op": "operator:mul@1",
+                                    "args": [konst(k, "RATIO"), snapshot("entry_atr")],
+                                    "params": {},
+                                }],
+                                "params": {},
+                            }),
+                        },
                     ],
                     "params": {},
                 },
@@ -418,11 +453,11 @@ impl Scenario {
             "definition": {
                 "indicators": indicators,
                 "entry": {
-                    "condition": {
+                    "condition": s.condition.clone().unwrap_or_else(|| json!({
                         "op": "operator:gt@1",
                         "args": [volume.clone(), konst(SIGNAL_THRESHOLD, "SHARES")],
                         "params": {},
-                    },
+                    })),
                     "rank": konst("1", "POINTS"),
                     "snapshots": snapshots,
                 },

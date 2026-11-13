@@ -10,30 +10,50 @@ use super::{
 };
 use crate::{
     model::{Failure, MissingReason, Result},
-    numeric::{Decimal, add, div, mul, sub},
+    numeric::Decimal,
+    ratio::Ratio,
 };
 
 /// An evaluated value. Units are static and live on the [`Node`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Value {
-    Num(Decimal),
+    Num(Ratio),
     Flag(bool),
     Missing(MissingReason),
 }
 
-/// A bar in one price basis.
+/// A bar in one price basis, with exact fractions: a split-adjusted price such as `100 / 3` is
+/// not rounded to a decimal.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PriceBar {
-    pub open: Decimal,
-    pub high: Decimal,
-    pub low: Decimal,
-    pub close: Decimal,
-    pub volume: Decimal,
+    pub open: Ratio,
+    pub high: Ratio,
+    pub low: Ratio,
+    pub close: Ratio,
+    pub volume: Ratio,
 }
 
 impl PriceBar {
+    /// A bar from decimal prices and volume, exactly.
     #[must_use]
-    pub fn field(&self, field: Field) -> Decimal {
+    pub fn from_decimals(
+        open: Decimal,
+        high: Decimal,
+        low: Decimal,
+        close: Decimal,
+        volume: Decimal,
+    ) -> Self {
+        Self {
+            open: Ratio::from_decimal(open),
+            high: Ratio::from_decimal(high),
+            low: Ratio::from_decimal(low),
+            close: Ratio::from_decimal(close),
+            volume: Ratio::from_decimal(volume),
+        }
+    }
+
+    #[must_use]
+    pub fn field(&self, field: Field) -> Ratio {
         match field {
             Field::Open => self.open,
             Field::High => self.high,
@@ -51,15 +71,16 @@ pub trait Env {
     /// The compiled indicator at `index` (signal scope).
     fn indicator(&self, index: usize) -> Option<&Node>;
     /// The position's entry price (level and trigger scopes).
-    fn entry_price(&self) -> Option<Decimal>;
+    fn entry_price(&self) -> Option<Ratio>;
     /// A named snapshot value (level and trigger scopes).
-    fn snapshot(&self, name: &str) -> Option<Decimal>;
+    fn snapshot(&self, name: &str) -> Option<Ratio>;
 }
 
 /// Evaluate `node` at series index `at`.
 ///
 /// # Errors
-/// `ARITHMETIC_OVERFLOW` on decimal overflow, or an internal inconsistency failure.
+/// `ARITHMETIC_OVERFLOW` when an exact intermediate value does not fit 128 bits, or an internal
+/// inconsistency failure.
 pub fn eval(node: &Node, at: usize, env: &dyn Env) -> Result<Value> {
     match node.op {
         OpId::Const => Ok(Value::Num(node.value)),
@@ -118,7 +139,7 @@ fn collect(
     at: usize,
     count: usize,
     env: &dyn Env,
-) -> Result<std::result::Result<Vec<Decimal>, MissingReason>> {
+) -> Result<std::result::Result<Vec<Ratio>, MissingReason>> {
     let Some(start) = at.checked_add(1).and_then(|end| end.checked_sub(count)) else {
         return Ok(Err(MissingReason::InsufficientHistory));
     };
@@ -154,7 +175,7 @@ fn operands(
     node: &Node,
     at: usize,
     env: &dyn Env,
-) -> Result<std::result::Result<(Decimal, Decimal), MissingReason>> {
+) -> Result<std::result::Result<(Ratio, Ratio), MissingReason>> {
     let first = eval(arg(node, 0)?, at, env)?;
     let second = eval(arg(node, 1)?, at, env)?;
     match (first, second) {
@@ -170,14 +191,14 @@ fn arithmetic(node: &Node, at: usize, env: &dyn Env) -> Result<Value> {
         Err(reason) => return Ok(Value::Missing(reason)),
     };
     Ok(Value::Num(match node.op {
-        OpId::Add => add(a, b)?,
-        OpId::Sub => sub(a, b)?,
-        OpId::Mul => mul(a, b)?,
+        OpId::Add => a.add(b)?,
+        OpId::Sub => a.sub(b)?,
+        OpId::Mul => a.mul(b)?,
         _ => {
             if b.is_zero() {
                 return Ok(Value::Missing(MissingReason::DivByZero));
             }
-            div(a, b)?
+            a.div(b)?
         }
     }))
 }

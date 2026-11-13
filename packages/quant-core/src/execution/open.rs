@@ -15,6 +15,7 @@ use crate::{
         Decimal, div, exact_add, exact_bps_of, exact_mul, exact_sub, floor_to, floor_to_lot,
     },
     operators::Value,
+    ratio::Ratio,
     run::Run,
     signals::{LevelEnv, eval_position_expr},
     state::{Pending, Position, State},
@@ -78,7 +79,9 @@ fn set_entry_status(
 }
 
 /// Gap exits: through a stop fills at the open with adverse slippage; above a target fills at
-/// the target before slippage. Only positions held at the start of the session can gap.
+/// the target before slippage. Only positions held at the start of the session can gap. The tests
+/// compare the open with the exact level, and the target fill is the exact level floored to the
+/// price grid.
 fn gap_exits(
     run: &Run,
     state: &mut State,
@@ -87,9 +90,10 @@ fn gap_exits(
     notes: &mut Vec<String>,
 ) -> Result<()> {
     let policy = &run.input.policy;
+    let level_open = Ratio::from(open);
     let mut exits = Vec::new();
     for (index, position) in state.positions.iter().enumerate() {
-        if open <= position.stop {
+        if level_open <= position.stop {
             let kept = exact_sub(
                 Decimal::ONE,
                 exact_bps_of(Decimal::ONE, policy.gap_exit_slippage_bps)?,
@@ -104,11 +108,11 @@ fn gap_exits(
                     ambiguous_bar: false,
                 },
             ));
-        } else if open >= position.target {
+        } else if level_open >= position.target {
             exits.push((
                 index,
                 Sale {
-                    price: floor_to(position.target, policy.price_scale),
+                    price: position.target.floor_to(policy.price_scale)?,
                     fill_reason: g::FillRecordReason::GapTarget,
                     exit_reason: g::TradeRecordExitReason::GapTarget,
                     ambiguous_bar: false,
@@ -217,9 +221,10 @@ fn fill_entry(
     quantity: Decimal,
     open: Decimal,
 ) -> Result<()> {
+    let entry = Ratio::from(open);
     let env = LevelEnv {
         bar: None,
-        entry_price: open,
+        entry_price: entry,
         snapshots: &pending.snapshots,
     };
     let level = |node| match eval_position_expr(node, &env)? {
@@ -231,11 +236,13 @@ fn fill_entry(
     };
     let stop = level(&run.strategy.stop)?;
     let target = level(&run.strategy.target)?;
-    if !(Decimal::ZERO < stop && stop < open && open < target) {
+    // The levels print in their canonical form, so the text is the same in a run restored from a
+    // checkpoint as in an uninterrupted one.
+    if !(Ratio::ZERO < stop && stop < entry && entry < target) {
         return Err(Failure::new(
             FailureCode::InvalidLevel,
             format!(
-                "{}: levels must satisfy 0 < stop < entry < target, found stop {stop}, entry {open}, target {target}",
+                "{}: levels must satisfy 0 < stop < entry < target, found stop {stop}, entry {entry}, target {target}",
                 pending.intent_id
             ),
         ));
@@ -288,7 +295,7 @@ fn fill_entry(
         trade_id,
         entry_session: date.clone(),
         quantity,
-        entry_price: open,
+        entry_price: entry,
         snapshots: pending.snapshots.clone(),
         stop,
         target,
