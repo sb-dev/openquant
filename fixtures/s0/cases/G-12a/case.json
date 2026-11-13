@@ -1,0 +1,10 @@
+{
+  "id": "G-12a",
+  "title": "Off-grid target 367/6: an open at 61.16 = floor(target) is no gap, the intraday touch fills at 61.16",
+  "covers": ["Entry and exit phases", "Cash and quantities"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}
