@@ -264,8 +264,11 @@ fn tampered(run: &Run, cut: usize, edit: impl FnOnce(&mut Value)) -> Checkpoint 
     openquant_contracts::parse_value(value).expect("the tampered checkpoint is schema-valid")
 }
 
+/// The failure code of a refused restore, or `RESTORED` when the checkpoint was accepted.
 fn rejection(run: &Run, checkpoint: &Checkpoint) -> String {
-    run.restore(checkpoint).unwrap_err().code.to_string()
+    run.restore(checkpoint)
+        .err()
+        .map_or_else(|| "RESTORED".to_owned(), |failure| failure.code.to_string())
 }
 
 #[test]
@@ -532,5 +535,149 @@ fn results_validate_against_the_shared_result_schema_for_every_outcome() {
         let text = out.text_of_result();
         let parsed: EvaluationResult = parse(&text).expect("the result is schema-valid");
         assert_eq!(canonical_json(&to_value(&parsed).unwrap()).unwrap(), text);
+    }
+}
+
+// Balances are cross-checked against the journal (OQ-06 section 8, S0: damaged checkpoints are
+// refused). Each test edits one stored number so that the checkpoint still passes the schema and
+// every older check, and expects a refusal. The edited numbers are written out by hand.
+
+/// The scenarios whose every cut point is restored by the tests above.
+fn restore_scenarios() -> Vec<(&'static str, Scenario)> {
+    vec![
+        ("combined", combined()),
+        ("plain", plain()),
+        ("receivable_and_halt", receivable_and_halt()),
+    ]
+}
+
+#[test]
+fn edited_available_cash_is_refused_at_every_cut_point() {
+    // The forgery of the review finding: a large, non-negative balance nothing else contradicts.
+    for (name, scenario) in restore_scenarios() {
+        let run = scenario.run();
+        let (_, _, completed) = baseline(&run);
+        for cut in 0..=completed {
+            let checkpoint = tampered(&run, cut, |v| {
+                v["state"]["cash_available"] = json!("999999.00");
+            });
+            assert_eq!(
+                rejection(&run, &checkpoint),
+                "CHECKPOINT_MISMATCH",
+                "{name}: cash_available edited at cut {cut}"
+            );
+        }
+    }
+}
+
+#[test]
+fn balances_before_the_first_event_are_the_initial_capital() {
+    // The journal is empty, so the opening balances are the only ones that can be right.
+    let run = combined().run();
+    for (field, edited) in [("cash_available", "4999.00"), ("cash_reserved", "1.00")] {
+        let checkpoint = tampered(&run, 0, |v| v["state"][field] = json!(edited));
+        assert_eq!(
+            rejection(&run, &checkpoint),
+            "CHECKPOINT_MISMATCH",
+            "{field}"
+        );
+    }
+    // The unedited opening checkpoint restores.
+    assert!(run.restore(&tampered(&run, 0, |_| {})).is_ok());
+}
+
+#[test]
+fn edited_receivables_are_refused() {
+    // Between the S3 ex-date and the S5 payment DIV1 is a receivable of 2.00 (10 shares at 0.20
+    // before the split), and the last ledger line says so.
+    let run = combined().run();
+    let cut = event_index(&run, 5, "BEFORE_OPEN");
+    assert_eq!(state_after(&run, cut).receivables.len(), 1);
+    let larger = tampered(&run, cut, |v| {
+        v["state"]["receivables"][0]["amount"] = json!("3.00");
+    });
+    assert_eq!(rejection(&run, &larger), "CHECKPOINT_MISMATCH", "amount");
+    let removed = tampered(&run, cut, |v| v["state"]["receivables"] = json!([]));
+    assert_eq!(rejection(&run, &removed), "CHECKPOINT_MISMATCH", "removed");
+}
+
+#[test]
+fn an_edited_ledger_tail_is_refused() {
+    // The state is untouched; the last cash ledger line no longer states its balances.
+    for (name, scenario) in restore_scenarios() {
+        let run = scenario.run();
+        let (_, _, completed) = baseline(&run);
+        for cut in 0..=completed {
+            if state_after(&run, cut).journal.cash_ledger.is_empty() {
+                continue;
+            }
+            for field in ["available_after", "reserved_after", "receivables_after"] {
+                let checkpoint = tampered(&run, cut, |v| {
+                    let ledger = v["state"]["journal"]["cash_ledger"].as_array_mut().unwrap();
+                    ledger.last_mut().unwrap()[field] = json!("12345.67");
+                });
+                assert_eq!(
+                    rejection(&run, &checkpoint),
+                    "CHECKPOINT_MISMATCH",
+                    "{name}: ledger tail {field} at cut {cut}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn edited_daily_records_are_refused() {
+    let run = combined().run();
+    let mid_session = event_index(&run, 7, "OPEN");
+    // The first daily record belongs to a session long finished, so only the journal itself
+    // contradicts it: the review finding's `daily[0].equity = "1.00"`, and the other numbers
+    // and the date of the same record.
+    for (field, edited) in [
+        ("equity", "1.00"),
+        ("cash_available", "1.00"),
+        ("cash_reserved", "1.00"),
+        ("receivables", "1.00"),
+        ("session", date(1).as_str()),
+    ] {
+        let checkpoint = tampered(&run, mid_session, |v| {
+            v["state"]["journal"]["daily"][0][field] = json!(edited);
+        });
+        assert_eq!(
+            rejection(&run, &checkpoint),
+            "CHECKPOINT_MISMATCH",
+            "daily[0].{field}"
+        );
+    }
+}
+
+#[test]
+fn positions_must_agree_with_the_last_daily_record_and_the_open_trade() {
+    let run = combined().run();
+    // After the S3 close and before the S4 before-open phase the state is exactly the last daily
+    // record, so a moved mark or quantity contradicts its positions value.
+    let boundary = event_index(&run, 4, "BEFORE_OPEN");
+    for (field, edited) in [("mark", "1"), ("quantity", "11")] {
+        let checkpoint = tampered(&run, boundary, |v| {
+            v["state"]["positions"][0][field] = json!(edited);
+        });
+        assert_eq!(
+            rejection(&run, &checkpoint),
+            "CHECKPOINT_MISMATCH",
+            "{field}"
+        );
+    }
+    // Inside a session a position is checked against its open trade record instead. After the
+    // S4 split the trade record is on the new basis: 20 shares at 50.
+    let inside = event_index(&run, 4, "OPEN");
+    for (field, edited) in [("quantity", "21"), ("entry_price", "49")] {
+        let checkpoint = tampered(&run, inside, |v| {
+            v["state"]["positions"][0][field] = json!(edited);
+        });
+        assert_eq!(
+            rejection(&run, &checkpoint),
+            "CHECKPOINT_MISMATCH",
+            "{field}"
+        );
     }
 }

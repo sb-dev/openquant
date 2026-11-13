@@ -67,16 +67,6 @@ pub struct State {
     pub journal: Journal,
 }
 
-impl State {
-    /// Sum of receivables.
-    #[must_use]
-    pub fn receivables_total(&self) -> Decimal {
-        self.receivables
-            .iter()
-            .fold(Decimal::ZERO, |sum, r| sum.saturating_add(r.amount))
-    }
-}
-
 /// An empty journal.
 #[must_use]
 pub fn empty_journal() -> Journal {
