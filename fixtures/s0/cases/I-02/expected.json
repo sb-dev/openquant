@@ -4,11 +4,12 @@
   "origin": {
     "kind": "oracle",
     "oracle": "oracle.py",
-    "oracle_sha256": "2c3c7b686cb080ea75c936695962a6d00a17081ddc02508a075482e2e18cd8a4",
+    "oracle_sha256": "ad00d2031c9e3f337b3dba709d30840d1856010e3acd432db5b10f412890a5f3",
     "note": "Derived from OQ-02 sections 2.1 to 2.6 with exact rational arithmetic; see derivation.md. Not produced by the Rust engine."
   },
   "expect": {
     "outcome": {"status": "INSUFFICIENT", "code": "MISSING_REQUIRED_BAR", "at": {"session": "2026-01-12", "phase": "BEFORE_OPEN"}},
+    "outcome_detail_includes": ["SYN", "2026-01-12"],
     "signals": [
       {
         "session": "2026-01-05",

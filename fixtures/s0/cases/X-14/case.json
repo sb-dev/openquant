@@ -1,0 +1,10 @@
+{
+  "id": "X-14",
+  "title": "Intraday stop touch at an off-grid level fills at the level floored to the price scale",
+  "covers": ["Entry and exit phases", "Cash and quantities"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

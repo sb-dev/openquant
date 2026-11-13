@@ -8,13 +8,26 @@ provider data, credentials or private account data. Licence: Apache-2.0.
 | Path | Content |
 | --- | --- |
 | `strategies/` | The four seed Strategy Artefacts (RSI threshold 30 or 32, break-even off or on) and a fifth data-only variant (threshold 40). They differ only in data and have distinct hashes. |
-| `cases/<id>/` | One case: `case.json`, `strategy.json` or a seed copy, `input.json`, `expected.json`, `derivation.md`. |
+| `cases/<id>/` | One case: `case.json`, `strategy.json` or a relative path to a seed in `strategies/`, `input.json`, `expected.json`, `derivation.md`. |
 | `coverage.json` | Maps each S0 row of OQ-06 section 8 to the cases that demonstrate it. |
-| `oracle/` | Provenance scripts used to derive expected values. Verification does not run them. |
+| `oracle/oracle.py` | The exact-rational (Python `fractions`) script that derives every case except `F0-smoke`, `coverage.json` and the oracle's entries in `fixtures/protocol/manifest.json`. Verification does not run it; the tests only check its hash. See Regenerating. |
 
 ## Case ids
 
-Families use a `-vN` suffix: `ENT-01-v1` to `ENT-01-v4`, `ENT-02-v1` to `ENT-02-v4`, `DEF-01-v1` to `DEF-01-v4` and `DEF-02-v1` to `DEF-02-v4` run the four seed variants on the same bars. `ENT-03` runs the data-only fifth variant. `ENT-03-v1` and `ENT-03-v2` run the first two variants on the same bars, because one case runs one strategy. Lettered sub-cases (`X-02a`, `X-09b`, `C-01c`, `C-04a`, `I-05c`, `SEM-04b`) vary one input of a base case. Prefixes: `SEM` seed semantics, `ENT` and `DEF` entry variants and definition execution, `X` execution and cash, `C` corporate actions, `I` invalid inputs and non-trading events, `R` replay.
+An id is `<prefix>-<number>`, optionally followed by one lowercase letter or a `-vN` suffix, and it is the directory name.
+
+- Prefixes: `F0` the lead's smoke case (`F0-smoke`, hand-derived, not produced by the oracle), `SEM` seed semantics, `ENT` and `DEF` entry variants and definition execution, `X` execution and cash, `C` corporate actions, `I` invalid inputs and non-trading events, `R` replay.
+- A `-vN` suffix names the seed variant that runs the bars of its family: `ENT-01-v1` to `ENT-01-v4`, `ENT-02-v1` to `ENT-02-v4`, `DEF-01-v1` to `DEF-01-v4` and `DEF-02-v1` to `DEF-02-v4` run the four seed variants on the same bars. `ENT-03` runs the data-only fifth variant. `ENT-03-v1` and `ENT-03-v2` run the first two variants on the same bars, because one case runs one strategy.
+- A lowercase letter (`X-02a`, `X-09b`, `C-01c`, `C-04a`, `I-05c`) marks a sub-case that varies one input of a sibling case. `SEM-04b` varies `SEM-04` in the same way.
+- `X-12` to `X-14` are off-grid execution cases (next section).
+
+## Off-grid levels
+
+In `X-01` to `X-11` every stop and target lies on the price grid, so rounding a touched level would change nothing. `X-12` (intraday target touch), `X-13` (gap above the target) and `X-14` (intraday stop touch) use a signal bar whose true-range sum is not a multiple of 3 cents. ATR3 is then 67/30, 32/15 or 13/6, which has no finite decimal form, and the level falls between two grid prices (for example the target 367/6 = 61.1666...).
+
+- The position keeps the exact level. A bar that stops short of it is not a touch, even where the level rounded to the grid would be touched.
+- A touched level fills at the level floored to the price scale (`floor(367/6) = 61.16`; nearest or upward rounding would give 61.17), before costs. A gap above a target also fills at the floored level. Slippage applies to a gap through a stop only, never to these fills. This is the declared policy: sale levels round down (OQ-02 section 2.5, a fill "at its level").
+- These levels have no finite decimal form, so the expected `daily` positions omit `stop`, `target` and the `entry_atr` snapshot value. The fill price, fee and cash state their effect.
 
 ## Information cutoff
 
@@ -28,11 +41,24 @@ directory name equals the case id. `covers` and `coverage.json` must name the sa
 each row, and every S0 row needs at least one case.
 
 `expected.json` has `schema` (`s0-expected/1`), `case`, `origin` and `expect`. `origin.kind`
-names how the values were derived. When a script derived them, `origin.oracle` and
-`origin.oracle_sha256` bind the values to that script version; the tests fail if the script
-changes after the values were derived. `expect` states the values the derivation covers:
+names how the values were derived: `oracle`, or `lead-hand-derived` for `F0-smoke`. When a script
+derived them, `origin.oracle` and `origin.oracle_sha256` bind the values to that script version;
+the tests fail if the script changes after the values were derived. `expect` states the values the
+derivation covers:
 
-- `outcome`: `status` and, for a failed or insufficient case, `code`.
+- `outcome`: `status` and, for a failed or insufficient case, `code`, plus `at` (session and phase)
+  when the run processed events.
+- `outcome_detail_includes`: stated by every INSUFFICIENT case (`I-02`, `I-07`, `C-02`, `C-06`). An
+  array of strings that must each occur as a substring of `outcome.detail`. OQ-02 section 2.5
+  requires an INSUFFICIENT result to report the instrument, the event, the missing evidence and the
+  affected period. The oracle derives the strings from the case input only, never from the engine,
+  so they fix the facts the text names and not its wording. Each array starts with the
+  `instrument_id`, then, in this order:
+  - `MISSING_REQUIRED_BAR`: the session date that has no bar.
+  - `UNSUPPORTED_VALUATION`: the `event_id` of every confirmed halt covering the failing session, the
+    failing session date and `windows.scored_end`.
+  - `UNSUPPORTED_CORPORATE_ACTION` and `FRACTIONAL_ENTITLEMENT`: the `action_id` and the effective
+    session date.
 - `signals`: records matched by `session`. A case lists only the sessions it derives.
 - `entries`, `fills`, `trades`, `cash_ledger`, `daily`, `corporate_actions`: arrays with the same
   length as the actual array. Each record states the fields it derives.
@@ -40,8 +66,8 @@ changes after the values were derived. `expect` states the values the derivation
 
 A completed case states all nine sections. A case that fails or is insufficient after processing
 events states `outcome` and the journal sections through the last completed event (`signals`,
-`entries`, `fills`, `cash_ledger`, `daily`, `corporate_actions`). A case rejected before the first
-event states `outcome` only.
+`entries`, `fills`, `cash_ledger`, `daily`, `corporate_actions`); an INSUFFICIENT case also states
+`outcome_detail_includes`. A case rejected before the first event states `outcome` only.
 
 ## How a case is compared
 
@@ -54,6 +80,8 @@ one check. The report shows checks, matches and differences per section and in t
 - An object in the expectation need only list the fields it derives; extra actual fields are not
   compared. Arrays must have the same length.
 - Signals are matched by `session`, so a case can list a few sessions out of many.
+- `outcome_detail_includes` is not compared as a subset of the result: each string is a substring
+  test on `outcome.detail`, and the result has no section of that name.
 - Expected numbers come from the independent derivation, never from the engine. Tests never
   regenerate them. A case that disagrees with the engine is reported, not edited.
 
@@ -100,7 +128,18 @@ required sections, and that two complete runs write byte-identical result files 
 
 - Fills, ledger lines, daily cash and equity: money scale of the policy. Prices: price scale.
   Quantities: quantity scale.
-- Position levels, snapshots and scheduled stops: exact value without trailing zeros.
+- Position levels, snapshots and scheduled stops: exact value without trailing zeros. A value with no
+  finite decimal form (see Off-grid levels) is a long rounded decimal, and expectations do not state it.
 - Indicator values and ranks in signals: rounded half-even to the diagnostic scale (display only).
 - Fills and ledger lines share one sequence counter (`seq`).
 - A daily record is the end-of-session state, after reservations for the next open.
+
+## Regenerating
+
+Run `python3 -I fixtures/s0/oracle/oracle.py` from the repository root, only after a deliberate
+change to the oracle. It rewrites every oracle case, `coverage.json` (from the `covers` of each
+case) and the oracle's entries in `fixtures/protocol/manifest.json`, and writes the hash of the new
+script into every `expected.json`. `F0-smoke` is hand-derived and the oracle never writes it. Review
+the diff before committing: apart from that hash, a change to an existing `input.json` or an expected
+value needs an explanation, and the tests never regenerate anything. Delete a `__pycache__` that the
+run leaves behind.
