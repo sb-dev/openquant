@@ -12,6 +12,14 @@ provider data, credentials or private account data. Licence: Apache-2.0.
 | `coverage.json` | Maps each S0 row of OQ-06 section 8 to the cases that demonstrate it. |
 | `oracle/` | Provenance scripts used to derive expected values. Verification does not run them. |
 
+## Case ids
+
+Families use a `-vN` suffix: `ENT-01-v1` to `ENT-01-v4`, `ENT-02-v1` to `ENT-02-v4`, `DEF-01-v1` to `DEF-01-v4` and `DEF-02-v1` to `DEF-02-v4` run the four seed variants on the same bars. `ENT-03` runs the data-only fifth variant. `ENT-03-v1` and `ENT-03-v2` run the first two variants on the same bars, because one case runs one strategy. Lettered sub-cases (`X-02a`, `X-09b`, `C-01c`, `C-04a`, `I-05c`, `SEM-04b`) vary one input of a base case. Prefixes: `SEM` seed semantics, `ENT` and `DEF` entry variants and definition execution, `X` execution and cash, `C` corporate actions, `I` invalid inputs and non-trading events, `R` replay.
+
+## Information cutoff
+
+Every input states `windows.information_cutoff`. The deadline for a bar, a corporate action or halt evidence is the earlier of the session open (the next open for a bar) and the cutoff. The final session has only the cutoff. Cases `I-10`, `I-11` and `C-08` pin this rule. `I-09` pins the rejection of a bar on a session with a confirmed halt.
+
 ## Case format
 
 `case.json` has `id`, `title`, `covers` (S0 row names), `strategy`, `input`, `expected`,

@@ -10,7 +10,7 @@ function mutationErrors(change: (directory: string) => void): string[] {
   const temporary = mkdtempSync(resolve(tmpdir(),'openquant-check-'));
   try {
     const copy = resolve(temporary,'repo');
-    cpSync(root,copy,{recursive:true,verbatimSymlinks:true,filter:(path)=>!/(^|\/)(\.git|node_modules|target|local-runs)(\/|$)/.test(path)});
+    cpSync(root,copy,{recursive:true,verbatimSymlinks:true,filter:(path)=>!/(^|\/)(\.git|node_modules|target|local-runs|\.claude\/worktrees)(\/|$)/.test(path)});
     change(copy);
     return checkRepository(copy);
   } finally { rmSync(temporary,{recursive:true,force:true}); }
@@ -198,7 +198,8 @@ test('every finding category stays covered',()=>mutated((base)=>editJson(base,cr
 }),/Uncovered finding category in .*: operational_risk/));
 
 // S0: Rust verification, fixtures and protocol rules.
-import { reportErrors } from '../s0.ts';
+import { reportErrors, reportSections, caseSections, s0Rows } from '../s0.ts';
+import { toolchainPinError } from '../rust.ts';
 
 test('a Cargo step cannot be dropped from the Rust verification',()=>mutated((base)=>edit(base,'scripts/rust.ts',(t)=>t.replace("  'cargo clippy --workspace --all-targets --locked -- -D warnings',\n",'')),/scripts\/rust\.ts must run: cargo clippy/));
 test('the replay cannot be dropped from the Rust verification',()=>mutated((base)=>edit(base,'scripts/rust.ts',(t)=>t.replace(/  'cargo run --locked -p openquant-engine[^\n]*\n/,'')),/scripts\/rust\.ts must run: cargo run/));
@@ -219,6 +220,16 @@ test('an oracle-derived case binds the oracle script by hash',()=>mutated((base)
 test('a case cannot claim an unknown S0 row',()=>mutated((base)=>editJson(base,`${f0Dir}/case.json`,(value)=>{ value.covers.push('Imaginary row'); }),/unknown S0 row in covers: Imaginary row/));
 test('coverage cannot name a missing case',()=>mutated((base)=>editJson(base,'fixtures/s0/coverage.json',(value)=>{ value.rows['Local replay'] = ['NOPE']; }),/names a missing case: NOPE/));
 test('coverage must match what the case declares',()=>mutated((base)=>editJson(base,'fixtures/s0/coverage.json',(value)=>{ value.rows['Cash dividend'] = ['F0-smoke']; }),/listed for "Cash dividend" but does not declare it/));
+test('removing the cases of any required S0 row fails verification',()=>{
+  const errors = mutationErrors((base)=>editJson(base,'fixtures/s0/coverage.json',(value)=>{ for (const row of s0Rows) value.rows[row] = []; }));
+  for (const row of s0Rows) assert.ok(errors.some((e)=>e.includes(`S0 row has no case: ${row}`)),row);
+});
+test('deleting the case directories of a listed row fails',()=>mutated((base)=>{
+  for (const id of ['C-03','C-04','C-04a','C-04b','C-04c','C-05','R-01']) rmSync(resolve(base,`fixtures/s0/cases/${id}`),{recursive:true});
+},/Coverage for "Cash dividend" names a missing case: C-03/));
+test('a case that declares a row must be listed for it',()=>mutated((base)=>editJson(base,'fixtures/s0/coverage.json',(value)=>{
+  value.rows['Cash dividend'] = value.rows['Cash dividend'].filter((id: string)=>id!=='C-03');
+}),/Case C-03 declares "Cash dividend" but coverage\.json does not list it/));
 test('a protocol fixture missing from the manifest fails',()=>mutated((base)=>writeFileSync(resolve(base,'fixtures/protocol/valid/extra.json'),'{}\n'),/Protocol fixture is not in the manifest/));
 test('a manifest entry without a file fails',()=>mutated((base)=>rmSync(resolve(base,'fixtures/protocol/invalid/strategy.version-2.json')),/Protocol manifest lists a missing file/));
 
@@ -230,7 +241,8 @@ function reportDirectory(change: (directory: string) => void): string[] {
     return reportErrors(temporary);
   } finally { rmSync(temporary,{recursive:true,force:true}); }
 }
-const goodReport = '# S0 local replay report\n\n## Summary\n\n## CASE-1 — Title [PASS]\n\n## Remaining limitations\n';
+const caseBlock = (id: string) => `## ${id} — Title [PASS]\n\n${caseSections.join('\n\n')}\n`;
+const goodReport = `# S0 local replay report\n\n## Summary\n\n## Acceptance row coverage\n\n${caseBlock('CASE-1')}\n## Remaining limitations\n`;
 test('the replay report must exist',()=>assert.match(reportErrors(resolve(tmpdir(),'openquant-no-report'))[0] ?? '',/Missing replay report/));
 test('a complete passing report is accepted',()=>assert.deepEqual(reportDirectory((dir)=>{
   writeFileSync(resolve(dir,'report.md'),goodReport);
@@ -244,6 +256,25 @@ test('a report without limitations fails',()=>assert.ok(reportDirectory((dir)=>{
   writeFileSync(resolve(dir,'report.md'),goodReport.replace('## Remaining limitations\n',''));
   writeFileSync(resolve(dir,'index.json'),JSON.stringify({cases:[{case:'CASE-1',passed:true}]}));
 }).some((e)=>/lacks the section: ## Remaining limitations/.test(e))));
+test('a report without the row coverage section fails',()=>assert.ok(reportDirectory((dir)=>{
+  writeFileSync(resolve(dir,'report.md'),goodReport.replace('## Acceptance row coverage\n',''));
+  writeFileSync(resolve(dir,'index.json'),JSON.stringify({cases:[{case:'CASE-1',passed:true}]}));
+}).some((e)=>/lacks the section: ## Acceptance row coverage/.test(e))));
+test('a case section of the report cannot be dropped',()=>{
+  for (const heading of caseSections) {
+    assert.ok(reportDirectory((dir)=>{
+      writeFileSync(resolve(dir,'report.md'),goodReport.replace(`${heading}\n\n`,'').replace(`\n${heading}\n`,'\n'));
+      writeFileSync(resolve(dir,'index.json'),JSON.stringify({cases:[{case:'CASE-1',passed:true}]}));
+    }).some((e)=>e.includes(`Report section for case CASE-1 lacks: ${heading}`)),heading);
+  }
+});
+test('the report headings stay a known list',()=>assert.equal(reportSections.length+caseSections.length,15));
+test('a missing rustc explains how to install the pinned toolchain',()=>{
+  const saved = process.env.PATH;
+  process.env.PATH = resolve(tmpdir(),'openquant-no-rust-here');
+  try { assert.match(toolchainPinError(root) ?? '',/rustc was not found on PATH.*rustup toolchain install/); }
+  finally { process.env.PATH = saved; }
+});
 test('a report that omits a case fails',()=>assert.ok(reportDirectory((dir)=>{
   writeFileSync(resolve(dir,'report.md'),goodReport);
   writeFileSync(resolve(dir,'index.json'),JSON.stringify({cases:[{case:'CASE-1',passed:true},{case:'CASE-2',passed:true}]}));

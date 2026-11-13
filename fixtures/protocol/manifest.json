@@ -285,6 +285,25 @@
       "with_input": "s0/cases/F0-smoke/input.json"
     },
     {
+      "path": "protocol/invalid/input.cutoff-missing.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/input.cutoff-malformed.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/input.cutoff-impossible.json",
+      "contract": "evaluation-input",
+      "expect": "semantic_invalid",
+      "code": "INVALID_INPUT",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json"
+    },
+    {
       "path": "protocol/invalid/input.unplanned-event-kind-unknown.json",
       "contract": "evaluation-input",
       "expect": "schema_invalid",

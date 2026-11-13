@@ -189,7 +189,10 @@ fn decide_entry(
 ) -> Result<()> {
     let date = event.cursor.session.clone();
     let splits = applied_splits(run, state)?;
-    let series = build_series(&run.input, event.session_index, &splits, next_open)?;
+    // The deadline is the earlier of the next open and the information cutoff. At the final
+    // session there is no next open, and the cutoff still bounds the valuation bar.
+    let deadline = run.deadline(next_open);
+    let series = build_series(&run.input, event.session_index, &splits, Some(deadline))?;
     let signals = evaluate_signals(&run.strategy, &series)?;
 
     let condition = match signals.condition {

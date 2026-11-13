@@ -23,6 +23,9 @@ export function toolchainChannel(base: string): string {
 export function toolchainPinError(base: string): string | undefined {
   const channel = toolchainChannel(base);
   const result = spawnSync('rustc', ['--version'], { cwd: base, encoding: 'utf8' });
+  if ((result.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') {
+    return `rustc was not found on PATH. S0 verification needs the pinned Rust toolchain ${channel}. Install rustup (https://rustup.rs), then run: rustup toolchain install`;
+  }
   if (result.error || result.status !== 0) {
     return `Cannot run the pinned Rust toolchain ${channel}. Run: rustup toolchain install\n${result.stderr ?? result.error?.message ?? ''}`;
   }

@@ -158,6 +158,8 @@ pub struct Scenario {
     pub actions: Vec<Value>,
     pub halts: Vec<Value>,
     pub instrument: String,
+    /// Latest instant at which evidence may become available. Far in the future by default.
+    pub information_cutoff: String,
 }
 
 impl Scenario {
@@ -174,7 +176,14 @@ impl Scenario {
             actions: Vec::new(),
             halts: Vec::new(),
             instrument: "SYN".to_owned(),
+            information_cutoff: "2099-12-31T23:59:59Z".to_owned(),
         }
+    }
+
+    /// Set the information cutoff of the run.
+    pub fn information_cutoff(mut self, instant: &str) -> Self {
+        self.information_cutoff = instant.to_owned();
+        self
     }
 
     pub fn capital(mut self, capital: &str) -> Self {
@@ -487,7 +496,7 @@ impl Scenario {
                 "unplanned_events": self.halts,
             }],
             "calendar": {"sessions": sessions},
-            "windows": {"warmup_start": date(0), "scored_start": date(self.scored_start), "scored_end": date(self.last)},
+            "windows": {"warmup_start": date(0), "scored_start": date(self.scored_start), "scored_end": date(self.last), "information_cutoff": self.information_cutoff},
             "initial_capital": self.capital,
             "policy": {
                 "id": "daily-long-only-cash@1",

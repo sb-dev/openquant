@@ -50,7 +50,7 @@ Eight sessions as X-01, except that the bar of index 4 (the signal session) has 
 
 ### 2026-01-09
 
-- AFTER_CLOSE: FAILURE FAILED FUTURE_DATA: the bar of 2026-01-09 is available at 2026-01-12T15:30:00Z, after the next open 2026-01-12T14:30:00Z. Journal kept through the last completed event.
+- AFTER_CLOSE: FAILURE FAILED FUTURE_DATA: the bar of 2026-01-09 is available at 2026-01-12T15:30:00Z, after the deadline 2026-01-12T14:30:00Z (the earlier of the next open and the information cutoff 2026-01-15T00:00:00Z; the final session has only the cutoff). Journal kept through the last completed event.
 
 ### Outcome
 

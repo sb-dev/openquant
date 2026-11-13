@@ -1,5 +1,6 @@
 # Research logs
 
+- [S0 offline seed evaluation](2026-11-13-s0-offline-seed-evaluation.md): policy values, interpretations, information cutoff, independence of the fixtures, limits and review outcomes.
 - [Book-derived skill contract](2026-11-10-book-derived-skill-contract.md): ten-summary review, executable skill modules, typed contracts, scripts, evaluations and adoption options; adopted 2026-11-11.
 - [Strategy research and evaluation](2026-11-07-strategy-research-and-evaluation.md): per-stock research, joint strategy evaluation, controlled experiments and a focused technical/fundamental reading list.
 - [Bootstrap migration](2026-10-19-bootstrap-migration.md): canonical ownership and retained requirements.

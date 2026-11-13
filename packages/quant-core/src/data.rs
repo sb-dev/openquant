@@ -89,6 +89,8 @@ pub struct RunInput {
     pub scored_start: usize,
     /// Index of the last processed session.
     pub last: usize,
+    /// Latest instant at which any bar, action or halt may become available to the run.
+    pub information_cutoff: String,
     pub initial_capital: Decimal,
     pub policy: Policy,
 }

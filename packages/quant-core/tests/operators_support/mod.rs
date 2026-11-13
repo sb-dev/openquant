@@ -305,6 +305,7 @@ pub fn run_input(bars: &[Option<Bar>], late: &BTreeMap<usize, &str>) -> RunInput
         first: 0,
         scored_start: 0,
         last: bars.len().saturating_sub(1),
+        information_cutoff: "2099-12-31T23:59:59Z".to_owned(),
         initial_capital: Decimal::from(1000),
         policy: Policy {
             price_scale: 2,

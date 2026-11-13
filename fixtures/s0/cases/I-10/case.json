@@ -1,0 +1,10 @@
+{
+  "id": "I-10",
+  "title": "Final-session bar available after the information cutoff is FUTURE_DATA",
+  "covers": ["Invalid inputs"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}

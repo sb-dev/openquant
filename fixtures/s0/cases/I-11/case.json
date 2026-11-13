@@ -1,0 +1,10 @@
+{
+  "id": "I-11",
+  "title": "An information cutoff before the next open binds the decision",
+  "covers": ["Invalid inputs"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}

@@ -145,14 +145,15 @@
     },
     "Windows": {
       "title": "Windows",
-      "description": "Warm-up starts at warmup_start. Entry decisions begin at scored_start. The run ends after scored_end.",
+      "description": "Warm-up starts at warmup_start. Entry decisions begin at scored_start. The run ends after scored_end. information_cutoff is the latest instant at which any bar, corporate action or halt may become available to the run, including the valuation at the final close. Evidence available later is future data.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["warmup_start", "scored_start", "scored_end"],
+      "required": ["warmup_start", "scored_start", "scored_end", "information_cutoff"],
       "properties": {
         "warmup_start": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" },
         "scored_start": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" },
-        "scored_end": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" }
+        "scored_end": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" },
+        "information_cutoff": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" }
       }
     },
     "ExecutionPolicy": {

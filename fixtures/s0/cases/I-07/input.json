@@ -36,7 +36,7 @@
       {"session": "2026-01-16", "open_at": "2026-01-16T14:30:00Z", "close_at": "2026-01-16T21:00:00Z"}
     ]
   },
-  "windows": {"warmup_start": "2026-01-05", "scored_start": "2026-01-08", "scored_end": "2026-01-16"},
+  "windows": {"warmup_start": "2026-01-05", "scored_start": "2026-01-08", "scored_end": "2026-01-16", "information_cutoff": "2026-01-17T00:00:00Z"},
   "initial_capital": "5000.00",
   "policy": {
     "id": "daily-long-only-cash@1",
