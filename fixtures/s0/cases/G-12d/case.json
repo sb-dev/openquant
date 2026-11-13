@@ -1,0 +1,10 @@
+{
+  "id": "G-12d",
+  "title": "Off-grid stop 137/3: an open at 45.66 below it is a gap and fills at the open less 150 bps, floored (44.97)",
+  "covers": ["Entry and exit phases", "Cash and quantities"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

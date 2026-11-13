@@ -1,0 +1,10 @@
+{
+  "id": "G-13b",
+  "title": "Split round trip off the grid: target touched at exactly 6.10 after a 17-for-2 split and its reverse",
+  "covers": ["Split across an ex-date", "Entry and exit phases"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}
