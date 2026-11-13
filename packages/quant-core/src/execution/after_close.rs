@@ -31,9 +31,7 @@ pub fn run(
         if !state.positions.is_empty() {
             return Err(Failure::new(
                 FailureCode::UnsupportedValuation,
-                format!(
-                    "a position is held but session {date} has no bar: valuation and settlement are unsupported"
-                ),
+                run.unsupported_valuation_detail(&date),
             ));
         }
         push_daily(run, state, &date)?;

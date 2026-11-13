@@ -327,3 +327,149 @@ fn compare_detailed_and_compare_agree() {
         compare_detailed(&expected, &actual).mismatches
     );
 }
+
+// `outcome_detail_includes`: substrings of the free-text `outcome.detail`.
+
+fn detail(text: &str) -> Value {
+    json!({"outcome": {"status": "INSUFFICIENT", "code": "UNSUPPORTED_VALUATION", "detail": text}})
+}
+
+const DETAIL: &str = "instrument SYN: session 2026-01-15 has no bar; confirmed halt(s): HALT-1";
+
+#[test]
+fn every_substring_of_the_detail_matches_and_counts_one_check_plus_the_length() {
+    let expected = json!({"outcome_detail_includes": ["SYN", "2026-01-15", "HALT-1"]});
+    let comparison = compare_detailed(&expected, &detail(DETAIL));
+    assert!(comparison.is_match(), "{:?}", comparison.mismatches);
+    // One check for the array and one per string.
+    assert_eq!((comparison.expected(), comparison.matched()), (4, 4));
+    assert_eq!(count_expected(&expected), 4);
+    assert_eq!(comparison.sections.len(), 1);
+    assert_eq!(comparison.sections[0].section, "outcome_detail_includes");
+    assert_eq!(comparison.sections[0].differences, 0);
+}
+
+#[test]
+fn a_substring_that_is_not_in_the_detail_is_a_difference_at_its_index() {
+    let expected = json!({"outcome_detail_includes": ["SYN", "HALT-2", "2026-01-15"]});
+    let comparison = compare_detailed(&expected, &detail(DETAIL));
+    assert_eq!(
+        comparison.mismatches,
+        vec![mismatch(
+            "/outcome_detail_includes/1",
+            "\"HALT-2\"",
+            &format!("<not in outcome.detail: {}>", json!(DETAIL)),
+        )]
+    );
+    // The array and two of the three strings match.
+    assert_eq!((comparison.expected(), comparison.matched()), (4, 3));
+    assert_eq!(comparison.sections[0].differences, 1);
+}
+
+#[test]
+fn matching_is_exact_and_case_sensitive() {
+    let expected = json!({"outcome_detail_includes": ["syn", "2026-01-1", "halt-1"]});
+    let comparison = compare_detailed(&expected, &detail(DETAIL));
+    // "2026-01-1" is a substring; the two lower-case ones are not.
+    assert_eq!(comparison.mismatches.len(), 2);
+    assert_eq!((comparison.expected(), comparison.matched()), (4, 2));
+}
+
+#[test]
+fn an_absent_or_non_string_detail_fails_every_substring_in_one_difference() {
+    let expected = json!({"outcome_detail_includes": ["SYN", "HALT-1"]});
+    for (actual, shown) in [
+        (
+            json!({"outcome": {"status": "INSUFFICIENT"}}),
+            "<outcome.detail is absent>",
+        ),
+        (json!({}), "<outcome.detail is absent>"),
+        (
+            json!({"outcome": {"detail": 7}}),
+            "<outcome.detail is not a string: 7>",
+        ),
+        (
+            json!({"outcome": {"detail": null}}),
+            "<outcome.detail is not a string: null>",
+        ),
+    ] {
+        let comparison = compare_detailed(&expected, &actual);
+        assert_eq!(
+            comparison.mismatches,
+            vec![mismatch(
+                "/outcome_detail_includes",
+                "[\"SYN\",\"HALT-1\"]",
+                shown
+            )],
+            "{actual}"
+        );
+        assert_eq!((comparison.expected(), comparison.matched()), (3, 0));
+    }
+}
+
+#[test]
+fn an_expectation_that_is_not_an_array_of_strings_is_a_difference() {
+    let comparison = compare_detailed(&json!({"outcome_detail_includes": "SYN"}), &detail(DETAIL));
+    assert_eq!(
+        comparison.mismatches,
+        vec![mismatch(
+            "/outcome_detail_includes",
+            "an array of strings",
+            "\"SYN\""
+        )]
+    );
+    assert_eq!((comparison.expected(), comparison.matched()), (1, 0));
+
+    let comparison = compare_detailed(
+        &json!({"outcome_detail_includes": ["SYN", 3]}),
+        &detail(DETAIL),
+    );
+    assert_eq!(
+        comparison.mismatches,
+        vec![mismatch("/outcome_detail_includes/1", "a string", "3")]
+    );
+    assert_eq!((comparison.expected(), comparison.matched()), (3, 2));
+}
+
+#[test]
+fn an_empty_list_of_substrings_asserts_nothing() {
+    let expected = json!({"outcome_detail_includes": []});
+    for actual in [detail(DETAIL), json!({})] {
+        let comparison = compare_detailed(&expected, &actual);
+        assert!(comparison.is_match());
+        assert_eq!((comparison.expected(), comparison.matched()), (1, 1));
+    }
+}
+
+#[test]
+fn the_detail_section_sits_beside_the_outcome_section() {
+    // The outcome section compares its own fields and does not need the detail; the detail
+    // section reads the same actual outcome.
+    let expected = json!({
+        "outcome": {"status": "INSUFFICIENT", "code": "UNSUPPORTED_VALUATION"},
+        "outcome_detail_includes": ["HALT-1"],
+    });
+    let comparison = compare_detailed(&expected, &detail(DETAIL));
+    assert!(comparison.is_match());
+    let mut counts: Vec<(&str, usize, usize)> = comparison
+        .sections
+        .iter()
+        .map(|s| (s.section.as_str(), s.expected, s.matched))
+        .collect();
+    counts.sort_unstable();
+    assert_eq!(
+        counts,
+        vec![("outcome", 2, 2), ("outcome_detail_includes", 2, 2)]
+    );
+
+    // A wrong status and a missing substring are two separate differences.
+    let wrong = json!({
+        "outcome": {"status": "COMPLETED", "code": "UNSUPPORTED_VALUATION"},
+        "outcome_detail_includes": ["HALT-9"],
+    });
+    let paths: Vec<String> = compare(&wrong, &detail(DETAIL))
+        .into_iter()
+        .map(|m| m.path)
+        .collect();
+    assert_eq!(paths, ["/outcome/status", "/outcome_detail_includes/0"]);
+}

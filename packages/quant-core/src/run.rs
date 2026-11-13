@@ -585,16 +585,7 @@ impl Run {
     /// Whether dated evidence confirms the session as a halt that was known at its open.
     #[must_use]
     pub fn confirmed_halt(&self, date: &str) -> bool {
-        let open_at = self
-            .index_of(date)
-            .ok()
-            .and_then(|index| self.input.sessions.get(index))
-            .map_or("", |s| s.open_at.as_str());
-        let open_at = self.deadline(Some(open_at));
-        self.input
-            .halts
-            .iter()
-            .any(|h| h.effective_session == date && h.available_at.as_str() <= open_at)
+        !self.confirmed_halts(date).is_empty()
     }
 
     /// The latest instant at which evidence may become available for a decision bound.

@@ -20,7 +20,7 @@ pub fn run(
     if !run.input.bars.contains_key(date) && !run.confirmed_halt(date) {
         return Err(Failure::new(
             FailureCode::MissingRequiredBar,
-            format!("no bar and no confirmed halt for session {date}"),
+            run.missing_bar_detail(date),
         ));
     }
     apply_effective(run, state, event, notes)?;

@@ -49,7 +49,7 @@ pub fn apply_effective(
         }
         let kind = match &action.kind {
             ActionKind::Split { new, old } => {
-                apply_split(run, state, event, action, *new, *old)?;
+                apply_split(run, state, action, *new, *old)?;
                 notes.push(format!("{}: split {new} for {old} applied", action.id));
                 g::ActionRecordKind::Split
             }
@@ -60,10 +60,7 @@ pub fn apply_effective(
             ActionKind::Unsupported { kind } => {
                 return Err(Failure::new(
                     FailureCode::UnsupportedCorporateAction,
-                    format!(
-                        "corporate action {} of kind {kind} effective {date} has no declared semantics in this policy",
-                        action.id
-                    ),
+                    run.unsupported_action_detail(action, kind),
                 ));
             }
         };
@@ -127,15 +124,7 @@ pub fn convert_snapshots(
 /// A split with ratio `r = new / old`: quantities multiply by `r`; entry price, stop, target,
 /// mark, scheduled stop levels and price snapshots divide by `r`. Pending entry intents convert
 /// their snapshots and keep their cap and rank.
-fn apply_split(
-    run: &Run,
-    state: &mut State,
-    event: &MarketEvent,
-    action: &Action,
-    new: u64,
-    old: u64,
-) -> Result<()> {
-    let date = &event.cursor.session;
+fn apply_split(run: &Run, state: &mut State, action: &Action, new: u64, old: u64) -> Result<()> {
     // Check every entitlement first so a refusal leaves the state exactly as it was.
     let mut quantities = Vec::with_capacity(state.positions.len());
     for position in &state.positions {
@@ -145,10 +134,7 @@ fn apply_split(
         if !converted.is_integer() {
             return Err(Failure::new(
                 FailureCode::FractionalEntitlement,
-                format!(
-                    "split {} ({new} for {old}) on {date} would leave {} shares from {}: fractional entitlements are not supported",
-                    action.id, converted, position.quantity
-                ),
+                run.fractional_detail(action, (new, old), position.quantity, converted),
             ));
         }
         quantities.push(converted);
