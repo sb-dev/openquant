@@ -18,11 +18,11 @@
 //!
 //! The exactness domain is the set of fractions whose numerator and denominator both fit a
 //! signed 128-bit integer (the numerator never equals `i128::MIN`, so its sign can be flipped).
-//! The inputs the S0 policy admits (prices up to 10^9 with at most 8 fractional digits, constants
-//! up to 10^12 with at most 12, windows up to 252, split ratios up to 1000) fit with a wide
-//! margin. A composition that does not fit is not rounded and does not wrap: the operation
-//! returns the typed failure `ARITHMETIC_OVERFLOW`, which ends the run before a completed result
-//! is produced. The same failure reports a conversion that needs more than the 96 bits of a
+//! Ordinary inputs fit. The S0 policy still admits extreme compositions that do not: a price near
+//! 5 * 10^8 with 8 fractional digits, multiplied by a constant near 10^12 with 12 fractional
+//! digits, needs more than 128 bits. A composition that does not fit is not rounded and does not
+//! wrap: the operation returns the typed failure `ARITHMETIC_OVERFLOW`, which ends the run before
+//! a completed result is produced. That is the explicit rejection OQ-02 section 2.5 asks for. The same failure reports a conversion that needs more than the 96 bits of a
 //! [`Decimal`], and a value that has no canonical wire form (an integer too large for a decimal).
 //! Division by zero is not decided here: the caller tests for zero first and reports the missing
 //! value `DIV_BY_ZERO`, so a zero divisor reaching [`Ratio::div`] is an internal failure.
@@ -87,6 +87,10 @@ fn gcd(a: u128, b: u128) -> u128 {
 }
 
 /// `n / g` for a divisor that is known to be positive and to fit an `i128`.
+///
+/// Every caller passes a greatest common divisor of values that fit an `i128` and are not both
+/// zero, so the divisor always fits and is positive. The final arm exists only to keep the
+/// function total. It cannot run, and the differential test against exact rationals found no run.
 fn divide(n: i128, g: u128) -> i128 {
     match i128::try_from(g) {
         Ok(g) if g > 0 => n / g,
@@ -204,7 +208,8 @@ impl Ratio {
     }
 
     /// The exact value of a decimal. A decimal has at most 28 fractional digits and 96 bits of
-    /// digits, so this never fails.
+    /// digits, so this never fails. `10^28` fits an `i128`, so the `unwrap_or(1)` below cannot
+    /// run; it keeps the function total.
     #[must_use]
     pub fn from_decimal(value: Decimal) -> Self {
         let den = pow10(value.scale())
