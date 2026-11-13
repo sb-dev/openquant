@@ -1,0 +1,10 @@
+{
+  "id": "G-05b",
+  "title": "Grid tie: gap above the target, the open 5.68 equals the target 5 + 3 * 0.68/3 exactly",
+  "covers": ["Entry and exit phases", "Cash and quantities"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

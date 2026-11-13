@@ -1,0 +1,10 @@
+{
+  "id": "G-10",
+  "title": "Grid tie: stop touched at exactly 4.78 after a 3-for-1 split and its reverse (exact round trip)",
+  "covers": ["Split across an ex-date", "Entry and exit phases"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}
