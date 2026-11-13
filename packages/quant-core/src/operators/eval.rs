@@ -119,7 +119,7 @@ fn collect(
     count: usize,
     env: &dyn Env,
 ) -> Result<std::result::Result<Vec<Decimal>, MissingReason>> {
-    let Some(start) = (at + 1).checked_sub(count) else {
+    let Some(start) = at.checked_add(1).and_then(|end| end.checked_sub(count)) else {
         return Ok(Err(MissingReason::InsufficientHistory));
     };
     let mut values = Vec::with_capacity(count);
@@ -138,8 +138,10 @@ fn atr(window: usize, at: usize, env: &dyn Env) -> Result<Value> {
         return Ok(Value::Missing(MissingReason::InsufficientHistory));
     };
     let mut ranges = Vec::with_capacity(window);
-    for index in (start + 1)..=at {
-        let (Some(bar), Some(previous)) = (env.bar(index), env.bar(index - 1)) else {
+    // Each true range needs the bar and its predecessor: `window` ranges, `window + 1` bars.
+    for index in start.saturating_add(1)..=at {
+        let previous = index.checked_sub(1).and_then(|before| env.bar(before));
+        let (Some(bar), Some(previous)) = (env.bar(index), previous) else {
             return Ok(Value::Missing(MissingReason::InsufficientHistory));
         };
         ranges.push(indicators::true_range(bar.high, bar.low, previous.close)?);

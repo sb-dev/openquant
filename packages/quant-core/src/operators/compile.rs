@@ -12,6 +12,10 @@ use crate::{
 };
 
 pub const MAX_DEPTH: usize = 16;
+/// Limit on the nesting of one evaluation, counting the operator levels reached through `ref`.
+/// The evaluator recurses once per level, so this bounds its stack use: a chain of references
+/// to references, each a full-depth expression, could otherwise exhaust a small thread stack.
+pub const MAX_EVAL_DEPTH: usize = 64;
 pub const MAX_NODES: usize = 128;
 pub const MAX_WINDOW: u64 = 252;
 pub const MAX_PERIODS: u64 = 60;
@@ -47,6 +51,8 @@ pub struct Node {
     pub cost: u64,
     /// Number of earlier sessions the node needs beyond the current one.
     pub lookback: usize,
+    /// Nesting of one evaluation of this node, including levels reached through `ref`.
+    pub depth: usize,
 }
 
 /// A named value visible to later expressions.
@@ -56,6 +62,7 @@ pub struct Defined {
     pub unit: Unit,
     pub cost: u64,
     pub lookback: usize,
+    pub depth: usize,
 }
 
 /// Compilation context.
@@ -258,6 +265,7 @@ fn compile_inner(
         index: 0,
         cost: 1,
         lookback: 0,
+        depth: 1,
     };
     let child_cost: u64 = node
         .args
@@ -265,8 +273,10 @@ fn compile_inner(
         .map(|a| a.cost)
         .fold(0, u64::saturating_add);
     let child_lookback = node.args.iter().map(|a| a.lookback).max().unwrap_or(0);
+    let child_depth = node.args.iter().map(|a| a.depth).max().unwrap_or(0);
     node.cost = child_cost.saturating_add(1);
     node.lookback = child_lookback;
+    node.depth = child_depth.saturating_add(1);
 
     match descriptor.id {
         OpId::Const => {
@@ -336,6 +346,7 @@ fn compile_inner(
             node.unit = found.unit;
             node.cost = found.cost.saturating_add(1);
             node.lookback = found.lookback;
+            node.depth = found.depth.saturating_add(1);
         }
         OpId::Snapshot => {
             let name = expr
@@ -390,6 +401,13 @@ fn compile_inner(
         }
         OpId::RsiSimple => {
             let (arg_unit, arg_cost, arg_lookback) = first(&node, path)?;
+            if !numeric(arg_unit) {
+                return Err(fail(
+                    FailureCode::OperatorTypeMismatch,
+                    path,
+                    "rsi_simple needs a numeric input",
+                ));
+            }
             if arg_unit != Unit::Price {
                 return Err(fail(
                     FailureCode::OperatorUnitMismatch,
@@ -479,6 +497,16 @@ fn compile_inner(
             FailureCode::InvalidParameter,
             path,
             &format!("evaluation cost {} exceeds the limit {MAX_COST}", node.cost),
+        ));
+    }
+    if node.depth > MAX_EVAL_DEPTH {
+        return Err(fail(
+            FailureCode::InvalidParameter,
+            path,
+            &format!(
+                "evaluation depth {} (including referenced indicators) exceeds the limit {MAX_EVAL_DEPTH}",
+                node.depth
+            ),
         ));
     }
     Ok(node)

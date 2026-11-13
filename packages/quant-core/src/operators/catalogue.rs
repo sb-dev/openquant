@@ -233,6 +233,14 @@ pub fn lookup(reference: &str) -> Result<&'static Descriptor> {
     let (name, version) = body
         .split_once('@')
         .ok_or_else(|| unsupported("missing compatibility version"))?;
+    // Accept only the canonical spelling of a positive integer. `u32::from_str` would also take
+    // a leading plus sign or leading zeros, which would give one operator several identities.
+    let canonical = !version.starts_with('0') && version.bytes().all(|b| b.is_ascii_digit());
+    if !canonical {
+        return Err(unsupported(
+            "compatibility version is not a canonical positive integer",
+        ));
+    }
     let version: u32 = version
         .parse()
         .map_err(|_| unsupported("compatibility version is not a number"))?;

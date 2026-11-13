@@ -44,9 +44,14 @@ pub struct ValidatedStrategy {
     pub adjustments: Vec<Adjustment>,
     /// Sessions of history needed before the first possible decision.
     pub max_lookback: usize,
+    /// Upper bound on node evaluations for one decision (all signal expressions together).
+    pub cost: u64,
 }
 
 const MAX_TOTAL_LOOKBACK: usize = 400;
+/// Limit on the node evaluations of one decision, summed over every signal expression. The
+/// seed family needs a few hundred.
+pub const MAX_STRATEGY_COST: u64 = 1_000_000;
 
 fn fail(code: FailureCode, path: &str, message: &str) -> Failure {
     Failure::new(code, format!("{path}: {message}"))
@@ -63,6 +68,24 @@ fn unique(names: &[&str], path: &str) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// A stop, target or new stop level is a price: a flag is the wrong type, any other unit the
+/// wrong unit.
+fn require_price_level(path: &str, node: &Node) -> Result<()> {
+    match node.unit {
+        Unit::Price => Ok(()),
+        Unit::Flag => Err(fail(
+            FailureCode::OperatorTypeMismatch,
+            path,
+            "a level must be a PRICE, found a FLAG",
+        )),
+        other => Err(fail(
+            FailureCode::OperatorUnitMismatch,
+            path,
+            &format!("a level must be a PRICE, found {other:?}"),
+        )),
+    }
 }
 
 /// Validate and compile a Strategy Artefact.
@@ -123,6 +146,7 @@ pub fn validate_strategy(artefact: &StrategyArtefact) -> Result<ValidatedStrateg
             unit: node.unit,
             cost: node.cost,
             lookback: node.lookback,
+            depth: node.depth,
         });
         indicators.push(NamedNode {
             name: item.name.to_string(),
@@ -179,6 +203,7 @@ pub fn validate_strategy(artefact: &StrategyArtefact) -> Result<ValidatedStrateg
             unit: node.unit,
             cost: node.cost,
             lookback: node.lookback,
+            depth: node.depth,
         });
         snapshots.push(NamedNode {
             name: item.name.to_string(),
@@ -208,18 +233,8 @@ pub fn validate_strategy(artefact: &StrategyArtefact) -> Result<ValidatedStrateg
         "/definition/exits/target",
         &mut 0,
     )?;
-    for (path, node) in [
-        ("/definition/exits/stop", &stop),
-        ("/definition/exits/target", &target),
-    ] {
-        if node.unit != Unit::Price {
-            return Err(fail(
-                FailureCode::OperatorUnitMismatch,
-                path,
-                "a level must be a PRICE",
-            ));
-        }
-    }
+    require_price_level("/definition/exits/stop", &stop)?;
+    require_price_level("/definition/exits/target", &target)?;
     let mut adjustments = Vec::new();
     for (index, item) in definition.exits.stop_adjustments.iter().enumerate() {
         let base = format!("/definition/exits/stop_adjustments/{index}");
@@ -242,13 +257,7 @@ pub fn validate_strategy(artefact: &StrategyArtefact) -> Result<ValidatedStrateg
             &format!("{base}/new_level"),
             &mut 0,
         )?;
-        if new_level.unit != Unit::Price {
-            return Err(fail(
-                FailureCode::OperatorUnitMismatch,
-                &format!("{base}/new_level"),
-                "a level must be a PRICE",
-            ));
-        }
+        require_price_level(&format!("{base}/new_level"), &new_level)?;
         adjustments.push(Adjustment {
             id: item.id.to_string(),
             trigger,
@@ -271,6 +280,25 @@ pub fn validate_strategy(artefact: &StrategyArtefact) -> Result<ValidatedStrateg
         ));
     }
 
+    // One decision evaluates every indicator, the condition, the rank and every snapshot. Each
+    // expression is limited on its own; this bounds the sum, so a definition of many
+    // individually allowed expressions cannot make a decision take minutes.
+    let cost = indicators
+        .iter()
+        .map(|i| i.node.cost)
+        .chain([condition.cost, rank.cost])
+        .chain(snapshots.iter().map(|s| s.node.cost))
+        .fold(0, u64::saturating_add);
+    if cost > MAX_STRATEGY_COST {
+        return Err(fail(
+            FailureCode::InvalidParameter,
+            "/definition",
+            &format!(
+                "one decision needs {cost} node evaluations, more than the limit {MAX_STRATEGY_COST}"
+            ),
+        ));
+    }
+
     Ok(ValidatedStrategy {
         hash: payload_digest(artefact)?,
         strategy_id: artefact.strategy_id.to_string(),
@@ -284,5 +312,6 @@ pub fn validate_strategy(artefact: &StrategyArtefact) -> Result<ValidatedStrateg
         target,
         adjustments,
         max_lookback,
+        cost,
     })
 }

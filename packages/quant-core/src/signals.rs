@@ -42,7 +42,10 @@ pub fn build_series(
     splits: &[AppliedSplit],
     deadline: Option<&str>,
 ) -> Result<Vec<Option<PriceBar>>> {
-    let mut series = Vec::with_capacity(decision.saturating_sub(input.first) + 1);
+    if decision >= input.sessions.len() {
+        return Err(Failure::internal("decision session index"));
+    }
+    let mut series = Vec::with_capacity(decision.saturating_sub(input.first).saturating_add(1));
     for index in input.first..=decision {
         let Some(session) = input.sessions.get(index) else {
             return Err(Failure::internal("session index"));
