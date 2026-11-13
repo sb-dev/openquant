@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { posix, resolve } from 'node:path';
 import { cargoCommands } from './rust.ts';
 
@@ -42,6 +42,83 @@ export const caseSections = [
 
 const outcomeSections = ['fills', 'trades', 'cash_ledger', 'daily', 'final'];
 
+// The Rust steps that verification must run, in this order. This is a literal on purpose: the
+// expectation must not be read from scripts/rust.ts, which is the file being checked. A change to a
+// step (including --locked, -D warnings, --lib or --no-run) is a change to this list in review.
+export const expectedCargoCommands: readonly string[] = [
+  'cargo fmt --all --check',
+  'cargo clippy --workspace --all-targets --locked -- -D warnings',
+  'cargo test --workspace --locked',
+  'cargo run --locked -p openquant-engine --bin s0-replay -- --out local-runs/s0',
+];
+
+// Protocol manifest vocabulary. The Rust tests (packages/api-contracts/rust/tests/protocol.rs and
+// packages/quant-core/tests/protocol.rs) select entries by these exact values and skip any other.
+export const protocolExpectations: readonly string[] = ['valid', 'schema_invalid', 'semantic_invalid'];
+export const protocolContracts: readonly string[] = ['strategy-artefact', 'evaluation-input', 'evaluation-result', 'checkpoint'];
+
+// Exact equality with the expected list: same steps, same flags, same order, nothing extra.
+export function cargoCommandErrors(commands: readonly string[]): string[] {
+  const errors: string[] = [];
+  for (const command of expectedCargoCommands) {
+    if (!commands.includes(command)) errors.push(`scripts/rust.ts must run: ${command}`);
+  }
+  for (const command of commands) {
+    if (!expectedCargoCommands.includes(command)) errors.push(`scripts/rust.ts runs a Rust step that is not expected: ${command}`);
+  }
+  const same = commands.length === expectedCargoCommands.length && commands.every((command, index) => command === expectedCargoCommands[index]);
+  if (!same && errors.length === 0) errors.push(`scripts/rust.ts must list the Rust steps once each, in this order: ${expectedCargoCommands.join(' | ')}`);
+  return errors;
+}
+
+// Source text without comments, so a comment cannot satisfy a code-shape check. String and template
+// literals are kept whole. This is not a parser; it is enough for the two small scripts it reads.
+export function withoutComments(source: string): string {
+  const token = /('(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"|`(?:\\.|[^`\\])*`)|\/\/[^\n]*|\/\*[\s\S]*?\*\//g;
+  return source.replace(token, (match, literal) => (literal === undefined ? ' ' : match));
+}
+
+// Code shapes that scripts/verify.ts must keep, in this order. Each is the statement that makes a
+// step bind: the exit-code checks, the toolchain pin check, the fixture digest comparison and the
+// report check. The behavioural tests run the real driver as well; these shapes fail fast and say what is missing.
+const driverShapes: ReadonlyArray<readonly [string, RegExp]> = [
+  ['stop when the repository checks or their tests fail', /for\s*\(\s*const\s+args\s+of\s+\[\s*\[\s*'scripts\/check-repository\.ts'\s*\]\s*,\s*\[\s*'--test'\s*,\s*'scripts\/tests\/repository\.test\.ts'\s*\]\s*\]\s*\)\s*\{\s*const\s+result\s*=\s*spawnSync\(\s*process\.execPath\s*,\s*args\s*,\s*\{[^}]*\}\s*\)\s*;\s*(?:if\s*\(\s*result\.error\s*\)\s*console\.error\(\s*result\.error\.message\s*\)\s*;\s*)?if\s*\(\s*result\.status\s*!==\s*0\s*\)\s*process\.exit\(\s*result\.status\s*\?\?\s*1\s*\)/],
+  ['fail when the pinned toolchain is not the one that runs', /const\s+pinError\s*=\s*toolchainPinError\(\s*root\s*\)\s*;\s*if\s*\(\s*pinError\s*\)\s*fail\(\s*pinError\s*\)\s*;/],
+  ['record the fixture digest before the Cargo steps', /const\s+fixturesBefore\s*=\s*fixtureDigest\(\s*root\s*\)\s*;/],
+  ['run every Cargo command and fail on a non-zero exit status', /for\s*\(\s*const\s+command\s+of\s+cargoCommands\s*\)\s*\{\s*const\s+status\s*=\s*runCargo\(\s*root\s*,\s*command\s*\)\s*;\s*if\s*\(\s*status\s*!==\s*0\s*\)\s*fail\(/],
+  ['compare the fixture digest after the Cargo steps', /if\s*\(\s*fixtureDigest\(\s*root\s*\)\s*!==\s*fixturesBefore\s*\)\s*fail\(/],
+  ['fail on any replay report problem', /const\s+problems\s*=\s*reportErrors\(\s*root\s*\)\s*;\s*if\s*\(\s*problems\.length\s*\)\s*fail\(/],
+  ['report success only after those checks', /console\.log\(\s*'\\nVerification passed/],
+];
+const driverFail = /function\s+fail\(\s*message\s*:\s*string\s*\)\s*:\s*never\s*\{\s*console\.error\(`\\nVerification failed: \$\{message\}`\)\s*;\s*process\.exit\(\s*1\s*\)\s*;\s*\}/;
+
+export function verifyDriverErrors(source: string): string[] {
+  const code = withoutComments(source);
+  const errors: string[] = [];
+  if (!driverFail.test(code)) errors.push('scripts/verify.ts must define fail() to print "Verification failed" and exit with status 1');
+  const positions = driverShapes.map(([purpose, shape]) => {
+    const match = shape.exec(code);
+    if (!match) errors.push(`scripts/verify.ts must ${purpose}`);
+    return match?.index;
+  });
+  for (let step = 1; step < driverShapes.length; step += 1) {
+    const [before, after] = [positions[step - 1], positions[step]];
+    if (before !== undefined && after !== undefined && before > after) {
+      errors.push(`scripts/verify.ts must ${driverShapes[step - 1][0]} before it can ${driverShapes[step][0]}`);
+    }
+  }
+  return errors;
+}
+
+// The parts of scripts/rust.ts whose behaviour the driver relies on. The driver tests exercise them.
+export function rustModuleErrors(source: string): string[] {
+  const code = withoutComments(source);
+  const errors: string[] = [];
+  if (!/return\s+result\.status\s*\?\?\s*1\s*;/.test(code)) errors.push('scripts/rust.ts runCargo must return the exit status of the command, or 1 when it did not run');
+  if (!/stdout\.startsWith\(\s*`rustc \$\{channel\} `\s*\)/.test(code)) errors.push('scripts/rust.ts must compare the installed rustc version with the pinned channel');
+  return errors;
+}
+
 function text(base: string, path: string): string {
   return readFileSync(resolve(base, path), 'utf8');
 }
@@ -75,13 +152,10 @@ export function s0Errors(base: string, files: Set<string>): string[] {
   });
 
   guard('Rust verification', () => {
-    const rust = text(base, 'scripts/rust.ts');
-    for (const command of cargoCommands) {
-      if (!rust.includes(`'${command}'`)) errors.push(`scripts/rust.ts must run: ${command}`);
-    }
-    const verify = text(base, 'scripts/verify.ts');
-    if (!/cargoCommands/.test(verify) || !/runCargo/.test(verify)) errors.push('scripts/verify.ts must run the Cargo commands from scripts/rust.ts');
-    if (!/fixtureDigest/.test(verify)) errors.push('scripts/verify.ts must guard fixtures against changes during verification');
+    // The imported list is the one the driver runs. It is compared with the literal expectation above.
+    errors.push(...cargoCommandErrors(cargoCommands));
+    errors.push(...rustModuleErrors(text(base, 'scripts/rust.ts')));
+    errors.push(...verifyDriverErrors(text(base, 'scripts/verify.ts')));
     const ci = text(base, '.github/workflows/ci.yml');
     const install = ci.indexOf('rustup toolchain install');
     const run = ci.indexOf('node scripts/verify.ts');
@@ -162,7 +236,18 @@ export function s0Errors(base: string, files: Set<string>): string[] {
 
   guard('Protocol fixtures', () => {
     const manifest = json(base, 'fixtures/protocol/manifest.json');
-    const listed = new Set<string>(manifest.entries.map((e: any) => e.path));
+    if (!Array.isArray(manifest.entries)) throw new Error('manifest.json has no entries list');
+    const listed = new Set<string>();
+    for (const [position, entry] of manifest.entries.entries()) {
+      if (typeof entry?.path !== 'string' || entry.path === '') { errors.push(`Protocol manifest entry ${position} has no path`); continue; }
+      const label = `Protocol manifest entry ${entry.path}`;
+      if (listed.has(entry.path)) errors.push(`${label} is listed twice`);
+      listed.add(entry.path);
+      // The Rust tests select entries by these values and skip any other, so an unknown value leaves a fixture untested.
+      if (!protocolExpectations.includes(entry.expect)) errors.push(`${label}: expect must be one of ${protocolExpectations.join(', ')}, found ${JSON.stringify(entry.expect)}`);
+      if (!protocolContracts.includes(entry.contract)) errors.push(`${label}: contract must be one of ${protocolContracts.join(', ')}, found ${JSON.stringify(entry.contract)}`);
+      if (entry.expect !== 'valid' && typeof entry.code !== 'string') errors.push(`${label}: an invalid fixture must state its expected failure code`);
+    }
     for (const file of files) {
       if (!file.startsWith('fixtures/protocol/') || file === 'fixtures/protocol/manifest.json' || file === 'fixtures/protocol/README.md') continue;
       if (!listed.has(file.slice('fixtures/'.length))) errors.push(`Protocol fixture is not in the manifest: ${file}`);
@@ -175,7 +260,20 @@ export function s0Errors(base: string, files: Set<string>): string[] {
   return errors;
 }
 
+// Reports a difference between the case ids found in the output and the case directories.
+function sameCases(label: string, found: string[], inventory: string[], errors: string[]) {
+  for (const id of found.filter((item, position) => found.indexOf(item) !== position)) errors.push(`${label} lists a case twice: ${id}`);
+  for (const id of inventory) {
+    if (!found.includes(id)) errors.push(`${label} omits the fixture case ${id}`);
+  }
+  for (const id of found) {
+    if (!inventory.includes(id)) errors.push(`${label} lists ${id}, which has no directory under fixtures/s0/cases`);
+  }
+}
+
 // Checks the report written by the replay step. A missing or failing report fails verification.
+// The index and the report must hold exactly the cases that fixtures/s0/cases contains, so a replay
+// of part of the inventory cannot pass.
 export function reportErrors(base: string): string[] {
   const errors: string[] = [];
   const directory = 'local-runs/s0';
@@ -184,10 +282,20 @@ export function reportErrors(base: string): string[] {
   for (const heading of reportSections) {
     if (!report.includes(heading)) errors.push(`Report lacks the section: ${heading}`);
   }
+  let inventory: string[] = [];
+  try {
+    inventory = readdirSync(resolve(base, 'fixtures/s0/cases'), { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+  } catch (error) { errors.push(`Fixture case inventory: ${error}`); }
+  if (inventory.length === 0) errors.push('fixtures/s0/cases has no case directories to compare the replay with');
+  const header = /^- cases: (\d+), passed: (\d+), failed: (\d+)$/m.exec(report);
+  if (!header) errors.push('Report lacks the "- cases: N, passed: P, failed: F" summary line');
+  else if (Number(header[1]) !== inventory.length) errors.push(`Report says cases: ${header[1]} but fixtures/s0/cases has ${inventory.length}`);
+  sameCases('Report', [...report.matchAll(/^## (\S+) — /gm)].map((match) => match[1]), inventory, errors);
   try {
     const index = json(base, `${directory}/index.json`);
     const cases = index.cases as Array<{ case: string; passed: boolean }>;
     if (!Array.isArray(cases) || cases.length === 0) errors.push('Replay index lists no cases');
+    sameCases('Replay index', (cases ?? []).map((item) => item.case), inventory, errors);
     for (const item of cases ?? []) {
       if (!item.passed) errors.push(`Replay case failed: ${item.case}`);
       const start = report.indexOf(`\n## ${item.case} — `);
