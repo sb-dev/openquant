@@ -1,0 +1,10 @@
+{
+  "id": "I-12c",
+  "title": "Control: a target of about 5e24 is below 2^96, so the run holds the position to the end and completes",
+  "covers": ["Invalid inputs"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

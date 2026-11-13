@@ -1,0 +1,10 @@
+{
+  "id": "I-12b",
+  "title": "Snapshot with no decimal view: a snapshot of about 5e36 fails the run at the signal close, the event is discarded",
+  "covers": ["Invalid inputs"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}

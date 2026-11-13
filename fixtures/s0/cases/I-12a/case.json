@@ -1,0 +1,10 @@
+{
+  "id": "I-12a",
+  "title": "Level with no decimal view: a target of about 5e36 fails the run at the entry open, the event is discarded",
+  "covers": ["Invalid inputs"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}
