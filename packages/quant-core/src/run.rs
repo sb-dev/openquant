@@ -3,7 +3,7 @@
 //! `step(strategy, prior_state, market_event) -> next_state, target_positions, diagnostics`
 //! (OQ-02 section 2.3). Historical replay is a loop over the events of the calendar.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use openquant_contracts::{
     EvaluationInput, StrategyArtefact,
@@ -55,6 +55,34 @@ const MAX_DIAGNOSTIC_SCALE: u32 = 12;
 /// Longest instrument id that keeps `T-<date>-<id>` and `I-<date>-<id>` within the 64
 /// characters of an identifier: the prefix and date take 13.
 const MAX_INSTRUMENT_ID_LEN: usize = 51;
+
+// Count limits of `evaluation-input.schema.json`. `parse` enforces them through the schema; a
+// caller that builds an `EvaluationInput` without it is held to the same limits here, so the
+// typed API is bounded too.
+//
+// The limits also bound the cost of a run, which is quadratic in the number of sessions: `step`
+// copies the prior state, whose journal grows by a few records per session, so n sessions copy
+// O(n^2) records in total, and the signal series is rebuilt from the first session at every
+// decision. A review measured about 0.24 s in a release build for 400 flat sessions; doubling
+// the count roughly quadruples the time. The copy stays because it makes an event
+// all-or-nothing.
+const MAX_SESSIONS: usize = 400;
+const MAX_BARS: usize = 400;
+const MAX_ACTIONS: usize = 32;
+const MAX_HALTS: usize = 32;
+
+fn check_count(count: usize, limit: usize, what: &str) -> Result<()> {
+    if count > limit {
+        Err(invalid(format!(
+            "{count} {what} exceed the limit of {limit}"
+        )))
+    } else {
+        Ok(())
+    }
+}
+
+/// Session dates of the calendar with their index, so a lookup does not scan the calendar.
+type Calendar<'a> = BTreeMap<&'a str, usize>;
 
 fn digits(text: &str, start: usize, end: usize) -> Option<u32> {
     text.get(start..end)?.parse().ok()
@@ -192,14 +220,14 @@ fn convert_policy(policy: &g::ExecutionPolicy) -> Result<Policy> {
 
 fn convert_bars(
     instrument: &g::InstrumentInput,
-    sessions: &[SessionInfo],
+    calendar: &Calendar<'_>,
     policy: &Policy,
 ) -> Result<BTreeMap<String, Bar>> {
     let mut bars = BTreeMap::new();
     let max_price = Decimal::from(MAX_PRICE);
     for raw in &instrument.bars {
         let date = raw.session.to_string();
-        if !sessions.iter().any(|s| s.date == date) {
+        if !calendar.contains_key(date.as_str()) {
             return Err(invalid(format!("bar {date} is not on the calendar")));
         }
         let price = |value: &g::Decimal, what: &str| -> Result<Decimal> {
@@ -256,9 +284,10 @@ fn convert_bars(
 
 fn convert_actions(
     instrument: &g::InstrumentInput,
-    sessions: &[SessionInfo],
+    calendar: &Calendar<'_>,
 ) -> Result<Vec<Action>> {
     let mut actions: Vec<Action> = Vec::new();
+    let mut seen: BTreeSet<String> = BTreeSet::new();
     for raw in &instrument.corporate_actions {
         let (id, effective, available, kind) = match raw {
             CorporateAction::SplitAction(a) => (
@@ -289,13 +318,13 @@ fn convert_actions(
                 },
             ),
         };
-        if !sessions.iter().any(|s| s.date == effective) {
+        if !calendar.contains_key(effective.as_str()) {
             return Err(invalid(format!(
                 "action {id} is effective on a non-session date"
             )));
         }
         check_timestamp(&available, &format!("action {id} available_at"))?;
-        if actions.iter().any(|a| a.id == id) {
+        if !seen.insert(id.clone()) {
             return Err(invalid(format!("duplicate action id {id}")));
         }
         if let ActionKind::CashDividend {
@@ -307,7 +336,7 @@ fn convert_actions(
             if *amount_per_share < Decimal::ZERO {
                 return Err(invalid(format!("action {id} has a negative amount")));
             }
-            if !sessions.iter().any(|s| s.date == *payment_session) {
+            if !calendar.contains_key(payment_session.as_str()) {
                 return Err(invalid(format!(
                     "action {id} pays on {payment_session}, which is not a calendar session"
                 )));
@@ -328,15 +357,16 @@ fn convert_actions(
     Ok(actions)
 }
 
-fn convert_halts(instrument: &g::InstrumentInput, sessions: &[SessionInfo]) -> Result<Vec<Halt>> {
+fn convert_halts(instrument: &g::InstrumentInput, calendar: &Calendar<'_>) -> Result<Vec<Halt>> {
     let mut halts: Vec<Halt> = Vec::new();
+    let mut seen: BTreeSet<String> = BTreeSet::new();
     for raw in &instrument.unplanned_events {
         let halt = Halt {
             id: raw.event_id.to_string(),
             effective_session: raw.effective_session.to_string(),
             available_at: raw.available_at.to_string(),
         };
-        if !sessions.iter().any(|s| s.date == halt.effective_session) {
+        if !calendar.contains_key(halt.effective_session.as_str()) {
             return Err(invalid(format!(
                 "event {} is effective on a non-session date",
                 halt.id
@@ -346,7 +376,7 @@ fn convert_halts(instrument: &g::InstrumentInput, sessions: &[SessionInfo]) -> R
             &halt.available_at,
             &format!("event {} available_at", halt.id),
         )?;
-        if halts.iter().any(|h| h.id == halt.id) {
+        if !seen.insert(halt.id.clone()) {
             return Err(invalid(format!("duplicate event id {}", halt.id)));
         }
         halts.push(halt);
@@ -390,16 +420,13 @@ fn convert_sessions(calendar: &g::CalendarSpec) -> Result<Vec<SessionInfo>> {
     Ok(sessions)
 }
 
-fn session_index(sessions: &[SessionInfo], date: &g::SessionDate, what: &str) -> Result<usize> {
-    sessions
-        .iter()
-        .position(|s| s.date == date.as_str())
-        .ok_or_else(|| {
-            invalid(format!(
-                "{what} {} is not a calendar session",
-                date.as_str()
-            ))
-        })
+fn session_index(calendar: &Calendar<'_>, date: &g::SessionDate, what: &str) -> Result<usize> {
+    calendar.get(date.as_str()).copied().ok_or_else(|| {
+        invalid(format!(
+            "{what} {} is not a calendar session",
+            date.as_str()
+        ))
+    })
 }
 
 impl Run {
@@ -409,6 +436,19 @@ impl Run {
     /// A typed [`Failure`] for an invalid strategy, mismatched identity, unsupported policy or
     /// invalid input.
     pub fn prepare(artefact: &StrategyArtefact, input: &EvaluationInput) -> Result<Self> {
+        let [instrument] = &input.instruments;
+        check_count(input.calendar.sessions.len(), MAX_SESSIONS, "sessions")?;
+        check_count(instrument.bars.len(), MAX_BARS, "bars")?;
+        check_count(
+            instrument.corporate_actions.len(),
+            MAX_ACTIONS,
+            "corporate actions",
+        )?;
+        check_count(
+            instrument.unplanned_events.len(),
+            MAX_HALTS,
+            "unplanned events",
+        )?;
         let strategy = validate_strategy(artefact)?;
         let input_hash = payload_digest(input)?;
         if input.strategy_hash.as_str() != strategy.hash {
@@ -439,21 +479,25 @@ impl Run {
             ));
         }
         let sessions = convert_sessions(&input.calendar)?;
-        let [instrument] = &input.instruments;
-        let bars = convert_bars(instrument, &sessions, &policy)?;
-        let actions = convert_actions(instrument, &sessions)?;
+        let calendar: Calendar<'_> = sessions
+            .iter()
+            .enumerate()
+            .map(|(index, session)| (session.date.as_str(), index))
+            .collect();
+        let bars = convert_bars(instrument, &calendar, &policy)?;
+        let actions = convert_actions(instrument, &calendar)?;
         if instrument.instrument_id.as_str().len() > MAX_INSTRUMENT_ID_LEN {
             return Err(invalid(format!(
                 "instrument_id is longer than {MAX_INSTRUMENT_ID_LEN} characters, so trade and intent ids would not fit an identifier"
             )));
         }
-        let halts = convert_halts(instrument, &sessions)?;
+        let halts = convert_halts(instrument, &calendar)?;
         let information_cutoff = input.windows.information_cutoff.to_string();
         check_timestamp(&information_cutoff, "windows.information_cutoff")?;
         for halt in &halts {
-            let confirmed = sessions
-                .iter()
-                .find(|s| s.date == halt.effective_session)
+            let confirmed = calendar
+                .get(halt.effective_session.as_str())
+                .and_then(|index| sessions.get(*index))
                 .is_some_and(|s| {
                     halt.available_at <= s.open_at && halt.available_at <= information_cutoff
                 });
@@ -464,9 +508,9 @@ impl Run {
                 )));
             }
         }
-        let first = session_index(&sessions, &input.windows.warmup_start, "warmup_start")?;
-        let scored_start = session_index(&sessions, &input.windows.scored_start, "scored_start")?;
-        let last = session_index(&sessions, &input.windows.scored_end, "scored_end")?;
+        let first = session_index(&calendar, &input.windows.warmup_start, "warmup_start")?;
+        let scored_start = session_index(&calendar, &input.windows.scored_start, "scored_start")?;
+        let last = session_index(&calendar, &input.windows.scored_end, "scored_end")?;
         if !(first <= scored_start && scored_start <= last) {
             return Err(invalid(
                 "windows must satisfy warmup_start <= scored_start <= scored_end".to_owned(),
@@ -529,29 +573,19 @@ impl Run {
             .ok_or_else(|| Failure::internal("session index out of range"))
     }
 
-    /// Calendar index of a session date.
+    /// Calendar index of a session date. `prepare` checks that the calendar is strictly
+    /// ascending, so a binary search finds it.
     pub fn index_of(&self, date: &str) -> Result<usize> {
         self.input
             .sessions
-            .iter()
-            .position(|s| s.date == date)
-            .ok_or_else(|| Failure::internal("unknown session date"))
+            .binary_search_by(|s| s.date.as_str().cmp(date))
+            .map_err(|_| Failure::internal("unknown session date"))
     }
 
     /// Whether dated evidence confirms the session as a halt that was known at its open.
     #[must_use]
     pub fn confirmed_halt(&self, date: &str) -> bool {
-        let open_at = self
-            .input
-            .sessions
-            .iter()
-            .find(|s| s.date == date)
-            .map_or("", |s| s.open_at.as_str());
-        let open_at = self.deadline(Some(open_at));
-        self.input
-            .halts
-            .iter()
-            .any(|h| h.effective_session == date && h.available_at.as_str() <= open_at)
+        !self.confirmed_halts(date).is_empty()
     }
 
     /// The latest instant at which evidence may become available for a decision bound.
@@ -568,40 +602,45 @@ impl Run {
         }
     }
 
+    /// The observation the input allows at a session and phase: what the session's bar shows
+    /// by then, or `None` before the open or when the session has no bar.
+    fn observation_at(&self, date: &str, phase: Phase) -> Option<Observation> {
+        let bar = self.input.bars.get(date)?;
+        match phase {
+            Phase::BeforeOpen => None,
+            Phase::Open => Some(Observation {
+                open: Some(bar.open),
+                ..Observation::default()
+            }),
+            Phase::DuringSession => Some(Observation {
+                open: Some(bar.open),
+                high: Some(bar.high),
+                low: Some(bar.low),
+                ..Observation::default()
+            }),
+            Phase::AfterClose => Some(Observation {
+                open: Some(bar.open),
+                high: Some(bar.high),
+                low: Some(bar.low),
+                close: Some(bar.close),
+                volume: Some(bar.volume),
+            }),
+        }
+    }
+
     /// Every event of the run in processing order.
     pub fn events(&self) -> Result<Vec<MarketEvent>> {
         let mut events = Vec::new();
         for index in self.input.first..=self.input.last {
             let session = self.session(index)?;
-            let bar = self.input.bars.get(&session.date);
             for phase in PHASES {
-                let observation = bar.and_then(|bar| match phase {
-                    Phase::BeforeOpen => None,
-                    Phase::Open => Some(Observation {
-                        open: Some(bar.open),
-                        ..Observation::default()
-                    }),
-                    Phase::DuringSession => Some(Observation {
-                        open: Some(bar.open),
-                        high: Some(bar.high),
-                        low: Some(bar.low),
-                        ..Observation::default()
-                    }),
-                    Phase::AfterClose => Some(Observation {
-                        open: Some(bar.open),
-                        high: Some(bar.high),
-                        low: Some(bar.low),
-                        close: Some(bar.close),
-                        volume: Some(bar.volume),
-                    }),
-                });
                 events.push(MarketEvent {
                     cursor: Cursor {
                         session: session.date.clone(),
                         phase,
                     },
                     session_index: index,
-                    observation,
+                    observation: self.observation_at(&session.date, phase),
                 });
             }
         }
@@ -631,8 +670,15 @@ impl Run {
 
     /// Process one event. The prior state is not changed; a failure discards the event.
     ///
+    /// The event fields are public, so the event is checked against the run, not trusted: its
+    /// `session_index` must be the calendar index of its cursor session (the next cursor is
+    /// derived from it), and its observation must be exactly what the input's bar shows at
+    /// that phase, so a hand-built event cannot move the cursor backwards or change a mark.
+    /// `Run::events` builds events that pass both checks.
+    ///
     /// # Errors
-    /// `EVENT_OUT_OF_ORDER` unless the event is the state's next event, or any phase failure.
+    /// `EVENT_OUT_OF_ORDER` unless the event is the state's next event; `INVALID_INPUT` for an
+    /// event whose `session_index` or observation disagrees with the run; or any phase failure.
     pub fn step(&self, prior: &State, event: &MarketEvent) -> Result<StepOutput> {
         if prior.next.as_ref() != Some(&event.cursor) {
             return Err(Failure::new(
@@ -646,6 +692,21 @@ impl Run {
                     event.cursor
                 ),
             ));
+        }
+        let index = self.index_of(&event.cursor.session)?;
+        if event.session_index != index {
+            return Err(invalid(format!(
+                "event {} carries session index {}, but its session is index {index}",
+                event.cursor, event.session_index
+            ))
+            .at(event.cursor.clone()));
+        }
+        if event.observation != self.observation_at(&event.cursor.session, event.phase()) {
+            return Err(invalid(format!(
+                "event {} carries an observation that is not the input's bar at that phase",
+                event.cursor
+            ))
+            .at(event.cursor.clone()));
         }
         let mut state = prior.clone();
         let mut notes = Vec::new();

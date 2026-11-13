@@ -3,6 +3,13 @@
 //! The command runs against small fixture directories built in the cargo test directory, so a
 //! deliberate difference never touches the committed fixtures.
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing
+)]
+
 mod common;
 
 use std::{
@@ -167,4 +174,101 @@ fn a_partial_run_leaves_other_results_in_place() {
     let run = s0_replay(&["--fixtures", arg(&fx), "--out", arg(&out), "--case", "X-01"]);
     assert!(run.status.success(), "{}", text(&run.stderr));
     assert!(out.join("results/OTHER.result.json").exists());
+}
+
+#[test]
+fn a_run_of_the_committed_fixtures_replays_every_case_directory() {
+    // The scripts read the report the binary writes, so the binary itself must not drop a case:
+    // with no filter, the index lists exactly the directories below fixtures/s0/cases.
+    let out = fresh_dir("cli-committed").join("out");
+    let run = s0_replay(&["--fixtures", arg(&fixtures()), "--out", arg(&out)]);
+    assert!(
+        run.status.success(),
+        "{}\n{}",
+        text(&run.stdout),
+        text(&run.stderr)
+    );
+
+    let mut directories: Vec<String> = fs::read_dir(fixtures().join("cases"))
+        .expect("cases directory")
+        .map(|entry| entry.expect("entry"))
+        .filter(|entry| entry.path().is_dir())
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .collect();
+    directories.sort();
+    assert!(!directories.is_empty());
+
+    let index: Value =
+        serde_json::from_str(&fs::read_to_string(out.join("index.json")).expect("index"))
+            .expect("json");
+    let cases = index["cases"].as_array().expect("cases");
+    assert_eq!(cases.len(), directories.len(), "cases in index.json");
+    let mut listed: Vec<String> = cases
+        .iter()
+        .map(|case| case["case"].as_str().expect("case id").to_owned())
+        .collect();
+    listed.sort();
+    for directory in &directories {
+        assert!(
+            listed.contains(directory),
+            "{directory} is a case directory but is not in the index"
+        );
+    }
+    assert_eq!(listed, directories);
+    assert!(cases.iter().all(|case| case["passed"] == true));
+
+    let report = fs::read_to_string(out.join("report.md")).expect("report");
+    assert!(
+        report.contains(&format!(
+            "- cases: {}, passed: {}, failed: 0",
+            directories.len(),
+            directories.len()
+        )),
+        "the report header states the case count"
+    );
+    assert!(text(&run.stdout).contains(&format!(
+        "{} case(s), 0 failed, 0 coverage problem(s)",
+        directories.len()
+    )));
+}
+
+/// A fixture directory holding a copy of case I-07 (a halt while holding) only, with
+/// `outcome_detail_includes` added to its expectation.
+fn halt_case_with_detail_expectation(name: &str, substrings: &[&str]) -> (PathBuf, PathBuf) {
+    let root = fresh_dir(name);
+    let case = root.join("fixtures").join("cases").join("I-07");
+    copy_files(&fixtures().join("cases").join("I-07"), &case);
+    let path = case.join("expected.json");
+    let mut expected: Value =
+        serde_json::from_str(&fs::read_to_string(&path).expect("expected")).expect("json");
+    expected["expect"]["outcome_detail_includes"] = Value::from(substrings.to_vec());
+    fs::write(
+        &path,
+        serde_json::to_string_pretty(&expected).expect("serialise"),
+    )
+    .expect("write");
+    (root.join("fixtures"), root.join("out"))
+}
+
+#[test]
+fn an_outcome_detail_expectation_is_checked_against_the_engine_detail() {
+    // I-07: instrument SYN holds a position through the confirmed halt HALT-1 of 2026-01-15, and
+    // the scored window ends 2026-01-16.
+    let (fx, out) = halt_case_with_detail_expectation(
+        "cli-detail-pass",
+        &["SYN", "HALT-1", "2026-01-15", "2026-01-16"],
+    );
+    let run = s0_replay(&["--fixtures", arg(&fx), "--out", arg(&out), "--case", "I-07"]);
+    assert!(run.status.success(), "{}", text(&run.stderr));
+    assert!(text(&run.stdout).contains("I-07"));
+
+    let (fx, out) = halt_case_with_detail_expectation("cli-detail-fail", &["SYN", "HALT-9"]);
+    let run = s0_replay(&["--fixtures", arg(&fx), "--out", arg(&out), "--case", "I-07"]);
+    assert_eq!(run.status.code(), Some(1));
+    let stderr = text(&run.stderr);
+    assert!(stderr.contains("FAIL I-07"), "{stderr}");
+    assert!(
+        stderr.contains("/outcome_detail_includes/1: expected \"HALT-9\""),
+        "{stderr}"
+    );
 }

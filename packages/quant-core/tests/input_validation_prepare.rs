@@ -416,6 +416,103 @@ fn halt_events_must_be_on_the_calendar_and_unique() {
     );
 }
 
+/// Date `index` days after the first test session (2026-03-02). 2026 and 2027 are not leap years,
+/// so 400 sessions end in April 2027.
+fn long_date(index: usize) -> String {
+    let lengths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let (mut year, mut month, mut day) = (2026, 3, 2 + index);
+    while day > lengths[month - 1] {
+        day -= lengths[month - 1];
+        month += 1;
+        if month > 12 {
+            month = 1;
+            year += 1;
+        }
+    }
+    format!("{year}-{month:02}-{day:02}")
+}
+
+/// Replace the calendar by `sessions` sessions and the bars by `bars` bars. The first four
+/// sessions and bars are the base input's. Bars beyond the calendar repeat the first session.
+fn resize(v: &mut Value, sessions: usize, bars: usize) {
+    let calendar: Vec<Value> = (0..sessions)
+        .map(|i| {
+            let d = long_date(i);
+            json!({"session": d, "open_at": format!("{d}T14:30:00Z"), "close_at": format!("{d}T21:00:00Z")})
+        })
+        .collect();
+    v["calendar"]["sessions"] = Value::Array(calendar);
+    let template = v["instruments"][0]["bars"][0].clone();
+    let list: Vec<Value> = (0..bars)
+        .map(|i| {
+            let d = long_date(i % sessions);
+            let mut bar = template.clone();
+            bar["session"] = json!(d);
+            bar["event_time"] = json!(format!("{d}T21:00:00Z"));
+            bar["available_at"] = json!(format!("{d}T21:00:00Z"));
+            bar
+        })
+        .collect();
+    v["instruments"][0]["bars"] = Value::Array(list);
+}
+
+fn detail_of(result: Result<Run, Failure>) -> String {
+    let failure = result.unwrap_err();
+    assert_eq!(failure.code.to_string(), "INVALID_INPUT");
+    failure.detail
+}
+
+#[test]
+fn the_typed_api_is_bounded_by_the_schema_counts_without_parse() {
+    // `prepare_with` builds the typed input with `from_value`, which skips the JSON Schema, so
+    // these limits are the core's own. They mirror `maxItems` of evaluation-input.schema.json.
+    // The inputs sit on the limits: they prepare. One more of anything is refused.
+    assert!(prepare_with(|v| resize(v, 400, 400)).is_ok());
+    assert!(detail_of(prepare_with(|v| resize(v, 401, 4))).contains("401 sessions exceed"));
+    assert!(detail_of(prepare_with(|v| resize(v, 400, 401))).contains("401 bars exceed"));
+}
+
+#[test]
+fn the_typed_api_bounds_corporate_actions_and_unplanned_events() {
+    let with_actions = |count: usize| {
+        let mut scenario = base();
+        for i in 0..count {
+            scenario = scenario.split(&format!("A{i}"), 2, 2, 1);
+        }
+        scenario
+    };
+    assert!(prepare_scenario_with(&with_actions(32), |_| {}).is_ok());
+    let detail = detail_of(prepare_scenario_with(&with_actions(33), |_| {}));
+    assert!(
+        detail.contains("33 corporate actions exceed the limit of 32"),
+        "{detail}"
+    );
+
+    // Halts known only after the open do not confirm the session, so a bar may stand with them.
+    let known = format!("{}T15:00:00Z", date(2));
+    let with_halts = |count: usize| {
+        let mut scenario = base();
+        for i in 0..count {
+            scenario = scenario.halt_known_at(&format!("H{i}"), 2, &known);
+        }
+        scenario
+    };
+    assert!(prepare_scenario_with(&with_halts(32), |_| {}).is_ok());
+    let detail = detail_of(prepare_scenario_with(&with_halts(33), |_| {}));
+    assert!(
+        detail.contains("33 unplanned events exceed the limit of 32"),
+        "{detail}"
+    );
+}
+
+#[test]
+fn the_count_limits_apply_before_any_other_validation() {
+    // 401 duplicate bars are also invalid for another reason, but a bounded refusal comes first
+    // and costs a count, not a scan of the bars.
+    let detail = detail_of(prepare_with(|v| resize(v, 400, 401)));
+    assert!(detail.contains("exceed the limit"), "{detail}");
+}
+
 #[test]
 fn a_missing_bar_is_not_a_preparation_error() {
     // Coverage is checked when the session is processed, so the journal keeps the earlier work

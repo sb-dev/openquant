@@ -645,7 +645,7 @@ pub fn render_index(reports: &[CaseReport]) -> Value {
             json!({
                 "case": r.id,
                 "passed": r.passed,
-                "outcome": r.outcome["status"],
+                "outcome": r.outcome.get("status"),
                 "result_digest": r.result_text.as_ref().map(|t| digest_bytes(t.as_bytes())),
             })
         })

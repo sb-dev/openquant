@@ -9,9 +9,19 @@
 //! the expectation states. The counts let a reader see how much each case actually asserts and
 //! make an empty expectation visible: a case that states `"trades": []` asserts that there is no
 //! trade, and that is one check.
+//!
+//! One section is not a view of the result. `outcome_detail_includes` is an array of strings,
+//! and each string must be a substring of the actual `outcome.detail`. It lets a case state the
+//! facts a free-text detail must name (the instrument, the event, the affected period) without
+//! pinning the wording. It counts as one check for the array plus one per string, like any other
+//! array. A detail that is absent or not a string, or a string that is not a substring, is a
+//! difference; an empty array asserts nothing and always matches.
 
 use rust_decimal::Decimal;
 use serde_json::Value;
+
+/// The expectation section that lists substrings of `outcome.detail`.
+pub const DETAIL_INCLUDES: &str = "outcome_detail_includes";
 
 /// One difference between expected and actual.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -174,6 +184,53 @@ fn signals(expected: &Value, actual: &Value, out: &mut Vec<Mismatch>) -> (usize,
     (total, matched)
 }
 
+/// Compare the `outcome_detail_includes` section: every expected string must occur in the actual
+/// `outcome.detail`. Returns the checks stated and the checks that matched.
+fn detail_includes(expected: &Value, actual: &Value, out: &mut Vec<Mismatch>) -> (usize, usize) {
+    let path = format!("/{DETAIL_INCLUDES}");
+    let total = checks(expected);
+    let Some(want) = expected.as_array() else {
+        out.push(Mismatch {
+            path,
+            expected: "an array of strings".to_owned(),
+            actual: show(expected),
+        });
+        return (total, 0);
+    };
+    if want.is_empty() {
+        return (total, total);
+    }
+    let detail = actual.get("outcome").and_then(|o| o.get("detail"));
+    let Some(text) = detail.and_then(Value::as_str) else {
+        out.push(Mismatch {
+            path,
+            expected: show(expected),
+            actual: match detail {
+                None => "<outcome.detail is absent>".to_owned(),
+                Some(other) => format!("<outcome.detail is not a string: {}>", show(other)),
+            },
+        });
+        return (total, 0);
+    };
+    let mut matched = 1;
+    for (index, item) in want.iter().enumerate() {
+        match item.as_str() {
+            Some(needle) if text.contains(needle) => matched += 1,
+            Some(_) => out.push(Mismatch {
+                path: format!("{path}/{index}"),
+                expected: show(item),
+                actual: format!("<not in outcome.detail: {}>", show(&Value::from(text))),
+            }),
+            None => out.push(Mismatch {
+                path: format!("{path}/{index}"),
+                expected: "a string".to_owned(),
+                actual: show(item),
+            }),
+        }
+    }
+    (total, matched)
+}
+
 /// Compare `expected` (the `expect` object of `expected.json`) with `actual` and count checks.
 #[must_use]
 pub fn compare_detailed(expected: &Value, actual: &Value) -> Comparison {
@@ -190,6 +247,9 @@ pub fn compare_detailed(expected: &Value, actual: &Value) -> Comparison {
         let path = format!("/{section}");
         let before = comparison.mismatches.len();
         let (total, matched) = match actual.get(section) {
+            _ if section == DETAIL_INCLUDES => {
+                detail_includes(want, actual, &mut comparison.mismatches)
+            }
             None => {
                 comparison.mismatches.push(Mismatch {
                     path,
