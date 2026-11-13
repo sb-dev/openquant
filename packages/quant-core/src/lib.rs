@@ -14,6 +14,7 @@ pub mod interfaces;
 pub mod model;
 pub mod numeric;
 pub mod operators;
+pub mod ratio;
 pub mod result;
 pub mod run;
 pub mod signals;
