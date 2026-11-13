@@ -1,0 +1,10 @@
+{
+  "id": "X-13",
+  "title": "Gap above an off-grid target fills at the target floored to the price scale, without slippage",
+  "covers": ["Entry and exit phases", "Cash and quantities"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}
