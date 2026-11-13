@@ -9,7 +9,7 @@ Status: implemented on branch `ccr-17c8728f-tu3pa4` and verified locally with `n
 - A Cargo workspace with three crates and a pinned toolchain: `openquant-contracts` (bindings, validation, canonical JSON, digests), `openquant-core` (validator, operators, signals, execution phases, accounting, corporate actions, checkpoint) and `openquant-engine` (`s0-replay`, comparator, report).
 - Five versioned JSON Schemas (`common`, `strategy-artefact`, `evaluation-input`, `evaluation-result`, `checkpoint`). Rust bindings are generated at build time. Every payload is checked against the schema and against a strict typed parse.
 - Four seed Strategy Definitions (RSI threshold 30 or 32, break-even off or on) and a fifth data-only variant (threshold 40). They differ only in data. A test scans the shared code for variant names.
-- 67 replay cases: F0-smoke (lead-derived smoke case) and 66 cases derived by an independent exact-arithmetic oracle. Each case records the SHA-256 of the oracle script that produced it.
+- 70 replay cases: F0-smoke (lead-derived smoke case) and 69 cases derived by an independent exact-arithmetic oracle. Each case records the SHA-256 of the oracle script that produced it.
 
 ## Declared policy (synthetic, not a vendor model)
 
@@ -49,11 +49,11 @@ Each item is a choice made during implementation. Each is pinned by a named test
 15. A confirmed halt known at the open and a supplied bar for the same session are contradictory. The input is rejected as `INVALID_INPUT` before any event. The alternative, ignoring the bar, was rejected because it would hide a data error. A halt that becomes available only after the open does not confirm a halt. Pinned by I-09 and `input_validation_prepare`.
 16. Holding a position through a confirmed halt gives INSUFFICIENT `UNSUPPORTED_VALUATION`. No liquidation price is invented. Pinned by I-07.
 17. Evidence available exactly at its deadline is usable. Evidence available later is future data and fails the run (`FUTURE_DATA`, FAILED). It is not a missing observation (`INSUFFICIENT`), because the evidence exists. OQ-02 section 2.5 now states this. Pinned by `information_cutoff.rs`, I-01, I-10, I-11, C-07, C-08.
-18. A stop or target that is touched intraday fills at the level floored to the price scale. A gap above a target fills at the target floored to the price scale. Pinned by `execution_exits.rs` and the off-grid cases X-12 to X-14.
+18. A stop or target that is touched intraday fills at the level floored to the price scale. A gap above a target fills at the target floored to the price scale. The touch test compares the bar with the exact level, not with the floored one. X-12 has a high 0.0067 below a target of 367/6 (61.1666...) and X-14 has a low 0.0033 above a stop of 137/3 (45.6666...). Neither bar is a touch. Pinned by `execution_exits.rs` and the off-grid cases X-12 (intraday target), X-13 (gap above target) and X-14 (intraday stop).
 19. The dividend receivable is floor(held x amount x (1 - withholding_bps / 10000)) to the money scale. Pinned by R-01 and `corporate_actions_dividend.rs`.
 20. A break-even stop level must satisfy 0 < level < target. Any other level gives FAILED `INVALID_LEVEL`. No level is invented. Pinned by `execution_exits.rs`.
 21. A sale whose fee would leave cash negative is refused with FAILED `UNSUPPORTED_POLICY`. Cash never goes negative. No fixture case or named test forces this path. `properties_execution_random.rs` only allows the code among the accepted outcomes.
-22. INSUFFICIENT outcomes carry the instrument, the event, the missing evidence and the affected period in `outcome.detail` (OQ-02 section 2.5). The cases state the required substrings in `outcome_detail_includes`. The wording is not pinned, only the facts.
+22. INSUFFICIENT outcomes carry the instrument, the event, the missing evidence and the affected period in `outcome.detail` (OQ-02 section 2.5). The cases state the required substrings in `outcome_detail_includes`, and the comparator checks that each one occurs in the actual detail. The wording is not pinned, only the facts: `MISSING_REQUIRED_BAR` names the instrument and the session date; `UNSUPPORTED_VALUATION` names the instrument, the event id of every confirmed halt that covers the failing session, the failing session date and `windows.scored_end`; `UNSUPPORTED_CORPORATE_ACTION` and `FRACTIONAL_ENTITLEMENT` name the instrument, the action id and the effective session date. Pinned by I-02, I-07, C-02, C-06 and `insufficient_detail.rs`.
 23. Spread, latency and participation (OQ-02 section 3.3) are not modelled. The S0 cost model is `fixed_plus_bps@1` plus gap-exit slippage only.
 
 ## Information cutoff (owner review, PR #8)
@@ -93,6 +93,8 @@ The seed contract assumptions in the strategy artefacts do not list these rows. 
 - The oracle uses Python `fractions`. A blind author wrote 62 of the cases. That author did not read the Rust core and did not run Cargo. Expected values come from the oracle and hand derivations. The engine never generates them.
 - After the engine, the oracle and the harness were merged, all 63 cases matched without any edit to an expected value. Twelve cases failed on the corporate-action path only before the execution agent's work was merged.
 - The cutoff change edited the oracle after the engine existed. It changed no existing expected value. A script compared every existing `input.json` and `expected.json` before and after: only `information_cutoff` and the oracle hash differ. Cases I-09, I-10, I-11 and C-08 were written by the lead with the engine in view. Their independence rests on the blind re-derivation in the review step.
+- The review fixes added cases X-12, X-13 and X-14 and the `outcome_detail_includes` arrays. A fixtures agent wrote them with the oracle, in a separate worktree from the engine fix, from the frozen detail contract in interpretation 22. That agent could read the engine source. The oracle never reads it. After the merge, every case passed without any edit to an expected value. A script compared every `input.json`, `strategy.json` and `expected.json` that existed before the fix (172 files) with the merged tree. Only the oracle hash and the four `outcome_detail_includes` arrays (C-02, C-06, I-02, I-07) differ.
+- The oracle's expected position view omits a stop, target or snapshot that has no finite decimal form (for example 367/6). The engine reports such a level as a long rounded decimal. The case states the fills, fees and cash that follow from the level, and it does not copy the engine's rounding.
 - The oracle runs only by hand. `node scripts/verify.ts` does not run it, and it fails if any file under `fixtures/` changes while it runs.
 
 ## Known limits
@@ -105,17 +107,67 @@ The seed contract assumptions in the strategy artefacts do not list these rows. 
 - `outcome.status` in `evaluation-result/1` holds the numerical evaluation outcome. S1 maps it to run status and gate result (OQ-02 section 3.6). The schema does not tie each code to a status. The engine does, in `status_of`.
 - The deep restore check (checkpoint text, then run to the end) runs at every cut for runs of at most 128 events. Longer runs run it at about 16 spread cuts plus the last. Every cut still gets a checkpoint, restore and field-by-field state comparison.
 - Arithmetic overflow is a typed failure, never a silent rounding. A proptest shows this for 250 generated extreme cases, not for every input.
+- Schema validation of an invalid document is bounded by structural limits: 20,000 values, depth 128, 8,192 items per array, 64 keys per object and 16,384 bytes per string. The value limit is per document. A schema-valid result or checkpoint can hold more than 20,000 values and is accepted. An invalid document above a limit reports `SCHEMA_VIOLATION` with its first violation, even when that violation is a decimal-grammar one. A 16 MiB payload of the densest values peaked at about 300 MB while parsing (reported by the contracts agent, measured in a release build).
+- `Run::prepare` caps the input at 400 sessions, 400 bars, 32 corporate actions and 32 unplanned events and fails larger input with `INVALID_INPUT`. The per-step state clone and the per-decision series rebuild remain. Their cost is bounded by these caps and was not redesigned.
+- The typed `Decimal` and `Identifier` bindings are generated code and use a regex that can backtrack on long non-matching text. The validated path (`parse`) rejects such text first. A caller that passes untrusted text straight to `Decimal::from_str` is still exposed.
+- Checkpoint restore cross-checks cash, receivables, positions and the daily records against the journal, and checks the cursor, identities and applied action ids. A checkpoint edited consistently across all the checked values, inside a session, is not detected. The content hash stored with the checkpoint (OQ-05 R2) is the guard against that edit.
+- The verify driver tests catch a dropped, shortened or ignored Cargo step. They do not catch a deliberate bypass added inside `scripts/verify.ts`, such as a condition around the loop or a hidden stdio. CODEOWNERS review guards that file.
 - Fee and scale values are declared synthetic policy. They are not a vendor fee model.
 
 ## Verification record
 
 Run on the merged tree with `node scripts/verify.ts` (Node 22 locally, 24 in CI):
 
-- repository checks and 87 repository tests;
-- `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo test --workspace --locked` (347 tests passed);
-- `s0-replay`: 67 cases, 0 failed, 0 coverage problems, deterministic repeat and restore from every cut point;
+- repository checks and 116 repository tests (0 skipped);
+- `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo test --workspace --locked` (389 tests passed, 0 failed);
+- `s0-replay`: 70 cases, 0 failed, 0 coverage problems, deterministic repeat and restore from every cut point;
 - fixtures unchanged while verification ran.
+
+The counts come from the output of `node scripts/verify.ts` on commit `2672b92` (exit 0).
 
 ## Independent review outcomes
 
-Pending. The four reviews (numerical correctness, Rust quality, specification compliance, verification coverage) are recorded here after they run.
+### Round 1 (commit `3ee7d8f`)
+
+Four reviewers worked on separate checkouts. None of them wrote the code under review. Each finding went to adversarial verifiers. A finding survives when fewer than half of the verifiers refute it.
+
+| Review | Verdict | Findings (surviving) |
+| --- | --- | --- |
+| Numerical correctness | PASS | 3 minor (M1 to M3) |
+| Rust quality and safety | CHANGE REQUIRED | 1 major (F-01), 6 minor (F-02 to F-07) |
+| Specification compliance | CHANGE REQUIRED | 2 major (F-1, F-2), 4 minor surviving (F-3, F-5, F-8 to F-10); F-4, F-6, F-7 were refuted by the verifiers |
+| Verification coverage | CHANGE REQUIRED | 2 major (F1, F2), 4 minor (F3 to F6) |
+
+The numerical reviewer re-derived ten cases blind and found no mismatch except an undeclared rounding convention (the dividend floor, now policy). An independent exact-rational simulator ran 590 random inputs against the engine with 0 differences.
+
+### Disposition of every surviving finding
+
+| Finding | Disposition |
+| --- | --- |
+| Numerical M1 (touched-exit rounding unpinned) | Fixed. Cases X-12 to X-14 and interpretation 18 |
+| Numerical M2 (rounding rules missing from policy) | Fixed. Policy table and interpretations 17 to 21 |
+| Numerical M3 (unused `State::receivables_total` saturates) | Fixed. The method is removed |
+| Rust F-01 (validation memory) | Fixed. First-error fast path, structural limits and a bounded report. 200,000 empty bars: peak 681,608 kB before, 17,880 kB after (reported by the contracts agent) |
+| Rust F-02 (engine lints, generated allow) | Fixed. The engine inherits the workspace lints. The generated-code allow is `unwrap_used` only |
+| Rust F-03 (`decimal::format` panic and silent scale loss) | Fixed. It returns an error |
+| Rust F-04 (unbounded typed API) | Partly fixed. Count caps in `Run::prepare`. The typed `Decimal` backtracking and the per-step clone remain, see Known limits |
+| Rust F-05 (forged `MarketEvent`) | Fixed. `Run::step` rejects it with `INVALID_INPUT` |
+| Rust F-06 (checkpoint balances unchecked) | Partly fixed. Balances, daily records and positions are cross-checked. A consistent in-session edit is not detected, see Known limits |
+| Rust F-07 (failure code from a truncated list) | Fixed. The code reads the full classification |
+| Spec F-1 (INSUFFICIENT detail) | Fixed. Interpretation 22 and `outcome_detail_includes` |
+| Spec F-2 (differences from the source scripts) | Documented in this log |
+| Spec F-3 (cutoff wording) | Fixed in OQ-02 section 2.5 and OQ-05 section 7 |
+| Spec F-5 (unrecorded behaviour) | Documented. Interpretations 17 to 23 and the policy table |
+| Spec F-8 (checkpoint cross-check claim) | Fixed with Rust F-06 |
+| Spec F-9 (operator digest omits limits) | Accepted and documented in Known limits |
+| Spec F-10 (`outcome.status` vocabulary) | Documented in the schema descriptions and Known limits |
+| Verification F1 (Cargo guard tautological) | Fixed. A literal expected command list, driver tests with a stub Cargo, code-shape checks |
+| Verification F2 (replay not tied to inventory) | Fixed. The report check reads the fixture inventory. A Rust test runs the binary on the committed fixtures |
+| Verification F3 (tests fail in the worktree path) | Fixed. The copy filter uses relative paths |
+| Verification F4 (expected values not content-bound) | Accepted and documented in Known limits |
+| Verification F5 (unrecognised manifest `expect`) | Fixed in Rust and TypeScript |
+| Verification F6 (engine lints) | Fixed with Rust F-02 |
+
+### Round 2
+
+Recorded after the four reviewers run again on one commit.
