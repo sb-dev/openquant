@@ -14,12 +14,15 @@
 use std::{collections::BTreeSet, path::Path};
 
 use openquant_contracts::{
-    Checkpoint, EvaluationInput, EvaluationResult, StrategyArtefact, digest, parse, parse_json,
-    payload_digest,
+    Checkpoint, Contract, EvaluationInput, EvaluationResult, StrategyArtefact, digest, parse,
+    parse_json, payload_digest,
 };
-use serde_json::Value;
+use serde_json::{Value, json};
 
 const FIXTURES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../fixtures");
+
+/// The `expect` values the tests below act on. Any other value would be skipped by all of them.
+const EXPECTATIONS: [&str; 3] = ["valid", "schema_invalid", "semantic_invalid"];
 
 fn manifest() -> Vec<Value> {
     let text = std::fs::read_to_string(format!("{FIXTURES}/protocol/manifest.json")).unwrap();
@@ -50,6 +53,71 @@ fn parse_as(contract: &str, text: &str) -> Result<String, String> {
             .map(|p| payload_digest(&p).unwrap())
             .map_err(reject),
         other => panic!("unknown contract {other}"),
+    }
+}
+
+/// Why an entry would be silently skipped or would panic late, or `Ok` when every test acts on it.
+fn check_entry(entry: &Value) -> Result<(), String> {
+    let field = |name: &str| {
+        entry[name]
+            .as_str()
+            .ok_or_else(|| format!("{entry}: `{name}` is missing or not a string"))
+    };
+    let (path, expect, contract) = (field("path")?, field("expect")?, field("contract")?);
+    if !EXPECTATIONS.contains(&expect) {
+        return Err(format!(
+            "{path}: unrecognised expect {expect:?}; every test would skip it. Use one of {EXPECTATIONS:?}"
+        ));
+    }
+    let known: Vec<&str> = Contract::ALL
+        .iter()
+        .filter_map(|c| c.version_tag().split('/').next())
+        .collect();
+    if !known.contains(&contract) {
+        return Err(format!(
+            "{path}: unknown contract {contract:?}; use one of {known:?}"
+        ));
+    }
+    Ok(())
+}
+
+#[test]
+fn every_manifest_entry_has_a_recognised_expectation_and_contract() {
+    let entries = manifest();
+    let problems: Vec<String> = entries
+        .iter()
+        .filter_map(|entry| check_entry(entry).err())
+        .collect();
+    assert!(problems.is_empty(), "{problems:#?}");
+    // The three tests below between them act on every entry.
+    let acted_on: usize = EXPECTATIONS
+        .iter()
+        .map(|expect| entries.iter().filter(|e| e["expect"] == *expect).count())
+        .sum();
+    assert_eq!(acted_on, entries.len());
+}
+
+#[test]
+fn the_entry_check_rejects_an_unrecognised_expectation_or_contract() {
+    let entry = |contract: &str, expect: &str| json!({"path": "protocol/x.json", "contract": contract, "expect": expect});
+    assert!(check_entry(&entry("checkpoint", "valid")).is_ok());
+    assert!(check_entry(&entry("strategy-artefact", "schema_invalid")).is_ok());
+    assert!(check_entry(&entry("evaluation-input", "semantic_invalid")).is_ok());
+    for (bad, needle) in [
+        (entry("checkpoint", "ignored"), "unrecognised expect"),
+        (entry("checkpoint", "Valid"), "unrecognised expect"),
+        (entry("checkpoint", ""), "unrecognised expect"),
+        (entry("strategy", "valid"), "unknown contract"),
+        (entry("", "valid"), "unknown contract"),
+        (json!({"path": "p", "contract": "checkpoint"}), "`expect`"),
+        (json!({"path": "p", "expect": "valid"}), "`contract`"),
+        (
+            json!({"contract": "checkpoint", "expect": "valid"}),
+            "`path`",
+        ),
+    ] {
+        let error = check_entry(&bad).unwrap_err();
+        assert!(error.contains(needle), "{bad}: {error}");
     }
 }
 

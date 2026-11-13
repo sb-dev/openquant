@@ -7,6 +7,7 @@
 pub mod canonical;
 pub mod decimal;
 pub mod error;
+mod limits;
 mod schema;
 pub mod strict;
 
@@ -19,19 +20,12 @@ pub use schema::validate;
 pub use strict::parse_json;
 
 /// Types emitted by typify from the schemas. Not hand-edited and not committed.
-#[allow(
-    clippy::all,
-    clippy::pedantic,
-    clippy::nursery,
-    clippy::unwrap_used,
-    clippy::expect_used,
-    clippy::panic,
-    clippy::indexing_slicing,
-    clippy::float_arithmetic,
-    missing_docs,
-    unused,
-    dead_code
-)]
+///
+/// Every workspace lint applies to this module except `unwrap_used`: typify compiles each
+/// `pattern` once, in a `LazyLock`, with `Regex::new("<constant>").unwrap()`. Removing the allow
+/// reports exactly those six unwraps and nothing else, so a panic, an index or a float operation
+/// in newly generated code still fails `cargo clippy -- -D warnings`.
+#[allow(clippy::unwrap_used)]
 pub mod generated {
     include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 }

@@ -59,8 +59,16 @@ pub fn parse(text: &str, max_scale: u32) -> Result<Decimal, ContractError> {
 /// Format at exactly `scale` fractional digits without rounding.
 ///
 /// # Errors
-/// Returns [`ContractError::Decimal`] if the value has digits beyond `scale`.
+/// Returns [`ContractError::Decimal`] if `scale` is above 28, the most a [`Decimal`] carries, if
+/// the value has digits beyond `scale`, or if the value is too large to carry `scale` fractional
+/// digits in 96 bits.
 pub fn format(value: &Decimal, scale: u32) -> Result<String, ContractError> {
+    if scale > Decimal::MAX_SCALE {
+        return Err(reject(
+            &value.to_string(),
+            "scale is above the maximum of 28 fractional digits",
+        ));
+    }
     let truncated = value.round_dp_with_strategy(scale, RoundingStrategy::ToZero);
     if truncated != *value {
         return Err(reject(
@@ -70,8 +78,17 @@ pub fn format(value: &Decimal, scale: u32) -> Result<String, ContractError> {
     }
     let mut out = truncated;
     out.rescale(scale);
+    // `rescale` stops short when the digits would overflow 96 bits and does not say so.
+    if out.scale() != scale {
+        return Err(reject(
+            &value.to_string(),
+            "value is too large to carry the scale",
+        ));
+    }
     if out.is_zero() {
-        out = Decimal::new(0, scale);
+        // Drops the sign of a negative zero.
+        out =
+            Decimal::try_new(0, scale).map_err(|_| reject(&value.to_string(), "invalid scale"))?;
     }
     Ok(out.to_string())
 }
