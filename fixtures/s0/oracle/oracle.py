@@ -4,12 +4,13 @@
 Author: agent C1 (independent fixture author). Python 3 standard library only.
 
 This script derives every S0 fixture case from the specification (OQ-02 sections
-2.1 to 2.6 and 9, OQ-06 section 8, OQ-05 section 7) and the declared policy
-semantics fixed by the lead. It never reads or runs the Rust engine. All
+2.1 to 2.6 and 9, OQ-06 section 8, OQ-05 section 7) and the declared policy of the
+S0 research log (docs/research-logs/2026-11-13-s0-offline-seed-evaluation.md: the policy table, Interpretations 1 to
+16 and the information cutoff section). It never reads or runs the Rust engine. All
 arithmetic uses fractions.Fraction (exact rationals). Rounding happens only at
 the explicit policy points: floor, ceil and half-even.
 
-Run:  python3 fixtures/s0/oracle/oracle.py
+Run:  python3 -I fixtures/s0/oracle/oracle.py   (from the repository root)
 It writes case.json, input.json, expected.json, derivation.md (and strategy.json
 where a case has its own strategy) for every case, fixtures/s0/coverage.json and
 the protocol manifest additions. The output is deterministic.
@@ -578,7 +579,13 @@ def fmt_dec(x):
 
 
 class Sim:
-    """Daily long-only cash simulator implementing the declared policy semantics 1 to 13."""
+    """Daily long-only cash simulator for the declared policy of the S0 research log
+    (docs/research-logs/2026-11-13-s0-offline-seed-evaluation.md): its policy table (costs, slippage, sizing,
+    corporate actions), the information cutoff section and the Interpretations 6 to 11, 13, 14 and 16 (boundary
+    equalities, dual touch, break-even timing, dividend entitlement, receivables, split conversion, INVALID_LEVEL,
+    whole-event rollback, held through a halt). Interpretations 1 to 5 are the Tree evaluator's. Interpretation 12
+    (28 significant digits) is not reproduced: every comparison here is exact. Interpretation 15 (a bar supplied
+    for a confirmed halt) is a rejection before any event, declared as the expected outcome of I-09."""
 
     def __init__(self, inp, ev, focus=()):
         self.inp = inp
@@ -986,7 +993,7 @@ class Sim:
                        "the bar of %s is available at %s, after the deadline %s (the earlier of the next open and "
                        "the information cutoff %s; the final session has only the cutoff)."
                        % (s, bar["avail"], dl, self.cutoff))
-        # stop adjustments on the raw bar of this session (policy 6)
+        # stop adjustments on the raw bar of this session (log Interpretations 6 and 8)
         for pos in S.positions:
             for adj in self.ev.adjustments:
                 if adj["id"] in pos["fired"]:
@@ -1089,7 +1096,7 @@ class Sim:
         return txt
 
     def finish(self):
-        """Close the run: open trades stay OPEN_AT_END (policy 12)."""
+        """Close the run: open trades stay OPEN_AT_END (no forced liquidation; the log does not number this)."""
         S = self.S
         if self.completed:
             for t in S.trades:
@@ -1197,9 +1204,14 @@ class Sim:
         return out
 
     def pos_json(self, p):
-        o = {"trade_id": p["trade_id"], "quantity": fmt(p["qty"], self.qs), "entry_price": fmt_exact(p["entry"]),
-             "stop": fmt_exact(p["stop"]), "target": fmt_exact(p["target"]),
-             "snapshots": [{"name": k, "value": fmt_exact(v)} for k, v in p["snaps"]]}
+        """A level or snapshot with no finite decimal form (for example 367/6) is left out: the wire view carries a
+        rounded decimal there and the oracle does not copy the engine's rounding. The fill that uses it is stated."""
+        o = {"trade_id": p["trade_id"], "quantity": fmt(p["qty"], self.qs), "entry_price": fmt_exact(p["entry"])}
+        for key in ("stop", "target"):
+            if terminates(p[key]):
+                o[key] = fmt_exact(p[key])
+        o["snapshots"] = [dict([("name", k)] + ([("value", fmt_exact(v))] if terminates(v) else []))
+                          for k, v in p["snaps"]]
         if p["sched"]:
             o["scheduled_stop"] = {"level": fmt_exact(p["sched"][0]), "effective_session": p["sched"][1]}
         return o
@@ -2660,6 +2672,118 @@ def make_x11():
                     "that the next close reserves.", hand=hand, hand_text=txt, focus=[D[4], D[5]])
 
 
+# Off-grid levels. In X-01 to X-11 every stop and target is on the price grid, so the rounding of a touched level was never
+# pinned. Here the signal bar's true range is chosen so that ATR3 has no finite decimal form (the true-range sum is not a
+# multiple of 3 cents): stop = entry - 2 * ATR3 and target = entry + 5 * ATR3 then fall between two grid prices. The
+# position keeps the exact level (a bar that stops short of it does not touch it); a touched level fills at the level
+# floored to the price scale (declared policy: sale levels round down; OQ-02 section 2.5 fills at the level).
+
+
+def make_x12():
+    rows = [FL(50)] * 4 + [(50, "52.2", "49.5", 51), FL(50), (50, "61.16", "49.5", 60), (60, "61.17", 59, 61)]
+    hand = {
+        "entries.0.quantity": ("19", "950.00 + 1.95 = 951.95 <= 1000.00; 20 shares 1000.00 + 2.00 > 1000.00"),
+        "fills.1.session": (D[7], "index 7: the bar of index 6 stops 0.0067 short of the target"),
+        "fills.1.reason": ("TARGET", "high 61.17 >= 367/6"),
+        "fills.1.price": ("61.16", "floor(367/6) = floor(61.1666...) to the price scale 2"),
+        "fills.1.notional": ("1162.04", "19 * 61.16"),
+        "fills.1.fee": ("2.17", "ceil(1.00 + 1162.04 * 10 / 10000) = ceil(2.16204)"),
+        "fills.1.cash_delta": ("1159.87", "1162.04 - 2.17"),
+        "trades.0.exit_price": ("61.16", "the exit price"),
+        "final.cash_available": ("5207.92", "4048.05 + 1159.87"),
+        "final.equity": ("5207.92", "nothing held"),
+    }
+    txt = """
+- Signal at index 4 (2026-01-09): close 51 > SMA3 = (50 + 50 + 51) / 3 = 151/3. True ranges of indices 2, 3, 4: 2, 2 and
+  max(52.2 - 49.5, 52.2 - 50, 50 - 49.5) = max(2.7, 2.2, 0.5) = 2.7, sum 6.7, so ATR3 = 6.7 / 3 = 67/30 = 2.2333..., which has
+  no finite decimal form.
+- Entry as X-01: cap floor(5000.00 / 5) = 1000.00, open 50.00, 19 shares, fee 1.95, available 4048.05.
+- Levels: stop = 50 - 2 * 67/30 = 683/15 = 45.5333...; target = 50 + 5 * 67/30 = 367/6 = 61.1666... Neither is a price on the grid
+  of 0.01. The expectation does not state these two levels in the daily positions (no finite decimal form); it states the fills.
+- Index 6 (50, 61.16, 49.5, 60): high 61.16 < 367/6 = 61.1666..., so the target is not touched. A level rounded to the grid
+  before the test (floor 61.16) would be touched here, so the exact level is what is compared.
+- Index 7 (60, 61.17, 59, 61): open 60 is below the target (no gap), low 59 is above the stop, high 61.17 >= 61.1666...: TARGET.
+  The fill is at the level, floored to the price scale: floor(61.1666...) = 61.16. Rounding to nearest or up would give 61.17.
+  Notional 19 * 61.16 = 1162.04. Fee = ceil(1.00 + 1162.04 * 10 / 10000) = ceil(1.00 + 1.16204) = 2.17. Proceeds 1162.04 - 2.17 =
+  1159.87. Available 4048.05 + 1159.87 = 5207.92. The policy's 100 bps of slippage applies to a gap through a stop only, so it
+  is not applied to this intraday fill.
+- Index 7 is the last session: no next open, so the close creates no entry intent.
+"""
+    return rc("X-12", "Intraday target touch at an off-grid level fills at the level floored to the price scale",
+              ["Entry and exit phases", "Cash and quantities"], rows, make_policy(fixed="1.00", bps="10", slip="100"),
+              notes="Eight sessions. ATR3 is 67/30 at the signal, so the target is 367/6 = 61.1666... and the stop 683/15. "
+                    "One bar falls 0.0067 short of the target and is not a touch; the next bar touches it and the "
+                    "fill is the target floored to the price scale, 61.16 (a nearest or upward rounding would give 61.17).",
+              hand=hand, hand_text=txt, focus=[D[4]])
+
+
+def make_x13():
+    rows = [FL(50)] * 4 + [(50, 52, "49.6", 51), FL(50), (63, 64, 50, 50), FL(50), FL(50)]
+    hand = {
+        "entries.0.quantity": ("19", "950.00 + 1.95 = 951.95 <= 1000.00; 20 shares 1000.00 + 2.00 > 1000.00"),
+        "fills.1.session": (D[6], "index 6: the open gaps above the target"),
+        "fills.1.reason": ("GAP_TARGET", "open 63 >= 182/3"),
+        "fills.1.price": ("60.66", "floor(182/3) = floor(60.6666...) to the price scale 2; not the open 63, no slippage"),
+        "fills.1.notional": ("1152.54", "19 * 60.66"),
+        "fills.1.fee": ("2.16", "ceil(1.00 + 1152.54 * 10 / 10000) = ceil(2.15254)"),
+        "fills.1.cash_delta": ("1150.38", "1152.54 - 2.16"),
+        "trades.0.exit_price": ("60.66", "the exit price"),
+        "final.cash_available": ("5198.43", "4048.05 + 1150.38"),
+    }
+    txt = """
+- Signal at index 4: close 51 > SMA3 = 151/3. True ranges of indices 2, 3, 4: 2, 2 and max(52 - 49.6, 52 - 50, 50 - 49.6) =
+  max(2.4, 2.0, 0.4) = 2.4, sum 6.4, so ATR3 = 6.4 / 3 = 32/15 = 2.1333...
+- Entry as X-01: 19 shares at 50.00, fee 1.95, available 4048.05.
+- Levels: stop = 50 - 2 * 32/15 = 686/15 = 45.7333...; target = 50 + 5 * 32/15 = 182/3 = 60.6666...
+- Index 6 opens at 63, which is above the target 182/3: gap above the target. Per OQ-02 section 2.5 the fill is at the target
+  level before costs, not at the open and not with the 100 bps gap slippage of the policy. The level is not on the price grid, so it is
+  floored to the price scale: floor(60.6666...) = 60.66 (rounding to nearest or up would give 60.67). Notional 19 * 60.66 = 1152.54.
+  Fee = ceil(1.00 + 1152.54 * 10 / 10000) = ceil(1.00 + 1.15254) = 2.16. Proceeds 1152.54 - 2.16 = 1150.38. Available 4048.05 +
+  1150.38 = 5198.43.
+- The bar closes at 50 (below SMA3), so no new signal arises.
+"""
+    return rc("X-13", "Gap above an off-grid target fills at the target floored to the price scale, without slippage",
+              ["Entry and exit phases", "Cash and quantities"], rows, make_policy(fixed="1.00", bps="10", slip="100"),
+              notes="Nine sessions. ATR3 is 32/15 at the signal, so the target is 182/3 = 60.6666... The next bar opens "
+                    "at 63. The exit is a gap exit at the target level, floored to the price scale (60.66), before costs "
+                    "and without the slippage that the policy declares for gaps through a stop.",
+              hand=hand, hand_text=txt, focus=[D[4]])
+
+
+def make_x14():
+    rows = [FL(50)] * 4 + [(50, 52, "49.5", 51), FL(50), (50, 51, "45.67", 48), (48, 49, "45.66", 47), FL(47)]
+    hand = {
+        "entries.0.quantity": ("19", "950.00 + 1.95 = 951.95 <= 1000.00; 20 shares 1000.00 + 2.00 > 1000.00"),
+        "fills.1.session": (D[7], "index 7: the bar of index 6 stops 0.0033 above the stop"),
+        "fills.1.reason": ("STOP", "low 45.66 <= 137/3"),
+        "fills.1.price": ("45.66", "floor(137/3) = floor(45.6666...) to the price scale 2"),
+        "fills.1.notional": ("867.54", "19 * 45.66"),
+        "fills.1.fee": ("1.87", "ceil(1.00 + 867.54 * 10 / 10000) = ceil(1.86754)"),
+        "fills.1.cash_delta": ("865.67", "867.54 - 1.87"),
+        "trades.0.exit_price": ("45.66", "the exit price"),
+        "final.cash_available": ("4913.72", "4048.05 + 865.67"),
+    }
+    txt = """
+- Signal at index 4: close 51 > SMA3 = 151/3. True ranges of indices 2, 3, 4: 2, 2 and max(52 - 49.5, 52 - 50, 50 - 49.5) =
+  max(2.5, 2.0, 0.5) = 2.5, sum 6.5, so ATR3 = 6.5 / 3 = 13/6 = 2.1666...
+- Entry as X-01: 19 shares at 50.00, fee 1.95, available 4048.05.
+- Levels: stop = 50 - 2 * 13/6 = 137/3 = 45.6666...; target = 50 + 5 * 13/6 = 365/6 = 60.8333...
+- Index 6 (50, 51, 45.67, 48): low 45.67 > 137/3 = 45.6666..., so the stop is not touched. A level rounded to nearest before the
+  test (45.67) would be touched here, so the exact level is what is compared. High 51 is far below the target.
+- Index 7 (48, 49, 45.66, 47): open 48 is above the stop (no gap), low 45.66 <= 45.6666...: STOP. The fill is at the level, floored
+  to the price scale: floor(45.6666...) = 45.66 (rounding to nearest or up would give 45.67). Notional 19 * 45.66 = 867.54. Fee =
+  ceil(1.00 + 867.54 * 10 / 10000) = ceil(1.00 + 0.86754) = 1.87. Proceeds 867.54 - 1.87 = 865.67. Available 4048.05 + 865.67 =
+  4913.72. The high 49 does not touch the target, so the bar is not ambiguous. No slippage applies to an intraday fill.
+- Later closes (48, 47, 47) stay below their SMA3, so no new signal arises.
+"""
+    return rc("X-14", "Intraday stop touch at an off-grid level fills at the level floored to the price scale",
+              ["Entry and exit phases", "Cash and quantities"], rows, make_policy(fixed="1.00", bps="10", slip="100"),
+              notes="Nine sessions. ATR3 is 13/6 at the signal, so the stop is 137/3 = 45.6666... and the target 365/6. "
+                    "One bar stays 0.0033 above the stop and is not a touch; the next bar touches it and the fill is "
+                    "the stop floored to the price scale, 45.66 (a nearest or upward rounding would give 45.67).",
+              hand=hand, hand_text=txt, focus=[D[4]])
+
+
 # ---------------------------------------------------------------- corporate-action cases (ATR 4 at price 100)
 
 Z = {"fixed": "0", "bps": "0"}          # zero-cost policy used to reproduce the OQ-06 numbers
@@ -3275,6 +3399,9 @@ def build_all():
     make_x09(True)
     make_x10()
     make_x11()
+    make_x12()
+    make_x13()
+    make_x14()
     make_c01a()
     make_c01b()
     make_c01c()
