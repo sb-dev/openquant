@@ -717,6 +717,11 @@ impl Run {
             Phase::AfterClose => execution::after_close::run(self, &mut state, event, &mut notes),
         };
         outcome.map_err(|failure| failure.at(event.cursor.clone()))?;
+        // A level with no decimal view cannot be shown or written. Refusing it here discards the
+        // event that created it, so the last completed state can always be reported.
+        state
+            .check_renderable()
+            .map_err(|failure| failure.at(event.cursor.clone()))?;
         state.next = self.following(event)?;
         let target_positions = state
             .positions

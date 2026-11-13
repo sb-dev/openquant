@@ -604,7 +604,9 @@ fixtures/protocol/invalid/checkpoint.exact-not-reduced.json
 fixtures/protocol/invalid/checkpoint.exact-numerator-beyond-i128.json
 fixtures/protocol/invalid/checkpoint.exact-numerator-i128-minimum.json
 fixtures/protocol/invalid/checkpoint.exact-pending-snapshot-not-reduced.json
+fixtures/protocol/invalid/checkpoint.exact-pending-snapshot-without-decimal-view.json
 fixtures/protocol/invalid/checkpoint.exact-plus-sign.json
+fixtures/protocol/invalid/checkpoint.exact-target-without-decimal-view.json
 fixtures/protocol/invalid/checkpoint.exact-too-long.json
 fixtures/protocol/invalid/checkpoint.exact-zero-denominator.json
 fixtures/protocol/invalid/checkpoint.exact-zero-numerator.json

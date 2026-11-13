@@ -1,11 +1,15 @@
 //! Numerical state: cash, reservations, positions, pending entries, scheduled stops, applied
 //! action identities and the journal. Everything a restore needs is here.
 
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, fmt};
 
 use openquant_contracts::generated::Journal;
 
-use crate::{model::Cursor, numeric::Decimal, ratio::Ratio};
+use crate::{
+    model::{Cursor, Failure, FailureCode, Result},
+    numeric::Decimal,
+    ratio::Ratio,
+};
 
 /// A stop change decided at a close and effective at the start of a later session.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -67,6 +71,63 @@ pub struct State {
     pub pending: Vec<Pending>,
     pub applied: BTreeSet<String>,
     pub journal: Journal,
+}
+
+/// `ARITHMETIC_OVERFLOW` for one value that cannot be shown or written; `what` names the owner and
+/// the field, and the text adds the canonical value. `what` formats only on failure.
+fn renderable(value: Ratio, what: fmt::Arguments<'_>) -> Result<()> {
+    value.check_renderable().map_err(|_| {
+        Failure::new(
+            FailureCode::ArithmeticOverflow,
+            format!("{what} {value} has no decimal view that fits 96 bits"),
+        )
+    })
+}
+
+impl State {
+    /// Check that every level the state holds can be shown in a result and written in a
+    /// checkpoint: entry price, stop, target and snapshots of a position, its scheduled stop, and
+    /// the snapshots of a pending entry.
+    ///
+    /// A level is an exact fraction of two 128-bit integers, and a result or a checkpoint carries
+    /// it as a decimal of 96 bits (or as a fraction). A level with an integer part of 2^96 or
+    /// more fits the first and not the second. `Run::step` makes this check after every event, so
+    /// the failure ends the event that created the level, the last completed state is always
+    /// renderable, and the run can report its own failure. `Run::restore` makes it for a state
+    /// read from a checkpoint.
+    ///
+    /// # Errors
+    /// `ARITHMETIC_OVERFLOW`, naming the position or the intent, the field and the value.
+    pub fn check_renderable(&self) -> Result<()> {
+        for position in &self.positions {
+            let id = &position.instrument_id;
+            renderable(
+                position.entry_price,
+                format_args!("position {id}: entry price"),
+            )?;
+            renderable(position.stop, format_args!("position {id}: stop"))?;
+            renderable(position.target, format_args!("position {id}: target"))?;
+            for (name, value) in &position.snapshots {
+                renderable(*value, format_args!("position {id}: snapshot {name}"))?;
+            }
+            if let Some(scheduled) = &position.scheduled {
+                renderable(
+                    scheduled.level,
+                    format_args!("position {id}: scheduled stop"),
+                )?;
+            }
+        }
+        for pending in &self.pending {
+            let intent = &pending.intent_id;
+            for (name, value) in &pending.snapshots {
+                renderable(
+                    *value,
+                    format_args!("entry intent {intent}: snapshot {name}"),
+                )?;
+            }
+        }
+        Ok(())
+    }
 }
 
 /// An empty journal.
