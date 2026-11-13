@@ -14,6 +14,11 @@
 //! 4,000, the widest object has 12 properties and the longest `maxLength` is 2,000 characters,
 //! or 8,000 bytes. They never limit a valid document, because a valid document leaves
 //! `validate` before this check.
+//!
+//! The value limit is per document, not per contract. A schema-valid evaluation result or
+//! checkpoint can hold more than [`MAX_NODES`] values (4,000 ledger entries alone hold about
+//! 36,000). Such a document is accepted when it is valid. When it is invalid, it reports
+//! `SCHEMA_VIOLATION` with the first violation, even if that violation is a decimal-grammar one.
 
 use std::{iter::Enumerate, slice::Iter as SliceIter};
 
@@ -21,7 +26,8 @@ use serde_json::{Value, map::Iter as MapIter};
 
 use crate::error::SchemaViolation;
 
-/// Values in the whole document. The largest valid evaluation input holds about 5,400.
+/// Values in the whole document. The largest valid evaluation input holds about 5,400. A valid
+/// result or checkpoint can hold more, and the limit then applies only if the document is invalid.
 pub(crate) const MAX_NODES: usize = 20_000;
 /// Nesting depth. This is the recursion limit of the strict parser.
 pub(crate) const MAX_DEPTH: usize = 128;
