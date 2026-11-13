@@ -1,16 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, cpSync, rmSync, readFileSync, writeFileSync, readlinkSync, symlinkSync, renameSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, cpSync, rmSync, readFileSync, writeFileSync, readlinkSync, symlinkSync, renameSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
-import { resolve } from 'node:path';
+import { relative, resolve, sep } from 'node:path';
 import { root, checkRepository, paths } from '../repository.ts';
 
-function mutationErrors(change: (directory: string) => void): string[] {
+// Directories that are not part of a checkout. The pattern is applied to the path relative to the
+// copied root, so a checkout that itself lives under .claude/worktrees is still copied in full.
+const notCopied = /(^|\/)(\.git|node_modules|target|local-runs|\.claude\/worktrees)(\/|$)/;
+function copyRepository(source: string, destination: string) {
+  cpSync(source,destination,{recursive:true,verbatimSymlinks:true,filter:(path)=>!notCopied.test(relative(source,path).split(sep).join('/'))});
+}
+function mutationErrors(change: (directory: string) => void, source: string = root): string[] {
   const temporary = mkdtempSync(resolve(tmpdir(),'openquant-check-'));
   try {
     const copy = resolve(temporary,'repo');
-    cpSync(root,copy,{recursive:true,verbatimSymlinks:true,filter:(path)=>!/(^|\/)(\.git|node_modules|target|local-runs|\.claude\/worktrees)(\/|$)/.test(path)});
+    copyRepository(source,copy);
     change(copy);
     return checkRepository(copy);
   } finally { rmSync(temporary,{recursive:true,force:true}); }
@@ -33,6 +39,21 @@ function git(base: string, ...args: string[]) {
 }
 
 test('baseline repository satisfies its declared checks',()=>assert.deepEqual(checkRepository(root),[]));
+test('the repository copy works from a path inside .claude/worktrees and skips only a nested one',()=>{
+  const temporary = mkdtempSync(resolve(tmpdir(),'openquant-worktree-'));
+  try {
+    const checkout = resolve(temporary,'.claude/worktrees/agent-checkout');
+    mkdirSync(resolve(temporary,'.claude/worktrees'),{recursive:true});
+    copyRepository(root,checkout);
+    assert.ok(existsSync(resolve(checkout,'scripts/verify.ts')),'the copy of the repository root must not be filtered by its own location');
+    mkdirSync(resolve(checkout,'.claude/worktrees/stray'),{recursive:true});
+    writeFileSync(resolve(checkout,'.claude/worktrees/stray/file.txt'),'stray\n');
+    const copied: string[] = [];
+    assert.deepEqual(mutationErrors((base)=>{ copied.push(...paths(base)); },checkout),[]);
+    assert.ok(copied.includes('scripts/verify.ts'));
+    assert.ok(!copied.some((file)=>file.startsWith('.claude/worktrees/')),'a nested .claude/worktrees directory is not copied');
+  } finally { rmSync(temporary,{recursive:true,force:true}); }
+});
 test('removing a declared skill and its alias fails inventory verification',()=>mutated((base)=>{
   rmSync(resolve(base,'.agents/skills/rust-review'),{recursive:true});
   rmSync(resolve(base,'.claude/skills/rust-review'));
