@@ -1,0 +1,10 @@
+{
+  "id": "I-09",
+  "title": "A bar supplied for a session with a confirmed halt is contradictory input",
+  "covers": ["Unplanned non-trading events", "Invalid inputs"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}

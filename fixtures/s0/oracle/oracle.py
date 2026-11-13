@@ -604,6 +604,7 @@ class Sim:
         allsess = [c["session"] for c in inp["calendar"]["sessions"]]
         self.sess = [s for s in allsess if w["warmup_start"] <= s <= w["scored_end"]]
         self.scored_start = w["scored_start"]
+        self.cutoff = w["information_cutoff"]
         self.slots = ev.strat["definition"]["selection"]["slots"]
         self.focus = set(focus)
         self.S = types.SimpleNamespace(
@@ -629,9 +630,13 @@ class Sim:
     def recv_total(self):
         return sum((r["amount"] for r in self.S.recvs), F(0))
 
+    def deadline(self, bound):
+        """Latest instant at which evidence may be available: the earlier of the bound and the cutoff."""
+        return self.cutoff if bound is None else min(bound, self.cutoff)
+
     def is_halted(self, s):
         return any(e["kind"] == "CONFIRMED_HALT" and e["effective_session"] == s
-                   and e["available_at"] <= open_at(s) for e in self.events)
+                   and e["available_at"] <= self.deadline(open_at(s)) for e in self.events)
 
     def led(self, s, phase, kind, amount):
         S = self.S
@@ -706,10 +711,11 @@ class Sim:
         ent_qty = sum((p["qty"] for p in S.positions), F(0))
         acts = [a for a in self.actions if a["effective_session"] == s and a["action_id"] not in S.applied]
         for a in acts:
-            if a["available_at"] > open_at(s):
+            if a["available_at"] > self.deadline(open_at(s)):
                 raise Fail("FAILED", "FUTURE_DATA", s, "BEFORE_OPEN",
-                           "action %s becomes available at %s, after the session open %s."
-                           % (a["action_id"], a["available_at"], open_at(s)))
+                           "action %s becomes available at %s, after the deadline %s (the earlier of the session "
+                           "open %s and the information cutoff %s)."
+                           % (a["action_id"], a["available_at"], self.deadline(open_at(s)), open_at(s), self.cutoff))
             if a["kind"] not in ("SPLIT", "CASH_DIVIDEND"):
                 raise Fail("INSUFFICIENT", "UNSUPPORTED_CORPORATE_ACTION", s, "BEFORE_OPEN",
                            "action %s has unsupported kind %s." % (a["action_id"], a["kind"]))
@@ -974,9 +980,12 @@ class Sim:
             return
         bar = self.bars[s]
         nxt = self.sess[i + 1] if i + 1 < len(self.sess) else None
-        if nxt is not None and bar["avail"] > open_at(nxt):
+        dl = self.deadline(open_at(nxt) if nxt is not None else None)
+        if bar["avail"] > dl:
             raise Fail("FAILED", "FUTURE_DATA", s, "AFTER_CLOSE",
-                       "the bar of %s is available at %s, after the next open %s." % (s, bar["avail"], open_at(nxt)))
+                       "the bar of %s is available at %s, after the deadline %s (the earlier of the next open and "
+                       "the information cutoff %s; the final session has only the cutoff)."
+                       % (s, bar["avail"], dl, self.cutoff))
         # stop adjustments on the raw bar of this session (policy 6)
         for pos in S.positions:
             for adj in self.ev.adjustments:
@@ -1366,8 +1375,13 @@ def halt_event(eid, eff, avail=None):
             "available_at": avail or (eff + "T13:30:00Z")}
 
 
+def default_cutoff(sessions):
+    """The day after the last session at 00:00:00Z: later than every default bar availability."""
+    return (date.fromisoformat(sessions[-1]) + timedelta(days=1)).isoformat() + "T00:00:00Z"
+
+
 def make_input(strategy_hash, bars, sessions, scored_start, capital, policy=None, actions=(), events=(),
-               dataset="s0-bars", warmup_start=None, scored_end=None, instrument="SYN"):
+               dataset="s0-bars", warmup_start=None, scored_end=None, instrument="SYN", cutoff=None):
     return {
         "schema_version": "evaluation-input/1",
         "strategy_hash": strategy_hash,
@@ -1379,7 +1393,8 @@ def make_input(strategy_hash, bars, sessions, scored_start, capital, policy=None
                          "corporate_actions": list(actions), "unplanned_events": list(events)}],
         "calendar": {"sessions": calendar_entries(sessions)},
         "windows": {"warmup_start": warmup_start or sessions[0], "scored_start": scored_start,
-                    "scored_end": scored_end or sessions[-1]},
+                    "scored_end": scored_end or sessions[-1],
+                    "information_cutoff": cutoff or default_cutoff(sessions)},
         "initial_capital": str(capital),
         "policy": policy or copy.deepcopy(DEFAULT_POLICY)}
 
@@ -3054,6 +3069,69 @@ def make_i08():
                     "file's own hash differs, so the identity check fails with IDENTITY_MISMATCH before any evaluation.")
 
 
+def make_i09():
+    rows = HEAD50 + [FL(50)]
+    return rc("I-09", "A bar supplied for a session with a confirmed halt is contradictory input",
+              ["Unplanned non-trading events", "Invalid inputs"], rows, make_policy(**P1), n_sessions=6,
+              events=[halt_event("HALT-1", D[5])], kind="reject",
+              expect_outcome={"status": "FAILED", "code": "INVALID_INPUT"},
+              notes="Six calendar sessions. A CONFIRMED_HALT effective at index 5 became available at 13:30, before the 14:30 open, "
+                    "so the instrument is known to be non-trading for that session. The input nevertheless supplies a bar for "
+                    "index 5. A confirmed non-trading instrument can create no signal and no fill, and evidence that a bar "
+                    "exists contradicts the halt. The input is rejected as INVALID_INPUT before any evaluation; no session "
+                    "is processed and no journal is produced. (A halt that became available after the open does not confirm "
+                    "the halt and is not contradicted by a bar.)")
+
+
+def make_i10():
+    def mut(inp, strat):
+        inp["windows"]["information_cutoff"] = D[7] + "T22:00:00Z"
+        inp["instruments"][0]["bars"][7]["available_at"] = D[7] + "T22:30:00Z"
+    rows = HEAD50 + [FL(50)] * 3
+    return rc("I-10", "Final-session bar available after the information cutoff is FUTURE_DATA",
+              ["Invalid inputs"], rows, make_policy(**P1), mutate=mut, kind="partial",
+              sections=("signals", "entries", "fills", "cash_ledger", "daily", "corporate_actions"),
+              notes="Eight sessions as X-01. The information cutoff is 22:00 on the last session (index 7) and the bar of that "
+                    "session becomes available at 22:30, thirty minutes after the cutoff. There is no next session, so no "
+                    "next open bounds the decision: the cutoff is the only deadline, and it must still apply. The close "
+                    "mark and the final valuation would use data that was not available at the cutoff, so the run fails "
+                    "with FAILED FUTURE_DATA at AFTER_CLOSE of index 7 and keeps the journal through the close of index 6 "
+                    "(the position bought at the open of index 5 is open and valued at its index 6 close).",
+              focus=[D[4]])
+
+
+def make_i11():
+    def mut(inp, strat):
+        inp["windows"]["information_cutoff"] = D[4] + "T21:30:00Z"
+        inp["instruments"][0]["bars"][4]["available_at"] = D[4] + "T22:00:00Z"
+    rows = HEAD50 + [FL(50)] * 3
+    return rc("I-11", "An information cutoff before the next open binds the decision",
+              ["Invalid inputs"], rows, make_policy(**P1), mutate=mut, kind="partial",
+              sections=("signals", "entries", "fills", "cash_ledger", "daily", "corporate_actions"),
+              notes="Eight sessions as X-01. The bar of index 4 (the signal session) becomes available at 22:00 on its own day, "
+                    "well before the next open (14:30 on the next day), so a deadline of the next open alone would accept it. "
+                    "The information cutoff is 21:30 on that day, earlier than the bar's availability. The deadline of a "
+                    "decision is the earlier of the next open and the cutoff, so the run fails with FAILED FUTURE_DATA at "
+                    "AFTER_CLOSE of index 4 and keeps the journal through the close of index 3.",
+              focus=[D[3]])
+
+
+def make_c08():
+    def mut(inp, strat):
+        inp["windows"]["information_cutoff"] = D[5] + "T22:00:00Z"
+        inp["instruments"][0]["corporate_actions"][0]["available_at"] = D[5] + "T23:00:00Z"
+    rows = HEAD50 + [FL(50)] * 4
+    return rc("C-08", "A split available after the information cutoff is FUTURE_DATA even before its open",
+              ["Invalid inputs", "Split across an ex-date"], rows, make_policy(**P1),
+              actions=[split_action("SPLIT-2-1", D[6], 2, 1)], mutate=mut, kind="partial",
+              sections=("signals", "entries", "fills", "cash_ledger", "daily", "corporate_actions"),
+              notes="Nine sessions. A 2-for-1 split is effective at index 6 and becomes available at 23:00 on the previous day, "
+                    "before that session's open, so the open alone would accept it. The information cutoff is 22:00 on "
+                    "that previous day, one hour earlier. The deadline for an action is the earlier of the session open and "
+                    "the cutoff, so the split is future data: the run fails with FAILED FUTURE_DATA at BEFORE_OPEN of index "
+                    "6 and keeps the journal through the close of index 5.", focus=[D[4]], n_sessions=9)
+
+
 # ---------------------------------------------------------------- local replay (R-01)
 
 
@@ -3212,6 +3290,7 @@ def build_all():
     make_c05()
     make_c06()
     make_c07()
+    make_c08()
     make_i01()
     make_i02()
     make_i03()
@@ -3228,6 +3307,9 @@ def build_all():
     make_i06()
     make_i07()
     make_i08()
+    make_i09()
+    make_i10()
+    make_i11()
     make_r01()
     return make_sem01_case
 

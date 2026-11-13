@@ -448,11 +448,15 @@ impl Run {
             )));
         }
         let halts = convert_halts(instrument, &sessions)?;
+        let information_cutoff = input.windows.information_cutoff.to_string();
+        check_timestamp(&information_cutoff, "windows.information_cutoff")?;
         for halt in &halts {
             let confirmed = sessions
                 .iter()
                 .find(|s| s.date == halt.effective_session)
-                .is_some_and(|s| halt.available_at <= s.open_at);
+                .is_some_and(|s| {
+                    halt.available_at <= s.open_at && halt.available_at <= information_cutoff
+                });
             if confirmed && bars.contains_key(&halt.effective_session) {
                 return Err(invalid(format!(
                     "a bar is supplied for {}, a session with confirmed halt {}",
@@ -488,6 +492,7 @@ impl Run {
                 first,
                 scored_start,
                 last,
+                information_cutoff,
                 initial_capital,
                 policy,
             },
@@ -542,10 +547,25 @@ impl Run {
             .iter()
             .find(|s| s.date == date)
             .map_or("", |s| s.open_at.as_str());
+        let open_at = self.deadline(Some(open_at));
         self.input
             .halts
             .iter()
             .any(|h| h.effective_session == date && h.available_at.as_str() <= open_at)
+    }
+
+    /// The latest instant at which evidence may become available for a decision bound.
+    ///
+    /// This is the earlier of `bound` (for example the next session open) and the information
+    /// cutoff. With no bound, such as at the final session, the cutoff alone applies, so no
+    /// availability check is skipped.
+    #[must_use]
+    pub fn deadline<'a>(&'a self, bound: Option<&'a str>) -> &'a str {
+        let cutoff = self.input.information_cutoff.as_str();
+        match bound {
+            Some(bound) if bound < cutoff => bound,
+            _ => cutoff,
+        }
     }
 
     /// Every event of the run in processing order.

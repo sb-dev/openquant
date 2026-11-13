@@ -68,7 +68,7 @@ Nine sessions. A 2-for-1 split is effective at index 6 but its availability time
 
 ### 2026-01-13
 
-- BEFORE_OPEN: FAILURE FAILED FUTURE_DATA: action SPLIT-2-1 becomes available at 2026-01-13T14:31:00Z, after the session open 2026-01-13T14:30:00Z. Journal kept through the last completed event.
+- BEFORE_OPEN: FAILURE FAILED FUTURE_DATA: action SPLIT-2-1 becomes available at 2026-01-13T14:31:00Z, after the deadline 2026-01-13T14:30:00Z (the earlier of the session open 2026-01-13T14:30:00Z and the information cutoff 2026-01-16T00:00:00Z). Journal kept through the last completed event.
 
 ### Journal sequence numbers
 

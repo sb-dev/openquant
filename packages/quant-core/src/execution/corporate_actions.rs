@@ -30,7 +30,7 @@ pub fn apply_effective(
     notes: &mut Vec<String>,
 ) -> Result<()> {
     let date = event.cursor.session.as_str();
-    let open_at = run.session(event.session_index)?.open_at.as_str();
+    let open_at = run.deadline(Some(run.session(event.session_index)?.open_at.as_str()));
     // A dividend entitlement is the quantity held at the start of this handler, before any
     // split of the same day.
     let held_before = held_quantity(state)?;
@@ -42,7 +42,7 @@ pub fn apply_effective(
             return Err(Failure::new(
                 FailureCode::FutureData,
                 format!(
-                    "corporate action {} becomes available at {} after session {date} opens at {open_at}",
+                    "corporate action {} becomes available at {} after the deadline {open_at} for session {date}",
                     action.id, action.available_at
                 ),
             ));

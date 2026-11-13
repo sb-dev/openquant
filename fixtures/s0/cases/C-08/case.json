@@ -1,0 +1,10 @@
+{
+  "id": "C-08",
+  "title": "A split available after the information cutoff is FUTURE_DATA even before its open",
+  "covers": ["Invalid inputs", "Split across an ex-date"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}

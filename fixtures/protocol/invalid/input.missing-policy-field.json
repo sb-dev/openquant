@@ -190,6 +190,7 @@
   "windows": {
     "scored_end": "2026-01-16",
     "scored_start": "2026-01-08",
-    "warmup_start": "2026-01-05"
+    "warmup_start": "2026-01-05",
+    "information_cutoff": "2026-01-17T00:00:00Z"
   }
 }

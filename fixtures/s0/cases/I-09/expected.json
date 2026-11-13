@@ -1,0 +1,11 @@
+{
+  "schema": "s0-expected/1",
+  "case": "I-09",
+  "origin": {
+    "kind": "oracle",
+    "oracle": "oracle.py",
+    "oracle_sha256": "2c3c7b686cb080ea75c936695962a6d00a17081ddc02508a075482e2e18cd8a4",
+    "note": "Derived from OQ-02 sections 2.1 to 2.6 with exact rational arithmetic; see derivation.md. Not produced by the Rust engine."
+  },
+  "expect": {"outcome": {"status": "FAILED", "code": "INVALID_INPUT"}}
+}

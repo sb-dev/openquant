@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { posix, resolve } from 'node:path';
 import { cargoCommands } from './rust.ts';
 
 // OQ-06 section 8: the S0 rows of "Connected slices and acceptance cases".
@@ -18,8 +18,27 @@ export const s0Rows = [
   'Local replay',
 ] as const;
 
-// Every S0 row must map to at least one case. Turned on when the independent fixtures land.
-const requireFullCoverage = false;
+// Headings the replay report must contain. They mirror REPORT_SECTIONS and CASE_SECTIONS in
+// apps/engine/src/report.rs. A drift fails verification when the real report is checked.
+export const reportSections = [
+  '# S0 local replay report',
+  '## Summary',
+  '## Acceptance row coverage',
+  '## Remaining limitations',
+] as const;
+export const caseSections = [
+  '### Identities',
+  '### Signals',
+  '### Entry intents',
+  '### Fills',
+  '### Trades',
+  '### Cash ledger',
+  '### Corporate actions applied',
+  '### Daily cash, positions and equity',
+  '### Final state',
+  '### Expected versus actual',
+  '### Determinism and restore',
+] as const;
 
 const outcomeSections = ['fills', 'trades', 'cash_ledger', 'daily', 'final'];
 
@@ -81,7 +100,9 @@ export function s0Errors(base: string, files: Set<string>): string[] {
         const file = json(base, `${dir}/case.json`);
         if (file.id !== id) errors.push(`Case ${id}: case.json id is ${file.id}`);
         for (const key of ['strategy', 'input', 'expected', 'derivation']) {
-          if (typeof file[key] !== 'string' || !files.has(`${dir}/${file[key]}`)) errors.push(`Case ${id}: missing ${key} file ${file[key]}`);
+          // A case may name a shared seed strategy by a relative path such as ../../strategies/x.json.
+          const target = typeof file[key] === 'string' ? posix.normalize(`${dir}/${file[key]}`) : '';
+          if (!target.startsWith('fixtures/s0/') || !files.has(target)) errors.push(`Case ${id}: missing ${key} file ${file[key]}`);
         }
         if (!Array.isArray(file.covers) || file.covers.length === 0) errors.push(`Case ${id}: covers no S0 row`);
         for (const row of file.covers ?? []) {
@@ -121,11 +142,20 @@ export function s0Errors(base: string, files: Set<string>): string[] {
     }
     for (const row of s0Rows) {
       const cases: string[] = rows[row] ?? [];
-      if (requireFullCoverage && cases.length === 0) errors.push(`S0 row has no case: ${row}`);
+      if (cases.length === 0) errors.push(`S0 row has no case: ${row}`);
       for (const id of cases) {
         if (!caseDirs.includes(id)) { errors.push(`Coverage for "${row}" names a missing case: ${id}`); continue; }
         const covers: string[] = json(base, `fixtures/s0/cases/${id}/case.json`).covers ?? [];
         if (!covers.includes(row)) errors.push(`Case ${id} is listed for "${row}" but does not declare it`);
+      }
+    }
+    // A case that declares a row must be listed for it, so coverage cannot drift from the cases.
+    for (const id of caseDirs) {
+      const covers: string[] = json(base, `fixtures/s0/cases/${id}/case.json`).covers ?? [];
+      for (const row of covers) {
+        if ((s0Rows as readonly string[]).includes(row) && !(rows[row] ?? []).includes(id)) {
+          errors.push(`Case ${id} declares "${row}" but coverage.json does not list it`);
+        }
       }
     }
   });
@@ -151,7 +181,7 @@ export function reportErrors(base: string): string[] {
   const directory = 'local-runs/s0';
   if (!existsSync(resolve(base, `${directory}/report.md`))) return [`Missing replay report: ${directory}/report.md`];
   const report = text(base, `${directory}/report.md`);
-  for (const heading of ['# S0 local replay report', '## Summary', '## Remaining limitations']) {
+  for (const heading of reportSections) {
     if (!report.includes(heading)) errors.push(`Report lacks the section: ${heading}`);
   }
   try {
@@ -160,7 +190,13 @@ export function reportErrors(base: string): string[] {
     if (!Array.isArray(cases) || cases.length === 0) errors.push('Replay index lists no cases');
     for (const item of cases ?? []) {
       if (!item.passed) errors.push(`Replay case failed: ${item.case}`);
-      if (!report.includes(`## ${item.case} — `)) errors.push(`Report has no section for case ${item.case}`);
+      const start = report.indexOf(`\n## ${item.case} — `);
+      if (start < 0) { errors.push(`Report has no section for case ${item.case}`); continue; }
+      const end = report.indexOf('\n## ', start + 1);
+      const block = report.slice(start, end < 0 ? undefined : end);
+      for (const heading of caseSections) {
+        if (!block.includes(`\n${heading}`)) errors.push(`Report section for case ${item.case} lacks: ${heading}`);
+      }
     }
   } catch (error) { errors.push(`Replay index: ${error}`); }
   return errors;
