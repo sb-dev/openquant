@@ -15,6 +15,8 @@ intermediate value (ATR = sum / 3, a mean, a split-converted level) has no finit
 before and apart from the engine; see the section "grid ties" below and fixtures/s0/README.md.
 G-12a to G-12d pin the gap tests against a level that is off the price grid, and G-13 and G-13b a 17-for-2 split round trip whose
 converted levels leave the grid; see the section "off-grid gap tests and a round trip that leaves the grid".
+I-12a to I-12c pin the rule that a run never holds a level, snapshot or scheduled stop whose integer part is 2**96 or more
+(Sim.check_representable); see the section "levels with no decimal view".
 
 Run:  python3 -I fixtures/s0/oracle/oracle.py   (from the repository root)
 It writes case.json, input.json, expected.json, derivation.md (and strategy.json
@@ -585,6 +587,12 @@ def fmt_dec(x):
     return fmt_exact(x) if terminates(x) else "%d/%d" % (x.numerator, x.denominator)
 
 
+# A level, a snapshot or a scheduled stop whose integer part reaches this limit is exact as a fraction but has no
+# decimal view and no checkpoint form. OQ-02 section 2.5: "a level that an implementation cannot hold exactly is rejected
+# explicitly before the run reports COMPLETED". The magnitude decides (no case here has a negative value).
+LEVEL_INTEGER_LIMIT = 2 ** 96
+
+
 # ---------------------------------------------------------------- simulator (declared policy)
 
 
@@ -711,6 +719,7 @@ class Sim:
                     saved = copy.deepcopy(self.S)
                     try:
                         fn(i)
+                        self.check_representable(s, phase)
                     except Fail as f:
                         self.S = saved
                         self.outcome = {"status": f.status, "code": f.code,
@@ -723,6 +732,28 @@ class Sim:
         except StopRun:
             pass
         return self
+
+    # ---- levels with no decimal view
+    def check_representable(self, s, phase):
+        """After every event the state holds no level, snapshot or scheduled stop whose integer part is
+        LEVEL_INTEGER_LIMIT or more. The event that would leave such a value fails with FAILED ARITHMETIC_OVERFLOW at
+        its own cursor, and run() discards the whole event (as for INVALID_LEVEL): the journal keeps no record of it."""
+        S = self.S
+        held = []
+        for p in S.positions:
+            tid = p["trade_id"]
+            held += [("stop of " + tid, p["stop"]), ("target of " + tid, p["target"])]
+            held += [("snapshot %s of %s" % (k, tid), v) for k, v in p["snaps"].items()]
+            if p["sched"]:
+                held.append(("scheduled stop of " + tid, p["sched"][0]))
+        if S.pending:
+            held += [("snapshot %s of intent %s" % (k, S.pending["intent_id"]), v)
+                     for k, v in S.pending["snaps"].items()]
+        for what, v in held:
+            if abs(math.trunc(v)) >= LEVEL_INTEGER_LIMIT:
+                raise Fail("FAILED", "ARITHMETIC_OVERFLOW", s, phase,
+                           "the %s is %s, whose integer part is %d (2**96) or more: no decimal view and no checkpoint "
+                           "form, so the event is discarded." % (what, fmt_dec(v), LEVEL_INTEGER_LIMIT))
 
     # ---- BEFORE_OPEN
     def before_open(self, i):
@@ -4122,6 +4153,150 @@ def build_grid_ties():
     make_g13("G-13b", "target")
 
 
+# ---------------------------------------------------------------- levels with no decimal view (I-12a to I-12c)
+#
+# OQ-02 section 2.5 rejects "a level that an implementation cannot hold exactly" before the run reports COMPLETED. The rule of
+# these cases (Sim.check_representable): a run never holds a level, snapshot or scheduled stop whose integer part is
+# LEVEL_INTEGER_LIMIT = 2**96 or more. Such a value is exact as a fraction of two 128-bit integers (the largest value used here,
+# 5.05 * K**3 = 101 * K**3 / 20, has a numerator of about 1.01 * 10**38 < 2**127) but has no decimal view and no checkpoint
+# form. When an event would leave one in the state, the run fails with FAILED ARITHMETIC_OVERFLOW at that event and the whole
+# event is discarded, as for INVALID_LEVEL at the entry open in I-03: the journal keeps no record of it.
+#
+# The strategy is the default reduced strategy (SMA3, ATR3, stop 2 * ATR, target 5 * ATR) except for one expression each. K is a
+# RATIO constant just under 10**12; K * K is about 10**24 and K * K * K about 10**36, either side of 2**96 (about 7.92 * 10**28).
+# The bars are those of G-10 to G-13b (ATR3 = 0.22 exactly), so no value here depends on a rounding.
+
+I12_K = 999999999999                      # 10**12 - 1, a RATIO constant just under 10**12
+I12_POLICY = make_policy(fixed="1.00", bps="0")
+I12_ROWS = g_head(F("0.66")) + [FL(5, "0.2")] * 3        # indices 0..4 as G-10 to G-13b, then three flat bars
+
+
+def i12_times_k(expr, n):
+    """expr * K * K ... with n factors K, nested to the left: mul(mul(expr, K), K)."""
+    for _ in range(n):
+        expr = ex("mul", [expr, cst(I12_K, "RATIO")])
+    return expr
+
+
+I12_FACTS = (
+    "1. ATR3 window, indices 2, 3, 4. Indices 2 and 3 are (5, 5.10, 4.90, 5): true range max(0.20, 0.10, 0.10) = 0.20 each. Index 4 "
+    "is (5, 5.16, 4.90, 5.05): max(0.26, 0.16, 0.10) = 0.26. The sum is 0.66 and ATR3 = 0.66 / 3 = 0.22 exactly. The close 5.05 is "
+    "above SMA3 = (5 + 5 + 5.05) / 3 = 5.0166...: entry intent with cap floor(5000.00 / 5) = 1000.00.\n"
+    "2. The constant K = 999999999999 = 10^12 - 1 is a RATIO constant. K * K = 10^24 - 2 * 10^12 + 1 = 999999999998000000000001 and "
+    "K * K * K = 10^36 - 3 * 10^24 + 3 * 10^12 - 1 = 999999999997000000000002999999999999. The limit is 2^96 = "
+    "79228162514264337593543950336, about 7.92 * 10^28: a level, snapshot or scheduled stop whose integer part is 2^96 or more has "
+    "no decimal view and no checkpoint form, and a run never holds one (OQ-02 section 2.5).\n")
+
+
+def make_i12a():
+    def mut(inp, strat):
+        strat["definition"]["exits"]["target"] = i12_times_k(ex("entry_price"), 3)
+        inp["strategy_hash"] = sha(strat)
+    text = I12_FACTS + (
+        "3. The signal at the close of index 4 holds the snapshot entry_atr = 0.22 and reserves 1000.00 (available 4000.00, reserved "
+        "1000.00, ledger line 0 RESERVE). Nothing here is large yet.\n"
+        "4. Index 5 opens at 5.00. The target is entry_price * K * K * K = 5 * 999999999997000000000002999999999999 = "
+        "4999999999985000000000014999999999995, about 5 * 10^36. That is at least 2^96 = 79228162514264337593543950336 (5 * 10^36 / "
+        "7.92 * 10^28 is about 6.3 * 10^7), so it has no decimal view and no checkpoint form. The stop is 5 - 2 * 0.22 = 4.56. The level "
+        "check 0 < 4.56 < 5.00 < 4999999999985000000000014999999999995 holds, so this is not INVALID_LEVEL; the position would still "
+        "hold the target.\n"
+        "5. The OPEN event of index 5 would leave that target in the state, so the run fails with FAILED ARITHMETIC_OVERFLOW at OPEN of "
+        "index 5. The whole event is discarded, as for INVALID_LEVEL in I-03: no fill, no release, no debit, no ledger line. The journal "
+        "keeps the close of index 4: entry I-2026-01-09-SYN stays RESERVED (cap 1000.00), the ledger has the one RESERVE line (seq 0, "
+        "available 4000.00, reserved 1000.00), there is no fill, and the daily records stop at index 4 (cash 4000.00, reserved "
+        "1000.00, no position).\n")
+    hand = {"outcome.status": ("FAILED", "the target has no decimal view"),
+            "outcome.code": ("ARITHMETIC_OVERFLOW", "5 * K^3 >= 2^96"),
+            "outcome.at.session": (D[5], "the entry open, index 5"), "outcome.at.phase": ("OPEN", "the event that creates the level"),
+            "entries.0.status": ("RESERVED", "the failed OPEN event is discarded"),
+            "entries.0.cap": ("1000.00", "floor(5000.00 / 5)"),
+            "cash_ledger.0.kind": ("RESERVE", "the only ledger line"),
+            "cash_ledger.0.available_after": ("4000.00", "5000.00 - 1000.00"),
+            "cash_ledger.0.reserved_after": ("1000.00", "the reservation stays"),
+            "daily.4.cash_available": ("4000.00", "the last daily record is index 4"),
+            "daily.4.cash_reserved": ("1000.00", "the reservation stays")}
+    return rc("I-12a", "Level with no decimal view: a target of about 5e36 fails the run at the entry open, the event is discarded",
+              ["Invalid inputs"], I12_ROWS, I12_POLICY, mutate=mut, kind="partial",
+              sections=("signals", "entries", "fills", "cash_ledger", "daily", "corporate_actions"),
+              notes="Eight sessions on the bars of G-10 to G-13b (ATR3 = 0.22 exactly). The target is entry_price * K * K * K with the "
+                    "RATIO constant K = 999999999999: 5 * K^3 = 4999999999985000000000014999999999995, about 5 * 10^36 and at "
+                    "least 2^96. The value is exact as a fraction but has no decimal view and no checkpoint form, so the run fails "
+                    "with FAILED ARITHMETIC_OVERFLOW at OPEN of index 5, before any fill. The whole event is discarded: the "
+                    "journal keeps the reservation made at the close of index 4 (entry RESERVED, one RESERVE line) and no fill.",
+              hand=hand, hand_text=text, focus=[D[4]])
+
+
+def make_i12b():
+    def mut(inp, strat):
+        strat["definition"]["entry"]["snapshots"].append({"name": "big", "expr": i12_times_k(bf("CLOSE"), 3)})
+        inp["strategy_hash"] = sha(strat)
+    text = I12_FACTS + (
+        "3. The entry snapshots are entry_atr = ATR3 and big = close * K * K * K, taken at the signal session. At indices 0 to 3 the "
+        "condition is MISSING or FALSE (close 5 is not above SMA3 = 5), so no snapshot is taken and no value is held; the sessions "
+        "complete.\n"
+        "4. At the close of index 4 the condition is TRUE and big = 5.05 * 999999999997000000000002999999999999 = "
+        "100999999999697000000000302999999999899 / 20 = 5049999999984850000000015149999999994.95, about 5.05 * 10^36 and at least "
+        "2^96 = 79228162514264337593543950336. The AFTER_CLOSE event of index 4 would leave that snapshot in the entry intent, so the "
+        "run fails with FAILED ARITHMETIC_OVERFLOW at AFTER_CLOSE of index 4.\n"
+        "5. The whole event is discarded: no signal record and no daily record for index 4, no entry record, no reservation "
+        "(available stays 5000.00, reserved 0.00) and no ledger line. The journal keeps indices 0 to 3: four signal records, four "
+        "daily records of 5000.00 in cash, no entry, no fill and no ledger line.\n")
+    hand = {"outcome.status": ("FAILED", "the snapshot has no decimal view"),
+            "outcome.code": ("ARITHMETIC_OVERFLOW", "5.05 * K^3 >= 2^96"),
+            "outcome.at.session": (D[4], "the signal session, index 4"),
+            "outcome.at.phase": ("AFTER_CLOSE", "the event that takes the snapshot"),
+            "signals.3.session": (D[3], "the last completed signal is index 3"),
+            "signals.3.decision": ("NO_ENTRY", "close 5 is not above SMA3 = 5"),
+            "daily.3.cash_available": ("5000.00", "no reservation was made"),
+            "daily.3.cash_reserved": ("0.00", "no reservation was made")}
+    return rc("I-12b", "Snapshot with no decimal view: a snapshot of about 5e36 fails the run at the signal close, the event is discarded",
+              ["Invalid inputs"], I12_ROWS, I12_POLICY, mutate=mut, kind="partial",
+              sections=("signals", "entries", "fills", "cash_ledger", "daily", "corporate_actions"),
+              notes="Eight sessions on the bars of G-10 to G-13b. The default exits (stop 2 * ATR, target 5 * ATR) and one extra entry "
+                    "snapshot, big = close * K * K * K with K = 999999999999 (unit PRICE). At the signal close of index 4, big = 5.05 * "
+                    "K^3, about 5.05 * 10^36 and at least 2^96: it has no decimal view and no checkpoint form, so the run fails with "
+                    "FAILED ARITHMETIC_OVERFLOW at AFTER_CLOSE of index 4. The whole event is discarded: the journal keeps only "
+                    "indices 0 to 3 (no entry record, no reservation, no ledger line).",
+              hand=hand, hand_text=text, focus=[D[3]])
+
+
+def make_i12c():
+    def mut(inp, strat):
+        strat["definition"]["exits"]["target"] = i12_times_k(ex("entry_price"), 2)
+        inp["strategy_hash"] = sha(strat)
+    text = I12_FACTS + (
+        "3. The signal at the close of index 4 reserves 1000.00 (available 4000.00, reserved 1000.00).\n"
+        "4. Index 5 opens at 5.00 with a fixed fee of 1.00 and no bps fee: 200 shares cost 1000.00 + 1.00 = 1001.00 > 1000.00; 199 "
+        "shares cost 995.00 + 1.00 = 996.00 <= 1000.00. Quantity 199; the reservation is released (available 5000.00) and 996.00 "
+        "is debited: available 4004.00, reserved 0.00.\n"
+        "5. Levels. The target is entry_price * K * K = 5 * 999999999998000000000001 = 4999999999990000000000005, about 5 * 10^24. "
+        "That is below 2^96 = 79228162514264337593543950336 (about 7.92 * 10^28), so it has a decimal view and a checkpoint form and "
+        "the run holds it. The stop is 5 - 2 * 0.22 = 4.56. The level check 0 < 4.56 < 5.00 < 4999999999990000000000005 holds.\n"
+        "6. Indices 5, 6 and 7 are (5, 5.10, 4.90, 5): the open 5.00 is above the stop and below the target (no gap), the low 4.90 is "
+        "above 4.56 and the high 5.10 is below 4999999999990000000000005 (no touch). The position is held to the end and stays "
+        "open (OPEN_AT_END). Value at the last close: 199 * 5.00 = 995.00; equity 4004.00 + 995.00 = 4999.00. The final open "
+        "position states the stop 4.56 and the target 4999999999990000000000005.\n")
+    hand = {"outcome.status": ("COMPLETED", "every level is below 2^96"),
+            "entries.0.quantity": ("199", "200 shares 1001.00 > 1000.00; 199 shares 996.00"),
+            "fills.0.cash_delta": ("-996.00", "-(995.00 + 1.00)"),
+            "daily.5.cash_available": ("4004.00", "5000.00 - 996.00"),
+            "daily.5.positions.0.stop": ("4.56", "5 - 2 * 0.22"),
+            "daily.5.positions.0.target": ("4999999999990000000000005", "5 * K * K"),
+            "trades.0.exit_reason": ("OPEN_AT_END", "no exit touched"),
+            "final.cash_available": ("4004.00", "5000.00 - 996.00"),
+            "final.positions_value": ("995.00", "199 * 5.00"),
+            "final.equity": ("4999.00", "4004.00 + 995.00"),
+            "final.open_positions.0.quantity": ("199", "held to the end"),
+            "final.open_positions.0.stop": ("4.56", "5 - 2 * 0.22"),
+            "final.open_positions.0.target": ("4999999999990000000000005", "5 * K * K, below 2^96")}
+    return rc("I-12c", "Control: a target of about 5e24 is below 2^96, so the run holds the position to the end and completes",
+              ["Invalid inputs"], I12_ROWS, I12_POLICY, mutate=mut, hand=hand, hand_text=text, focus=[D[4]],
+              notes="Eight sessions on the bars of G-10 to G-13b. The target is entry_price * K * K with K = 999999999999: 5 * K^2 = "
+                    "4999999999990000000000005, about 5 * 10^24 and below 2^96. It has a decimal view and a checkpoint form, so the "
+                    "run completes: 199 shares are bought at the open of index 5 and held to the end, and the final open position "
+                    "states the target 4999999999990000000000005. The control of I-12a: the same expression with one factor K fewer.")
+
+
 # ---------------------------------------------------------------- protocol payloads
 
 
@@ -4238,6 +4413,9 @@ def build_all():
     make_i09()
     make_i10()
     make_i11()
+    make_i12a()
+    make_i12b()
+    make_i12c()
     make_r01()
     build_grid_ties()
     return make_sem01_case
