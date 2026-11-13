@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:checkpoint:1",
+  "title": "Checkpoint",
+  "description": "Restorable numerical state. It binds strategy, input and engine identities and the event cursor to cash, positions, reservations, pending entries, scheduled stops and applied action identities (OQ-06 section 8, S0).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "strategy_hash",
+    "input_hash",
+    "engine_digest",
+    "state"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": [
+        "checkpoint/1"
+      ]
+    },
+    "strategy_hash": {
+      "$ref": "urn:openquant:schema:common:1#/$defs/Digest"
+    },
+    "input_hash": {
+      "$ref": "urn:openquant:schema:common:1#/$defs/Digest"
+    },
+    "engine_digest": {
+      "$ref": "urn:openquant:schema:common:1#/$defs/Digest"
+    },
+    "next_event": {
+      "$ref": "urn:openquant:schema:common:1#/$defs/Cursor"
+    },
+    "state": {
+      "$ref": "#/$defs/StateSnapshot"
+    }
+  },
+  "$defs": {
+    "StateSnapshot": {
+      "title": "StateSnapshot",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cash_available",
+        "cash_reserved",
+        "receivables",
+        "positions",
+        "pending_entries",
+        "applied_action_ids",
+        "journal"
+      ],
+      "properties": {
+        "cash_available": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "cash_reserved": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "receivables": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/ReceivableSnapshot"
+          }
+        },
+        "positions": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/PositionSnapshot"
+          }
+        },
+        "pending_entries": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/PendingSnapshot"
+          }
+        },
+        "applied_action_ids": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "urn:openquant:schema:common:1#/$defs/Identifier"
+          }
+        },
+        "journal": {
+          "$ref": "urn:openquant:schema:evaluation-result:1#/$defs/Journal"
+        }
+      }
+    },
+    "ReceivableSnapshot": {
+      "title": "ReceivableSnapshot",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "amount",
+        "payment_session",
+        "payment_phase"
+      ],
+      "properties": {
+        "action_id": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Identifier"
+        },
+        "amount": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "payment_session": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate"
+        },
+        "payment_phase": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Phase"
+        }
+      }
+    },
+    "PositionSnapshot": {
+      "title": "PositionSnapshot",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "instrument_id",
+        "trade_id",
+        "entry_session",
+        "quantity",
+        "entry_price",
+        "snapshots",
+        "stop",
+        "target",
+        "mark",
+        "fired_adjustments"
+      ],
+      "properties": {
+        "instrument_id": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Identifier"
+        },
+        "trade_id": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Identifier"
+        },
+        "entry_session": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate"
+        },
+        "quantity": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "entry_price": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "snapshots": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "urn:openquant:schema:evaluation-result:1#/$defs/SnapshotValue"
+          }
+        },
+        "stop": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "target": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "mark": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "fired_adjustments": {
+          "type": "array",
+          "maxItems": 4,
+          "items": {
+            "$ref": "urn:openquant:schema:common:1#/$defs/Identifier"
+          }
+        },
+        "scheduled_stop": {
+          "$ref": "urn:openquant:schema:evaluation-result:1#/$defs/ScheduledStop"
+        }
+      }
+    },
+    "PendingSnapshot": {
+      "title": "PendingSnapshot",
+      "description": "Frozen entry intent. The cap and rank never change; snapshot values convert on a split.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intent_id",
+        "instrument_id",
+        "signal_session",
+        "rank",
+        "cap",
+        "snapshots"
+      ],
+      "properties": {
+        "intent_id": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Identifier"
+        },
+        "instrument_id": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Identifier"
+        },
+        "signal_session": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate"
+        },
+        "rank": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "cap": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "snapshots": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "urn:openquant:schema:evaluation-result:1#/$defs/SnapshotValue"
+          }
+        }
+      }
+    }
+  }
+}

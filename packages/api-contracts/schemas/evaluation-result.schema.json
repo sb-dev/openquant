@@ -1,0 +1,602 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:evaluation-result:1",
+  "title": "EvaluationResult",
+  "description": "Numerical result of one local evaluation. It carries no run, attempt or ownership identity: S0 claims no official application result.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "strategy_hash",
+    "input_hash",
+    "engine",
+    "engine_digest",
+    "outcome",
+    "journal",
+    "final"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": [
+        "evaluation-result/1"
+      ]
+    },
+    "strategy_hash": {
+      "$ref": "urn:openquant:schema:common:1#/$defs/Digest"
+    },
+    "input_hash": {
+      "$ref": "urn:openquant:schema:common:1#/$defs/Digest"
+    },
+    "engine": {
+      "$ref": "urn:openquant:schema:common:1#/$defs/EngineIdentity"
+    },
+    "engine_digest": {
+      "$ref": "urn:openquant:schema:common:1#/$defs/Digest"
+    },
+    "outcome": {
+      "$ref": "#/$defs/Outcome"
+    },
+    "journal": {
+      "$ref": "#/$defs/Journal"
+    },
+    "final": {
+      "$ref": "#/$defs/FinalState"
+    }
+  },
+  "$defs": {
+    "Outcome": {
+      "title": "Outcome",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Status"
+        },
+        "code": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/FailureCode"
+        },
+        "at": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Cursor"
+        },
+        "detail": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      }
+    },
+    "Journal": {
+      "title": "Journal",
+      "description": "Everything recorded through the last completed event. A restored run continues the same journal.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signals",
+        "entries",
+        "fills",
+        "trades",
+        "cash_ledger",
+        "daily",
+        "corporate_actions",
+        "next_seq"
+      ],
+      "properties": {
+        "signals": {
+          "type": "array",
+          "maxItems": 400,
+          "items": {
+            "$ref": "#/$defs/SignalRecord"
+          }
+        },
+        "entries": {
+          "type": "array",
+          "maxItems": 400,
+          "items": {
+            "$ref": "#/$defs/EntryRecord"
+          }
+        },
+        "fills": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "$ref": "#/$defs/FillRecord"
+          }
+        },
+        "trades": {
+          "type": "array",
+          "maxItems": 400,
+          "items": {
+            "$ref": "#/$defs/TradeRecord"
+          }
+        },
+        "cash_ledger": {
+          "type": "array",
+          "maxItems": 4000,
+          "items": {
+            "$ref": "#/$defs/LedgerEntry"
+          }
+        },
+        "daily": {
+          "type": "array",
+          "maxItems": 400,
+          "items": {
+            "$ref": "#/$defs/DailyRecord"
+          }
+        },
+        "corporate_actions": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/ActionRecord"
+          }
+        },
+        "next_seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        }
+      }
+    },
+    "IndicatorValue": {
+      "title": "IndicatorValue",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Identifier"
+        },
+        "value": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "missing_reason": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/MissingReason"
+        }
+      }
+    },
+    "SignalRecord": {
+      "title": "SignalRecord",
+      "description": "Decision at the close of a session. Indicator values are rounded half-even to diagnostic_scale for display only.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session",
+        "indicators",
+        "condition",
+        "decision"
+      ],
+      "properties": {
+        "session": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate"
+        },
+        "indicators": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/IndicatorValue"
+          }
+        },
+        "condition": {
+          "type": "string",
+          "enum": [
+            "TRUE",
+            "FALSE",
+            "MISSING"
+          ]
+        },
+        "rank": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "ENTER",
+            "NO_ENTRY",
+            "SKIPPED"
+          ]
+        },
+        "skip_reason": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/SkipReason"
+        }
+      }
+    },
+    "EntryRecord": {
+      "title": "EntryRecord",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intent_id",
+        "signal_session",
+        "rank",
+        "cap",
+        "status"
+      ],
+      "properties": {
+        "intent_id": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Identifier"
+        },
+        "signal_session": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate"
+        },
+        "rank": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "cap": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "RESERVED",
+            "FILLED",
+            "SKIPPED",
+            "EXPIRED"
+          ]
+        },
+        "reason": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/SkipReason"
+        },
+        "quantity": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "fill_price": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "fee": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        }
+      }
+    },
+    "FillRecord": {
+      "title": "FillRecord",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seq",
+        "session",
+        "phase",
+        "side",
+        "quantity",
+        "price",
+        "notional",
+        "fee",
+        "cash_delta",
+        "reason"
+      ],
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "session": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate"
+        },
+        "phase": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Phase"
+        },
+        "side": {
+          "type": "string",
+          "enum": [
+            "BUY",
+            "SELL"
+          ]
+        },
+        "quantity": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "price": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "notional": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "fee": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "cash_delta": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "ENTRY",
+            "STOP",
+            "TARGET",
+            "GAP_STOP",
+            "GAP_TARGET"
+          ]
+        },
+        "intent_id": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Identifier"
+        },
+        "ambiguous_bar": {
+          "type": "boolean"
+        }
+      }
+    },
+    "TradeRecord": {
+      "title": "TradeRecord",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trade_id",
+        "entry_session",
+        "quantity",
+        "entry_price",
+        "exit_reason",
+        "ambiguous_bar"
+      ],
+      "properties": {
+        "trade_id": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Identifier"
+        },
+        "entry_session": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate"
+        },
+        "exit_session": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate"
+        },
+        "quantity": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "entry_price": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "exit_price": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "exit_reason": {
+          "type": "string",
+          "enum": [
+            "STOP",
+            "TARGET",
+            "GAP_STOP",
+            "GAP_TARGET",
+            "OPEN_AT_END"
+          ]
+        },
+        "ambiguous_bar": {
+          "type": "boolean"
+        }
+      }
+    },
+    "LedgerEntry": {
+      "title": "LedgerEntry",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seq",
+        "session",
+        "phase",
+        "kind",
+        "amount",
+        "available_after",
+        "reserved_after",
+        "receivables_after"
+      ],
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "session": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate"
+        },
+        "phase": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Phase"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "RESERVE",
+            "RELEASE",
+            "FILL_BUY",
+            "FILL_SELL",
+            "DIVIDEND_RECEIVABLE",
+            "DIVIDEND_PAYMENT"
+          ]
+        },
+        "amount": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "available_after": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "reserved_after": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "receivables_after": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        }
+      }
+    },
+    "ScheduledStop": {
+      "title": "ScheduledStop",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "effective_session"
+      ],
+      "properties": {
+        "level": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "effective_session": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate"
+        }
+      }
+    },
+    "PositionView": {
+      "title": "PositionView",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trade_id",
+        "quantity",
+        "entry_price",
+        "snapshots",
+        "stop",
+        "target"
+      ],
+      "properties": {
+        "trade_id": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Identifier"
+        },
+        "quantity": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "entry_price": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "snapshots": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/SnapshotValue"
+          }
+        },
+        "stop": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "target": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "scheduled_stop": {
+          "$ref": "#/$defs/ScheduledStop"
+        }
+      }
+    },
+    "DailyRecord": {
+      "title": "DailyRecord",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session",
+        "cash_available",
+        "cash_reserved",
+        "receivables",
+        "positions_value",
+        "equity",
+        "positions"
+      ],
+      "properties": {
+        "session": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate"
+        },
+        "cash_available": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "cash_reserved": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "receivables": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "positions_value": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "equity": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "positions": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/PositionView"
+          }
+        }
+      }
+    },
+    "ActionRecord": {
+      "title": "ActionRecord",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "kind",
+        "effective_session",
+        "applied_at"
+      ],
+      "properties": {
+        "action_id": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Identifier"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "SPLIT",
+            "CASH_DIVIDEND"
+          ]
+        },
+        "effective_session": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate"
+        },
+        "applied_at": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Cursor"
+        }
+      }
+    },
+    "FinalState": {
+      "title": "FinalState",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cash_available",
+        "cash_reserved",
+        "receivables",
+        "positions_value",
+        "equity",
+        "open_positions"
+      ],
+      "properties": {
+        "cash_available": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "cash_reserved": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "receivables": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "positions_value": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "equity": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        },
+        "open_positions": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/PositionView"
+          }
+        }
+      }
+    },
+    "SnapshotValue": {
+      "title": "SnapshotValue",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "value"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Identifier"
+        },
+        "value": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+        }
+      }
+    }
+  }
+}

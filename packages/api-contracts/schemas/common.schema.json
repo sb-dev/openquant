@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:common:1",
+  "title": "OpenQuantCommonDefinitions",
+  "description": "Shared definitions for the S0 contracts. Money, prices, quantities and indicator values are decimal strings.",
+  "$defs": {
+    "Decimal": {
+      "title": "Decimal",
+      "description": "Plain decimal string. No exponent, no leading plus, no leading zeros, no negative zero.",
+      "type": "string",
+      "pattern": "^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.[0-9]*[1-9][0-9]*)$"
+    },
+    "Digest": {
+      "title": "Digest",
+      "description": "SHA-256 over canonical JSON, lower-case hex.",
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "OperatorRef": {
+      "title": "OperatorRef",
+      "description": "operator:<id>@<compatibility-version>",
+      "type": "string",
+      "pattern": "^operator:[a-z][a-z0-9_]*@[1-9][0-9]*$"
+    },
+    "Identifier": {
+      "title": "Identifier",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$"
+    },
+    "SessionDate": {
+      "title": "SessionDate",
+      "description": "Calendar date of a trading session, YYYY-MM-DD.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "UtcTimestamp": {
+      "title": "UtcTimestamp",
+      "description": "UTC instant with second precision, YYYY-MM-DDTHH:MM:SSZ.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "Phase": {
+      "title": "Phase",
+      "type": "string",
+      "enum": ["BEFORE_OPEN", "OPEN", "DURING_SESSION", "AFTER_CLOSE"]
+    },
+    "Unit": {
+      "title": "Unit",
+      "type": "string",
+      "enum": ["PRICE", "SHARES", "RATIO", "POINTS", "FLAG"]
+    },
+    "Cursor": {
+      "title": "Cursor",
+      "description": "Event cursor: the next session and phase to process.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session", "phase"],
+      "properties": {
+        "session": { "$ref": "#/$defs/SessionDate" },
+        "phase": { "$ref": "#/$defs/Phase" }
+      }
+    },
+    "Status": {
+      "title": "Status",
+      "type": "string",
+      "enum": ["COMPLETED", "FAILED", "INSUFFICIENT"]
+    },
+    "FailureCode": {
+      "title": "FailureCode",
+      "type": "string",
+      "enum": [
+        "UNSUPPORTED_SCHEMA_VERSION",
+        "SCHEMA_VIOLATION",
+        "INVALID_DECIMAL",
+        "UNSUPPORTED_OPERATOR",
+        "OPERATOR_TYPE_MISMATCH",
+        "OPERATOR_UNIT_MISMATCH",
+        "INVALID_PARAMETER",
+        "IDENTITY_MISMATCH",
+        "CHECKPOINT_MISMATCH",
+        "UNSUPPORTED_POLICY",
+        "INVALID_INPUT",
+        "FUTURE_DATA",
+        "INVALID_LEVEL",
+        "EVENT_OUT_OF_ORDER",
+        "ARITHMETIC_OVERFLOW",
+        "MISSING_REQUIRED_BAR",
+        "UNSUPPORTED_CORPORATE_ACTION",
+        "FRACTIONAL_ENTITLEMENT",
+        "UNSUPPORTED_VALUATION"
+      ]
+    },
+    "SkipReason": {
+      "title": "SkipReason",
+      "type": "string",
+      "enum": [
+        "NO_SIGNAL",
+        "INDICATOR_UNAVAILABLE",
+        "NOT_SCORED_YET",
+        "NO_NEXT_SESSION",
+        "HELD",
+        "PENDING",
+        "NO_VACANT_SLOT",
+        "CAP_BELOW_ONE_LOT",
+        "EXPIRED_NON_TRADING"
+      ]
+    },
+    "MissingReason": {
+      "title": "MissingReason",
+      "type": "string",
+      "enum": [
+        "INSUFFICIENT_HISTORY",
+        "UNDEFINED_FLAT",
+        "DIV_BY_ZERO",
+        "NON_POSITIVE",
+        "UPSTREAM_MISSING"
+      ]
+    },
+    "EngineIdentity": {
+      "title": "EngineIdentity",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "operator_set_digest", "schema_versions"],
+      "properties": {
+        "name": { "$ref": "#/$defs/Identifier" },
+        "version": { "$ref": "#/$defs/Identifier" },
+        "operator_set_digest": { "$ref": "#/$defs/Digest" },
+        "schema_versions": {
+          "type": "array",
+          "maxItems": 16,
+          "items": { "type": "string", "maxLength": 64 }
+        }
+      }
+    }
+  }
+}

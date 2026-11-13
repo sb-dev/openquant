@@ -1,0 +1,25 @@
+{
+  "schema": "s0-coverage/1",
+  "note": "Maps each S0 row of OQ-06 section 8 to the cases that demonstrate it. Each case declares the same rows in case.json.",
+  "rows": {
+    "Definition execution": [],
+    "Shared payloads": [
+      "F0-smoke"
+    ],
+    "Seed semantics": [],
+    "Entry variants": [],
+    "Unplanned non-trading events": [],
+    "Split across an ex-date": [],
+    "Cash dividend": [],
+    "Entry and exit phases": [
+      "F0-smoke"
+    ],
+    "Cash and quantities": [
+      "F0-smoke"
+    ],
+    "Invalid inputs": [],
+    "Local replay": [
+      "F0-smoke"
+    ]
+  }
+}

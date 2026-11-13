@@ -17,7 +17,10 @@ jobs:
   checks:
     name: Bootstrap checks
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_TERM_COLOR: always
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -28,6 +31,8 @@ jobs:
         with:
           node-version-file: .node-version
           package-manager-cache: false
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install --profile minimal
       - name: Verify repository
         run: node scripts/verify.ts
 

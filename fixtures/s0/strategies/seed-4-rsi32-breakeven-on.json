@@ -1,0 +1,508 @@
+{
+  "schema_version": "strategy-artefact/1",
+  "strategy_id": "daily-swing-seed",
+  "version": 4,
+  "operator_set": "daily-long-only-seed@1",
+  "contract": {
+    "hypothesis": "A liquid stock above its 50-session mean that recently dipped to a weak RSI and now shows rising volume tends to recover over days to weeks.",
+    "rationale": "Corrected daily swing seed family from OQ-02 section 2.6: simple-mean RSI and ATR, lagged weakness without a required crossing, current volume mean, next-open fills, ATR protection.",
+    "intended_conditions": [
+      "Daily bars, one market and currency, long-only cash positions, five slots."
+    ],
+    "benchmarks": [
+      "Declared by the evaluation policy, not by the strategy."
+    ],
+    "assumptions": [
+      "Fills at the next session open under the declared cost model.",
+      "Signal prices are split-adjusted from actions available at the signal session."
+    ],
+    "invalidation": [
+      "Entry signals fail to precede positive forward returns across the cohort."
+    ]
+  },
+  "definition": {
+    "indicators": [
+      {
+        "name": "sma50",
+        "expr": {
+          "op": "operator:sma@1",
+          "args": [
+            {
+              "op": "operator:bar_field@1",
+              "args": [],
+              "params": {
+                "field": "CLOSE"
+              }
+            }
+          ],
+          "params": {
+            "window": 50
+          }
+        }
+      },
+      {
+        "name": "vol_sma20",
+        "expr": {
+          "op": "operator:sma@1",
+          "args": [
+            {
+              "op": "operator:bar_field@1",
+              "args": [],
+              "params": {
+                "field": "VOLUME"
+              }
+            }
+          ],
+          "params": {
+            "window": 20
+          }
+        }
+      },
+      {
+        "name": "rsi14",
+        "expr": {
+          "op": "operator:rsi_simple@1",
+          "args": [
+            {
+              "op": "operator:bar_field@1",
+              "args": [],
+              "params": {
+                "field": "CLOSE"
+              }
+            }
+          ],
+          "params": {
+            "window": 14
+          }
+        }
+      },
+      {
+        "name": "atr14",
+        "expr": {
+          "op": "operator:atr_simple@1",
+          "args": [],
+          "params": {
+            "window": 14
+          }
+        }
+      },
+      {
+        "name": "rsi_floor",
+        "expr": {
+          "op": "operator:const@1",
+          "args": [],
+          "params": {
+            "value": "30",
+            "unit": "POINTS"
+          }
+        }
+      },
+      {
+        "name": "weak_threshold",
+        "expr": {
+          "op": "operator:const@1",
+          "args": [],
+          "params": {
+            "value": "32",
+            "unit": "POINTS"
+          }
+        }
+      },
+      {
+        "name": "rsi_lag1",
+        "expr": {
+          "op": "operator:lag@1",
+          "args": [
+            {
+              "op": "operator:ref@1",
+              "args": [],
+              "params": {
+                "name": "rsi14"
+              }
+            }
+          ],
+          "params": {
+            "periods": 1
+          }
+        }
+      },
+      {
+        "name": "rsi_lag2",
+        "expr": {
+          "op": "operator:lag@1",
+          "args": [
+            {
+              "op": "operator:ref@1",
+              "args": [],
+              "params": {
+                "name": "rsi14"
+              }
+            }
+          ],
+          "params": {
+            "periods": 2
+          }
+        }
+      }
+    ],
+    "entry": {
+      "condition": {
+        "op": "operator:and@1",
+        "args": [
+          {
+            "op": "operator:gt@1",
+            "args": [
+              {
+                "op": "operator:bar_field@1",
+                "args": [],
+                "params": {
+                  "field": "CLOSE"
+                }
+              },
+              {
+                "op": "operator:ref@1",
+                "args": [],
+                "params": {
+                  "name": "sma50"
+                }
+              }
+            ],
+            "params": {}
+          },
+          {
+            "op": "operator:or@1",
+            "args": [
+              {
+                "op": "operator:lte@1",
+                "args": [
+                  {
+                    "op": "operator:ref@1",
+                    "args": [],
+                    "params": {
+                      "name": "rsi_lag2"
+                    }
+                  },
+                  {
+                    "op": "operator:ref@1",
+                    "args": [],
+                    "params": {
+                      "name": "weak_threshold"
+                    }
+                  }
+                ],
+                "params": {}
+              },
+              {
+                "op": "operator:lte@1",
+                "args": [
+                  {
+                    "op": "operator:ref@1",
+                    "args": [],
+                    "params": {
+                      "name": "rsi_lag1"
+                    }
+                  },
+                  {
+                    "op": "operator:ref@1",
+                    "args": [],
+                    "params": {
+                      "name": "weak_threshold"
+                    }
+                  }
+                ],
+                "params": {}
+              }
+            ],
+            "params": {}
+          },
+          {
+            "op": "operator:gt@1",
+            "args": [
+              {
+                "op": "operator:ref@1",
+                "args": [],
+                "params": {
+                  "name": "rsi14"
+                }
+              },
+              {
+                "op": "operator:ref@1",
+                "args": [],
+                "params": {
+                  "name": "rsi_floor"
+                }
+              }
+            ],
+            "params": {}
+          },
+          {
+            "op": "operator:gt@1",
+            "args": [
+              {
+                "op": "operator:bar_field@1",
+                "args": [],
+                "params": {
+                  "field": "VOLUME"
+                }
+              },
+              {
+                "op": "operator:ref@1",
+                "args": [],
+                "params": {
+                  "name": "vol_sma20"
+                }
+              }
+            ],
+            "params": {}
+          },
+          {
+            "op": "operator:gt@1",
+            "args": [
+              {
+                "op": "operator:ref@1",
+                "args": [],
+                "params": {
+                  "name": "atr14"
+                }
+              },
+              {
+                "op": "operator:const@1",
+                "args": [],
+                "params": {
+                  "value": "0",
+                  "unit": "PRICE"
+                }
+              }
+            ],
+            "params": {}
+          },
+          {
+            "op": "operator:gt@1",
+            "args": [
+              {
+                "op": "operator:ref@1",
+                "args": [],
+                "params": {
+                  "name": "vol_sma20"
+                }
+              },
+              {
+                "op": "operator:const@1",
+                "args": [],
+                "params": {
+                  "value": "0",
+                  "unit": "SHARES"
+                }
+              }
+            ],
+            "params": {}
+          }
+        ],
+        "params": {}
+      },
+      "rank": {
+        "op": "operator:add@1",
+        "args": [
+          {
+            "op": "operator:mul@1",
+            "args": [
+              {
+                "op": "operator:const@1",
+                "args": [],
+                "params": {
+                  "value": "50",
+                  "unit": "POINTS"
+                }
+              },
+              {
+                "op": "operator:div@1",
+                "args": [
+                  {
+                    "op": "operator:bar_field@1",
+                    "args": [],
+                    "params": {
+                      "field": "VOLUME"
+                    }
+                  },
+                  {
+                    "op": "operator:ref@1",
+                    "args": [],
+                    "params": {
+                      "name": "vol_sma20"
+                    }
+                  }
+                ],
+                "params": {}
+              }
+            ],
+            "params": {}
+          },
+          {
+            "op": "operator:sub@1",
+            "args": [
+              {
+                "op": "operator:const@1",
+                "args": [],
+                "params": {
+                  "value": "100",
+                  "unit": "POINTS"
+                }
+              },
+              {
+                "op": "operator:ref@1",
+                "args": [],
+                "params": {
+                  "name": "rsi14"
+                }
+              }
+            ],
+            "params": {}
+          }
+        ],
+        "params": {}
+      },
+      "snapshots": [
+        {
+          "name": "entry_atr",
+          "expr": {
+            "op": "operator:ref@1",
+            "args": [],
+            "params": {
+              "name": "atr14"
+            }
+          }
+        }
+      ]
+    },
+    "selection": {
+      "slots": 5,
+      "max_per_instrument": 1,
+      "tie_break": "ASCENDING_INSTRUMENT_ID"
+    },
+    "sizing": {
+      "method": "sizing:equal_cash_per_vacant_slot@1"
+    },
+    "exits": {
+      "stop": {
+        "op": "operator:sub@1",
+        "args": [
+          {
+            "op": "operator:entry_price@1",
+            "args": [],
+            "params": {}
+          },
+          {
+            "op": "operator:mul@1",
+            "args": [
+              {
+                "op": "operator:const@1",
+                "args": [],
+                "params": {
+                  "value": "2",
+                  "unit": "RATIO"
+                }
+              },
+              {
+                "op": "operator:snapshot@1",
+                "args": [],
+                "params": {
+                  "name": "entry_atr"
+                }
+              }
+            ],
+            "params": {}
+          }
+        ],
+        "params": {}
+      },
+      "target": {
+        "op": "operator:add@1",
+        "args": [
+          {
+            "op": "operator:entry_price@1",
+            "args": [],
+            "params": {}
+          },
+          {
+            "op": "operator:mul@1",
+            "args": [
+              {
+                "op": "operator:const@1",
+                "args": [],
+                "params": {
+                  "value": "5",
+                  "unit": "RATIO"
+                }
+              },
+              {
+                "op": "operator:snapshot@1",
+                "args": [],
+                "params": {
+                  "name": "entry_atr"
+                }
+              }
+            ],
+            "params": {}
+          }
+        ],
+        "params": {}
+      },
+      "stop_adjustments": [
+        {
+          "id": "break_even",
+          "trigger": {
+            "op": "operator:gte@1",
+            "args": [
+              {
+                "op": "operator:bar_field@1",
+                "args": [],
+                "params": {
+                  "field": "HIGH"
+                }
+              },
+              {
+                "op": "operator:add@1",
+                "args": [
+                  {
+                    "op": "operator:entry_price@1",
+                    "args": [],
+                    "params": {}
+                  },
+                  {
+                    "op": "operator:snapshot@1",
+                    "args": [],
+                    "params": {
+                      "name": "entry_atr"
+                    }
+                  }
+                ],
+                "params": {}
+              }
+            ],
+            "params": {}
+          },
+          "new_level": {
+            "op": "operator:entry_price@1",
+            "args": [],
+            "params": {}
+          },
+          "effective": "NEXT_SESSION"
+        }
+      ]
+    },
+    "execution": {
+      "entry_fill": "NEXT_OPEN",
+      "decision": "AFTER_CLOSE"
+    }
+  },
+  "parent": {
+    "hash": "sha256:ab5f48cdc451feb20a105cfc26fe8f969bb7f1f2c4d2ed7dfdf8390aeb106889",
+    "changes": [
+      {
+        "path": "/definition/exits/stop_adjustments",
+        "from": "[]",
+        "to": "break_even"
+      }
+    ]
+  }
+}
