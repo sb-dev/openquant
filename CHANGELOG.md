@@ -10,6 +10,6 @@
 - Archive nine supplied design references with SHA-256 provenance.
 
 - Add the S0 offline seed evaluation: a Cargo workspace with a pinned toolchain, versioned input/result/checkpoint schemas with generated Rust bindings and runtime validation, a shared Rust core (typed operator interpreter, daily execution phases, exact accounting, corporate actions, checkpoint restore), four versioned seed Strategy Definitions, independent synthetic fixtures, a local replay report, and Rust checks in `pnpm verify` and CI.
-- Decide every S0 level comparison (stop and target touch, gap, validity, break-even trigger, entry signal) on exact rational values, and keep levels exact through splits. A level that does not fit 128 bits fails with `ARITHMETIC_OVERFLOW`. The checkpoint may carry a level as a reduced fraction `n/d` (`Exact`). Add 25 independent grid-tie cases (G-01 to G-13b).
+- Decide every S0 level comparison (stop and target touch, gap, validity, break-even trigger, entry signal) on exact rational values, and keep levels exact through splits. A level that does not fit 128 bits, or has no decimal view (an integer part of 2^96 or more), fails with `ARITHMETIC_OVERFLOW` at the event that creates it. The checkpoint may carry a level as a reduced fraction `n/d` (`Exact`). Add 25 independent grid-tie cases (G-01 to G-13b) and three cases for levels without a decimal view (I-12a to I-12c).
 
 No trading application, connected research, broker adapter, model runner, cloud deployment, or package release is implemented.

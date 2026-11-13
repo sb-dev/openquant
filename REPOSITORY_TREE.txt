@@ -1001,6 +1001,21 @@ fixtures/s0/cases/I-11/derivation.md
 fixtures/s0/cases/I-11/expected.json
 fixtures/s0/cases/I-11/input.json
 fixtures/s0/cases/I-11/strategy.json
+fixtures/s0/cases/I-12a/case.json
+fixtures/s0/cases/I-12a/derivation.md
+fixtures/s0/cases/I-12a/expected.json
+fixtures/s0/cases/I-12a/input.json
+fixtures/s0/cases/I-12a/strategy.json
+fixtures/s0/cases/I-12b/case.json
+fixtures/s0/cases/I-12b/derivation.md
+fixtures/s0/cases/I-12b/expected.json
+fixtures/s0/cases/I-12b/input.json
+fixtures/s0/cases/I-12b/strategy.json
+fixtures/s0/cases/I-12c/case.json
+fixtures/s0/cases/I-12c/derivation.md
+fixtures/s0/cases/I-12c/expected.json
+fixtures/s0/cases/I-12c/input.json
+fixtures/s0/cases/I-12c/strategy.json
 fixtures/s0/cases/R-01/case.json
 fixtures/s0/cases/R-01/derivation.md
 fixtures/s0/cases/R-01/expected.json
@@ -1199,6 +1214,7 @@ packages/quant-core/tests/exact_state.rs
 packages/quant-core/tests/execution_entries.rs
 packages/quant-core/tests/execution_exits.rs
 packages/quant-core/tests/execution_nontrading.rs
+packages/quant-core/tests/execution_sale_price.rs
 packages/quant-core/tests/execution_support/mod.rs
 packages/quant-core/tests/f0_smoke.rs
 packages/quant-core/tests/identity_golden.rs
@@ -1210,6 +1226,7 @@ packages/quant-core/tests/operators_indicators.rs
 packages/quant-core/tests/operators_support/mod.rs
 packages/quant-core/tests/operators_validation.rs
 packages/quant-core/tests/properties_execution_random.rs
+packages/quant-core/tests/properties_no_decimal_view.rs
 packages/quant-core/tests/properties_operators_signals.rs
 packages/quant-core/tests/protocol.rs
 packages/quant-core/tests/ratio.rs
