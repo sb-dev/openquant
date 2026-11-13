@@ -26,6 +26,9 @@ pub enum ContractError {
     MissingVersion,
     #[error("unsupported schema_version {found:?}; expected {expected:?}")]
     UnsupportedVersion { found: String, expected: String },
+    /// At most 20 violations, then one entry without a pointer that stands for all later ones and
+    /// is decimal-grammar only if every one of them is. A document beyond the structural limits
+    /// holds the limit it exceeds, then its first violation.
     #[error("payload violates the schema at {} location(s)", .0.len())]
     Schema(Vec<SchemaViolation>),
     #[error("invalid decimal {value:?}: {reason}")]

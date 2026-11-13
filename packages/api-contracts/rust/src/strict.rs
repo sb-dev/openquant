@@ -7,7 +7,11 @@ use serde_json::{Map, Number, Value};
 
 use crate::error::ContractError;
 
-/// Largest accepted payload. Inputs are bounded by schema `maxItems`; this bounds the parse.
+/// Largest accepted payload text. This bounds the parse only: a payload of this size made of
+/// the densest values (`0,`) peaks near 300 MB while parsing. The schema `maxItems` do not bound
+/// validation, because the validator visits every element before it reports a limit and builds
+/// every violation it finds. `crate::validate` bounds that work with structural limits (see the
+/// `limits` module).
 pub const MAX_PAYLOAD_BYTES: usize = 16 * 1024 * 1024;
 
 struct StrictValue(Value);
