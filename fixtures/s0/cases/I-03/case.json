@@ -1,0 +1,10 @@
+{
+  "id": "I-03",
+  "title": "Invalid level: a non-positive stop fails the run without a fill",
+  "covers": ["Invalid inputs"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}

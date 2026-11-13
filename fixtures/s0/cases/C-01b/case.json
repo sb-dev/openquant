@@ -1,0 +1,10 @@
+{
+  "id": "C-01b",
+  "title": "Split on a pending entry: cap 1000 buys 20 shares at raw open 50, ATR 4 becomes 2",
+  "covers": ["Split across an ex-date"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

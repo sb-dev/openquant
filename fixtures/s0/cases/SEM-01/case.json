@@ -1,0 +1,10 @@
+{
+  "id": "SEM-01",
+  "title": "Seed indicators on irregular synthetic OHLCV (72 sessions)",
+  "covers": ["Seed semantics"],
+  "strategy": "../../strategies/seed-1-rsi30-breakeven-off.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

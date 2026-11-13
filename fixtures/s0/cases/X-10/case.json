@@ -1,0 +1,10 @@
+{
+  "id": "X-10",
+  "title": "Exit, then a fresh close signal, then re-entry at the next open",
+  "covers": ["Entry and exit phases", "Cash and quantities"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

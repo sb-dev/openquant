@@ -1,0 +1,10 @@
+{
+  "id": "SEM-04b",
+  "title": "Seed exact boundary for threshold 32: RSI equal to 32 and just above 32",
+  "covers": ["Seed semantics", "Entry variants"],
+  "strategy": "../../strategies/seed-2-rsi32-breakeven-off.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

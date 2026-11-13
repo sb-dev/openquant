@@ -1,0 +1,10 @@
+{
+  "id": "C-01c",
+  "title": "2-for-1 split: stop 46, target 60, ATR 2 and scheduled stop 50 visible together",
+  "covers": ["Split across an ex-date"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

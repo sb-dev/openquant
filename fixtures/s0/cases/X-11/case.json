@@ -1,0 +1,10 @@
+{
+  "id": "X-11",
+  "title": "An intraday exit does not fund an opening entry; the next cap uses the cash at the next close",
+  "covers": ["Entry and exit phases", "Cash and quantities"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

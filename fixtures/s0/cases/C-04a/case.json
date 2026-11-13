@@ -1,0 +1,10 @@
+{
+  "id": "C-04a",
+  "title": "Dividend payment timing: BEFORE_OPEN of session 01-13",
+  "covers": ["Cash dividend", "Cash and quantities"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

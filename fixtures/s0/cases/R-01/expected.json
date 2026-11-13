@@ -1,0 +1,708 @@
+{
+  "schema": "s0-expected/1",
+  "case": "R-01",
+  "origin": {
+    "kind": "oracle",
+    "oracle": "oracle.py",
+    "oracle_sha256": "07582e4a30b45dcf0a522f027810520c1490ff6e26fedff4a5fc3ad31112c403",
+    "note": "Derived from OQ-02 sections 2.1 to 2.6 with exact rational arithmetic; see derivation.md. Not produced by the Rust engine."
+  },
+  "expect": {
+    "outcome": {"status": "COMPLETED"},
+    "signals": [
+      {
+        "session": "2026-01-05",
+        "condition": "MISSING",
+        "decision": "SKIPPED",
+        "skip_reason": "NOT_SCORED_YET",
+        "indicators": [
+          {"name": "sma3", "missing_reason": "INSUFFICIENT_HISTORY"},
+          {"name": "atr3", "missing_reason": "INSUFFICIENT_HISTORY"}
+        ]
+      },
+      {
+        "session": "2026-01-06",
+        "condition": "MISSING",
+        "decision": "SKIPPED",
+        "skip_reason": "NOT_SCORED_YET",
+        "indicators": [
+          {"name": "sma3", "missing_reason": "INSUFFICIENT_HISTORY"},
+          {"name": "atr3", "missing_reason": "INSUFFICIENT_HISTORY"}
+        ]
+      },
+      {
+        "session": "2026-01-07",
+        "condition": "FALSE",
+        "decision": "SKIPPED",
+        "skip_reason": "NOT_SCORED_YET",
+        "indicators": [{"name": "sma3", "value": "100.0000"}, {"name": "atr3", "missing_reason": "INSUFFICIENT_HISTORY"}]
+      },
+      {
+        "session": "2026-01-08",
+        "condition": "FALSE",
+        "decision": "NO_ENTRY",
+        "indicators": [{"name": "sma3", "value": "100.0000"}, {"name": "atr3", "value": "4.0000"}]
+      },
+      {
+        "session": "2026-01-09",
+        "condition": "TRUE",
+        "decision": "ENTER",
+        "rank": "1.0000",
+        "indicators": [{"name": "sma3", "value": "100.3333"}, {"name": "atr3", "value": "4.0000"}]
+      },
+      {
+        "session": "2026-01-12",
+        "condition": "FALSE",
+        "decision": "NO_ENTRY",
+        "indicators": [{"name": "sma3", "value": "100.3333"}, {"name": "atr3", "value": "4.0000"}]
+      },
+      {
+        "session": "2026-01-13",
+        "condition": "TRUE",
+        "decision": "SKIPPED",
+        "skip_reason": "HELD",
+        "indicators": [{"name": "sma3", "value": "101.0000"}, {"name": "atr3", "value": "4.3333"}]
+      },
+      {
+        "session": "2026-01-14",
+        "condition": "FALSE",
+        "decision": "NO_ENTRY",
+        "indicators": [{"name": "sma3", "value": "100.8333"}, {"name": "atr3", "value": "3.8333"}]
+      },
+      {
+        "session": "2026-01-15",
+        "condition": "FALSE",
+        "decision": "NO_ENTRY",
+        "indicators": [{"name": "sma3", "value": "100.8333"}, {"name": "atr3", "value": "3.8333"}]
+      },
+      {
+        "session": "2026-01-16",
+        "condition": "FALSE",
+        "decision": "NO_ENTRY",
+        "indicators": [{"name": "sma3", "value": "100.1667"}, {"name": "atr3", "value": "3.5000"}]
+      },
+      {
+        "session": "2026-01-19",
+        "condition": "FALSE",
+        "decision": "NO_ENTRY",
+        "indicators": [{"name": "sma3", "value": "100.0000"}, {"name": "atr3", "value": "4.0000"}]
+      },
+      {
+        "session": "2026-01-20",
+        "condition": "TRUE",
+        "decision": "ENTER",
+        "rank": "1.0000",
+        "indicators": [{"name": "sma3", "value": "100.3333"}, {"name": "atr3", "value": "4.0000"}]
+      },
+      {
+        "session": "2026-01-21",
+        "condition": "FALSE",
+        "decision": "NO_ENTRY",
+        "indicators": [{"name": "sma3", "value": "100.3333"}, {"name": "atr3", "value": "4.0000"}]
+      },
+      {
+        "session": "2026-01-22",
+        "condition": "TRUE",
+        "decision": "ENTER",
+        "rank": "1.0000",
+        "indicators": [{"name": "sma3", "value": "102.0000"}, {"name": "atr3", "value": "10.0000"}]
+      },
+      {
+        "session": "2026-01-23",
+        "condition": "TRUE",
+        "decision": "SKIPPED",
+        "skip_reason": "HELD",
+        "indicators": [{"name": "sma3", "value": "51.8333"}, {"name": "atr3", "value": "5.3333"}]
+      },
+      {
+        "session": "2026-01-26",
+        "condition": "TRUE",
+        "decision": "SKIPPED",
+        "skip_reason": "HELD",
+        "indicators": [{"name": "sma3", "value": "53.1667"}, {"name": "atr3", "value": "5.6667"}]
+      },
+      {
+        "session": "2026-01-27",
+        "condition": "TRUE",
+        "decision": "SKIPPED",
+        "skip_reason": "HELD",
+        "indicators": [{"name": "sma3", "value": "54.3333"}, {"name": "atr3", "value": "3.3333"}]
+      },
+      {
+        "session": "2026-01-28",
+        "condition": "TRUE",
+        "decision": "SKIPPED",
+        "skip_reason": "HELD",
+        "indicators": [{"name": "sma3", "value": "55.6667"}, {"name": "atr3", "value": "3.6667"}]
+      },
+      {
+        "session": "2026-01-29",
+        "condition": "FALSE",
+        "decision": "NO_ENTRY",
+        "indicators": [{"name": "sma3", "value": "56.3333"}, {"name": "atr3", "value": "3.6667"}]
+      },
+      {
+        "session": "2026-01-30",
+        "condition": "FALSE",
+        "decision": "SKIPPED",
+        "skip_reason": "NO_NEXT_SESSION",
+        "indicators": [{"name": "sma3", "value": "56.3333"}, {"name": "atr3", "value": "3.0000"}]
+      }
+    ],
+    "entries": [
+      {
+        "intent_id": "I-2026-01-09-SYN",
+        "signal_session": "2026-01-09",
+        "rank": "1",
+        "cap": "2000.00",
+        "status": "FILLED",
+        "quantity": "19",
+        "fill_price": "100.00",
+        "fee": "2.90"
+      },
+      {
+        "intent_id": "I-2026-01-20-SYN",
+        "signal_session": "2026-01-20",
+        "rank": "1",
+        "cap": "1998.84",
+        "status": "FILLED",
+        "quantity": "19",
+        "fill_price": "100.00",
+        "fee": "2.90"
+      },
+      {
+        "intent_id": "I-2026-01-22-SYN",
+        "signal_session": "2026-01-22",
+        "rank": "1",
+        "cap": "2073.60",
+        "status": "FILLED",
+        "quantity": "39",
+        "fill_price": "52.00",
+        "fee": "3.03"
+      }
+    ],
+    "fills": [
+      {
+        "seq": 2,
+        "session": "2026-01-12",
+        "phase": "OPEN",
+        "side": "BUY",
+        "quantity": "19",
+        "price": "100.00",
+        "notional": "1900.00",
+        "fee": "2.90",
+        "cash_delta": "-1902.90",
+        "reason": "ENTRY",
+        "intent_id": "I-2026-01-09-SYN"
+      },
+      {
+        "seq": 4,
+        "session": "2026-01-14",
+        "phase": "DURING_SESSION",
+        "side": "SELL",
+        "quantity": "19",
+        "price": "100.00",
+        "notional": "1900.00",
+        "fee": "2.90",
+        "cash_delta": "1897.10",
+        "reason": "STOP"
+      },
+      {
+        "seq": 8,
+        "session": "2026-01-21",
+        "phase": "OPEN",
+        "side": "BUY",
+        "quantity": "19",
+        "price": "100.00",
+        "notional": "1900.00",
+        "fee": "2.90",
+        "cash_delta": "-1902.90",
+        "reason": "ENTRY",
+        "intent_id": "I-2026-01-20-SYN"
+      },
+      {
+        "seq": 10,
+        "session": "2026-01-22",
+        "phase": "DURING_SESSION",
+        "side": "SELL",
+        "quantity": "19",
+        "price": "120.00",
+        "notional": "2280.00",
+        "fee": "3.28",
+        "cash_delta": "2276.72",
+        "reason": "TARGET"
+      },
+      {
+        "seq": 14,
+        "session": "2026-01-23",
+        "phase": "OPEN",
+        "side": "BUY",
+        "quantity": "39",
+        "price": "52.00",
+        "notional": "2028.00",
+        "fee": "3.03",
+        "cash_delta": "-2031.03",
+        "reason": "ENTRY",
+        "intent_id": "I-2026-01-22-SYN"
+      }
+    ],
+    "trades": [
+      {
+        "trade_id": "T-2026-01-12-SYN",
+        "entry_session": "2026-01-12",
+        "exit_session": "2026-01-14",
+        "quantity": "19",
+        "entry_price": "100.00",
+        "exit_price": "100.00",
+        "exit_reason": "STOP",
+        "ambiguous_bar": false
+      },
+      {
+        "trade_id": "T-2026-01-21-SYN",
+        "entry_session": "2026-01-21",
+        "exit_session": "2026-01-22",
+        "quantity": "19",
+        "entry_price": "100.00",
+        "exit_price": "120.00",
+        "exit_reason": "TARGET",
+        "ambiguous_bar": false
+      },
+      {
+        "trade_id": "T-2026-01-23-SYN",
+        "entry_session": "2026-01-23",
+        "quantity": "39",
+        "entry_price": "52.00",
+        "exit_reason": "OPEN_AT_END",
+        "ambiguous_bar": false
+      }
+    ],
+    "cash_ledger": [
+      {
+        "seq": 0,
+        "session": "2026-01-09",
+        "phase": "AFTER_CLOSE",
+        "kind": "RESERVE",
+        "amount": "2000.00",
+        "available_after": "8000.00",
+        "reserved_after": "2000.00",
+        "receivables_after": "0.00"
+      },
+      {
+        "seq": 1,
+        "session": "2026-01-12",
+        "phase": "OPEN",
+        "kind": "RELEASE",
+        "amount": "2000.00",
+        "available_after": "10000.00",
+        "reserved_after": "0.00",
+        "receivables_after": "0.00"
+      },
+      {
+        "seq": 3,
+        "session": "2026-01-12",
+        "phase": "OPEN",
+        "kind": "FILL_BUY",
+        "amount": "1902.90",
+        "available_after": "8097.10",
+        "reserved_after": "0.00",
+        "receivables_after": "0.00"
+      },
+      {
+        "seq": 5,
+        "session": "2026-01-14",
+        "phase": "DURING_SESSION",
+        "kind": "FILL_SELL",
+        "amount": "1897.10",
+        "available_after": "9994.20",
+        "reserved_after": "0.00",
+        "receivables_after": "0.00"
+      },
+      {
+        "seq": 6,
+        "session": "2026-01-20",
+        "phase": "AFTER_CLOSE",
+        "kind": "RESERVE",
+        "amount": "1998.84",
+        "available_after": "7995.36",
+        "reserved_after": "1998.84",
+        "receivables_after": "0.00"
+      },
+      {
+        "seq": 7,
+        "session": "2026-01-21",
+        "phase": "OPEN",
+        "kind": "RELEASE",
+        "amount": "1998.84",
+        "available_after": "9994.20",
+        "reserved_after": "0.00",
+        "receivables_after": "0.00"
+      },
+      {
+        "seq": 9,
+        "session": "2026-01-21",
+        "phase": "OPEN",
+        "kind": "FILL_BUY",
+        "amount": "1902.90",
+        "available_after": "8091.30",
+        "reserved_after": "0.00",
+        "receivables_after": "0.00"
+      },
+      {
+        "seq": 11,
+        "session": "2026-01-22",
+        "phase": "DURING_SESSION",
+        "kind": "FILL_SELL",
+        "amount": "2276.72",
+        "available_after": "10368.02",
+        "reserved_after": "0.00",
+        "receivables_after": "0.00"
+      },
+      {
+        "seq": 12,
+        "session": "2026-01-22",
+        "phase": "AFTER_CLOSE",
+        "kind": "RESERVE",
+        "amount": "2073.60",
+        "available_after": "8294.42",
+        "reserved_after": "2073.60",
+        "receivables_after": "0.00"
+      },
+      {
+        "seq": 13,
+        "session": "2026-01-23",
+        "phase": "OPEN",
+        "kind": "RELEASE",
+        "amount": "2073.60",
+        "available_after": "10368.02",
+        "reserved_after": "0.00",
+        "receivables_after": "0.00"
+      },
+      {
+        "seq": 15,
+        "session": "2026-01-23",
+        "phase": "OPEN",
+        "kind": "FILL_BUY",
+        "amount": "2031.03",
+        "available_after": "8336.99",
+        "reserved_after": "0.00",
+        "receivables_after": "0.00"
+      },
+      {
+        "seq": 16,
+        "session": "2026-01-28",
+        "phase": "BEFORE_OPEN",
+        "kind": "DIVIDEND_RECEIVABLE",
+        "amount": "11.68",
+        "available_after": "8336.99",
+        "reserved_after": "0.00",
+        "receivables_after": "11.68"
+      },
+      {
+        "seq": 17,
+        "session": "2026-01-29",
+        "phase": "OPEN",
+        "kind": "DIVIDEND_PAYMENT",
+        "amount": "11.68",
+        "available_after": "8348.67",
+        "reserved_after": "0.00",
+        "receivables_after": "0.00"
+      }
+    ],
+    "daily": [
+      {
+        "session": "2026-01-05",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-06",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-07",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-08",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-09",
+        "cash_available": "8000.00",
+        "cash_reserved": "2000.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-12",
+        "cash_available": "8097.10",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "1900.00",
+        "equity": "9997.10",
+        "positions": [
+          {
+            "trade_id": "T-2026-01-12-SYN",
+            "quantity": "19",
+            "entry_price": "100",
+            "stop": "92",
+            "target": "120",
+            "snapshots": [{"name": "entry_atr", "value": "4"}]
+          }
+        ]
+      },
+      {
+        "session": "2026-01-13",
+        "cash_available": "8097.10",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "1938.00",
+        "equity": "10035.10",
+        "positions": [
+          {
+            "trade_id": "T-2026-01-12-SYN",
+            "quantity": "19",
+            "entry_price": "100",
+            "stop": "92",
+            "target": "120",
+            "snapshots": [{"name": "entry_atr", "value": "4"}],
+            "scheduled_stop": {"level": "100", "effective_session": "2026-01-14"}
+          }
+        ]
+      },
+      {
+        "session": "2026-01-14",
+        "cash_available": "9994.20",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "9994.20",
+        "positions": []
+      },
+      {
+        "session": "2026-01-15",
+        "cash_available": "9994.20",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "9994.20",
+        "positions": []
+      },
+      {
+        "session": "2026-01-16",
+        "cash_available": "9994.20",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "9994.20",
+        "positions": []
+      },
+      {
+        "session": "2026-01-19",
+        "cash_available": "9994.20",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "9994.20",
+        "positions": []
+      },
+      {
+        "session": "2026-01-20",
+        "cash_available": "7995.36",
+        "cash_reserved": "1998.84",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "9994.20",
+        "positions": []
+      },
+      {
+        "session": "2026-01-21",
+        "cash_available": "8091.30",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "1900.00",
+        "equity": "9991.30",
+        "positions": [
+          {
+            "trade_id": "T-2026-01-21-SYN",
+            "quantity": "19",
+            "entry_price": "100",
+            "stop": "92",
+            "target": "120",
+            "snapshots": [{"name": "entry_atr", "value": "4"}]
+          }
+        ]
+      },
+      {
+        "session": "2026-01-22",
+        "cash_available": "8294.42",
+        "cash_reserved": "2073.60",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10368.02",
+        "positions": []
+      },
+      {
+        "session": "2026-01-23",
+        "cash_available": "8336.99",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "2067.00",
+        "equity": "10403.99",
+        "positions": [
+          {
+            "trade_id": "T-2026-01-23-SYN",
+            "quantity": "39",
+            "entry_price": "52",
+            "stop": "42",
+            "target": "77",
+            "snapshots": [{"name": "entry_atr", "value": "5"}]
+          }
+        ]
+      },
+      {
+        "session": "2026-01-26",
+        "cash_available": "8336.99",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "2106.00",
+        "equity": "10442.99",
+        "positions": [
+          {
+            "trade_id": "T-2026-01-23-SYN",
+            "quantity": "39",
+            "entry_price": "52",
+            "stop": "42",
+            "target": "77",
+            "snapshots": [{"name": "entry_atr", "value": "5"}]
+          }
+        ]
+      },
+      {
+        "session": "2026-01-27",
+        "cash_available": "8336.99",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "2184.00",
+        "equity": "10520.99",
+        "positions": [
+          {
+            "trade_id": "T-2026-01-23-SYN",
+            "quantity": "39",
+            "entry_price": "52",
+            "stop": "42",
+            "target": "77",
+            "snapshots": [{"name": "entry_atr", "value": "5"}],
+            "scheduled_stop": {"level": "52", "effective_session": "2026-01-28"}
+          }
+        ]
+      },
+      {
+        "session": "2026-01-28",
+        "cash_available": "8336.99",
+        "cash_reserved": "0.00",
+        "receivables": "11.68",
+        "positions_value": "2223.00",
+        "equity": "10571.67",
+        "positions": [
+          {
+            "trade_id": "T-2026-01-23-SYN",
+            "quantity": "39",
+            "entry_price": "52",
+            "stop": "52",
+            "target": "77",
+            "snapshots": [{"name": "entry_atr", "value": "5"}]
+          }
+        ]
+      },
+      {
+        "session": "2026-01-29",
+        "cash_available": "8348.67",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "2184.00",
+        "equity": "10532.67",
+        "positions": [
+          {
+            "trade_id": "T-2026-01-23-SYN",
+            "quantity": "39",
+            "entry_price": "52",
+            "stop": "52",
+            "target": "77",
+            "snapshots": [{"name": "entry_atr", "value": "5"}]
+          }
+        ]
+      },
+      {
+        "session": "2026-01-30",
+        "cash_available": "8348.67",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "2184.00",
+        "equity": "10532.67",
+        "positions": [
+          {
+            "trade_id": "T-2026-01-23-SYN",
+            "quantity": "39",
+            "entry_price": "52",
+            "stop": "52",
+            "target": "77",
+            "snapshots": [{"name": "entry_atr", "value": "5"}]
+          }
+        ]
+      }
+    ],
+    "corporate_actions": [
+      {
+        "action_id": "SPLIT-2-1",
+        "kind": "SPLIT",
+        "effective_session": "2026-01-23",
+        "applied_at": {"session": "2026-01-23", "phase": "BEFORE_OPEN"}
+      },
+      {
+        "action_id": "DIV-1",
+        "kind": "CASH_DIVIDEND",
+        "effective_session": "2026-01-28",
+        "applied_at": {"session": "2026-01-28", "phase": "BEFORE_OPEN"}
+      }
+    ],
+    "final": {
+      "cash_available": "8348.67",
+      "cash_reserved": "0.00",
+      "receivables": "0.00",
+      "positions_value": "2184.00",
+      "equity": "10532.67",
+      "open_positions": [
+        {
+          "trade_id": "T-2026-01-23-SYN",
+          "quantity": "39",
+          "entry_price": "52",
+          "stop": "52",
+          "target": "77",
+          "snapshots": [{"name": "entry_atr", "value": "5"}]
+        }
+      ]
+    }
+  }
+}

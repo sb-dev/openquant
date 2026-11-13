@@ -1,0 +1,10 @@
+{
+  "id": "I-02",
+  "title": "Missing required bar without a confirmed halt is INSUFFICIENT",
+  "covers": ["Invalid inputs", "Unplanned non-trading events"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}

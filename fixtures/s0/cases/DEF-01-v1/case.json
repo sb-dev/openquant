@@ -1,0 +1,10 @@
+{
+  "id": "DEF-01-v1",
+  "title": "Definition execution, break-even off: scheduled stop, activation and exit (threshold 30, break-even off)",
+  "covers": ["Definition execution", "Entry and exit phases"],
+  "strategy": "../../strategies/seed-1-rsi30-breakeven-off.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

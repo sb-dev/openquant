@@ -1,0 +1,10 @@
+{
+  "id": "C-03",
+  "title": "Cash dividend: receivable 20 on the ex-date, equity unchanged, cash +20 at payment",
+  "covers": ["Cash dividend"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}
