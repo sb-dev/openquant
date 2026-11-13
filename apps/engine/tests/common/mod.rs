@@ -1,6 +1,12 @@
 //! Helpers shared by the integration tests of the S0 harness.
 
-#![allow(dead_code)]
+#![allow(
+    dead_code,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing
+)]
 
 use std::{
     fs,

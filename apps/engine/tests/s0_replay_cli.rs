@@ -3,6 +3,13 @@
 //! The command runs against small fixture directories built in the cargo test directory, so a
 //! deliberate difference never touches the committed fixtures.
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing
+)]
+
 mod common;
 
 use std::{

@@ -91,6 +91,11 @@ fn contract_outcome(error: &ContractError) -> Value {
     })
 }
 
+/// A copy of the field `key` of `value`, or JSON null when it is absent.
+fn field(value: &Value, key: &str) -> Value {
+    value.get(key).cloned().unwrap_or(Value::Null)
+}
+
 fn actual_view(result: &Value) -> Value {
     let journal = &result["journal"];
     json!({
@@ -384,11 +389,11 @@ fn rejected(case: &Case, early: Option<(EvaluationResult, String)>, outcome: Val
     };
     let value = to_value(&result).unwrap_or(Value::Null);
     let comparison = compare_detailed(expect, &actual_view(&value));
-    let mut report = blank(case, comparison, value["outcome"].clone());
+    let mut report = blank(case, comparison, field(&value, "outcome"));
     report.strategy_hash = Some(result.strategy_hash.to_string());
     report.input_hash = Some(result.input_hash.to_string());
     report.engine_digest = Some(result.engine_digest.to_string());
-    report.engine = Some(value["engine"].clone());
+    report.engine = value.get("engine").cloned();
     report.result_text = Some(text);
     report.result = Some(result);
     report
@@ -448,7 +453,7 @@ fn execute(
 
     let value = to_value(&result).map_err(|e| e.to_string())?;
     let comparison = compare_detailed(expectation(case), &actual_view(&value));
-    let mut report = blank(case, comparison, value["outcome"].clone());
+    let mut report = blank(case, comparison, field(&value, "outcome"));
     report.passed = report.passed
         && repeat_identical
         && result_schema.is_ok()
@@ -456,7 +461,7 @@ fn execute(
     report.strategy_hash = Some(result.strategy_hash.to_string());
     report.input_hash = Some(result.input_hash.to_string());
     report.engine_digest = Some(result.engine_digest.to_string());
-    report.engine = Some(value["engine"].clone());
+    report.engine = value.get("engine").cloned();
     report.result_text = Some(text);
     report.result = Some(result);
     report.started = true;

@@ -4,6 +4,13 @@
 //! small hand-written values: subset matching, signals matched by session, decimals compared by
 //! value, array lengths and absent sections.
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing
+)]
+
 use openquant_engine::compare::{Mismatch, compare, compare_detailed, count_expected};
 use serde_json::{Value, json};
 

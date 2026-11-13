@@ -7,6 +7,13 @@
 //! one case, that the expectations state the sections a reader needs, and that two complete
 //! runs write byte-identical result files and index.
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing
+)]
+
 mod common;
 
 use std::{collections::BTreeSet, fs, sync::OnceLock};

@@ -4,6 +4,13 @@
 //! cap 1000.00, 19 shares at 50.00, fee 1.95, cash 4048.05, equity 4998.05), not from the
 //! engine. They pin how the harness presents those numbers.
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing
+)]
+
 mod common;
 
 use std::fs;
