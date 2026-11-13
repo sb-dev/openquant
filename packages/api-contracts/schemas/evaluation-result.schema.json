@@ -54,6 +54,7 @@
       ],
       "properties": {
         "status": {
+          "description": "The numerical evaluation outcome: COMPLETED, FAILED or INSUFFICIENT. It is not a run status or a gate result. S1 maps it to both. The engine derives it from the failure code.",
           "$ref": "urn:openquant:schema:common:1#/$defs/Status"
         },
         "code": {
@@ -63,6 +64,7 @@
           "$ref": "urn:openquant:schema:common:1#/$defs/Cursor"
         },
         "detail": {
+          "description": "Free text for a reader. For INSUFFICIENT it names the instrument, the event, the missing evidence and the affected period.",
           "type": "string",
           "maxLength": 1000
         }
