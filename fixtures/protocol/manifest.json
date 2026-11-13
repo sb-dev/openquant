@@ -571,6 +571,22 @@
       "code": "INVALID_DECIMAL",
       "with_strategy": "s0/cases/F0-smoke/strategy.json",
       "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-target-without-decimal-view.json",
+      "contract": "checkpoint",
+      "expect": "semantic_invalid",
+      "code": "ARITHMETIC_OVERFLOW",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/invalid/checkpoint.exact-pending-snapshot-without-decimal-view.json",
+      "contract": "checkpoint",
+      "expect": "semantic_invalid",
+      "code": "ARITHMETIC_OVERFLOW",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json",
+      "with_input": "protocol/valid/input.exact-fractions.json"
     }
   ]
 }

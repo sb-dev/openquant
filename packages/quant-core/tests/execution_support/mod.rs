@@ -129,8 +129,12 @@ pub struct StrategyOpts {
     pub break_even_trigger_multiple: Option<String>,
     /// Replaces the entry condition (the default is a volume above 1000 shares).
     pub condition: Option<Value>,
+    /// Replaces the target expression (the default is `entry + k * ATR`).
+    pub target: Option<Value>,
     /// Extra snapshots `(name, unit, kind)` where kind is `volume`, `close` or a constant.
     pub extra_snapshots: Vec<(String, String, String)>,
+    /// Extra snapshots `(name, expression)` over the signal scope.
+    pub extra_snapshot_exprs: Vec<(String, Value)>,
     /// Extra indicators `(name, kind)` where kind is `lag_close` or `lag_volume` (one session).
     pub extra_indicators: Vec<(String, String)>,
 }
@@ -146,7 +150,9 @@ impl Default for StrategyOpts {
             break_even_multiple: None,
             break_even_trigger_multiple: None,
             condition: None,
+            target: None,
             extra_snapshots: Vec::new(),
+            extra_snapshot_exprs: Vec::new(),
             extra_indicators: Vec::new(),
         }
     }
@@ -243,6 +249,12 @@ impl Scenario {
         self
     }
 
+    /// Replace the target expression by an expression over the position scope.
+    pub fn target_expression(mut self, expr: Value) -> Self {
+        self.strategy.target = Some(expr);
+        self
+    }
+
     pub fn atr_window(mut self, window: u64) -> Self {
         self.strategy.atr_window = window;
         self
@@ -251,6 +263,14 @@ impl Scenario {
     pub fn multiples(mut self, stop: &str, target: &str) -> Self {
         self.strategy.stop_mult = stop.to_owned();
         self.strategy.target_mult = target.to_owned();
+        self
+    }
+
+    /// Add a snapshot taken from an expression over the signal scope.
+    pub fn snapshot_expression(mut self, name: &str, expr: Value) -> Self {
+        self.strategy
+            .extra_snapshot_exprs
+            .push((name.to_owned(), expr));
         self
     }
 
@@ -383,6 +403,9 @@ impl Scenario {
             };
             snapshots.push(json!({"name": name, "expr": expr}));
         }
+        for (name, expr) in &s.extra_snapshot_exprs {
+            snapshots.push(json!({"name": name, "expr": expr}));
+        }
         let mut indicators = vec![json!({
             "name": "atr",
             "expr": {"op": "operator:atr_simple@1", "args": [], "params": {"window": s.atr_window}},
@@ -473,7 +496,7 @@ impl Scenario {
                         }],
                         "params": {},
                     },
-                    "target": {
+                    "target": s.target.clone().unwrap_or_else(|| json!({
                         "op": "operator:add@1",
                         "args": [entry_price.clone(), {
                             "op": "operator:mul@1",
@@ -481,7 +504,7 @@ impl Scenario {
                             "params": {},
                         }],
                         "params": {},
-                    },
+                    })),
                     "stop_adjustments": adjustments,
                 },
                 "execution": {"entry_fill": "NEXT_OPEN", "decision": "AFTER_CLOSE"},

@@ -130,7 +130,7 @@ Schemas for strategies, evaluation requests/results, market events, and command/
 
 Every wire envelope identifies its schema version. Incompatible changes require a new version. Reject unknown mandatory fields and unsupported semantics. Generate language bindings from the schemas. Validate at runtime in both TypeScript and Rust using the same valid and invalid fixtures.
 
-Prices, quantities, and money use explicit decimal strings. One exception keeps recovery exact: a checkpoint may carry a level, snapshot or scheduled stop as a reduced fraction `n/d` when the value has no finite decimal form. Result views and every other contract keep decimal strings. The Rust core owns calculation and rounding. Statistical tolerances are declared per metric. The UI formats official values; it does not recompute them.
+Prices, quantities, and money use explicit decimal strings. One exception keeps recovery exact: a checkpoint may carry a position's entry price, stop, target, snapshot or scheduled stop, or a pending entry's snapshot, as a reduced fraction `n/d` when the value has no decimal form of at most 28 fractional digits that fits 96 bits. Result views and every other contract keep decimal strings. The Rust core owns calculation and rounding. Statistical tolerances are declared per metric. The UI formats official values; it does not recompute them.
 
 Hono route inference can supplement TypeScript typing. It does not replace runtime validation or define Rust's contract.
 

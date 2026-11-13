@@ -12,7 +12,7 @@
     },
     "Exact": {
       "title": "Exact",
-      "description": "An exact rational value for state that feeds a price-grid decision: a Decimal, or a fraction n/d for a value with no finite decimal form. The pattern allows the fraction grammar only. The canonical rule is checked in code: a value that terminates within 28 fractional digits is written as a normalised decimal, any other value as a reduced fraction with a denominator above 1 that fits a signed 128-bit integer. A reader rejects a fraction that is not reduced, has denominator 1, or could be written as a decimal.",
+      "description": "An exact rational value for state that feeds a price-grid decision: a Decimal, or a fraction n/d for a value with no decimal form of at most 28 fractional digits that fits 96 bits. The pattern checks the grammar only (a decimal or a fraction). The canonical rule is checked in code: a value that terminates within 28 fractional digits is written as a normalised decimal, any other value as a reduced fraction with a denominator above 1 that fits a signed 128-bit integer. A reader rejects a fraction that is not reduced, has denominator 1, or could be written as a decimal.",
       "type": "string",
       "maxLength": 80,
       "pattern": "^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.[0-9]*[1-9][0-9]*|-?[1-9][0-9]*/[1-9][0-9]*)$"

@@ -18,12 +18,17 @@
 //!
 //! The exactness domain is the set of fractions whose numerator and denominator both fit a
 //! signed 128-bit integer (the numerator never equals `i128::MIN`, so its sign can be flipped).
-//! Ordinary inputs fit. The S0 policy still admits extreme compositions that do not: a price near
-//! 5 * 10^8 with 8 fractional digits, multiplied by a constant near 10^12 with 12 fractional
-//! digits, needs more than 128 bits. A composition that does not fit is not rounded and does not
-//! wrap: the operation returns the typed failure `ARITHMETIC_OVERFLOW`, which ends the run before
-//! a completed result is produced. That is the explicit rejection OQ-02 section 2.5 asks for. The same failure reports a conversion that needs more than the 96 bits of a
-//! [`Decimal`], and a value that has no canonical wire form (an integer too large for a decimal).
+//! The seed strategies fit. Some ordinary expressions do not: the mean of `close / open` over ten
+//! sessions overflows at 2 price decimals (seven sessions at 4 decimals, four at 8), because the
+//! denominators of the ratios multiply when the ratios are added. The S0 policy also admits
+//! extreme compositions: a price near 5 * 10^8 with 8 fractional digits, multiplied by a constant
+//! near 10^12 with 12 fractional digits, needs more than 128 bits. A composition that does not
+//! fit is not rounded and does not wrap: the operation returns the typed failure
+//! `ARITHMETIC_OVERFLOW`, which ends the run before a completed result is produced. That is the
+//! explicit rejection OQ-02 section 2.5 asks for. The same failure reports a conversion that
+//! needs more than the 96 bits of a [`Decimal`], and a value that has no canonical wire form (an
+//! integer too large for a decimal). A run never holds such a level: `State::check_renderable`
+//! refuses it at the event that creates it.
 //! Division by zero is not decided here: the caller tests for zero first and reports the missing
 //! value `DIV_BY_ZERO`, so a zero divisor reaching [`Ratio::div`] is an internal failure.
 //!
@@ -491,6 +496,26 @@ impl Ratio {
     /// it, because a fraction needs a denominator above 1.
     pub fn to_wire(self) -> Result<String> {
         exact::format(self.num, self.den).map_err(|error| overflow(&error.to_string()))
+    }
+
+    /// Check that the value can be shown in a result and written in a checkpoint: it has a
+    /// decimal view ([`Ratio::to_display_decimal`]) and a wire form ([`Ratio::to_wire`]).
+    ///
+    /// A fraction of two 128-bit integers can be larger than a [`Decimal`] holds (its integer
+    /// part needs 96 bits or more). The value is exact in memory, but no result and no checkpoint
+    /// can carry it. A run that holds such a level could not report its own failure, so the run
+    /// refuses the level when it is created (see `State::check_renderable`).
+    ///
+    /// # Errors
+    /// `ARITHMETIC_OVERFLOW` when the value has no decimal view or no wire form.
+    pub fn check_renderable(self) -> Result<()> {
+        if self.to_decimal_exact().is_some() {
+            // Shown and written as that decimal; both conversions succeed.
+            return Ok(());
+        }
+        self.to_display_decimal()?;
+        self.to_wire()?;
+        Ok(())
     }
 
     /// Read canonical wire text.

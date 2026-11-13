@@ -170,7 +170,8 @@ impl Run {
     /// `CHECKPOINT_MISMATCH` when strategy, input or engine identity or the cursor does not
     /// belong to this run. `INVALID_DECIMAL` for a level or snapshot that breaks the canonical
     /// `Exact` rule (a fraction that is not reduced, has denominator 1, has a decimal form or
-    /// does not fit 128 bits).
+    /// does not fit 128 bits). `ARITHMETIC_OVERFLOW` for a level that follows the rule but has no
+    /// decimal view (an integer part of 2^96 or more): this engine never writes one.
     pub fn restore(&self, checkpoint: &g::Checkpoint) -> Result<State> {
         let mismatch = |what: &str| {
             Failure::new(
@@ -257,6 +258,7 @@ impl Run {
             receivables,
         };
         self.validate_state(&state)?;
+        state.check_renderable()?;
         Ok(state)
     }
 
