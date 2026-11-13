@@ -8,6 +8,7 @@ use openquant_contracts::generated as g;
 use crate::{
     model::{Cursor, Failure, FailureCode, Result},
     numeric::{Decimal, exact_string, fixed_string, half_even_to},
+    ratio::Ratio,
 };
 
 /// Scales of the registered policy.
@@ -65,11 +66,44 @@ impl Fmt {
     pub fn diag(&self, value: Decimal) -> Result<g::Decimal> {
         gdec(&fixed_string(half_even_to(value, self.diag), self.diag)?)
     }
+
+    /// Display value of an exact number, rounded half-even to the diagnostic scale. The rounding
+    /// reads the exact value, never an earlier rounding of it.
+    pub fn diag_exact(&self, value: Ratio) -> Result<g::Decimal> {
+        gdec(&fixed_string(value.half_even_to(self.diag)?, self.diag)?)
+    }
+
+    /// An exact level or snapshot in a result: the exact decimal when it terminates, otherwise
+    /// the exact value rounded to the most digits a decimal carries. A result shows values; the
+    /// checkpoint keeps them exactly (see [`Fmt::wire`]).
+    pub fn level(&self, value: Ratio) -> Result<g::Decimal> {
+        self.exact(value.to_display_decimal()?)
+    }
+
+    /// Like [`Fmt::price_or_exact`] for an exact level.
+    pub fn price_or_level(&self, value: Ratio) -> Result<g::Decimal> {
+        self.price_or_exact(value.to_display_decimal()?)
+    }
+
+    /// An exact level or snapshot in a checkpoint, in its canonical form (`Exact`): a normalised
+    /// decimal when the value terminates, otherwise a reduced fraction.
+    pub fn wire(&self, value: Ratio) -> Result<g::Exact> {
+        g::Exact::from_str(&value.to_wire()?).map_err(invalid)
+    }
 }
 
 /// Parse a generated decimal exactly.
 pub fn parse_decimal(value: &g::Decimal) -> Result<Decimal> {
     Decimal::from_str_exact(value.as_str()).map_err(invalid)
+}
+
+/// Parse a generated `Exact` value, enforcing the canonical rule: a fraction must be reduced, have
+/// a denominator above 1, have no decimal form and fit 128 bits.
+///
+/// # Errors
+/// `INVALID_DECIMAL` for any value that breaks the grammar or the canonical rule.
+pub fn parse_exact(value: &g::Exact) -> Result<Ratio> {
+    Ratio::from_wire(value.as_str())
 }
 
 /// Generated identifier from text.

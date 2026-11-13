@@ -9,6 +9,7 @@ use super::catalogue::{OpId, Scope, lookup};
 use crate::{
     model::{Failure, FailureCode, Result, Unit},
     numeric::Decimal,
+    ratio::Ratio,
 };
 
 pub const MAX_DEPTH: usize = 16;
@@ -43,7 +44,7 @@ pub struct Node {
     pub window: usize,
     pub periods: usize,
     pub field: Field,
-    pub value: Decimal,
+    pub value: Ratio,
     pub name: String,
     /// Index of the referenced indicator (`ref` only).
     pub index: usize,
@@ -260,7 +261,7 @@ fn compile_inner(
         window: 0,
         periods: 0,
         field: Field::Close,
-        value: Decimal::ZERO,
+        value: Ratio::ZERO,
         name: String::new(),
         index: 0,
         cost: 1,
@@ -307,7 +308,7 @@ fn compile_inner(
                 ));
             }
             node.unit = unit;
-            node.value = value;
+            node.value = Ratio::from_decimal(value);
         }
         OpId::BarField => {
             let field = expr

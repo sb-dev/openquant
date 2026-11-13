@@ -13,6 +13,7 @@ use crate::{
     model::{Failure, FailureCode, Result, SkipReason},
     numeric::{Decimal, floor_div_to_grid},
     operators::{PriceBar, Value},
+    ratio::Ratio,
     run::Run,
     signals::{AppliedSplit, LevelEnv, build_series, eval_position_expr, evaluate_signals},
     state::{Pending, Scheduled, State},
@@ -46,13 +47,7 @@ pub fn run(
     ) else {
         return Err(Failure::internal("after-close observation is incomplete"));
     };
-    let raw = PriceBar {
-        open,
-        high,
-        low,
-        close,
-        volume,
-    };
+    let raw = PriceBar::from_decimals(open, high, low, close, volume);
     for position in &mut state.positions {
         position.mark = close;
     }
@@ -123,14 +118,20 @@ fn schedule_stop_changes(
                 continue;
             }
             // A new stop must be a positive price below the target; anything else is an invalid
-            // level and is rejected rather than replaced by an invented one.
+            // level and is rejected rather than replaced by an invented one. Both comparisons
+            // are exact. The levels print in their canonical form.
             let level = match eval_position_expr(&adjustment.new_level, &env)? {
-                Value::Num(level) if level > Decimal::ZERO && level < position.target => level,
+                Value::Num(level) if level > Ratio::ZERO && level < position.target => level,
                 other => {
+                    let found = match other {
+                        Value::Num(level) => level.to_string(),
+                        Value::Flag(flag) => format!("flag {flag}"),
+                        Value::Missing(reason) => format!("missing ({reason:?})"),
+                    };
                     return Err(Failure::new(
                         FailureCode::InvalidLevel,
                         format!(
-                            "{}: new stop level {other:?} must be a positive price below the target {}",
+                            "{}: new stop level {found} must be a positive price below the target {}",
                             position.trade_id, position.target
                         ),
                     ));
@@ -164,7 +165,7 @@ fn applied_splits(run: &Run, state: &State) -> Result<Vec<AppliedSplit>> {
 
 fn indicator_value(run: &Run, name: &str, value: Value) -> Result<g::IndicatorValue> {
     let (value, missing_reason) = match value {
-        Value::Num(number) => (Some(run.fmt.diag(number)?), None),
+        Value::Num(number) => (Some(run.fmt.diag_exact(number)?), None),
         Value::Flag(flag) => (
             Some(crate::format::gdec(if flag { "1" } else { "0" })?),
             None,
@@ -207,7 +208,7 @@ fn decide_entry(
     let mut decision = g::SignalRecordDecision::Skipped;
     let mut skip_reason = None;
     let rank_shown = match signals.rank {
-        Value::Num(rank) => Some(run.fmt.diag(rank)?),
+        Value::Num(rank) => Some(run.fmt.diag_exact(rank)?),
         _ => None,
     };
     let scored = event.session_index >= run.input.scored_start;
@@ -228,7 +229,7 @@ fn decide_entry(
     } else {
         let occupied = state.positions.len() + state.pending.len();
         let vacant = run.strategy.slots.saturating_sub(occupied);
-        let snapshot_values: Option<Vec<(String, Decimal)>> = signals
+        let snapshot_values: Option<Vec<(String, Ratio)>> = signals
             .snapshots
             .iter()
             .map(|(name, value)| match value {
@@ -248,6 +249,9 @@ fn decide_entry(
                     skip_reason = Some(SkipReason::CapBelowOneLot);
                 } else {
                     let intent_id = format!("I-{date}-{}", run.input.instrument_id);
+                    // The rank orders intents and is shown; it keeps the decimal form of the
+                    // exact value. The snapshots keep the exact value.
+                    let rank = rank.to_display_decimal()?;
                     reserve(run, state, event, cap)?;
                     state.journal.entries.push(g::EntryRecord {
                         cap: run.fmt.money(cap)?,

@@ -22,7 +22,7 @@ use std::collections::BTreeMap;
 use openquant_contracts::StrategyArtefact;
 use openquant_core::{
     model::{FailureCode, MissingReason, Unit},
-    numeric::Decimal,
+    numeric::{Decimal, Ratio},
     operators::{PriceBar, Value},
     signals::{AppliedSplit, LevelEnv, build_series, eval_position_expr, evaluate_signals},
     validate_strategy,
@@ -99,10 +99,6 @@ fn engine_series(bars: &[Option<Bar>]) -> Vec<Option<PriceBar>> {
     bars.iter().map(|b| b.map(Bar::price_bar)).collect()
 }
 
-fn difference_within(a: Decimal, b: Decimal, exponent: u32) -> bool {
-    (a - b).abs() <= Decimal::new(1, exponent)
-}
-
 // ---------------------------------------------------------------------------------------------
 // Simple means
 // ---------------------------------------------------------------------------------------------
@@ -129,7 +125,10 @@ fn the_simple_mean_lies_between_the_minimum_and_maximum_of_its_window() {
             let Value::Num(mean) = mean else {
                 return Err(TestCaseError::fail("a full window must give a mean"));
             };
-            prop_assert!(Decimal::new(lo, 2) <= mean && mean <= Decimal::new(hi, 2));
+            prop_assert!(
+                Ratio::from(Decimal::new(lo, 2)) <= mean
+                    && mean <= Ratio::from(Decimal::new(hi, 2))
+            );
             let (vlo, vhi) = (
                 slice.iter().map(|b| b.v).min().unwrap(),
                 slice.iter().map(|b| b.v).max().unwrap(),
@@ -137,7 +136,7 @@ fn the_simple_mean_lies_between_the_minimum_and_maximum_of_its_window() {
             let Value::Num(vmean) = vmean else {
                 return Err(TestCaseError::fail("a full window must give a volume mean"));
             };
-            prop_assert!(Decimal::from(vlo) <= vmean && vmean <= Decimal::from(vhi));
+            prop_assert!(Ratio::from_i64(vlo) <= vmean && vmean <= Ratio::from_i64(vhi));
         }
         Ok(())
     });
@@ -173,7 +172,7 @@ fn rsi_is_within_0_and_100_matches_the_reference_and_is_undefined_only_when_flat
             let want = reference::rsi(&reference, t, w);
             prop_assert!(want.agrees(value), "t={t}: {want:?} vs {value:?}");
             if let Value::Num(rsi) = value {
-                prop_assert!(Decimal::ZERO <= rsi && rsi <= Decimal::from(100), "{rsi}");
+                prop_assert!(Ratio::ZERO <= rsi && rsi <= Ratio::from_i64(100), "{rsi}");
             }
             if t >= w {
                 let closes: Vec<i64> = bars[t - w..=t].iter().map(|b| b.c).collect();
@@ -185,10 +184,10 @@ fn rsi_is_within_0_and_100_matches_the_reference_and_is_undefined_only_when_flat
                 let gains = closes.windows(2).any(|p| p[1] > p[0]);
                 let losses = closes.windows(2).any(|p| p[1] < p[0]);
                 if gains && !losses {
-                    prop_assert_eq!(value, Value::Num(Decimal::from(100)));
+                    prop_assert_eq!(value, Value::Num(Ratio::from_i64(100)));
                 }
                 if losses && !gains {
-                    prop_assert_eq!(value, Value::Num(Decimal::ZERO));
+                    prop_assert_eq!(value, Value::Num(Ratio::ZERO));
                 }
             }
         }
@@ -220,7 +219,8 @@ fn rsi_is_invariant_under_positive_scaling_and_adding_a_constant() {
                 for other in [probe.at(&big, t), probe.at(&moved, t)] {
                     match (original, other) {
                         (Value::Num(a), Value::Num(b)) => {
-                            prop_assert!(difference_within(a, b, 20), "t={t}: {a} vs {b}");
+                            // The values are exact, so they are equal, not merely close.
+                            prop_assert_eq!(a, b, "t={}", t);
                         }
                         (a, b) => prop_assert_eq!(a, b),
                     }
@@ -249,10 +249,7 @@ fn rsi_gains_and_losses_are_symmetric_under_price_inversion_of_the_changes() {
         for t in 0..bars.len() {
             match (probe.at(&a, t), probe.at(&b, t)) {
                 (Value::Num(x), Value::Num(y)) => {
-                    prop_assert!(
-                        difference_within(x + y, Decimal::from(100), 20),
-                        "t={t}: {x} + {y}"
-                    );
+                    prop_assert_eq!(x.add(y).unwrap(), Ratio::from_i64(100), "t={}", t);
                 }
                 (x, y) => prop_assert_eq!(x, y),
             }
@@ -276,11 +273,11 @@ fn atr_is_non_negative_matches_the_reference_and_bounds_the_mean_range() {
             let value = probe.at(&series, t);
             prop_assert!(reference::atr(&reference, t, w).agrees(value), "t={t}");
             if let Value::Num(atr) = value {
-                prop_assert!(atr >= Decimal::ZERO, "{atr}");
+                prop_assert!(atr >= Ratio::ZERO, "{atr}");
                 let range_sum: i64 = bars[t + 1 - w..=t].iter().map(|b| b.h - b.l).sum();
                 // ATR * w * 100 is the sum of true ranges in ticks; each is at least high - low.
-                let ticks = atr * Decimal::from(window * 100);
-                prop_assert!(ticks + Decimal::new(1, 15) >= Decimal::from(range_sum));
+                let ticks = atr.mul(Ratio::from_u64(window * 100)).unwrap();
+                prop_assert!(ticks >= Ratio::from_i64(range_sum));
             }
         }
         Ok(())
@@ -855,11 +852,11 @@ fn level_and_trigger_expressions_are_total_on_random_inputs() {
                 level(&mut reader, 3),
             );
             let strategy = def.validated();
-            let snapshots = vec![("s".to_owned(), Decimal::new(atr_ticks, 2))];
+            let snapshots = vec![("s".to_owned(), Ratio::from(Decimal::new(atr_ticks, 2)))];
             let bar = Bar::new(high, high, high.min(entry), high, 1).price_bar();
             let env = LevelEnv {
                 bar: Some(bar),
-                entry_price: Decimal::new(entry, 2),
+                entry_price: Ratio::from(Decimal::new(entry, 2)),
                 snapshots: &snapshots,
             };
             for node in [

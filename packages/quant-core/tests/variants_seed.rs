@@ -16,7 +16,7 @@ use std::{cmp::Ordering, collections::BTreeSet, fs, path::Path};
 use openquant_contracts::payload_digest;
 use openquant_core::{
     ValidatedStrategy,
-    numeric::Decimal,
+    numeric::{Decimal, Ratio},
     operators::{PriceBar, Value},
     signals::{LevelEnv, eval_position_expr, evaluate_signals},
     validate_strategy,
@@ -491,8 +491,8 @@ fn all_five_artefacts_follow_the_reference_condition_on_real_indicators() {
 // Levels and break-even: evaluated from the artefacts' own expressions
 // ---------------------------------------------------------------------------------------------
 
-fn dec(text: &str) -> Decimal {
-    Decimal::from_str_exact(text).unwrap()
+fn dec(text: &str) -> Ratio {
+    Ratio::from(Decimal::from_str_exact(text).unwrap())
 }
 
 fn raw_bar(high: &str) -> PriceBar {
@@ -530,8 +530,8 @@ fn stop_and_target_levels_use_two_and_five_entry_atr_in_every_variant() {
             );
         }
     }
-    // A snapshot that does not terminate: entry 100, ATR 14/3 -> stop 100 - 28/3 = 272/3.
-    let atr = Decimal::from(14) / Decimal::from(3);
+    // A snapshot that does not terminate: entry 100, ATR 14/3 -> stop 100 - 28/3 = 272/3, exactly.
+    let atr = Ratio::new(14, 3).unwrap();
     let strategy = validated(SEEDS[0]);
     let snapshots = vec![("entry_atr".to_owned(), atr)];
     let env = LevelEnv {

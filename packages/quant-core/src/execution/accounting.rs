@@ -166,23 +166,23 @@ pub fn position_view(run: &Run, position: &Position) -> Result<g::PositionView> 
     for (name, value) in &position.snapshots {
         snapshots.push(g::SnapshotValue {
             name: ident(name)?,
-            value: run.fmt.exact(*value)?,
+            value: run.fmt.level(*value)?,
         });
     }
     let scheduled_stop = match &position.scheduled {
         Some(s) => Some(g::ScheduledStop {
             effective_session: session_date(&s.effective_session)?,
-            level: run.fmt.exact(s.level)?,
+            level: run.fmt.level(s.level)?,
         }),
         None => None,
     };
     Ok(g::PositionView {
-        entry_price: run.fmt.exact(position.entry_price)?,
+        entry_price: run.fmt.level(position.entry_price)?,
         quantity: run.fmt.qty(position.quantity)?,
         scheduled_stop,
         snapshots,
-        stop: run.fmt.exact(position.stop)?,
-        target: run.fmt.exact(position.target)?,
+        stop: run.fmt.level(position.stop)?,
+        target: run.fmt.level(position.target)?,
         trade_id: ident(&position.trade_id)?,
     })
 }

@@ -144,20 +144,20 @@
           "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
         },
         "entry_price": {
-          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+          "$ref": "urn:openquant:schema:common:1#/$defs/Exact"
         },
         "snapshots": {
           "type": "array",
           "maxItems": 8,
           "items": {
-            "$ref": "urn:openquant:schema:evaluation-result:1#/$defs/SnapshotValue"
+            "$ref": "#/$defs/CheckpointSnapshotValue"
           }
         },
         "stop": {
-          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+          "$ref": "urn:openquant:schema:common:1#/$defs/Exact"
         },
         "target": {
-          "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
+          "$ref": "urn:openquant:schema:common:1#/$defs/Exact"
         },
         "mark": {
           "$ref": "urn:openquant:schema:common:1#/$defs/Decimal"
@@ -170,7 +170,43 @@
           }
         },
         "scheduled_stop": {
-          "$ref": "urn:openquant:schema:evaluation-result:1#/$defs/ScheduledStop"
+          "$ref": "#/$defs/CheckpointScheduledStop"
+        }
+      }
+    },
+    "CheckpointSnapshotValue": {
+      "title": "CheckpointSnapshotValue",
+      "description": "A named value snapshotted at the signal session, kept exactly. The result schema shows the same value as a rounded Decimal.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "value"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Identifier"
+        },
+        "value": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Exact"
+        }
+      }
+    },
+    "CheckpointScheduledStop": {
+      "title": "CheckpointScheduledStop",
+      "description": "A stop change decided at a close and effective at a later session, kept exactly.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "effective_session"
+      ],
+      "properties": {
+        "level": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/Exact"
+        },
+        "effective_session": {
+          "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate"
         }
       }
     },
@@ -207,7 +243,7 @@
           "type": "array",
           "maxItems": 8,
           "items": {
-            "$ref": "urn:openquant:schema:evaluation-result:1#/$defs/SnapshotValue"
+            "$ref": "#/$defs/CheckpointSnapshotValue"
           }
         }
       }

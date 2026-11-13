@@ -21,7 +21,7 @@ use std::collections::BTreeMap;
 use openquant_core::{
     data::{Action, ActionKind, RunInput},
     model::{MissingReason, Phase},
-    numeric::Decimal,
+    numeric::{Decimal, Ratio},
     operators::{PriceBar, Value},
     signals::{AppliedSplit, build_series, evaluate_signals},
 };
@@ -99,11 +99,11 @@ fn a_two_for_one_split_halves_earlier_prices_and_doubles_earlier_volume() {
     // open 100.00 -> 50.00, high 104.00 -> 52.00, low 98.00 -> 49.00, close 102.00 -> 51.00,
     // volume 1000 -> 2000.
     let first = series[0].as_ref().unwrap();
-    assert_eq!(first.open, Decimal::new(5_000, 2));
-    assert_eq!(first.high, Decimal::new(5_200, 2));
-    assert_eq!(first.low, Decimal::new(4_900, 2));
-    assert_eq!(first.close, Decimal::new(5_100, 2));
-    assert_eq!(first.volume, Decimal::from(2_000));
+    assert_eq!(first.open, Ratio::from(Decimal::new(5_000, 2)));
+    assert_eq!(first.high, Ratio::from(Decimal::new(5_200, 2)));
+    assert_eq!(first.low, Ratio::from(Decimal::new(4_900, 2)));
+    assert_eq!(first.close, Ratio::from(Decimal::new(5_100, 2)));
+    assert_eq!(first.volume, Ratio::from(Decimal::from(2_000)));
     for index in 0..3 {
         assert_bar(&series[index], bars[index], 1, 2);
     }
@@ -186,20 +186,26 @@ fn a_reverse_split_multiplies_earlier_prices_and_divides_earlier_volume() {
     assert_bar(&series[1], bars[1], 10, 1);
     assert_bar(&series[2], bars[2], 1, 1);
     let first = series[0].as_ref().unwrap();
-    assert_eq!(first.close, Decimal::new(5_100, 2));
-    assert_eq!(first.volume, Decimal::from(1_000));
+    assert_eq!(first.close, Ratio::from(Decimal::new(5_100, 2)));
+    assert_eq!(first.volume, Ratio::from(Decimal::from(1_000)));
 }
 
 #[test]
-fn a_three_for_one_split_gives_a_28_digit_quotient_that_round_trips() {
+fn a_three_for_one_split_gives_an_exact_third_with_no_rounding() {
     let bars = [Bar::flat(10_000, 300), Bar::flat(3_400, 900)];
     let series = build_series(&input(&some(&bars)), 1, &[split(1, 3, 1)], None).unwrap();
     let first = series[0].as_ref().unwrap();
-    // 100.00 / 3 is not a terminating decimal; the engine keeps 28 digits.
+    // 100.00 / 3 is not a terminating decimal; the engine keeps the exact fraction 100/3, so
+    // multiplying it back by 3 gives exactly 100.
     assert_bar(&series[0], bars[0], 1, 3);
-    assert_eq!(first.volume, Decimal::from(900));
+    assert_eq!(first.volume, Ratio::from(Decimal::from(900)));
     assert!(Frac::new(10_000, 300).matches(first.close));
     assert!(!Frac::new(10_000, 300).terminates());
+    assert_eq!(first.close, Ratio::new(100, 3).unwrap());
+    assert_eq!(
+        first.close.mul(Ratio::from_i64(3)).unwrap(),
+        Ratio::from_i64(100)
+    );
 }
 
 #[test]
@@ -383,7 +389,7 @@ fn a_split_does_not_look_like_a_price_collapse_in_the_signals() {
         indicator(&eval, "mean"),
         "raw mean",
     );
-    assert_eq!(indicator(&eval, "rsi"), Value::Num(Decimal::ZERO));
+    assert_eq!(indicator(&eval, "rsi"), Value::Num(Ratio::ZERO));
 }
 
 #[test]
