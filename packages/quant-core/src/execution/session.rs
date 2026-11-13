@@ -3,7 +3,10 @@
 
 use openquant_contracts::generated as g;
 
-use super::accounting::{Sale, sell};
+use super::{
+    accounting::{Sale, sell},
+    corporate_actions::pay_due,
+};
 use crate::{interfaces::MarketEvent, model::Result, numeric::floor_to, run::Run, state::State};
 
 /// Run the during-session phase.
@@ -13,6 +16,7 @@ pub fn run(
     event: &MarketEvent,
     notes: &mut Vec<String>,
 ) -> Result<()> {
+    pay_due(run, state, event, notes)?;
     let Some(observation) = &event.observation else {
         return Ok(());
     };

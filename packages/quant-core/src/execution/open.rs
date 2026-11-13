@@ -3,12 +3,17 @@
 
 use openquant_contracts::generated as g;
 
-use super::accounting::{Sale, fee_for, ledger, release, sell};
+use super::{
+    accounting::{Sale, fee_for, ledger, next_seq, release, sell},
+    corporate_actions::pay_due,
+};
 use crate::{
     format::{ident, session_date},
     interfaces::MarketEvent,
     model::{Failure, FailureCode, Result, SkipReason},
-    numeric::{Decimal, add, bps_of, div, floor_to, floor_to_lot, mul, sub},
+    numeric::{
+        Decimal, div, exact_add, exact_bps_of, exact_mul, exact_sub, floor_to, floor_to_lot,
+    },
     operators::Value,
     run::Run,
     signals::{LevelEnv, eval_position_expr},
@@ -22,6 +27,7 @@ pub fn run(
     event: &MarketEvent,
     notes: &mut Vec<String>,
 ) -> Result<()> {
+    pay_due(run, state, event, notes)?;
     let Some(open) = event.observation.as_ref().and_then(|o| o.open) else {
         // A non-trading session cannot fill. Pending entries expire and release their cash.
         for pending in std::mem::take(&mut state.pending) {
@@ -72,7 +78,7 @@ fn set_entry_status(
 }
 
 /// Gap exits: through a stop fills at the open with adverse slippage; above a target fills at
-/// the target before slippage.
+/// the target before slippage. Only positions held at the start of the session can gap.
 fn gap_exits(
     run: &Run,
     state: &mut State,
@@ -84,13 +90,11 @@ fn gap_exits(
     let mut exits = Vec::new();
     for (index, position) in state.positions.iter().enumerate() {
         if open <= position.stop {
-            let adverse = mul(
-                open,
-                sub(
-                    Decimal::ONE,
-                    bps_of(Decimal::ONE, policy.gap_exit_slippage_bps)?,
-                )?,
+            let kept = exact_sub(
+                Decimal::ONE,
+                exact_bps_of(Decimal::ONE, policy.gap_exit_slippage_bps)?,
             )?;
+            let adverse = exact_mul(open, kept)?;
             exits.push((
                 index,
                 Sale {
@@ -119,26 +123,56 @@ fn gap_exits(
     Ok(())
 }
 
+/// Whether `quantity` at `open` with its fee fits within `cap`.
+fn fits(run: &Run, quantity: Decimal, open: Decimal, cap: Decimal) -> Result<bool> {
+    let notional = exact_mul(quantity, open)?;
+    let total = exact_add(notional, fee_for(run, notional)?)?;
+    Ok(total <= cap)
+}
+
+/// Most corrections the lot search may apply to its estimate. The estimate is within one lot
+/// of the answer, so a larger distance means the arithmetic is out of range.
+const MAX_LOT_STEPS: usize = 8;
+
 /// Largest lot multiple whose notional plus fee fits within `cap`.
+///
+/// The fee rounds up, so the cost is monotone in the quantity. A division estimates the answer;
+/// exact checks then move it to the true maximum, so a rounded quotient cannot change the lot.
 fn quantity_for(run: &Run, cap: Decimal, open: Decimal) -> Result<Decimal> {
     let policy = &run.input.policy;
-    let budget = sub(cap, policy.fixed_fee)?;
+    let lot = policy.lot_size;
+    let budget = exact_sub(cap, policy.fixed_fee)?;
     if budget <= Decimal::ZERO {
         return Ok(Decimal::ZERO);
     }
-    let unit_cost = mul(
-        open,
-        add(Decimal::ONE, bps_of(Decimal::ONE, policy.fee_bps)?)?,
-    )?;
-    let mut quantity = floor_to_lot(div(budget, unit_cost)?, policy.lot_size)?;
-    while quantity > Decimal::ZERO {
-        let notional = mul(quantity, open)?;
-        if add(notional, fee_for(run, notional)?)? <= cap {
-            break;
+    let per_unit = exact_add(Decimal::ONE, exact_bps_of(Decimal::ONE, policy.fee_bps)?)?;
+    let mut quantity = floor_to_lot(div(budget, exact_mul(open, per_unit)?)?, lot)?;
+    let mut steps = 0;
+    while quantity > Decimal::ZERO && !fits(run, quantity, open, cap)? {
+        quantity = exact_sub(quantity, lot)?;
+        steps += 1;
+        if steps > MAX_LOT_STEPS {
+            return Err(lot_search_failure());
         }
-        quantity = sub(quantity, policy.lot_size)?;
     }
-    Ok(quantity.max(Decimal::ZERO))
+    loop {
+        let above = exact_add(quantity, lot)?;
+        if !fits(run, above, open, cap)? {
+            return Ok(quantity);
+        }
+        quantity = above;
+        steps += 1;
+        if steps > MAX_LOT_STEPS {
+            return Err(lot_search_failure());
+        }
+    }
+}
+
+fn lot_search_failure() -> Failure {
+    Failure::new(
+        FailureCode::ArithmeticOverflow,
+        "the lot search did not converge".to_owned(),
+    )
 }
 
 fn entries(
@@ -206,16 +240,16 @@ fn fill_entry(
             ),
         ));
     }
-    let notional = mul(quantity, open)?;
+    let notional = exact_mul(quantity, open)?;
     let fee = fee_for(run, notional)?;
-    let total = add(notional, fee)?;
+    let total = exact_add(notional, fee)?;
     release(run, state, event, pending.cap)?;
-    state.cash_available = sub(state.cash_available, total)?;
-    let seq = super::accounting::next_seq(state);
+    state.cash_available = exact_sub(state.cash_available, total)?;
+    let seq = next_seq(state);
     let date = &event.cursor.session;
     state.journal.fills.push(g::FillRecord {
         ambiguous_bar: None,
-        cash_delta: run.fmt.money(sub(Decimal::ZERO, total)?)?,
+        cash_delta: run.fmt.money(exact_sub(Decimal::ZERO, total)?)?,
         fee: run.fmt.money(fee)?,
         intent_id: Some(ident(&pending.intent_id)?),
         notional: run.fmt.money(notional)?,

@@ -1,5 +1,7 @@
-//! Before open: coverage, corporate actions applied exactly once, scheduled stops activated.
+//! Before open: coverage, corporate actions applied exactly once, receivables paid, scheduled
+//! stops activated on the resulting price basis (OQ-02 section 2.5).
 
+use super::corporate_actions::{apply_effective, pay_due};
 use crate::{
     interfaces::MarketEvent,
     model::{Failure, FailureCode, Result},
@@ -21,17 +23,9 @@ pub fn run(
             format!("no bar and no confirmed halt for session {date}"),
         ));
     }
-    if run
-        .input
-        .actions
-        .iter()
-        .any(|a| a.effective_session == date && !state.applied.contains(&a.id))
-    {
-        return Err(Failure::new(
-            FailureCode::UnsupportedCorporateAction,
-            format!("corporate actions effective {date} are not applied by this build yet"),
-        ));
-    }
+    apply_effective(run, state, event, notes)?;
+    // Payment after the actions of the same handler; it cannot enlarge a frozen entry cap.
+    pay_due(run, state, event, notes)?;
     for position in &mut state.positions {
         let due = position
             .scheduled
