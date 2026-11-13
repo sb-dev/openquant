@@ -1,0 +1,10 @@
+{
+  "id": "I-01",
+  "title": "Future data: a bar used by a decision becomes available after the next open",
+  "covers": ["Invalid inputs"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}

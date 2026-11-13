@@ -1,0 +1,10 @@
+{
+  "id": "DEF-02-v3",
+  "title": "Definition execution with a gap through the scheduled stop (threshold 30, break-even on)",
+  "covers": ["Definition execution", "Entry and exit phases"],
+  "strategy": "../../strategies/seed-3-rsi30-breakeven-on.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

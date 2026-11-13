@@ -1,0 +1,10 @@
+{
+  "id": "X-06",
+  "title": "Gap above the target fills at the target level without slippage",
+  "covers": ["Entry and exit phases", "Cash and quantities"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

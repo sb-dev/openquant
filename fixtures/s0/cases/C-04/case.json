@@ -1,0 +1,10 @@
+{
+  "id": "C-04",
+  "title": "Ex-date buyer receives no dividend entitlement",
+  "covers": ["Cash dividend"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

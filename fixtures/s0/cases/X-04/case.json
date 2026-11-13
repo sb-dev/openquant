@@ -1,0 +1,10 @@
+{
+  "id": "X-04",
+  "title": "Cap below one lot: skipped, reservation released, no backfill, leftover cash reused",
+  "covers": ["Cash and quantities"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

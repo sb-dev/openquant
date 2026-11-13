@@ -1,0 +1,10 @@
+{
+  "id": "I-05b",
+  "title": "High below low is rejected as invalid input",
+  "covers": ["Invalid inputs"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}

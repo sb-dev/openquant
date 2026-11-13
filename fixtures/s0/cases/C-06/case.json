@@ -1,0 +1,10 @@
+{
+  "id": "C-06",
+  "title": "Special distribution is an unsupported corporate action",
+  "covers": ["Invalid inputs", "Unplanned non-trading events"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}

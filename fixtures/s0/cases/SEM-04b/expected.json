@@ -1,0 +1,1225 @@
+{
+  "schema": "s0-expected/1",
+  "case": "SEM-04b",
+  "origin": {
+    "kind": "oracle",
+    "oracle": "oracle.py",
+    "oracle_sha256": "07582e4a30b45dcf0a522f027810520c1490ff6e26fedff4a5fc3ad31112c403",
+    "note": "Derived from OQ-02 sections 2.1 to 2.6 with exact rational arithmetic; see derivation.md. Not produced by the Rust engine."
+  },
+  "expect": {
+    "outcome": {"status": "COMPLETED"},
+    "signals": [
+      {
+        "session": "2026-03-20",
+        "condition": "FALSE",
+        "decision": "NO_ENTRY",
+        "indicators": [
+          {"name": "sma50", "value": "113.2448"},
+          {"name": "vol_sma20", "value": "1000.0000"},
+          {"name": "rsi14", "value": "32.5000"},
+          {"name": "atr14", "value": "2.0000"},
+          {"name": "rsi_floor", "value": "30.0000"},
+          {"name": "weak_threshold", "value": "32.0000"},
+          {"name": "rsi_lag1", "value": "35.7143"},
+          {"name": "rsi_lag2", "value": "38.6364"}
+        ]
+      },
+      {
+        "session": "2026-03-23",
+        "condition": "FALSE",
+        "decision": "NO_ENTRY",
+        "indicators": [
+          {"name": "sma50", "value": "113.5258"},
+          {"name": "vol_sma20", "value": "1000.0000"},
+          {"name": "rsi14", "value": "33.0000"},
+          {"name": "atr14", "value": "2.0000"},
+          {"name": "rsi_floor", "value": "30.0000"},
+          {"name": "weak_threshold", "value": "32.0000"},
+          {"name": "rsi_lag1", "value": "32.5000"},
+          {"name": "rsi_lag2", "value": "35.7143"}
+        ]
+      },
+      {
+        "session": "2026-03-24",
+        "condition": "FALSE",
+        "decision": "NO_ENTRY",
+        "indicators": [
+          {"name": "sma50", "value": "113.7968"},
+          {"name": "vol_sma20", "value": "1250.0000"},
+          {"name": "rsi14", "value": "33.0000"},
+          {"name": "atr14", "value": "2.0000"},
+          {"name": "rsi_floor", "value": "30.0000"},
+          {"name": "weak_threshold", "value": "32.0000"},
+          {"name": "rsi_lag1", "value": "33.0000"},
+          {"name": "rsi_lag2", "value": "32.5000"}
+        ]
+      },
+      {
+        "session": "2026-05-15",
+        "condition": "FALSE",
+        "decision": "NO_ENTRY",
+        "indicators": [
+          {"name": "sma50", "value": "129.0594"},
+          {"name": "vol_sma20", "value": "1000.0000"},
+          {"name": "rsi14", "value": "32.0000"},
+          {"name": "atr14", "value": "2.0000"},
+          {"name": "rsi_floor", "value": "30.0000"},
+          {"name": "weak_threshold", "value": "32.0000"},
+          {"name": "rsi_lag1", "value": "38.1818"},
+          {"name": "rsi_lag2", "value": "43.3333"}
+        ]
+      },
+      {
+        "session": "2026-05-18",
+        "condition": "FALSE",
+        "decision": "NO_ENTRY",
+        "indicators": [
+          {"name": "sma50", "value": "129.4298"},
+          {"name": "vol_sma20", "value": "1000.0000"},
+          {"name": "rsi14", "value": "33.0000"},
+          {"name": "atr14", "value": "2.0000"},
+          {"name": "rsi_floor", "value": "30.0000"},
+          {"name": "weak_threshold", "value": "32.0000"},
+          {"name": "rsi_lag1", "value": "32.0000"},
+          {"name": "rsi_lag2", "value": "38.1818"}
+        ]
+      },
+      {
+        "session": "2026-05-19",
+        "condition": "TRUE",
+        "decision": "ENTER",
+        "rank": "307.0000",
+        "indicators": [
+          {"name": "sma50", "value": "129.7840"},
+          {"name": "vol_sma20", "value": "1250.0000"},
+          {"name": "rsi14", "value": "33.0000"},
+          {"name": "atr14", "value": "2.0000"},
+          {"name": "rsi_floor", "value": "30.0000"},
+          {"name": "weak_threshold", "value": "32.0000"},
+          {"name": "rsi_lag1", "value": "33.0000"},
+          {"name": "rsi_lag2", "value": "32.0000"}
+        ]
+      },
+      {
+        "session": "2026-05-20",
+        "condition": "FALSE",
+        "decision": "NO_ENTRY",
+        "indicators": [
+          {"name": "sma50", "value": "130.1606"},
+          {"name": "vol_sma20", "value": "1250.0000"},
+          {"name": "rsi14", "value": "37.1622"},
+          {"name": "atr14", "value": "2.0000"},
+          {"name": "rsi_floor", "value": "30.0000"},
+          {"name": "weak_threshold", "value": "32.0000"},
+          {"name": "rsi_lag1", "value": "33.0000"},
+          {"name": "rsi_lag2", "value": "33.0000"}
+        ]
+      },
+      {
+        "session": "2026-05-28",
+        "condition": "FALSE",
+        "decision": "SKIPPED",
+        "skip_reason": "NO_NEXT_SESSION",
+        "indicators": [
+          {"name": "sma50", "value": "132.4812"},
+          {"name": "vol_sma20", "value": "1250.0000"},
+          {"name": "rsi14", "value": "28.8462"},
+          {"name": "atr14", "value": "2.0000"},
+          {"name": "rsi_floor", "value": "30.0000"},
+          {"name": "weak_threshold", "value": "32.0000"},
+          {"name": "rsi_lag1", "value": "21.2264"},
+          {"name": "rsi_lag2", "value": "33.7302"}
+        ]
+      }
+    ],
+    "entries": [
+      {
+        "intent_id": "I-2026-05-19-SYN",
+        "signal_session": "2026-05-19",
+        "rank": "307",
+        "cap": "2000.00",
+        "status": "FILLED",
+        "quantity": "14",
+        "fill_price": "137.05",
+        "fee": "1.00"
+      }
+    ],
+    "fills": [
+      {
+        "seq": 2,
+        "session": "2026-05-20",
+        "phase": "OPEN",
+        "side": "BUY",
+        "quantity": "14",
+        "price": "137.05",
+        "notional": "1918.70",
+        "fee": "1.00",
+        "cash_delta": "-1919.70",
+        "reason": "ENTRY",
+        "intent_id": "I-2026-05-19-SYN"
+      }
+    ],
+    "trades": [
+      {
+        "trade_id": "T-2026-05-20-SYN",
+        "entry_session": "2026-05-20",
+        "quantity": "14",
+        "entry_price": "137.05",
+        "exit_reason": "OPEN_AT_END",
+        "ambiguous_bar": false
+      }
+    ],
+    "cash_ledger": [
+      {
+        "seq": 0,
+        "session": "2026-05-19",
+        "phase": "AFTER_CLOSE",
+        "kind": "RESERVE",
+        "amount": "2000.00",
+        "available_after": "8000.00",
+        "reserved_after": "2000.00",
+        "receivables_after": "0.00"
+      },
+      {
+        "seq": 1,
+        "session": "2026-05-20",
+        "phase": "OPEN",
+        "kind": "RELEASE",
+        "amount": "2000.00",
+        "available_after": "10000.00",
+        "reserved_after": "0.00",
+        "receivables_after": "0.00"
+      },
+      {
+        "seq": 3,
+        "session": "2026-05-20",
+        "phase": "OPEN",
+        "kind": "FILL_BUY",
+        "amount": "1919.70",
+        "available_after": "8080.30",
+        "reserved_after": "0.00",
+        "receivables_after": "0.00"
+      }
+    ],
+    "daily": [
+      {
+        "session": "2026-01-05",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-06",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-07",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-08",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-09",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-12",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-13",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-14",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-15",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-16",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-19",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-20",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-21",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-22",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-23",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-26",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-27",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-28",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-29",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-01-30",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-02",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-03",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-04",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-05",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-06",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-09",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-10",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-11",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-12",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-13",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-16",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-17",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-18",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-19",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-20",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-23",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-24",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-25",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-26",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-02-27",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-02",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-03",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-04",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-05",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-06",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-09",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-10",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-11",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-12",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-13",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-16",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-17",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-18",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-19",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-20",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-23",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-24",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-25",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-26",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-27",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-30",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-03-31",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-01",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-02",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-03",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-06",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-07",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-08",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-09",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-10",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-13",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-14",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-15",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-16",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-17",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-20",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-21",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-22",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-23",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-24",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-27",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-28",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-29",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-04-30",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-05-01",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-05-04",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-05-05",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-05-06",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-05-07",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-05-08",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-05-11",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-05-12",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-05-13",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-05-14",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-05-15",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-05-18",
+        "cash_available": "10000.00",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-05-19",
+        "cash_available": "8000.00",
+        "cash_reserved": "2000.00",
+        "receivables": "0.00",
+        "positions_value": "0.00",
+        "equity": "10000.00",
+        "positions": []
+      },
+      {
+        "session": "2026-05-20",
+        "cash_available": "8080.30",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "1918.70",
+        "equity": "9999.00",
+        "positions": [
+          {
+            "trade_id": "T-2026-05-20-SYN",
+            "quantity": "14",
+            "entry_price": "137.05",
+            "stop": "133.05",
+            "target": "147.05",
+            "snapshots": [{"name": "entry_atr", "value": "2"}]
+          }
+        ]
+      },
+      {
+        "session": "2026-05-21",
+        "cash_available": "8080.30",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "1918.70",
+        "equity": "9999.00",
+        "positions": [
+          {
+            "trade_id": "T-2026-05-20-SYN",
+            "quantity": "14",
+            "entry_price": "137.05",
+            "stop": "133.05",
+            "target": "147.05",
+            "snapshots": [{"name": "entry_atr", "value": "2"}]
+          }
+        ]
+      },
+      {
+        "session": "2026-05-22",
+        "cash_available": "8080.30",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "1918.70",
+        "equity": "9999.00",
+        "positions": [
+          {
+            "trade_id": "T-2026-05-20-SYN",
+            "quantity": "14",
+            "entry_price": "137.05",
+            "stop": "133.05",
+            "target": "147.05",
+            "snapshots": [{"name": "entry_atr", "value": "2"}]
+          }
+        ]
+      },
+      {
+        "session": "2026-05-25",
+        "cash_available": "8080.30",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "1918.70",
+        "equity": "9999.00",
+        "positions": [
+          {
+            "trade_id": "T-2026-05-20-SYN",
+            "quantity": "14",
+            "entry_price": "137.05",
+            "stop": "133.05",
+            "target": "147.05",
+            "snapshots": [{"name": "entry_atr", "value": "2"}]
+          }
+        ]
+      },
+      {
+        "session": "2026-05-26",
+        "cash_available": "8080.30",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "1918.70",
+        "equity": "9999.00",
+        "positions": [
+          {
+            "trade_id": "T-2026-05-20-SYN",
+            "quantity": "14",
+            "entry_price": "137.05",
+            "stop": "133.05",
+            "target": "147.05",
+            "snapshots": [{"name": "entry_atr", "value": "2"}]
+          }
+        ]
+      },
+      {
+        "session": "2026-05-27",
+        "cash_available": "8080.30",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "1918.70",
+        "equity": "9999.00",
+        "positions": [
+          {
+            "trade_id": "T-2026-05-20-SYN",
+            "quantity": "14",
+            "entry_price": "137.05",
+            "stop": "133.05",
+            "target": "147.05",
+            "snapshots": [{"name": "entry_atr", "value": "2"}]
+          }
+        ]
+      },
+      {
+        "session": "2026-05-28",
+        "cash_available": "8080.30",
+        "cash_reserved": "0.00",
+        "receivables": "0.00",
+        "positions_value": "1918.70",
+        "equity": "9999.00",
+        "positions": [
+          {
+            "trade_id": "T-2026-05-20-SYN",
+            "quantity": "14",
+            "entry_price": "137.05",
+            "stop": "133.05",
+            "target": "147.05",
+            "snapshots": [{"name": "entry_atr", "value": "2"}]
+          }
+        ]
+      }
+    ],
+    "corporate_actions": [],
+    "final": {
+      "cash_available": "8080.30",
+      "cash_reserved": "0.00",
+      "receivables": "0.00",
+      "positions_value": "1918.70",
+      "equity": "9999.00",
+      "open_positions": [
+        {
+          "trade_id": "T-2026-05-20-SYN",
+          "quantity": "14",
+          "entry_price": "137.05",
+          "stop": "133.05",
+          "target": "147.05",
+          "snapshots": [{"name": "entry_atr", "value": "2"}]
+        }
+      ]
+    }
+  }
+}

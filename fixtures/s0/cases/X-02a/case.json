@@ -1,0 +1,10 @@
+{
+  "id": "X-02a",
+  "title": "Lot size 10 rounds the quantity down",
+  "covers": ["Cash and quantities"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

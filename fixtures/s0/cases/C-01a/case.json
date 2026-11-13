@@ -1,0 +1,10 @@
+{
+  "id": "C-01a",
+  "title": "2-for-1 split on a held position with a scheduled stop (10 sh @ 100 become 20 sh @ 50)",
+  "covers": ["Split across an ex-date"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

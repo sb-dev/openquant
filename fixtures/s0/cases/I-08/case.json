@@ -1,0 +1,10 @@
+{
+  "id": "I-08",
+  "title": "Hash mismatch between input and strategy",
+  "covers": ["Invalid inputs", "Shared payloads"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}

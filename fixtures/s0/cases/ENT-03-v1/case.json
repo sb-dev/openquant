@@ -1,0 +1,10 @@
+{
+  "id": "ENT-03-v1",
+  "title": "RSI 36, 36, 36: data-only threshold 40 variant against thresholds 30 and 32 (threshold 30, break-even off)",
+  "covers": ["Entry variants", "Definition execution"],
+  "strategy": "../../strategies/seed-1-rsi30-breakeven-off.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

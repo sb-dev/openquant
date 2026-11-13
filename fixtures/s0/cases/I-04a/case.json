@@ -1,0 +1,10 @@
+{
+  "id": "I-04a",
+  "title": "Unsupported operator id is rejected before evaluation",
+  "covers": ["Invalid inputs", "Definition execution"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}

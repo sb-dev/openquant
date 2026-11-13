@@ -1,14 +1,24 @@
 //! `s0-replay`: replay the S0 fixture cases through the shared Rust core and write a report.
 //!
 //! Usage: `cargo run --locked -p openquant-engine --bin s0-replay -- [--fixtures DIR] [--out DIR] [--case ID]`
+//!
+//! Exit status: 0 when every case matches its independent expectation, repeats byte for byte,
+//! validates against the result schema and restores from every cut point, and (for a run of all
+//! cases) every S0 row is covered. 1 when anything differs. 2 for a usage or file error.
 
-use std::{fs, path::PathBuf, process::Command, process::ExitCode};
+use std::{path::PathBuf, process::Command, process::ExitCode};
 
 use openquant_engine::{
     case::load_cases,
-    replay::run_case,
-    report::{Header, render_index, render_report},
+    coverage::{check_coverage, load_coverage},
+    replay::run_cases,
+    report::{Header, format_failures, write_outputs},
 };
+
+const USAGE: &str = "usage: s0-replay [--fixtures DIR] [--out DIR] [--case ID]";
+
+/// Differences listed per failing case on the terminal. The report lists all of them.
+const TERMINAL_LIMIT: usize = 12;
 
 struct Args {
     fixtures: PathBuf,
@@ -59,10 +69,14 @@ fn source_revision() -> String {
 
 fn main() -> ExitCode {
     let raw: Vec<String> = std::env::args().skip(1).collect();
+    if raw.iter().any(|a| a == "--help" || a == "-h") {
+        println!("{USAGE}");
+        return ExitCode::SUCCESS;
+    }
     let args = match parse_args(&raw) {
         Ok(args) => args,
         Err(message) => {
-            eprintln!("error: {message}");
+            eprintln!("error: {message}\n{USAGE}");
             return ExitCode::from(2);
         }
     };
@@ -73,63 +87,72 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
+    let declared: Vec<_> = cases
+        .iter()
+        .map(|c| (c.file.id.clone(), c.file.covers.clone()))
+        .collect();
     if let Some(only) = &args.only {
         cases.retain(|case| &case.file.id == only);
+        if cases.is_empty() {
+            eprintln!("error: no case named {only}");
+            return ExitCode::from(2);
+        }
     }
     if cases.is_empty() {
         eprintln!("error: no cases to run");
         return ExitCode::from(2);
     }
-    let reports: Vec<_> = cases.iter().map(run_case).collect();
 
-    let results = args.out.join("results");
-    if let Err(error) = fs::create_dir_all(&results) {
-        eprintln!("error: {}: {error}", results.display());
-        return ExitCode::from(2);
-    }
-    for report in &reports {
-        if let Some(text) = &report.result_text {
-            let path = results.join(format!("{}.result.json", report.id));
-            if let Err(error) = fs::write(&path, format!("{text}\n")) {
-                eprintln!("error: {}: {error}", path.display());
-                return ExitCode::from(2);
-            }
+    // Row coverage is only meaningful for a run of all cases.
+    let coverage_problems = if args.only.is_some() {
+        Vec::new()
+    } else {
+        match load_coverage(&args.fixtures) {
+            Ok(coverage) => check_coverage(&coverage, &declared),
+            Err(message) => vec![message],
         }
-    }
+    };
+
+    // The header is read before any output is written so the working tree is judged first.
     let header = Header {
         source_revision: source_revision(),
         command: format!("s0-replay {}", raw.join(" ")).trim().to_owned(),
         toolchain: capture("rustc", &["--version"]),
         fixtures: args.fixtures.display().to_string(),
+        filter: args.only.clone(),
+        coverage_problems,
     };
-    let writes = [
-        (args.out.join("report.md"), render_report(&header, &reports)),
-        (
-            args.out.join("index.json"),
-            serde_json::to_string_pretty(&render_index(&reports)).unwrap_or_default() + "\n",
-        ),
-    ];
-    for (path, text) in writes {
-        if let Err(error) = fs::write(&path, text) {
-            eprintln!("error: {}: {error}", path.display());
-            return ExitCode::from(2);
-        }
+    let reports = run_cases(&cases);
+    if let Err(message) = write_outputs(&args.out, &header, &reports) {
+        eprintln!("error: {message}");
+        return ExitCode::from(2);
     }
+
     let failed = reports.iter().filter(|r| !r.passed).count();
     for report in &reports {
         println!(
-            "{:<28} {}",
+            "{:<28} {} ({}/{} checks)",
             report.id,
-            if report.passed { "PASS" } else { "FAIL" }
+            if report.passed { "PASS" } else { "FAIL" },
+            report.matched_fields,
+            report.expected_fields
         );
     }
+    let failures = format_failures(&reports, &header.fixtures, TERMINAL_LIMIT);
+    if !failures.is_empty() {
+        eprintln!("\n{failures}");
+    }
+    for problem in &header.coverage_problems {
+        eprintln!("coverage: {problem}");
+    }
     println!(
-        "{} case(s), {} failed. Report: {}",
+        "{} case(s), {} failed, {} coverage problem(s). Report: {}",
         reports.len(),
         failed,
+        header.coverage_problems.len(),
         args.out.join("report.md").display()
     );
-    if failed == 0 {
+    if failed == 0 && header.coverage_problems.is_empty() {
         ExitCode::SUCCESS
     } else {
         ExitCode::FAILURE

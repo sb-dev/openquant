@@ -1,0 +1,10 @@
+{
+  "id": "ENT-01-v4",
+  "title": "RSI 29, 31, 31 at t-2, t-1, t, variant v4 (threshold 32, break-even on)",
+  "covers": ["Entry variants", "Definition execution"],
+  "strategy": "../../strategies/seed-4-rsi32-breakeven-on.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

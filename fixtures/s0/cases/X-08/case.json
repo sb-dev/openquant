@@ -1,0 +1,10 @@
+{
+  "id": "X-08",
+  "title": "Equality boundaries: low = stop, high = target, open = stop, open = target",
+  "covers": ["Entry and exit phases", "Cash and quantities"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

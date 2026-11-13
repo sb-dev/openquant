@@ -1,0 +1,10 @@
+{
+  "id": "I-06",
+  "title": "Confirmed halt: the pending entry expires at the open and its reservation is released",
+  "covers": ["Unplanned non-trading events"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

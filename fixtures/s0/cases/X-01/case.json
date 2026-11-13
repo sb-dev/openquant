@@ -1,0 +1,10 @@
+{
+  "id": "X-01",
+  "title": "Next-open entry: cap 1000, fee 1.00 + 10 bps, 19 shares, cash 4048.05",
+  "covers": ["Cash and quantities", "Entry and exit phases"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

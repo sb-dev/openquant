@@ -1,0 +1,10 @@
+{
+  "id": "I-07",
+  "title": "Confirmed halt while holding: valuation is unsupported and the evidence is INSUFFICIENT",
+  "covers": ["Unplanned non-trading events"],
+  "strategy": "strategy.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": false
+}

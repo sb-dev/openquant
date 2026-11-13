@@ -1,0 +1,10 @@
+{
+  "id": "SEM-04",
+  "title": "Seed exact boundaries for threshold 30: RSI equal to 30 and just above 30",
+  "covers": ["Seed semantics", "Entry variants"],
+  "strategy": "../../strategies/seed-1-rsi30-breakeven-off.json",
+  "input": "input.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "restore_every_cut": true
+}

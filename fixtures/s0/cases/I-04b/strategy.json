@@ -1,0 +1,79 @@
+{
+  "schema_version": "strategy-artefact/1",
+  "strategy_id": "i-04b-reduced",
+  "version": 1,
+  "operator_set": "daily-long-only-seed@1",
+  "contract": {
+    "hypothesis": "Reduced fixture strategy: enter when the close is above its short mean.",
+    "rationale": "Reduced strategy through the same validator and evaluator, so execution, cash and corporate-action arithmetic can be derived by hand.",
+    "intended_conditions": ["Synthetic sessions of one instrument."],
+    "benchmarks": ["None."],
+    "assumptions": ["Costs, scales and lots come from the evaluation policy."],
+    "invalidation": ["Not a trading hypothesis."]
+  },
+  "definition": {
+    "indicators": [
+      {
+        "name": "sma3",
+        "expr": {
+          "op": "operator:sma@1",
+          "args": [{"op": "operator:bar_field@1", "args": [], "params": {"field": "CLOSE"}}],
+          "params": {"window": 3}
+        }
+      },
+      {"name": "atr3", "expr": {"op": "operator:atr_simple@1", "args": [], "params": {"window": 3}}}
+    ],
+    "entry": {
+      "condition": {
+        "op": "operator:gt@1",
+        "args": [
+          {"op": "operator:bar_field@1", "args": [], "params": {"field": "CLOSE"}},
+          {
+            "op": "operator:sma@1",
+            "args": [{"op": "operator:bar_field@1", "args": [], "params": {"field": "VOLUME"}}],
+            "params": {"window": 3}
+          }
+        ],
+        "params": {}
+      },
+      "rank": {"op": "operator:const@1", "args": [], "params": {"value": "1", "unit": "POINTS"}},
+      "snapshots": [{"name": "entry_atr", "expr": {"op": "operator:ref@1", "args": [], "params": {"name": "atr3"}}}]
+    },
+    "selection": {"slots": 5, "max_per_instrument": 1, "tie_break": "ASCENDING_INSTRUMENT_ID"},
+    "sizing": {"method": "sizing:equal_cash_per_vacant_slot@1"},
+    "exits": {
+      "stop": {
+        "op": "operator:sub@1",
+        "args": [
+          {"op": "operator:entry_price@1", "args": [], "params": {}},
+          {
+            "op": "operator:mul@1",
+            "args": [
+              {"op": "operator:const@1", "args": [], "params": {"value": "2", "unit": "RATIO"}},
+              {"op": "operator:snapshot@1", "args": [], "params": {"name": "entry_atr"}}
+            ],
+            "params": {}
+          }
+        ],
+        "params": {}
+      },
+      "target": {
+        "op": "operator:add@1",
+        "args": [
+          {"op": "operator:entry_price@1", "args": [], "params": {}},
+          {
+            "op": "operator:mul@1",
+            "args": [
+              {"op": "operator:const@1", "args": [], "params": {"value": "5", "unit": "RATIO"}},
+              {"op": "operator:snapshot@1", "args": [], "params": {"name": "entry_atr"}}
+            ],
+            "params": {}
+          }
+        ],
+        "params": {}
+      },
+      "stop_adjustments": []
+    },
+    "execution": {"entry_fill": "NEXT_OPEN", "decision": "AFTER_CLOSE"}
+  }
+}
