@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 // The Rust steps of `pnpm verify`. Each is real work; none prints success on its own.
-// scripts/s0.ts checks that every command below stays in this list.
+// scripts/s0.ts compares this list, step by step and in order, with a literal copy of the expected steps.
 export const cargoCommands = [
   'cargo fmt --all --check',
   'cargo clippy --workspace --all-targets --locked -- -D warnings',
