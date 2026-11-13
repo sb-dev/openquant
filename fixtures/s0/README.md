@@ -22,6 +22,7 @@ An id is `<prefix>-<number>`, optionally followed by one lowercase letter or a `
 - `X-12` to `X-14` are off-grid execution cases (next section).
 - `G-01` to `G-11b` are grid ties. Where a number holds two cases, the lowercase letters name the two rounding directions (`G-05a`, `G-05b`, `G-07a`, `G-07b`, `G-08a`, `G-08b`, `G-09a`, `G-09b`, `G-09c`), and a bare id with a `b` sibling names the first direction or the stop variant (`G-06` and `G-06b`, `G-10` and `G-10b`, `G-11` and `G-11b`).
 - `G-12a` to `G-12d` and `G-13`, `G-13b` pin the opposite of a grid tie: a gap test against a level that is off the grid, and a split round trip whose converted levels leave the grid (see Off-grid gap tests and a split round trip). The four letters of `G-12` name the level and the open: `G-12a` target, open at the grid price below it (no gap); `G-12b` stop, open at the grid price above it (no gap); `G-12c` target, open above it (gap); `G-12d` stop, open below it (gap). `G-13` is the stop variant and `G-13b` the target variant, as `G-10` and `G-10b`.
+- `I-12a` to `I-12c` are levels with no decimal view: a level, snapshot or scheduled stop whose integer part is 2^96 (79228162514264337593543950336) or more. The run fails with `ARITHMETIC_OVERFLOW` at the event that would hold it, and that event is discarded. The lowercase letters name the target (`a`) and the snapshot (`b`) that reach it, and `c` is the control, a target of about 5 x 10^24 that stays below 2^96 and completes.
 
 ## Off-grid levels
 
