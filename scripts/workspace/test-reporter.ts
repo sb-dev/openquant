@@ -1,11 +1,13 @@
 import { resolve } from 'node:path';
+import { workspaceTestFiles } from '../s0.ts';
 
 // A node:test reporter for the workspace tests of `pnpm verify` (OQ-06 sections 1 and 7: a test task with no tests
 // fails, and a zero-test run never stands in for a check). Node passes a run whose file defines no test, or whose
 // tests are all skipped or marked todo, and it ignores a named file that does not exist. This reporter fails such a
-// run: every named test file must run at least one test, and no test may be skipped or marked todo. It prints
-// nothing otherwise; the spec reporter prints the results.
-// scripts/s0.ts pins this file by its SHA-256, so a change to it is a reviewed change to the guard as well.
+// run: the files that ran must be exactly workspaceTestFiles in scripts/s0.ts, resolved from the working directory,
+// each must run at least one test, and no test may be skipped or marked todo. It does not read the command line,
+// so a file left out of it, or missing in any position, fails. It prints nothing otherwise; the spec reporter prints
+// the results. scripts/s0.ts pins this file by its SHA-256, so a change to it is a reviewed change to the guard.
 
 interface TestEvent {
   type: string;
@@ -26,10 +28,9 @@ export default async function* requireTests(source: AsyncIterable<TestEvent>): A
   }
   const problems: string[] = [];
   if (executed.size === 0) problems.push('no test file ran');
-  // Node skips a named file that does not exist when another file is found, so each named file must have run.
-  for (const name of process.argv.slice(2)) {
-    if (!/[*?[\]{}]/.test(name) && !executed.has(resolve(name))) problems.push(`${name} did not run`);
-  }
+  const expected = new Set(workspaceTestFiles.map((file) => resolve(file)));
+  for (const file of workspaceTestFiles) if (!executed.has(resolve(file))) problems.push(`${file} did not run`);
+  for (const file of executed.keys()) if (!expected.has(file)) problems.push(`${file} ran but is not in workspaceTestFiles (scripts/s0.ts)`);
   for (const [file, count] of executed) if (count === 0) problems.push(`${file} ran no test`);
   for (const test of skipped) problems.push(`skipped or todo: ${test}`);
   if (problems.length > 0) {

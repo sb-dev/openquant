@@ -31,11 +31,17 @@ jobs:
         with:
           node-version-file: .node-version
           package-manager-cache: false
+      # The repository checks need no install. They run on their own before anything is installed, and verify runs
+      # them again, so a change to scripts/verify.ts that only CI would notice still fails here.
+      - name: Check repository
+        run: node scripts/check-repository.ts
       # The version must equal packageManager in package.json; verify compares them.
       - name: Install pinned pnpm
         run: npm install --global --ignore-scripts pnpm@11.25.0
+      # No install script runs: the root and workspace packages may define none, and allowBuilds in
+      # pnpm-workspace.yaml allows none for dependencies.
       - name: Install locked dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Install pinned Rust toolchain
         run: rustup toolchain install --profile minimal
       - name: Verify repository

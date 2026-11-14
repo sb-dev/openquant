@@ -13,7 +13,7 @@ import { stepEnvironment } from './environment.ts';
 export const typescriptCommands = [
   'pnpm exec node scripts/workspace/check-workspace.ts',
   'pnpm exec turbo run typecheck lint test build --force',
-  'pnpm exec node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./scripts/workspace/test-reporter.ts --test-reporter-destination=stderr scripts/workspace/tests/boundaries.test.ts scripts/workspace/tests/licences.test.ts scripts/workspace/tests/reporters.test.ts scripts/workspace/tests/tasks.test.ts scripts/workspace/tests/workflows.test.ts',
+  'pnpm exec node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./scripts/workspace/test-reporter.ts --test-reporter-destination=stderr scripts/workspace/tests/boundaries.test.ts scripts/workspace/tests/cargo-targets.test.ts scripts/workspace/tests/licences.test.ts scripts/workspace/tests/reporters.test.ts scripts/workspace/tests/tasks.test.ts scripts/workspace/tests/workflows.test.ts',
 ] as const;
 
 export const installCommand = 'pnpm install --frozen-lockfile';
