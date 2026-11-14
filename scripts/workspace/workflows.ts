@@ -12,20 +12,29 @@ type Json = any;
 const sha = /^[\w.-]+\/[\w./-]+@[0-9a-f]{40}$/;
 const isMap = (value: unknown): value is Record<string, Json> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
-// The steps of the `checks` job, exactly as written and in this order: names, pinned action commits, `with`
-// inputs and commands, and no other key (no env, if, shell, working-directory, id or continue-on-error). The pnpm
-// version comes from the packageManager field of package.json, so a different pnpm cannot install the lockfile in
-// CI. The checkout keeps only persist-credentials: false, so CI checks out the revision under test and no other.
-// A Dependabot update of either action changes this list in the same reviewed change.
+// The steps of the `checks` job, exactly as written and in this order: names, actions, `with` inputs and commands,
+// and no other key (no env, if, shell, working-directory, id or continue-on-error). An action step names its action
+// repository; ci.yml pins it to a full 40-character commit SHA, and any such SHA of the same repository passes, so a
+// Dependabot update passes without a change here (whether a SHA is a release of the action is checked in review).
+// The repository checks run as their own step before any install (P1 review finding C6R), and the install runs no
+// install script (G2). The pnpm version comes from the packageManager field of package.json, so a different pnpm
+// cannot install the lockfile in CI. The checkout keeps only persist-credentials: false, so CI checks out the
+// revision under test and no other.
 export function expectedChecksSteps(pnpm: string): ReadonlyArray<Record<string, Json>> {
   return [
-    { name: 'Check out source', uses: 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1', with: { 'persist-credentials': false } },
-    { name: 'Set up Node', uses: 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1', with: { 'node-version-file': '.node-version', 'package-manager-cache': false } },
+    { name: 'Check out source', uses: 'actions/checkout', with: { 'persist-credentials': false } },
+    { name: 'Set up Node', uses: 'actions/setup-node', with: { 'node-version-file': '.node-version', 'package-manager-cache': false } },
+    { name: 'Check repository', run: 'node scripts/check-repository.ts' },
     { name: 'Install pinned pnpm', run: `npm install --global --ignore-scripts pnpm@${pnpm}` },
-    { name: 'Install locked dependencies', run: 'pnpm install --frozen-lockfile' },
+    { name: 'Install locked dependencies', run: 'pnpm install --frozen-lockfile --ignore-scripts' },
     { name: 'Install pinned Rust toolchain', run: 'rustup toolchain install --profile minimal' },
     { name: 'Verify repository', run: 'node scripts/verify.ts' },
   ];
+}
+
+// An action reference of the expected repository at a full commit SHA: `owner/name@<40 lowercase hex digits>`.
+export function pinnedAction(uses: unknown, action: string): boolean {
+  return typeof uses === 'string' && uses.startsWith(`${action}@`) && /^[0-9a-f]{40}$/.test(uses.slice(action.length + 1));
 }
 
 // The only environment variables ci.yml may set at workflow or job level, with their only values.
@@ -204,7 +213,9 @@ export function ciWorkflowErrors(text: string, pnpm: string): string[] {
     for (const key of Object.keys(step)) if (!(key in want)) errors.push(`${at} must not set ${key}`);
     for (const [key, value] of Object.entries(want)) {
       if (!(key in step)) errors.push(`${at} must set ${key}: ${JSON.stringify(value)}`);
-      else if (!sameValue(step[key], value)) errors.push(`${at} must have ${key}: ${JSON.stringify(value)}, found ${JSON.stringify(step[key])}`);
+      else if (key === 'uses' ? !pinnedAction(step.uses, value) : !sameValue(step[key], value)) {
+        errors.push(key === 'uses' ? `${at} must use ${value} at a full 40-character commit SHA, found ${JSON.stringify(step.uses)}` : `${at} must have ${key}: ${JSON.stringify(value)}, found ${JSON.stringify(step[key])}`);
+      }
     }
   }
   errors.push(...environmentErrors(file, workflow));

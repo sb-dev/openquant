@@ -288,7 +288,7 @@ test('the link and blockquote rules read Markdown only',()=>{
 });
 
 // S0: Rust verification, fixtures and protocol rules.
-import { reportErrors, reportSections, caseSections, s0Rows, expectedCargoCommands, cargoCommandErrors, verifyDriverErrors, rustModuleErrors, withoutComments, expectedTypescriptCommands, typescriptCommandErrors, typescriptModuleErrors, environmentModuleErrors, spawnEnvironmentErrors, verifyModuleErrors, codeLines, workspacePackageList, workspaceTestFiles, workspaceErrors } from '../s0.ts';
+import { reportErrors, reportSections, caseSections, s0Rows, expectedCargoCommands, cargoCommandErrors, verifyDriverErrors, rustModuleErrors, withoutComments, expectedTypescriptCommands, typescriptCommandErrors, typescriptModuleErrors, environmentModuleErrors, spawnEnvironmentErrors, verifyModuleErrors, codeLines, workspacePackageList, workspaceTestFiles, workspaceErrors, scanSource, topLevelCode, topLevelErrors, ciVariableErrors, guardedModules, parseToml, cargoManifestErrors, pnpmWorkspaceErrors, expectedRootScripts, hookScript } from '../s0.ts';
 import { isRemovedVariable, stepEnvironment } from '../environment.ts';
 import { cargoCommands, toolchainChannel, toolchainPinError } from '../rust.ts';
 import { typescriptCommands, dependencyInstallError, pinnedPnpm } from '../typescript.ts';
@@ -335,15 +335,21 @@ test('a Cargo step cannot be dropped, shortened or changed',()=>{
   assert.match(cargoCommandErrors(withStep(fmt)).join('\n'),/scripts\/rust\.ts must run: cargo fmt --all --check/);
   assert.match(cargoCommandErrors(withStep(tests,`${tests} --lib`)).join('\n'),/must run: cargo test --workspace --locked[\s\S]*not expected: cargo test --workspace --locked --lib/);
 });
-// The list check imports the live module, so the wiring is proved by running the checker in a mutated copy.
-function checkerRun(change: (directory: string) => void) {
+// The list check imports the live module, so the wiring is proved by running the checker in a mutated copy. The checker
+// runs as it does locally: without the CI, GITHUB_* and RUNNER_* variables, and without this runner's NODE_TEST_*.
+function localEnvironment(): Record<string,string|undefined> {
+  return Object.fromEntries(Object.entries(process.env).filter(([name])=>!/^(?:CI|GITHUB_.*|RUNNER_.*|NODE_TEST_.*)$/i.test(name)));
+}
+function checkerRun(change: (directory: string) => void, tests?: string) {
   const temporary = mkdtempSync(resolve(tmpdir(),'openquant-checker-'));
   try {
     const copy = resolve(temporary,'repo');
     copyRepository(root,copy);
     change(copy);
-    const result = spawnSync(process.execPath,['scripts/check-repository.ts'],{cwd:copy,encoding:'utf8'});
-    return { status: result.status, output: `${result.stdout}${result.stderr}` };
+    const result = spawnSync(process.execPath,['scripts/check-repository.ts'],{cwd:copy,encoding:'utf8',env:localEnvironment()});
+    // With a test name, the copy's own regression tests run as well, filtered to that test.
+    const suite = tests === undefined ? undefined : spawnSync(process.execPath,['--test',`--test-name-pattern=${tests}`,'scripts/tests/repository.test.ts'],{cwd:copy,encoding:'utf8',env:localEnvironment()});
+    return { status: result.status, output: `${result.stdout}${result.stderr}`, testStatus: suite?.status, testOutput: `${suite?.stdout ?? ''}${suite?.stderr ?? ''}` };
   } finally { rmSync(temporary,{recursive:true,force:true}); }
 }
 test('the repository check rejects a Cargo step dropped from scripts/rust.ts',()=>{
@@ -683,7 +689,7 @@ test('the verify driver stops before Cargo when the repository checks or their t
 });
 
 // C6: verify.ts must equal its reviewed code (scripts/s0.ts), so a statement added anywhere fails the repository
-// checks, which run as step 1 of verify and as a CI step through verify.
+// checks, which run as step 1 of verify and as their own CI step before any install (C6R).
 const stepOne = '// 1. Repository checks';
 test('C6: verify.ts cannot exit early or change the environment before step 1',()=>{
   const early = replaceOnce(liveVerify,stepOne,`if (process.env.CI) process.exit(0);\n${stepOne}`);
@@ -812,7 +818,7 @@ test('U1: a manifest cannot turn off test discovery or a test harness',()=>{
   ];
   for (const [manifest,key,head] of settings) {
     const tail = key === 'test' ? '\n[lib]\ntest = false\n' : key === 'harness' ? '\n[[test]]\nname = "registry"\nharness = false\n' : '';
-    mutated((base)=>edit(base,manifest,(t)=>`${replaceOnce(t,'[package]\n',head)}${tail}`),new RegExp(`${manifest.replaceAll('.','\\.')} must not set ${key} = false: Cargo would leave tests unbuilt or unrun`));
+    mutated((base)=>edit(base,manifest,(t)=>`${replaceOnce(t,'[package]\n',head)}${tail}`),new RegExp(`${manifest.replaceAll('.','\\.')} must not set (?:package|lib|test\\[0\\])\\.${key} = false: Cargo would leave tests unbuilt or unrun`));
   }
 });
 
@@ -825,7 +831,7 @@ const contractsManifest = 'packages/api-contracts/ts/package.json';
 function workspaceMutation(change: (directory: string) => void, expected: RegExp) {
   const temporary = mkdtempSync(resolve(tmpdir(),'openquant-workspace-'));
   try {
-    const kept = (file: string) => file.startsWith('packages/api-contracts/ts/') || file.startsWith('scripts/workspace/') || ['pnpm-workspace.yaml','tsconfig.base.json','biome.json'].includes(file);
+    const kept = (file: string) => file.startsWith('packages/api-contracts/ts/') || file.startsWith('scripts/workspace/') || ['package.json','pnpm-workspace.yaml','tsconfig.base.json','biome.json'].includes(file);
     for (const file of paths(root).filter(kept)) { mkdirSync(resolve(temporary,file,'..'),{recursive:true}); copyFileSync(resolve(root,file),resolve(temporary,file)); }
     assert.deepEqual(workspaceErrors(temporary,new Set(paths(temporary))),[],'the small copy passes before the change');
     change(temporary);
@@ -882,6 +888,180 @@ test('U0: every workspace test file must be tracked and named in the test step',
   workspaceMutation((base)=>writeFileSync(resolve(base,'scripts/workspace/tests/extra.test.ts'),"import test from 'node:test';\ntest('x',()=>{});\n"),/Workspace test file is not run by verification: scripts\/workspace\/tests\/extra\.test\.ts/);
   // The reviewer's rename of the test directory, after which the glob matched no file and the step passed.
   mutated((base)=>renameSync(resolve(base,'scripts/workspace/tests'),resolve(base,'scripts/workspace/specs')),/Missing workspace test file: scripts\/workspace\/tests\/boundaries\.test\.ts/);
+});
+
+// G1 of the P1 review: pnpm-workspace.yaml may set only the reviewed keys, in the reviewed form, and no other tracked
+// file configures pnpm. scriptShell or nodeOptions there would let every pnpm step pass without running.
+const workspaceFile = 'pnpm-workspace.yaml';
+const liveWorkspace = readFileSync(resolve(root,workspaceFile),'utf8');
+test('G1: the reviewer\'s scriptShell and nodeOptions fail the repository check',()=>{
+  for (const setting of ['scriptShell: /bin/true','nodeOptions: --import=data:text/javascript,if(!process.env.NODE_TEST_CONTEXT)process.exit(0)']) {
+    const run = checkerRun((base)=>edit(base,workspaceFile,(t)=>`${t}${setting}\n`));
+    assert.equal(run.status,1,setting);
+    assert.match(run.output,new RegExp(`pnpm-workspace\\.yaml must not set ${setting.split(':')[0]}: it may set only packages, verifyDepsBeforeRun, allowBuilds`),setting);
+  }
+});
+test('G1: pnpm-workspace.yaml may set only packages, verifyDepsBeforeRun: error and the reviewed allowBuilds',()=>{
+  assert.deepEqual(pnpmWorkspaceErrors(liveWorkspace),[]);
+  for (const key of ['scriptShell','shellEmulator','nodeOptions','enablePrePostScripts','pnpmfile','overrides','packageExtensions','hooks','catalog','onlyBuiltDependencies']) {
+    assert.match(pnpmWorkspaceErrors(`${liveWorkspace}${key}: x\n`).join('\n'),new RegExp(`pnpm-workspace\\.yaml must not set ${key}:`),key);
+  }
+  const forms: Record<string,string> = {
+    'a quoted key': '"scriptShell": /bin/true\n',
+    'a single-quoted key': "'nodeOptions': --require=./x.cjs\n",
+    'a kebab-case key': 'script-shell: /bin/true\n',
+    'a flow mapping': '{scriptShell: /bin/true}\n',
+    'a complex key': '? scriptShell\n: /bin/true\n',
+    'a second document': '---\nscriptShell: /bin/true\n',
+  };
+  for (const [name,addition] of Object.entries(forms)) assert.match(pnpmWorkspaceErrors(`${liveWorkspace}${addition}`).join('\n'),/is not in the reviewed form|must not set scriptShell/,name);
+  assert.match(pnpmWorkspaceErrors(replaceOnce(liveWorkspace,'  - packages/api-contracts/ts\n','  - packages/api-contracts/ts\n  scriptShell: /bin/true\n')).join('\n'),/line \d+ is not in the reviewed form .*"  scriptShell: \/bin\/true"/);
+  assert.match(pnpmWorkspaceErrors(replaceOnce(liveWorkspace,'verifyDepsBeforeRun: error\n','verifyDepsBeforeRun: &strict error\n')).join('\n'),/must set verifyDepsBeforeRun: error/);
+  assert.match(pnpmWorkspaceErrors(replaceOnce(liveWorkspace,'esbuild: false','esbuild: true')).join('\n'),/allowBuilds must be exactly \{"esbuild":false\}, found \{"esbuild":true\}/);
+  assert.match(pnpmWorkspaceErrors(replaceOnce(liveWorkspace,'  esbuild: false\n','  esbuild: false\n  turbo: true\n')).join('\n'),/allowBuilds must be exactly \{"esbuild":false\}, found \{"esbuild":false,"turbo":true\}/);
+  assert.match(pnpmWorkspaceErrors(`${liveWorkspace}packages:\n  - other\n`).join('\n'),/sets packages twice/);
+});
+test('G1: no other tracked file configures pnpm: a nested pnpm-workspace.yaml, a pnpmfile or an .npmrc with script settings',()=>{
+  // pnpm reads the nearest pnpm-workspace.yaml when Turborepo runs a package script, so a nested one applies there.
+  workspaceMutation((base)=>writeFileSync(resolve(base,'packages/api-contracts/ts/pnpm-workspace.yaml'),'scriptShell: /bin/true\n'),/Only the root pnpm-workspace\.yaml may configure pnpm: packages\/api-contracts\/ts\/pnpm-workspace\.yaml/);
+  workspaceMutation((base)=>writeFileSync(resolve(base,'.pnpmfile.cjs'),'module.exports = { hooks: {} };\n'),/A pnpmfile must not be tracked: \.pnpmfile\.cjs/);
+  workspaceMutation((base)=>writeFileSync(resolve(base,'packages/api-contracts/ts/pnpmfile.mjs'),'export const hooks = {};\n'),/A pnpmfile must not be tracked: packages\/api-contracts\/ts\/pnpmfile\.mjs/);
+  workspaceMutation((base)=>writeFileSync(resolve(base,'.npmrc'),'script-shell=/bin/true\n'),/^\.npmrc must not set script-shell/);
+  workspaceMutation((base)=>writeFileSync(resolve(base,'packages/api-contracts/ts/.npmrc'),'# local\nnode_options = --require=./x.cjs\n'),/packages\/api-contracts\/ts\/\.npmrc must not set node-options/);
+});
+
+// G2: no install script runs. The root scripts are a literal set, no manifest defines an install lifecycle script or a
+// pre or post hook, and CI installs with --ignore-scripts.
+const reviewerPostinstall = 'test -z "$GITHUB_PATH" || { mkdir -p "$RUNNER_TEMP/bin" && printf \'#!/bin/sh\\necho verify skipped\\n\' > "$RUNNER_TEMP/bin/node" && chmod +x "$RUNNER_TEMP/bin/node" && echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"; }';
+test('G2: the reviewer\'s root postinstall fails the repository check',()=>{
+  const run = checkerRun((base)=>editJson(base,'package.json',(value)=>{ value.scripts.postinstall = reviewerPostinstall; }));
+  assert.equal(run.status,1);
+  assert.match(run.output,/package\.json must have exactly these scripts/);
+  assert.match(run.output,/package\.json must not have the postinstall script: pnpm runs install lifecycle scripts and pre and post hooks on its own/);
+});
+test('G2: the root scripts are a literal set, and no manifest may define an install lifecycle script or a hook',()=>{
+  assert.deepEqual(JSON.parse(readFileSync(resolve(root,'package.json'),'utf8')).scripts,expectedRootScripts);
+  workspaceMutation((base)=>editJson(base,'package.json',(value)=>{ value.scripts.verify = 'true'; }),/^package\.json must have exactly these scripts/);
+  workspaceMutation((base)=>editJson(base,'package.json',(value)=>{ delete value.scripts.test; }),/^package\.json must have exactly these scripts/);
+  for (const name of ['preinstall','install','postinstall','prepare','prepublish','prepublishOnly','prepack','preverify','pnpm:devPreinstall']) {
+    workspaceMutation((base)=>editJson(base,'package.json',(value)=>{ value.scripts[name] = 'echo hook'; }),new RegExp(`^package\\.json must not have the ${name} script`));
+    workspaceMutation((base)=>editJson(base,contractsManifest,(value)=>{ value.scripts[name] = 'echo hook'; }),new RegExp(`^packages/api-contracts/ts/package\\.json must not have the ${name} script`));
+  }
+  workspaceMutation((base)=>editJson(base,contractsManifest,(value)=>{ value.scripts.pretest = 'exit 0'; }),/must not have the pretest script/);
+  workspaceMutation((base)=>editJson(base,'package.json',(value)=>{ value.pnpm = { overrides: { vitest: '0.0.0' } }; }),/^package\.json must not set pnpm/);
+  assert.ok(['test','typecheck','verify:repository','generate:tree'].every((name)=>!hookScript(name)));
+  mutated((base)=>edit(base,'.github/workflows/ci.yml',(t)=>replaceOnce(t,'run: pnpm install --frozen-lockfile --ignore-scripts','run: pnpm install --frozen-lockfile')),/CI must install the locked dependencies with pnpm install --frozen-lockfile --ignore-scripts before node scripts\/verify\.ts/);
+});
+
+// G3 and C6R: check-repository.ts, s0.ts and every module they import run their top-level code before any check. Their
+// top-level code may not use process, the environment or an exit, no verification script reads CI variables, and CI
+// runs the repository checks as their own step, so a CI-only early exit in verify.ts fails there.
+const localTest = '^baseline repository satisfies its declared checks$';
+test('G3: the reviewer\'s GITHUB_ACTIONS early exit in s0.ts fails the local repository check and the repository tests',()=>{
+  const imports = "import { typescriptCommands } from './typescript.ts';\n";
+  const run = checkerRun((base)=>edit(base,'scripts/s0.ts',(t)=>replaceOnce(t,imports,`${imports}\nif (process.env.GITHUB_ACTIONS) process.exit(0);\n`)),localTest);
+  assert.equal(run.status,1,run.output);
+  assert.match(run.output,/scripts\/s0\.ts must not use process: verify\.ts and check-repository\.ts import it/);
+  assert.match(run.output,/scripts\/s0\.ts must not use process, env, exit outside a function body/);
+  assert.match(run.output,/scripts\/s0\.ts must not read the CI, GITHUB_\* or RUNNER_\* variables \(GITHUB_ACTIONS\)/);
+  assert.equal(run.testStatus,1,run.testOutput);
+  assert.match(run.testOutput,/baseline repository satisfies its declared checks/);
+});
+test('C6R: a CI early exit in check-repository.ts fails the local repository check and the repository tests',()=>{
+  const imports = "import { checkRepository, root } from './repository.ts';\n";
+  const run = checkerRun((base)=>edit(base,'scripts/check-repository.ts',(t)=>replaceOnce(t,imports,`${imports}if (process.env.CI) process.exit(0);\n`)),localTest);
+  assert.equal(run.status,1,run.output);
+  assert.match(run.output,/scripts\/check-repository\.ts must keep the reviewed code of the whole file \(scripts\/s0\.ts\), comments and blank lines aside; code line 2 differs: expected "function report\(errors: readonly string\[\]\): void \{", found "if \(process\.env\.CI\) process\.exit\(0\);"/);
+  assert.match(run.output,/scripts\/check-repository\.ts must not use process, env, exit outside a function body/);
+  assert.match(run.output,/scripts\/check-repository\.ts must not read the CI, GITHUB_\* or RUNNER_\* variables \(CI\)/);
+  assert.equal(run.testStatus,1,run.testOutput);
+});
+test('C6R: CI runs the repository checks as their own step before any install and before verify',()=>{
+  const step = '      - name: Check repository\n        run: node scripts/check-repository.ts\n';
+  const verify = '      - name: Verify repository\n        run: node scripts/verify.ts\n';
+  mutated((base)=>edit(base,'.github/workflows/ci.yml',(t)=>replaceOnce(t,step,'')),/CI must run node scripts\/check-repository\.ts as its own step before any install and before node scripts\/verify\.ts/);
+  mutated((base)=>edit(base,'.github/workflows/ci.yml',(t)=>replaceOnce(replaceOnce(t,step,''),verify,`${verify}${step}`)),/CI must run node scripts\/check-repository\.ts as its own step before any install/);
+});
+test('G3: the top-level code of a guarded module may not use process, the environment, an exit or dynamic code',()=>{
+  assert.deepEqual(guardedModules(root),['scripts/agent-assets.ts','scripts/check-repository.ts','scripts/development-skills.ts','scripts/environment.ts','scripts/repository.ts','scripts/rust.ts','scripts/s0.ts','scripts/typescript.ts']);
+  for (const file of guardedModules(root)) assert.deepEqual(topLevelErrors(file,readFileSync(resolve(root,file),'utf8')),[],file);
+  const s0 = readFileSync(resolve(root,'scripts/s0.ts'),'utf8');
+  assert.deepEqual(verifyModuleErrors('scripts/s0.ts',s0),[]);
+  const cases: Array<[string,RegExp]> = [
+    ['if (process.env.GITHUB_ACTIONS) process.exit(0);',/must not use process, env, exit outside a function body/],
+    ["globalThis['process'].exit(0);",/must not use globalThis, exit outside/],
+    ["const later = await import('node:process');",/must not use import\(\) outside/],
+    ["const loaded = require('node:process');",/must not use require\(\) outside/],
+    ["eval('1');",/must not use eval outside/],
+    ["new Function('return 1')();",/must not use Function outside/],
+    ['Reflect.apply(Math.max, null, []);',/must not use Reflect outside/],
+    ['const hidden = `${process.exitCode = 0}`;',/must not use process outside/],
+    ['const early = (() => { if (process.env.CI) process.exit(0); })();',/must not use process, env, exit outside/],
+    ['if (true) { process.exitCode = 0; }',/must not use process outside/],
+  ];
+  for (const [statement,expected] of cases) assert.match(topLevelErrors('scripts/s0.ts',`${s0}\n${statement}\n`).join('\n'),expected,statement);
+  assert.match(verifyModuleErrors('scripts/s0.ts',`${s0}\nexport function later(): void { process.exitCode = 0; }\n`).join('\n'),/scripts\/s0\.ts must not use process:/);
+  // A named function body runs only when called, and a string or regular-expression literal is not code.
+  assert.deepEqual(topLevelErrors('x.ts',"export function stop(code = 1): void {\n  process.exit(code);\n}\nconst text = 'process.exit(0)';\nconst shape = /process\\.env/;\n"),[]);
+  assert.match(topLevelErrors('x.ts',"import { exit } from 'node:process';\n").join('\n'),/may import only node:crypto, node:fs, node:path, node:url, node:child_process and \.\/\*\.ts modules, found node:process/);
+  assert.match(topLevelErrors('x.ts',"import { createRequire } from 'node:module';\n").join('\n'),/found node:module/);
+});
+test('G3: no verification script reads the CI, GITHUB_* or RUNNER_* variables',()=>{
+  for (const file of paths(root).filter((item)=>/^scripts\/(?:workspace\/)?[^/]+\.ts$/.test(item))) assert.deepEqual(ciVariableErrors(file,readFileSync(resolve(root,file),'utf8')),[],file);
+  const reads: Array<[string,string]> = [
+    ['return process.env.CI;','CI'],
+    ["return process.env['GITHUB_ACTIONS'];",'"GITHUB_ACTIONS"'],
+    ['const { RUNNER_TEMP } = process.env; return RUNNER_TEMP;','RUNNER_TEMP'],
+    ["return 'GITHUB_PATH' in process.env;",'"GITHUB_PATH"'],
+    ['return Object.keys(process.env).some((name) => /^GITHUB_/.test(name));','/^GITHUB_/'],
+    ['return process.env[`CI`];','"CI"'],
+  ];
+  for (const [code,name] of reads) {
+    const errors = ciVariableErrors('scripts/workspace/tasks.ts',`export function inCi() {\n  ${code}\n}\n`).join('\n');
+    assert.ok(errors.startsWith(`scripts/workspace/tasks.ts must not read the CI, GITHUB_* or RUNNER_* variables (${name})`),`${code}: ${errors}`);
+  }
+  assert.deepEqual(ciVariableErrors('x.ts',"const message = 'CI must install the pinned Rust toolchain';\n"),[],'a message that mentions CI is not a read');
+  mutated((base)=>edit(base,'scripts/workspace/tasks.ts',(t)=>`${t}\nexport const inCi = process.env.CI !== undefined;\n`),/scripts\/workspace\/tasks\.ts must not read the CI, GITHUB_\* or RUNNER_\* variables \(CI\)/);
+});
+test('the source scanner blanks literals, keeps template expressions and line breaks, and finds top-level code',()=>{
+  const source = "const a = 'x // y'; // gone\nconst b = /[/]'\"/g.test(`t${c + '}'}u`);\n/* a\nb */ const d = e / f / g;\n";
+  const { code, literals } = scanSource(source);
+  assert.equal(code.split('\n').length,source.split('\n').length);
+  assert.deepEqual(literals.map((literal)=>[literal.kind,literal.text]),[['string','x // y'],['regex',"[/]'\""],['template','t'],['string','}'],['template','u']]);
+  assert.match(code,/const d = e \/ f \/ g;/);
+  assert.match(code,/\$\{c \+ ' '\}/);
+  const top = topLevelCode(scanSource('export function f(a = {}): string {\n  return process.env.X ?? "";\n}\nconst x = () => process;\n').code);
+  assert.ok(!top.includes('process.env'),top);
+  assert.match(top,/const x = \(\) => process;/);
+});
+
+// G4: Cargo manifests are read with a small TOML reader, so a quoted, dotted or inline key counts. The workspace checks
+// also compare the test targets Cargo builds with the tracked tests/*.rs (scripts/workspace/tests/cargo-targets.test.ts).
+const contractsCargo = 'packages/api-contracts/rust/Cargo.toml';
+test('G4: the reviewer\'s quoted autotests and never-enabled required-features fail the repository check',()=>{
+  mutated((base)=>edit(base,contractsCargo,(t)=>replaceOnce(t,'[package]\n','[package]\n"autotests" = false\n')),/packages\/api-contracts\/rust\/Cargo\.toml must not set package\.autotests = false: Cargo would leave tests unbuilt or unrun/);
+  mutated((base)=>edit(base,contractsCargo,(t)=>`${t}\n[[test]]\nname = "registry"\npath = "tests/registry.rs"\nrequired-features = ["never"]\n\n[features]\nnever = []\n`),/packages\/api-contracts\/rust\/Cargo\.toml must not set test\[0\]\.required-features: Cargo skips a target whose required features are not enabled/);
+});
+test('G4: every form of a test switch in a manifest fails, and the tracked manifests pass',()=>{
+  for (const file of paths(root).filter((item)=>/(^|\/)Cargo\.toml$/.test(item))) assert.deepEqual(cargoManifestErrors(file,readFileSync(resolve(root,file),'utf8')),[],file);
+  const forms: Record<string,string> = {
+    'a single-quoted key': "[package]\n'autotests' = false\n",
+    'a dotted root key': 'package.autobins = false\n[dependencies]\n',
+    'an inline lib table': 'lib = { test = false }\n',
+    'a dotted lib key': 'lib.doctest = false\n',
+    'a quoted lib header': '["lib"]\nharness = false\n',
+    'a spaced header and a quoted key': '[ lib ]\n"test" = false\n',
+    'an array of inline test tables': 'test = [{ name = "x", harness = false }]\n',
+    'a bin with required-features': '[[bin]]\nname = "x"\nrequired-features = []\n',
+    'autoexamples': '[package]\nautoexamples = false\n',
+    'autobenches before a comment': '[package]\nautobenches = false # off\n',
+    'an underscore spelling': '[package]\nauto_tests = false\n',
+  };
+  for (const [name,source] of Object.entries(forms)) assert.notDeepEqual(cargoManifestErrors('x/Cargo.toml',source),[],name);
+  assert.match(cargoManifestErrors('x/Cargo.toml','[package\nname = "x"\n')[0] ?? '',/x\/Cargo\.toml: cannot read the manifest/);
+  const parsed = parseToml('a."b.c" = \'d\' # note\n[[e]]\nf = [1, "two", { g = true },]\n[[e]]\n[h . "i"]\nj = """\nk\\tl"""\nm = [\n  "n", # o\n]\n');
+  assert.deepEqual(JSON.parse(JSON.stringify(parsed)),{a:{'b.c':'d'},e:[{f:['1','two',{g:true}]},{}],h:{i:{j:'k\tl',m:['n']}}});
+  assert.throws(()=>parseToml('a = 1\na = 2\n'),/duplicate key a/);
 });
 
 test('the Rust toolchain must be pinned exactly',()=>mutated((base)=>edit(base,'rust-toolchain.toml',(t)=>t.replace(/channel = "[^"]+"/,'channel = "stable"')),/must pin an exact toolchain version/));

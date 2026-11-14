@@ -29,24 +29,24 @@ test('the live workflows and Dependabot configuration pass', () => {
 // The eight edits of the S0 review (verification V2-1). Each passed the substring checks; each must fail here.
 const verifyStep = '      - name: Verify repository\n        run: node scripts/verify.ts\n';
 const rustStep = '      - name: Install pinned Rust toolchain\n        run: rustup toolchain install --profile minimal\n';
-const pnpmStep = '      - name: Install locked dependencies\n        run: pnpm install --frozen-lockfile\n';
+const pnpmStep = '      - name: Install locked dependencies\n        run: pnpm install --frozen-lockfile --ignore-scripts\n';
 const comment = (block: string) => block.split('\n').map((line) => (line ? line.replace(/^( *)/, '$1# ') : line)).join('\n');
-const verifyRun = /checks step 6 \(Verify repository\) must have run: "node scripts\/verify\.ts"/;
+const verifyRun = /checks step 7 \(Verify repository\) must have run: "node scripts\/verify\.ts"/;
 test('V2-1: verify with || true fails', () => rejects(replaceOnce(ci, 'run: node scripts/verify.ts', 'run: node scripts/verify.ts || true'), verifyRun, '|| true'));
 test('V2-1: an echo of the verify command fails', () => rejects(replaceOnce(ci, 'run: node scripts/verify.ts', 'run: echo node scripts/verify.ts'), verifyRun, 'echo'));
 test('V2-1: a constant false if on the verify step fails', () => {
   const source = replaceOnce(ci, verifyStep, verifyStep.replace('        run:', '        if: ${{ false }}\n        run:'));
   rejects(source, /step \d+ \(Verify repository\) is disabled by a constant false if/, 'if false');
-  rejects(source, /checks step 6 \(Verify repository\) must not set if/, 'if on a required step');
+  rejects(source, /checks step 7 \(Verify repository\) must not set if/, 'if on a required step');
 });
 test('V2-1: a commented install step fails', () => {
-  rejects(replaceOnce(ci, rustStep, comment(rustStep)), /the checks job must have exactly 6 steps, found 5/, 'commented rustup');
-  rejects(replaceOnce(ci, rustStep, comment(rustStep)), /checks step 5 \(Install pinned Rust toolchain\) must have name: "Install pinned Rust toolchain", found "Verify repository"/, 'commented rustup, shifted');
-  rejects(replaceOnce(ci, pnpmStep, comment(pnpmStep)), /checks step 4 \(Install locked dependencies\) must have name/, 'commented pnpm install');
+  rejects(replaceOnce(ci, rustStep, comment(rustStep)), /the checks job must have exactly 7 steps, found 6/, 'commented rustup');
+  rejects(replaceOnce(ci, rustStep, comment(rustStep)), /checks step 6 \(Install pinned Rust toolchain\) must have name: "Install pinned Rust toolchain", found "Verify repository"/, 'commented rustup, shifted');
+  rejects(replaceOnce(ci, pnpmStep, comment(pnpmStep)), /checks step 5 \(Install locked dependencies\) must have name/, 'commented pnpm install');
 });
 test('V2-1: an echo install step fails', () => {
-  rejects(replaceOnce(ci, 'run: rustup toolchain install --profile minimal', 'run: echo rustup toolchain install --profile minimal'), /checks step 5 \(Install pinned Rust toolchain\) must have run: "rustup toolchain install --profile minimal", found "echo rustup/, 'echo rustup');
-  rejects(replaceOnce(ci, 'run: pnpm install --frozen-lockfile', 'run: echo pnpm install --frozen-lockfile'), /checks step 4 \(Install locked dependencies\) must have run: "pnpm install --frozen-lockfile", found "echo pnpm/, 'echo pnpm install');
+  rejects(replaceOnce(ci, 'run: rustup toolchain install --profile minimal', 'run: echo rustup toolchain install --profile minimal'), /checks step 6 \(Install pinned Rust toolchain\) must have run: "rustup toolchain install --profile minimal", found "echo rustup/, 'echo rustup');
+  rejects(replaceOnce(ci, 'run: pnpm install --frozen-lockfile --ignore-scripts', 'run: echo pnpm install --frozen-lockfile --ignore-scripts'), /checks step 5 \(Install locked dependencies\) must have run: "pnpm install --frozen-lockfile --ignore-scripts", found "echo pnpm/, 'echo pnpm install');
 });
 test('V2-1: a commented timeout before a short one fails', () => {
   rejects(replaceOnce(ci, /    timeout-minutes: 30\n/, '    # timeout-minutes: 30\n    timeout-minutes: 10\n'), /needs timeout-minutes of at least 20, found 10/, 'short timeout');
@@ -59,16 +59,16 @@ test('the triggers cannot be narrowed', () => {
   rejects(replaceOnce(ci, '    branches: [main]\n', '    branches: [release]\n'), /push trigger may only filter branches, and must include main/, 'other branch');
 });
 test('a required step cannot change its shell, directory or failure handling', () => {
-  rejects(replaceOnce(ci, verifyStep, `${verifyStep}        shell: 'true {0}'\n`), /checks step 6 \(Verify repository\) must not set shell/, 'shell');
+  rejects(replaceOnce(ci, verifyStep, `${verifyStep}        shell: 'true {0}'\n`), /checks step 7 \(Verify repository\) must not set shell/, 'shell');
   rejects(replaceOnce(ci, verifyStep, `${verifyStep}        working-directory: elsewhere\n`), /must not set working-directory/, 'working-directory');
   rejects(replaceOnce(ci, verifyStep, `${verifyStep}        continue-on-error: true\n`), /must not set continue-on-error/, 'continue-on-error');
 });
 test('a second verify step or a reordered install fails', () => {
-  rejects(replaceOnce(ci, verifyStep, `${verifyStep}${verifyStep}`), /the checks job has an unexpected step 7/, 'two verify steps');
+  rejects(replaceOnce(ci, verifyStep, `${verifyStep}${verifyStep}`), /the checks job has an unexpected step 8/, 'two verify steps');
   rejects(replaceOnce(ci, verifyStep, `${verifyStep}${verifyStep}`), /exactly one step may mention scripts\/verify\.ts, found 2/, 'two verify steps');
-  rejects(replaceOnce(ci, `${rustStep}${verifyStep}`, `${verifyStep}${rustStep}`), /checks step 5 \(Install pinned Rust toolchain\) must have name: "Install pinned Rust toolchain", found "Verify repository"/, 'verify before rustup');
+  rejects(replaceOnce(ci, `${rustStep}${verifyStep}`, `${verifyStep}${rustStep}`), /checks step 6 \(Install pinned Rust toolchain\) must have name: "Install pinned Rust toolchain", found "Verify repository"/, 'verify before rustup');
 });
-test('pnpm must be the pinned version', () => rejects(replaceOnce(ci, `pnpm@${pnpm}`, 'pnpm@10.0.0'), new RegExp(`checks step 3 \\(Install pinned pnpm\\) must have run: "npm install --global --ignore-scripts pnpm@${pnpm.replaceAll('.', '\\.')}"`), 'pnpm version'));
+test('pnpm must be the pinned version', () => rejects(replaceOnce(ci, `pnpm@${pnpm}`, 'pnpm@10.0.0'), new RegExp(`checks step 4 \\(Install pinned pnpm\\) must have run: "npm install --global --ignore-scripts pnpm@${pnpm.replaceAll('.', '\\.')}"`), 'pnpm version'));
 
 // C0: the parsed checks must fix every input of the checks job, not only the run text of its required steps.
 // The reviewer's combined edit: a step that defines a shell function named node, and BASH_ENV on the verify step,
@@ -77,11 +77,11 @@ const prepareShell = `      - name: Prepare shell\n        run: echo 'node() { e
 const bashEnv = '        env:\n          BASH_ENV: ${{ runner.temp }}/env.sh\n';
 test('C0: the reviewer\'s BASH_ENV edit fails: an extra step and env on the verify step', () => {
   const source = replaceOnce(replaceOnce(ci, rustStep, `${prepareShell}${rustStep}`), verifyStep, `${verifyStep}${bashEnv}`);
-  rejects(source, /the checks job must have exactly 6 steps, found 7/, 'extra step');
-  rejects(source, /checks step 5 \(Install pinned Rust toolchain\) must have name: "Install pinned Rust toolchain", found "Prepare shell"/, 'extra step in place');
-  rejects(source, /the checks job has an unexpected step 7/, 'extra step at the end');
-  rejects(source, /job checks step 7 must not set BASH_ENV/, 'BASH_ENV');
-  rejects(replaceOnce(ci, verifyStep, `${verifyStep}${bashEnv}`), /checks step 6 \(Verify repository\) must not set env/, 'env alone');
+  rejects(source, /the checks job must have exactly 7 steps, found 8/, 'extra step');
+  rejects(source, /checks step 6 \(Install pinned Rust toolchain\) must have name: "Install pinned Rust toolchain", found "Prepare shell"/, 'extra step in place');
+  rejects(source, /the checks job has an unexpected step 8/, 'extra step at the end');
+  rejects(source, /job checks step 8 must not set BASH_ENV/, 'BASH_ENV');
+  rejects(replaceOnce(ci, verifyStep, `${verifyStep}${bashEnv}`), /checks step 7 \(Verify repository\) must not set env/, 'env alone');
 });
 test('C0: a checkout of a fixed commit, another repository or path fails', () => {
   const checkout = '          persist-credentials: false\n';
@@ -89,9 +89,36 @@ test('C0: a checkout of a fixed commit, another repository or path fails', () =>
   rejects(replaceOnce(ci, checkout, `${checkout}          repository: someone/else\n`), /checks step 1 \(Check out source\) must have with:/, 'repository');
   rejects(replaceOnce(ci, checkout, '          persist-credentials: true\n'), /checks step 1 \(Check out source\) must have with:/, 'persisted credentials');
 });
-test('C0: an action at another commit or a changed setup-node input fails', () => {
-  rejects(replaceOnce(ci, /actions\/checkout@[0-9a-f]{40}/, `actions/checkout@${'0'.repeat(40)}`), /checks step 1 \(Check out source\) must have uses: "actions\/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"/, 'checkout commit');
+test('C0: a changed setup-node input fails', () => {
   rejects(replaceOnce(ci, 'node-version-file: .node-version', 'node-version: 22'), /checks step 2 \(Set up Node\) must have with:/, 'node version');
+});
+
+// Dependabot updates the pinned commit of each action weekly. Any full commit SHA of the same action repository passes;
+// another repository, a tag or a short SHA fails, and the step order, inputs and commands stay fixed.
+const newSha = 'a'.repeat(8) + '0123456789abcdef0123456789abcdef';
+test('Dependabot: a new full commit SHA of the same action passes', () => {
+  const bumped = replaceOnce(replaceOnce(ci, /actions\/checkout@[0-9a-f]{40}/, `actions/checkout@${newSha}`), /actions\/setup-node@[0-9a-f]{40}/, `actions/setup-node@${'0'.repeat(40)}`);
+  assert.deepEqual(ciWorkflowErrors(bumped, pnpm), []);
+});
+test('Dependabot: another action repository, a tag or a short SHA fails', () => {
+  rejects(replaceOnce(ci, /actions\/checkout@[0-9a-f]{40}/, `someone/checkout@${newSha}`), /checks step 1 \(Check out source\) must use actions\/checkout at a full 40-character commit SHA, found "someone\/checkout@a{8}0123/, 'another repository');
+  rejects(replaceOnce(ci, /actions\/setup-node@[0-9a-f]{40}/, `actions/setup-node-fork@${newSha}`), /checks step 2 \(Set up Node\) must use actions\/setup-node at a full 40-character commit SHA, found "actions\/setup-node-fork@/, 'a similar name');
+  rejects(replaceOnce(ci, /actions\/checkout@[0-9a-f]{40}/, 'actions/checkout@v7.0.1'), /checks step 1 \(Check out source\) must use actions\/checkout at a full 40-character commit SHA, found "actions\/checkout@v7\.0\.1"/, 'a tag');
+  rejects(replaceOnce(ci, /actions\/checkout@[0-9a-f]{40}/, 'actions/checkout@3d3c42e'), /must use actions\/checkout at a full 40-character commit SHA, found "actions\/checkout@3d3c42e"/, 'a short SHA');
+  rejects(replaceOnce(ci, /actions\/checkout@[0-9a-f]{40}/, `actions/checkout@${newSha.toUpperCase()}`), /must use actions\/checkout at a full 40-character commit SHA/, 'an upper-case SHA');
+  const swapped = replaceOnce(replaceOnce(ci, /actions\/checkout@[0-9a-f]{40}/, 'CHECKOUT'), /actions\/setup-node@[0-9a-f]{40}/, `actions/checkout@${newSha}`).replace('CHECKOUT', `actions/setup-node@${newSha}`);
+  rejects(swapped, /checks step 1 \(Check out source\) must use actions\/checkout/, 'actions swapped between steps');
+});
+
+// C6R and G2: the repository checks run as their own step before any install, and the install runs no install script.
+const checkStep = '      - name: Check repository\n        run: node scripts/check-repository.ts\n';
+test('C6R: the repository checks are their own step, after Node and before any install', () => {
+  rejects(replaceOnce(ci, checkStep, ''), /checks step 3 \(Check repository\) must have name: "Check repository", found "Install pinned pnpm"/, 'no check step');
+  rejects(replaceOnce(replaceOnce(ci, checkStep, ''), verifyStep, `${verifyStep}${checkStep}`), /checks step 3 \(Check repository\) must have name/, 'check step after verify');
+  rejects(replaceOnce(ci, 'run: node scripts/check-repository.ts', 'run: node scripts/check-repository.ts || true'), /checks step 3 \(Check repository\) must have run: "node scripts\/check-repository\.ts"/, '|| true');
+});
+test('G2: the install step must not run install scripts', () => {
+  rejects(replaceOnce(ci, 'run: pnpm install --frozen-lockfile --ignore-scripts', 'run: pnpm install --frozen-lockfile'), /checks step 5 \(Install locked dependencies\) must have run: "pnpm install --frozen-lockfile --ignore-scripts", found "pnpm install --frozen-lockfile"/, 'scripts allowed');
 });
 test('C0: workflow and job env may set only the allowed variables, with their values', () => {
   const jobEnv = "    env:\n      CARGO_INCREMENTAL: '0'\n      CARGO_TERM_COLOR: always\n";

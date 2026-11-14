@@ -23,7 +23,7 @@ pnpm install --frozen-lockfile
 pnpm verify
 ```
 
-`node scripts/verify.ts` runs the same checks. Verification needs Node 24 (`.node-version`), the pnpm version in `packageManager` and the dependencies installed from `pnpm-lock.yaml`. It fails with the install command when the install is missing or differs from the lockfile, and it never installs. The Rust steps need the toolchain pinned in `rust-toolchain.toml` (`rustup toolchain install`). See [scripts](scripts/README.md) for the exact scope.
+`node scripts/verify.ts` runs the same checks. Verification needs Node 24 (`.node-version`), the pnpm version in `packageManager` and the dependencies installed from `pnpm-lock.yaml`. It fails with the install command when the install is missing or differs from the lockfile, and it never installs. The Rust steps need the toolchain pinned in `rust-toolchain.toml` (`rustup toolchain install`). See [scripts](scripts/README.md) for the exact scope. The verification guards catch accidental or careless weakening and fail local verification on a deliberate weakening of a guarded file, but they run inside the code they guard, so a change to `scripts/**` or `.github/**` relies on code-owner review ([what the guards cover](scripts/README.md#what-the-guards-cover)).
 
 Regenerate spec metadata and the repository file map when needed. In a Git checkout, stage intended added and removed paths before generating the map. Do not stage secrets or local output.
 
