@@ -140,8 +140,10 @@ const I64_MIN = -9223372036854775808n;
 const U64_DIGITS = 20;
 /** Keys an object keeps in a plain list before it moves them to a hash table. */
 export const SMALL_KEY_SET = 16;
-/** Slots of the first hash table of an object's keys. */
-export const KEY_TABLE_MIN_SLOTS = 64;
+/** Slots of the first hash table of an object's keys. It holds SMALL_KEY_SET + 1 keys and more. */
+export const KEY_TABLE_MIN_SLOTS = 32;
+/** Code units of a key's text, quotes included, above which its key set keeps its hash. */
+export const KEY_REHASH_UNITS = 258;
 /** The most keys a hash table of `slots` slots holds, three quarters of them. One more doubles it. */
 export const keyTableHolds = (slots: number) => Math.floor((slots * 3) / 4);
 
@@ -181,10 +183,12 @@ const OFFSET_BITS = 0xffffff;
  * MAX_PAYLOAD_BYTES = 2^24 code units, and the top 8 bits of the hash above them. Keys whose slots
  * have the same top 8 bits are compared by their texts. A slot of 0 is empty: a key's opening quote
  * always follows the brace of its object. The table holds at most three quarters of its slots and
- * doubles when one more key would pass that, hashing each key again from the text. So n keys take
- * at most 4 × 8n/3 bytes, about 11 bytes a key; a doubling briefly adds the old table, half as
- * large, and the tables it leaves behind take as much again until they are collected. The parse
- * allocates nothing else for a key it does not build.
+ * doubles when one more key would pass that, hashing each key again from the text. The first
+ * table has KEY_TABLE_MIN_SLOTS slots, so n keys take at most 4 × 8n/3 bytes, about 11 bytes a key;
+ * a doubling briefly adds the old table, half as large, and the tables it leaves behind take as much
+ * again until they are collected. A key whose text is longer than KEY_REHASH_UNITS keeps its hash
+ * in a map, so a doubling does not read its text again: such keys number at most the text length
+ * divided by KEY_REHASH_UNITS. The parse allocates nothing else for a key it does not build.
  */
 class KeySet {
   private readonly parser: Parser;
@@ -192,6 +196,8 @@ class KeySet {
   private small: number[] | undefined = [];
   private table = new Int32Array(0);
   private size = 0;
+  /** The hashes of the keys whose text is longer than KEY_REHASH_UNITS, by offset. */
+  private hashes: Map<number, number> | undefined;
 
   constructor(parser: Parser) {
     this.parser = parser;
@@ -220,12 +226,19 @@ class KeySet {
     for (const stored of old) {
       if (stored === 0) continue;
       const offset = stored & OFFSET_BITS;
-      this.insert(this.parser.hashKeyAt(offset), offset, false);
+      this.insert(this.hashes?.get(offset) ?? this.parser.hashKeyAt(offset), offset, false);
     }
   }
 
-  /** True when a key equal to the key at `offset` is already present; otherwise adds it. */
-  hasOrAdd(hash: number, offset: number): boolean {
+  /**
+   * True when a key equal to the key at `offset` is already present; otherwise adds it. `units` is
+   * the length of the key's text, quotes included.
+   */
+  hasOrAdd(hash: number, offset: number, units: number): boolean {
+    if (units > KEY_REHASH_UNITS) {
+      this.hashes ??= new Map();
+      this.hashes.set(offset, hash);
+    }
     const small = this.small;
     if (small !== undefined) {
       for (let index = 0; index < small.length; index += 2) {
@@ -432,6 +445,7 @@ class Parser {
       if (this.text.charCodeAt(this.index) !== 0x22) this.fail('json', 'expected a string key');
       const offset = this.index;
       this.scanString(true);
+      const units = this.index - offset;
       const hash = this.keyHash;
       const keyBytes = this.stringBytes;
       const long = this.rawBytes > this.maxKeyBytes;
@@ -442,7 +456,7 @@ class Parser {
       // key that decodes to more cannot equal one.
       const needed = root || stored > 0 || (this.building && !long);
       const key = needed && keyBytes <= this.maxKeyBytes ? this.decodeString(offset) : undefined;
-      if ((key !== undefined && stored > 0 && Object.hasOwn(out, key)) || later?.hasOrAdd(hash, offset)) {
+      if ((key !== undefined && stored > 0 && Object.hasOwn(out, key)) || later?.hasOrAdd(hash, offset, units)) {
         this.fail('duplicate-key', `duplicate object key${key === undefined ? '' : `: ${key}`}`);
       }
       this.skipWhitespace();
@@ -481,7 +495,7 @@ class Parser {
       } else if (later === undefined) {
         // The first key that is not stored on `out`. It was checked against `out` above.
         later = new KeySet(this);
-        later.hasOrAdd(hash, offset);
+        later.hasOrAdd(hash, offset, units);
       }
       this.skipWhitespace();
       const code = this.text.charCodeAt(this.index);

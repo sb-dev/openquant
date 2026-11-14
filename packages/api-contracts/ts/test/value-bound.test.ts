@@ -13,7 +13,14 @@ import {
   valueBound,
 } from '../src/index.ts';
 import { MAX_NODES } from '../src/limits.ts';
-import { type JsonValue, scanStrictJson } from '../src/strict-json.ts';
+import {
+  type JsonValue,
+  KEY_REHASH_UNITS,
+  KEY_TABLE_MIN_SLOTS,
+  keyTableHolds,
+  SMALL_KEY_SET,
+  scanStrictJson,
+} from '../src/strict-json.ts';
 import { maxValues } from '../tools/generate.ts';
 import { fixturesDir, readManifest } from './support/manifest.ts';
 
@@ -195,6 +202,30 @@ describe('the scan past the bound', () => {
     expect(kind(text(',"\\ud83d\\ude002":1'))).toBe('duplicate-key');
     expect(kind(text(',"😀39999x":1'))).toBe('duplicate-key');
     expect(kind(text(',"k39996":1'))).toBe('duplicate-key');
+  });
+
+  test('long keys keep their hash through every doubling, so their duplicates are still found', () => {
+    // Keys longer than KEY_REHASH_UNITS are not read again when the table doubles; the set keeps
+    // their hash. Plain and escaped long keys come first, then enough short keys to double the
+    // table many times, then the duplicates. A wrong kept hash would miss them.
+    const long = (fill: string, i: number) => `${fill.repeat(KEY_REHASH_UNITS)}${i}`;
+    const longKeys = [`"${long('a', 0)}":0`, `"${long('\\n', 1)}":0`, `"${long('😀', 2)}":0`];
+    const shortKeys = Array.from({ length: 20_000 }, (_, i) => `"s${i}":0`);
+    const body = (extra: string) => `[0,0,0,{${[...longKeys, ...shortKeys].join(',')}${extra}}]`;
+    expect(kind(body(''))).toBe('accepted');
+    expect(kind(body(`,"${long('a', 9)}":1,"${long('\\n', 2)}":1`))).toBe('accepted');
+    expect(kind(body(`,"${long('a', 0)}":1`))).toBe('duplicate-key');
+    expect(kind(body(`,"${long('\\u000a', 1)}":1`))).toBe('duplicate-key');
+    expect(kind(body(`,"${long('\\ud83d\\ude00', 2)}":1`))).toBe('duplicate-key');
+  });
+
+  test('the first key table holds the first key past the small list, within about 11 bytes a key', () => {
+    expect(keyTableHolds(KEY_TABLE_MIN_SLOTS)).toBeGreaterThan(SMALL_KEY_SET);
+    // n keys in a table of s 4-byte slots: within 4 × 8n/3 bytes from the first table on.
+    for (let keys = SMALL_KEY_SET + 1, slots = KEY_TABLE_MIN_SLOTS; keys <= 1 << 20; keys += 1) {
+      if (keys > keyTableHolds(slots)) slots *= 2;
+      expect(4 * slots).toBeLessThanOrEqual((4 * 8 * keys) / 3);
+    }
   });
 
   test('an unsafe integer past the bound is still reported', () => {
