@@ -6,12 +6,13 @@ use jsonschema::{Registry, ValidationError, Validator, error::ValidationErrorKin
 use serde_json::{Value, json};
 
 use crate::{
-    Contract,
+    Contract, ContractKind, Envelope,
     error::{ContractError, SchemaViolation},
     limits,
 };
 
-const SOURCES: &[(&str, &str)] = &[
+/// The engine-scope schemas. The engine registry holds these and nothing else.
+const ENGINE_SOURCES: &[(&str, &str)] = &[
     (
         "urn:openquant:schema:common:1",
         include_str!("../../schemas/common.schema.json"),
@@ -34,6 +35,87 @@ const SOURCES: &[(&str, &str)] = &[
     ),
 ];
 
+/// The S1 connected schemas. The envelope registry holds these and the engine-scope schemas,
+/// which the envelopes reference.
+const CONNECTED_SOURCES: &[(&str, &str)] = &[
+    (
+        "urn:openquant:schema:connected-common:1",
+        include_str!("../../schemas/connected-common.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:evaluation-plan:1",
+        include_str!("../../schemas/evaluation-plan.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:evaluation-request:1",
+        include_str!("../../schemas/evaluation-request.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:evaluation-submission:1",
+        include_str!("../../schemas/evaluation-submission.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:job-dispatch:1",
+        include_str!("../../schemas/job-dispatch.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:attempt-claim:1",
+        include_str!("../../schemas/attempt-claim.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:command:1",
+        include_str!("../../schemas/command.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:research-profile:1",
+        include_str!("../../schemas/research-profile.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:cohort-policy:1",
+        include_str!("../../schemas/cohort-policy.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:dataset-manifest:1",
+        include_str!("../../schemas/dataset-manifest.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:retrieval-request:1",
+        include_str!("../../schemas/retrieval-request.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:retrieval-result:1",
+        include_str!("../../schemas/retrieval-result.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:validation-result:1",
+        include_str!("../../schemas/validation-result.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:evaluation-metrics:1",
+        include_str!("../../schemas/evaluation-metrics.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:gate-report:1",
+        include_str!("../../schemas/gate-report.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:agent-dispatch:1",
+        include_str!("../../schemas/agent-dispatch.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:agent-attempt-result:1",
+        include_str!("../../schemas/agent-attempt-result.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:api-error:1",
+        include_str!("../../schemas/api-error.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:release-manifest:1",
+        include_str!("../../schemas/release-manifest.schema.json"),
+    ),
+];
+
 /// Violations listed individually. Later ones are counted and summarised in one marker entry.
 const MAX_REPORTED_VIOLATIONS: usize = 20;
 
@@ -51,16 +133,19 @@ const EXACT_PATTERN: &str = r"^(?:0(?:\.[0-9]+)?|-?[1-9][0-9]*(?:\.[0-9]+)?|-0\.
 
 type Validators = BTreeMap<&'static str, Validator>;
 
-fn build() -> Result<Validators, String> {
+/// Register every schema in `sources`, then build one validator per root `$id` in `roots`.
+fn build(
+    sources: &[&[(&'static str, &'static str)]],
+    roots: impl Iterator<Item = &'static str>,
+) -> Result<Validators, String> {
     let mut registry = Registry::new();
-    for (id, text) in SOURCES {
+    for (id, text) in sources.iter().copied().flatten() {
         let value: Value = serde_json::from_str(text).map_err(|e| format!("{id}: {e}"))?;
         registry = registry.add(*id, value).map_err(|e| format!("{id}: {e}"))?;
     }
     let registry = registry.prepare().map_err(|e| format!("prepare: {e}"))?;
     let mut validators = BTreeMap::new();
-    for contract in Contract::ALL {
-        let id = contract.schema_id();
+    for id in roots {
         let validator = jsonschema::options()
             .with_registry(&registry)
             .build(&json!({ "$ref": id }))
@@ -70,11 +155,32 @@ fn build() -> Result<Validators, String> {
     Ok(validators)
 }
 
-fn validators() -> Result<&'static Validators, ContractError> {
-    static CELL: OnceLock<Result<Validators, String>> = OnceLock::new();
-    CELL.get_or_init(build)
-        .as_ref()
+fn ready(cell: &'static Result<Validators, String>) -> Result<&'static Validators, ContractError> {
+    cell.as_ref()
         .map_err(|message| ContractError::Registry(message.clone()))
+}
+
+/// Validators of the engine-scope contracts, built from the engine-scope schemas only. No
+/// envelope schema can change how an engine payload validates.
+fn engine_validators() -> Result<&'static Validators, ContractError> {
+    static CELL: OnceLock<Result<Validators, String>> = OnceLock::new();
+    ready(CELL.get_or_init(|| {
+        build(
+            &[ENGINE_SOURCES],
+            Contract::ALL.into_iter().map(Contract::schema_id),
+        )
+    }))
+}
+
+/// Validators of the envelopes. They are built on first use, so engine work never pays for them.
+fn envelope_validators() -> Result<&'static Validators, ContractError> {
+    static CELL: OnceLock<Result<Validators, String>> = OnceLock::new();
+    ready(CELL.get_or_init(|| {
+        build(
+            &[ENGINE_SOURCES, CONNECTED_SOURCES],
+            Envelope::ALL.into_iter().map(Envelope::schema_id),
+        )
+    }))
 }
 
 fn bounded(mut message: String) -> String {
@@ -146,10 +252,12 @@ fn collect(
 /// while it stays within the structural limits in the `limits` module. A larger one reports the
 /// limit it exceeds and its first violation, which is at most two [`SchemaViolation`]s.
 ///
+/// The same steps apply to an engine contract and to an envelope. Each set has its own registry.
+///
 /// # Errors
 /// Returns [`ContractError::UnsupportedVersion`], [`ContractError::MissingVersion`] or
 /// [`ContractError::Schema`].
-pub fn validate(contract: Contract, value: &Value) -> Result<(), ContractError> {
+pub fn validate<C: ContractKind>(contract: C, value: &Value) -> Result<(), ContractError> {
     let expected = contract.version_tag();
     match value.get("schema_version") {
         Some(Value::String(found)) if found == expected => {}
@@ -161,7 +269,12 @@ pub fn validate(contract: Contract, value: &Value) -> Result<(), ContractError> 
         }
         _ => return Err(ContractError::MissingVersion),
     }
-    let validator = validators()?
+    let validators = if C::ENGINE_SCOPE {
+        engine_validators()?
+    } else {
+        envelope_validators()?
+    };
+    let validator = validators
         .get(contract.schema_id())
         .ok_or_else(|| ContractError::Registry(format!("no validator for {contract:?}")))?;
     // One error is cheap whatever the size of the document.

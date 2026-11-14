@@ -52,10 +52,14 @@ export const expectedCargoCommands: readonly string[] = [
   'cargo run --locked -p openquant-engine --bin s0-replay -- --out local-runs/s0',
 ];
 
-// Protocol manifest vocabulary. The Rust tests (packages/api-contracts/rust/tests/protocol.rs and
-// packages/quant-core/tests/protocol.rs) select entries by these exact values and skip any other.
+// Protocol manifest vocabulary. The Rust tests select entries by these exact expect values. For
+// contracts, packages/api-contracts/rust/tests/protocol.rs and the contracts-report binary reject an
+// unknown name. packages/quant-core/tests/protocol.rs checks the engine contracts, skips the connected
+// envelopes by name and panics on an unknown name. The engine list is the Contract enum and the
+// connected list is the Envelope enum in packages/api-contracts/rust/src/lib.rs (OQ-05 section 7).
 export const protocolExpectations: readonly string[] = ['valid', 'schema_invalid', 'semantic_invalid'];
-export const protocolContracts: readonly string[] = ['strategy-artefact', 'evaluation-input', 'evaluation-result', 'checkpoint'];
+export const protocolEngineContracts: readonly string[] = ['strategy-artefact', 'evaluation-input', 'evaluation-result', 'checkpoint'];
+export const protocolConnectedContracts: readonly string[] = ['evaluation-plan', 'evaluation-request', 'evaluation-submission', 'job-dispatch', 'attempt-claim', 'command', 'research-profile', 'cohort-policy', 'dataset-manifest', 'retrieval-request', 'retrieval-result', 'validation-result', 'evaluation-metrics', 'gate-report', 'agent-dispatch', 'agent-attempt-result', 'api-error', 'release-manifest'];
 
 // Exact equality with the expected list: same steps, same flags, same order, nothing extra.
 export function cargoCommandErrors(commands: readonly string[]): string[] {
@@ -237,6 +241,7 @@ export function s0Errors(base: string, files: Set<string>): string[] {
   guard('Protocol fixtures', () => {
     const manifest = json(base, 'fixtures/protocol/manifest.json');
     if (!Array.isArray(manifest.entries)) throw new Error('manifest.json has no entries list');
+    const protocolContracts = [...protocolEngineContracts, ...protocolConnectedContracts];
     const listed = new Set<string>();
     for (const [position, entry] of manifest.entries.entries()) {
       if (typeof entry?.path !== 'string' || entry.path === '') { errors.push(`Protocol manifest entry ${position} has no path`); continue; }
