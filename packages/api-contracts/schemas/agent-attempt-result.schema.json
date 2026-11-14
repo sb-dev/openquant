@@ -59,7 +59,7 @@
     },
     "AgentOutcome": {
       "title": "AgentOutcome",
-      "description": "Exactly one of the seven attempt outcomes of OQ-03 section 4. Tool-call outcomes are not attempt outcomes. Only completion carries role output.",
+      "description": "Exactly one of the seven attempt outcomes of OQ-03 section 4. Tool-call outcomes are not attempt outcomes. Only completion carries role output. Within the attempt cap, timeout and malformed_result are retried, as are a lease expiry and a runner crash, which are not outcomes. refusal, denied_capability, authentication_failure and cancellation are not retried (OQ-05 section 4).",
       "oneOf": [
         { "$ref": "#/$defs/AgentCompletion" },
         { "$ref": "#/$defs/AgentRefusal" },

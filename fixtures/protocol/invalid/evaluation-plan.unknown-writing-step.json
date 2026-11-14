@@ -14,7 +14,7 @@
   },
   "suite_id": "s1-single-stock-suite",
   "calendar": {
-    "digest": "sha256:4952d1fdfc25a1df8918684bc16c5a8ff74c9a7498910ae8e930de3c3b82ab72",
+    "digest": "sha256:1d4233481fb69a963ddcb137ea172912841341b840b522ba4c5c82bbe1ad9f19",
     "media_type": "application/json",
     "size_bytes": 1206533
   },
@@ -70,8 +70,7 @@
       "slot_id": "seed",
       "kind": "seed",
       "strategy_id": "daily-swing-seed",
-      "version": 1,
-      "strategy_hash": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78"
+      "draft_digest": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78"
     },
     {
       "slot_id": "rev-a",

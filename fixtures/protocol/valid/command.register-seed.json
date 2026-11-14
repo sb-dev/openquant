@@ -6,7 +6,7 @@
   "issued_at": "2026-11-14T09:30:00Z",
   "payload": {
     "kind": "register_seed",
-    "strategy": {
+    "draft": {
       "schema_version": "strategy-artefact/1",
       "strategy_id": "daily-swing-seed",
       "version": 1,

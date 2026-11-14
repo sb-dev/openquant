@@ -21,7 +21,7 @@
   "$defs": {
     "DispatchIdentity": {
       "title": "DispatchIdentity",
-      "description": "Mission, logical agent run, attempt with its ownership revision, fresh session, role, role module and behaviour-bundle hash. The bundle hash binds the module and the allowed method revisions. Agent work is non-trial work: an agent run is not an evaluation run and does not count as an experiment.",
+      "description": "Mission, logical agent run, attempt with its ownership revision, fresh session, role, role module and behaviour-bundle hash. The bundle hash binds the module and the allowed method revisions. Agent work is non-trial work: an agent run is not an evaluation run and does not count as an experiment. Its status uses the JobStatus values.",
       "type": "object",
       "additionalProperties": false,
       "required": ["mission_id", "run_id", "attempt", "session_id", "role", "skill", "bundle_hash"],
@@ -92,7 +92,7 @@
     },
     "DispatchInputs": {
       "title": "DispatchInputs",
-      "description": "request is the frozen role request; its digest is the input hash that the attempt result repeats. holdout_exclusions must equal the exclusions in that request. In S1 a revision request names the V and H windows.",
+      "description": "request is the frozen role request; its digest is the input hash that the attempt result repeats. holdout_exclusions must equal the exclusions in that request. In S1 every agent request, proposer and critic, carries holdout exclusions that name V and H.",
       "type": "object",
       "additionalProperties": false,
       "required": ["request", "holdout_exclusions"],

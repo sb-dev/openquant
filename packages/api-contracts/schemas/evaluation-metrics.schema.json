@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:openquant:schema:evaluation-metrics:1",
   "title": "EvaluationMetrics",
-  "description": "Per-run metrics that Rust derives from one COMPLETED evaluation-result/1 (OQ-02 section 3.6). Only scored sessions count. Each value is computed exactly and rounded once, half-even, to metric_scale; comparison tolerance is zero. The method identity defines each calculation. A RATIO is a plain fraction (0.05 is 5 percent) of the run's initial capital unless a description says otherwise. MONEY is in the policy currency.",
+  "description": "Per-run metrics that Rust derives from one COMPLETED evaluation-result/1 (OQ-02 section 3.6). Only scored sessions count. Each value is computed exactly and rounded once, half-even. RATIO values round to metric_scale. MONEY values round to the run's money_scale and are in the policy currency. COUNT values are integers. Comparison tolerance is zero. The method identity defines each calculation. A RATIO is a plain fraction (0.05 is 5 percent) of the run's initial capital unless a description says otherwise.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "run_id", "source", "method", "metric_scale", "window", "strategy", "benchmarks", "uncertainty"],

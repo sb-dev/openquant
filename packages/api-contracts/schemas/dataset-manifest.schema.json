@@ -29,9 +29,21 @@
         "provider": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
         "feed": { "type": "string", "enum": ["SIP", "IEX"] },
         "adapter": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ComponentVersion" },
-        "transformation": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/MethodIdentity" },
+        "transformation": { "$ref": "#/$defs/TransformationIdentity" },
         "executable": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ExecutableIdentity" },
         "profile": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/RecordRef" }
+      }
+    },
+    "TransformationIdentity": {
+      "title": "TransformationIdentity",
+      "description": "Identity of the normalisation rules that turned the provider responses into this snapshot, including the availability rules it applied. digest is the SHA-256 of the reviewed rule text. It is separate from engine identity and from the method identity of derived evidence.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "digest"],
+      "properties": {
+        "name": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "version": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" }
       }
     },
     "ManifestCoverage": {

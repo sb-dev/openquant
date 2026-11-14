@@ -610,7 +610,12 @@
       "expect": "valid"
     },
     {
-      "path": "protocol/valid/retrieval-request.aapl-february.json",
+      "path": "protocol/valid/retrieval-request.synthetic-dividend-window.json",
+      "contract": "retrieval-request",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/retrieval-request.aapl-mission.json",
       "contract": "retrieval-request",
       "expect": "valid"
     },
@@ -690,6 +695,11 @@
       "expect": "valid"
     },
     {
+      "path": "protocol/valid/job-dispatch.validate-seed.json",
+      "contract": "job-dispatch",
+      "expect": "valid"
+    },
+    {
       "path": "protocol/valid/job-dispatch.evaluate.json",
       "contract": "job-dispatch",
       "expect": "valid"
@@ -761,6 +771,16 @@
     },
     {
       "path": "protocol/valid/command.freeze-candidates.json",
+      "contract": "command",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/command.record-evaluation-decision-seed-deferred.json",
+      "contract": "command",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/command.freeze-candidates-seed-not-evaluated.json",
       "contract": "command",
       "expect": "valid"
     },

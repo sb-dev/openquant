@@ -98,18 +98,25 @@ Upload immutable results first. Verify schema, input hashes, running engine/exec
 
 For a provider run, the Rust `evaluate` job builds the inner evaluation input from the frozen dataset manifest and the evaluation request. It uploads that input and reports its hash in the evaluation submission. Before acceptance, the API checks that the input's windows, information cutoff and policy equal the request, and that every hash binds. The Worker passes references only.
 
-S1 uses these state values, which `connected-common` defines. Run status is the OQ-02 §3.6 enum, and an `evaluate` job is a run. A `retrieve`, `validate` or `assess` job uses the same five values but is not a run. An agent attempt uses the attempt, lease, reservation and outbox rows; its logical run is not an evaluation run (OQ-02 §1). An attempt is `PENDING`, `CLAIMED`, `COMPLETED`, `FAILED`, `LEASE_EXPIRED` or `CANCELLED`. A lease is `HELD`, `RELEASED` or `EXPIRED`. A budget reservation is `RESERVED`, `SETTLED`, `UNRECONCILED` or `RELEASED`. An outbox entry is `PENDING`, `SENT` or `CANCELLED`. Each durable write in the table is one transaction with its audit record.
+S1 uses these state values, which `connected-common` defines. Run status is the OQ-02 §3.6 enum, and an `evaluate` job is a run. A `retrieve`, `validate` or `assess` job uses the same five values as job status, but is not a run. An agent's logical run also uses the job status values. It is not an evaluation run (OQ-02 §1). In the table, "job" includes an agent's logical run. Its attempts use the attempt, lease, reservation and outbox rows. An attempt is `PENDING`, `CLAIMED`, `COMPLETED`, `FAILED`, `LEASE_EXPIRED` or `CANCELLED`. A lease is `HELD`, `RELEASED` or `EXPIRED`. A budget reservation is `RESERVED`, `SETTLED`, `UNRECONCILED` or `RELEASED`. An outbox entry is `PENDING`, `SENT` or `CANCELLED`. Each durable write in the table is one transaction with its audit record.
 
 | State | Event | Precondition | Durable write | External effect | Retry | Recovery |
 |---|---|---|---|---|---|---|
 | None | `APPROVED` `DRAFT` → `EVALUATING` Decision (D and V runs), `freeze_candidates` (H runs), or a workflow step that needs a job or agent attempt | Approved policy; mission `IN_PROGRESS`; budget available, else the mission becomes `BLOCKED`; expected revisions match | Run or job `QUEUED`; attempt `PENDING`; reservation `RESERVED`; outbox `PENDING` | None | The same command ID returns the first result | None |
 | Outbox `PENDING` | Dispatcher send | Attempt still `PENDING` | Outbox `SENT` | `job-dispatch/1` on the batch queue, or `agent-dispatch/1` to the agent runner | A failed send stays `PENDING` and is sent again under the same attempt ID | Recovery sends entries left `PENDING` |
 | Attempt `PENDING` | Claim with `attempt-claim/1` | Current attempt of an open run or job | Attempt `CLAIMED`; lease `HELD` with its expiry; run or job `RUNNING` | Grant with an attempt-scoped capability that expires with the lease | A second claim is refused; a lost grant is recovered by the lease-expiry row | None |
-| Attempt `CLAIMED` | Result submission | Caller holds the current lease and ownership revision; schema, hashes and identities bind | Attempt `COMPLETED` with its accepted result, or `FAILED` with its failure code or agent outcome; lease `RELEASED`; run or job status by OQ-02 §3.6 | The batch worker acknowledges the queue message; clients are notified | The same submission returns the stored result. After a retryable `FAILED` attempt below the attempt cap, a new attempt `PENDING` with its own reservation and outbox entry | None |
+| Attempt `CLAIMED` | Result submission | Caller holds the current lease and ownership revision; schema, hashes and identities bind | Attempt `COMPLETED` with its accepted result, or `FAILED` with its failure code or agent outcome; lease `RELEASED`; run or job status by OQ-02 §3.6 and the job outcomes below | The batch worker acknowledges the queue message; clients are notified | The same submission returns the stored result. After a retryable `FAILED` attempt below the attempt cap, a new attempt `PENDING` with its own reservation and outbox entry | None |
 | Attempt `CLAIMED` | Lease expiry | No result committed | Attempt `LEASE_EXPIRED`; lease `EXPIRED`. Below the attempt cap and retryable: a new attempt `PENDING` with its own reservation and outbox entry. Otherwise run or job `FAILED` | None | The new attempt is the retry | Scheduled recovery finds expired leases without a client |
-| Attempt `LEASE_EXPIRED` | Late submission | None | Rejection recorded; nothing else changes | `api-error/1` with `STALE_OWNERSHIP` | None | None |
+| Attempt `LEASE_EXPIRED` | Late submission | None | Rejection recorded; nothing else changes | `api-error/1` with `LEASE_EXPIRED`; with `STALE_OWNERSHIP` once a newer attempt of the same run or job exists | None | None |
 | Reservation `RESERVED` or `UNRECONCILED` | Usage report, or the attempt ends without one. After lease expiry or cancellation of a claimed attempt, only once termination is confirmed | None | `SETTLED`: the reported usage replaces the reservation and the remainder returns to the budget. Without a report, `UNRECONCILED`: the full amount counts as spent | None | None | Recovery reconciles `UNRECONCILED` reservations |
 | Run or job `QUEUED` or `RUNNING` | `cancel_mission` | Researcher; no result committed yet. A result committed first wins | Mission `WITHDRAWN`; run or job `CANCELLED`; outbox `PENDING` becomes `CANCELLED`; a `PENDING` attempt `CANCELLED` with its reservation `RELEASED`; a `CLAIMED` attempt `CANCELLED`, keeping its reservation until termination is confirmed | Cancellation request to the worker or runner | None | A later submission from a cancelled attempt is rejected |
+
+OQ-02 §3.6 maps the outcome of an `evaluate` job to run status. A submission sets the status of the other jobs as follows:
+
+- `validate`: an accepted `VALID` or `INVALID` validation result makes the job `COMPLETED`. The diagnostics of an `INVALID` result go to the next proposer attempt.
+- `retrieve`: an accepted `COMPLETE`, `PARTIAL` or `NO_OBSERVATIONS` result makes the job `COMPLETED`, and its coverage is recorded. When required data is missing, the work that depends on it is blocked. A retrieval failure makes the job `FAILED` after the bounded retry policy of §7.1, which retries only the transient failure classes.
+- `assess`: an accepted gate report makes the job `COMPLETED`.
+- Agent logical run: a completion makes it `COMPLETED`. A timeout, a malformed result, a lease expiry or a runner crash is retried within the attempt cap. A refusal, a denied capability, an authentication failure or a cancellation is not retried. The logical run is `FAILED` after a refusal, denied capability or authentication failure, or when the cap is exhausted. Cancellation gives `CANCELLED`.
 
 ## 5. Storage, networking, and credentials
 
@@ -158,13 +165,13 @@ S1 adds connected envelopes as a contract set separate from the engine-scope con
 - `evaluation-plan/1`: the registered comparison of one mission (OQ-02 §3.1). Evaluation requests and the assessment job refer to it by its digest.
 - `evaluation-request/1`: the outer request for one run. Every request binds the required engine digest and operator set, method identity, strategy reference, run, attempt and ownership revision. Mode `BACKTEST` pairs only with a provider dataset manifest. It also binds the profile revision, cohort policy, suite, evaluation plan, dataset-manifest digests and windows. Mode `REPLAY` pairs only with an evaluation-input reference and replay conditions. It needs no profile or cohort policy and serves the synthetic S0 replay. The deterministic repeat of a provider D run is a `BACKTEST` that names the original run as the run it repeats.
 - `evaluation-submission/1`: the worker's claim of a result. It binds the actual executable digest, the result reference and digest, and the mode `REPLAY` or `BACKTEST`.
-- `job-dispatch/1` (kinds `retrieve`, `validate`, `evaluate` and `assess`; references only) and `attempt-claim/1`.
+- `job-dispatch/1` (kinds `retrieve`, `validate`, `evaluate` and `assess`; references only) and `attempt-claim/1`. A `validate` job always runs inside a mission (OQ-02 §4).
 - `command/1`: a guarded command with its client command ID and expected revision.
 - `research-profile/1`, `cohort-policy/1` (it names its suite), `dataset-manifest/1`, `retrieval-request/1` and `retrieval-result/1`.
 - `validation-result/1`, `evaluation-metrics/1` and `gate-report/1`: derived evidence. Each binds method identity.
 - `agent-dispatch/1` and `agent-attempt-result/1`: host-side agent envelopes (OQ-03 §4). The model never receives them.
 - `api-error/1`: the error body of every route.
-- `release-manifest/1`: the release identity that `deploy.yml` records through an Administrator-only route (§11; OQ-06 §3).
+- `release-manifest/1`: the release identity that `deploy.yml` records through the release route (§§9, 11; OQ-06 §3).
 
 The route manifest `packages/api-contracts/routes/v1.json` lists the API routes and the envelopes that each route accepts and returns. `evaluation-input/1` keeps its tag; a provider source value is its only S1 change (OQ-02 §7). Multi-instrument input for S4 needs `evaluation-input/2`. A test pins the SHA-256 of each engine-scope schema. Any content change to one of them needs a new version tag or an explicit A18 compatibility decision.
 
@@ -235,7 +242,7 @@ The application issues its own tokens. In S1 a person's application credential e
 
 An input phrase, prompt, client state, Fly Machine ID, or Durable Object ID grants no authority. Treat retrieved material, model output, and uploaded strategies as untrusted data. Restrict storage references and URLs to authorised sources.
 
-Deploy credentials exist only in protected delivery jobs. Live broker credentials exist only in the live Fly app. Redact logs, traces, and errors. Do not pass host service credentials to the delegated model process.
+Deploy credentials exist only in protected delivery jobs. In S1 the release route accepts an Administrator or the `deploy` service principal. The `deploy` credential is scoped to that single route and is held only in the protected delivery job (OQ-06 §3). Live broker credentials exist only in the live Fly app. Redact logs, traces, and errors. Do not pass host service credentials to the delegated model process.
 
 ## 10. Observability
 

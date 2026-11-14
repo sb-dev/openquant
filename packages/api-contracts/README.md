@@ -1,8 +1,12 @@
 # Shared wire schemas
 
-Status: S0 implemented for the schema source and Rust validation (crate `openquant-contracts` in `rust`, bindings generated at build time from `schemas`). S1 adds TypeScript validation.
+Status: S0 implemented for the schema source and Rust validation (crate `openquant-contracts` in `rust`, bindings generated at build time from `schemas`). The S1 connected envelopes and the route manifest are contracts only: no runtime validates them yet. S1 adds their Rust and TypeScript validation.
 
 Language-neutral contracts and runtime validation. Generate bindings and execute shared valid/invalid fixtures in TypeScript and Rust. Money and quantities are decimal strings.
+
+## Engine-scope contracts
+
+S0 adds the seed's strategy/evaluation input, numerical result and checkpoint schemas in `schemas`, with generated Rust bindings and shared payload fixtures: `strategy-artefact`, `evaluation-input`, `evaluation-result`, `checkpoint` and their `common` definitions. These are the same contracts reused by S1 and the public CLI. They are inside engine identity. A content change needs a new version tag or an explicit A18 compatibility decision. S1 adds one value, the provider source of `evaluation-input/1`, under an A18 note; the core does not read it, so no result changes.
 
 ## Exact values
 
@@ -16,6 +20,32 @@ The pattern checks the grammar only. The canonical rule is enforced in code (`ex
 
 An integer beyond 96 bits has no wire form: the writer refuses it with `ARITHMETIC_OVERFLOW`. The shared fixtures in `fixtures/protocol` include checkpoints from real runs that carry fractions, and rejected forms of each rule.
 
-S0 adds the seed's strategy/evaluation input, numerical result and checkpoint schemas in `schemas`, with generated Rust bindings and shared payload fixtures. These are the same contracts reused by S1 and the public CLI. S1 adds TypeScript bindings and connected run/attempt/ownership envelopes. S0 does not require an executable TypeScript package or API service.
+## Connected envelopes
+
+S1 adds connected envelopes as a separate contract set ([architecture §7](../../docs/specs/05-system-architecture-and-data-spec.md#7-data-and-protocol-contracts)). They are outside engine identity. Every definition name is unique across all schemas.
+
+| Group | Schemas |
+| --- | --- |
+| Shared codes and state values | `connected-common` |
+| Evaluation | `evaluation-plan`, `evaluation-request`, `evaluation-submission` |
+| Jobs and attempts | `job-dispatch`, `attempt-claim` |
+| Guarded commands | `command` |
+| Policy and data | `research-profile`, `cohort-policy`, `dataset-manifest`, `retrieval-request`, `retrieval-result` |
+| Derived evidence, each bound to method identity | `validation-result`, `evaluation-metrics`, `gate-report` |
+| Agent host, never sent to the model | `agent-dispatch`, `agent-attempt-result` |
+| API | `api-error`, `release-manifest` |
+
+`connected-common` also holds state values that no S1 envelope carries yet, such as the job, attempt, lease, reservation, outbox and mission states. The API read models use them ([architecture §4](../../docs/specs/05-system-architecture-and-data-spec.md#4-dispatch-ownership-and-completion)).
+
+The agent role schemas live in `packages/agents/schemas`. They reference these schemas with `$ref`.
+
+## Route manifest
+
+`routes/v1.json` lists the HTTP routes of the S1 API and the agent-runner dispatch endpoint. Each route names its host, method, path, accepted credentials, request and response bodies, success status and its own error codes.
+
+- Credentials: a person's long-lived credential (token route only), a person's 15-minute access token with the roles that may call the route, a service principal credential with the principals that may call it, or the attempt-scoped capability from a claim grant. Any one listed credential is enough.
+- Bodies: a contract body names a schema in `schemas` by its short name, with a form where a contract has two forms. A view body is an API-owned read model; it is not a cross-runtime contract, and `apps/api` owns its shape. A bytes body is a raw artefact addressed by its SHA-256 digest.
+- Errors: every error body is `api-error/1`. The common errors apply to every route, and the manifest maps each error code to its HTTP status.
+- The internal commands `record_evaluation_decision` and `freeze_candidates` have no route. Only the workflows service principal applies them.
 
 See [architecture](../../docs/specs/05-system-architecture-and-data-spec.md) and the [M1 guide](../../docs/guides/m1-watchlist-research.md).

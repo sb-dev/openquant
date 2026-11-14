@@ -6,7 +6,7 @@
   "$defs": {
     "RoleContext": {
       "title": "RoleContext",
-      "description": "Fixed context for both roles: scope, evidence cutoff, permitted operators with bounds, provider capabilities, the frozen cohort policy and the explicit holdout exclusions. In S1 a revision request excludes the V and H windows.",
+      "description": "Fixed context for both roles: scope, evidence cutoff, permitted operators with bounds, provider capabilities, the frozen cohort policy and the explicit holdout exclusions. In S1 every agent request, proposer and critic, carries holdout exclusions that name V and H.",
       "type": "object",
       "additionalProperties": false,
       "required": ["scope", "cutoff", "operators", "provider_capabilities", "evaluation_policy", "holdout_exclusions"],

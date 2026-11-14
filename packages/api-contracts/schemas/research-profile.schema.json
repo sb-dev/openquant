@@ -107,7 +107,7 @@
     },
     "DividendPaymentRule": {
       "title": "DividendPaymentRule",
-      "description": "How a cash dividend's payment is placed. payment_session PAYABLE_DATE: the payment falls in the session on the payable date that provider_field holds, when that date is a calendar session inside the run; the evaluation plan extends a run to include it. payment_phase AFTER_CLOSE: the cash arrives after that session's close. when_unmatched BLOCK_PROFILE: a payable date that is not such a session blocks the profile; no other session replaces it. Withholding is part of the execution policy.",
+      "description": "How a cash dividend's payment is placed. payment_session PAYABLE_DATE: the payment falls in the session on the payable date that provider_field holds, and that date must be a calendar session. When it falls after the run's scored end, the run's calendar extends to include it. The core processes no event after the scored end, so the receivable stays in equity. payment_phase AFTER_CLOSE: the cash arrives after that session's close. when_unmatched BLOCK_PROFILE: a payable date that is not a calendar session blocks the profile; no other session replaces it. Withholding is part of the execution policy.",
       "type": "object",
       "additionalProperties": false,
       "required": ["provider_field", "payment_session", "payment_phase", "when_unmatched"],

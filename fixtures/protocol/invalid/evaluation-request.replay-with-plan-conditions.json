@@ -37,7 +37,7 @@
       "digest": "sha256:0e8ea5f12262374def68a65011850ff52e6867a8963f6dd4f95970436b1b5482"
     },
     "suite_id": "s1-single-stock-suite",
-    "plan_digest": "sha256:398d54b3f7d6a9e69be5e832283406f03e168b459e7e8ebd4035a85cbe8fcfa7",
+    "plan_digest": "sha256:dde8a9d48ef9772f51a87c4b4b8480b976f1f234c9a1225cbf57f57f02117428",
     "trial_slot": "rev-a",
     "run_slot": "rev-a.v.base",
     "window_role": "VALIDATION",

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:openquant:schema:retrieval-result:1",
   "title": "RetrievalResult",
-  "description": "Outcome of one retrieve job attempt (OQ-05 section 7.1). It distinguishes a complete or partial snapshot, no observations and failure. Every provider request is recorded, billed or not. A retrieval result is never an official numerical result.",
+  "description": "Outcome of one retrieve job attempt (OQ-05 section 7.1). It distinguishes a complete or partial snapshot, no observations and failure. Every provider request is recorded, billed or not. A retrieval result is never an official numerical result. An accepted snapshot makes the job COMPLETED with its coverage recorded. A failure makes the job FAILED after the bounded retry policy.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "job_id", "attempt", "request_digest", "executable", "outcome", "calls", "usage", "started_at", "finished_at"],
@@ -25,7 +25,7 @@
     },
     "RetrievalSnapshot": {
       "title": "RetrievalSnapshot",
-      "description": "A frozen dataset-manifest/1 was uploaded. Its coverage repeats status; PARTIAL and NO_OBSERVATIONS are visible outcomes, not failures.",
+      "description": "A frozen dataset-manifest/1 was uploaded. Its coverage repeats status. PARTIAL and NO_OBSERVATIONS are visible outcomes, not failures: the job is COMPLETED, and missing data that a run requires blocks the work that depends on it.",
       "type": "object",
       "additionalProperties": false,
       "required": ["status", "manifest"],
@@ -36,7 +36,7 @@
     },
     "RetrievalFailure": {
       "title": "RetrievalFailure",
-      "description": "No snapshot. Authentication, permission and unsupported-capability errors are never retried as transient. retry_after_seconds preserves a provider Retry-After value when present.",
+      "description": "No snapshot. Only transient classes are retried, within max_retries and the attempt cap; then the job is FAILED. Authentication, permission and unsupported-capability errors are never retried as transient. retry_after_seconds preserves a provider Retry-After value when present.",
       "type": "object",
       "additionalProperties": false,
       "required": ["status", "error", "retryable", "detail"],

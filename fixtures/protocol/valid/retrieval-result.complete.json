@@ -1,11 +1,11 @@
 {
   "schema_version": "retrieval-result/1",
-  "job_id": "job-aapl-retrieve-0001",
+  "job_id": "job-synthetic-retrieve-0001",
   "attempt": {
-    "attempt_id": "att-aapl-retrieve-0001-1",
+    "attempt_id": "att-synthetic-retrieve-0001-1",
     "ownership_revision": 1
   },
-  "request_digest": "sha256:fbd237b7ffc0f3c20d8f1394da2e96611ee0906baf6dc9a9511c9b27cba170a5",
+  "request_digest": "sha256:c0cd789e320c0b91fb0562b3b33426b21aeb9c146649a0e106e3d16f76a7416b",
   "executable": {
     "name": "engine-batch",
     "version": "0.0.0",
@@ -14,9 +14,9 @@
   "outcome": {
     "status": "COMPLETE",
     "manifest": {
-      "digest": "sha256:08825d1c534ae92fc6e07efb8bcff3c77cbd01258621ac4e6133b65a594513bd",
+      "digest": "sha256:f7515b3a4d44b6097b456907897065ede82040f4bc4f51b1797501179a30955a",
       "media_type": "application/json",
-      "size_bytes": 6443
+      "size_bytes": 6485
     }
   },
   "calls": [

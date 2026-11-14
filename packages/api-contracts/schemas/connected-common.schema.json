@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:openquant:schema:connected-common:1",
   "title": "OpenQuantConnectedDefinitions",
-  "description": "Shared definitions for the S1 connected envelopes (OQ-05 sections 3, 4 and 7). They are outside engine identity. Unknown values are explicit branches, never zero.",
+  "description": "Shared definitions for the S1 connected envelopes (OQ-05 sections 3, 4 and 7). They are outside engine identity. Unknown values are explicit branches, never zero. JobKind, JobStatus, AttemptStatus, LeaseStatus, ReservationStatus, OutboxStatus, GateResult, MissionStatus and MissionOutcome are referenced by no S1 envelope. They stay here because they are the state values of the OQ-05 section 4 transition table and of the P2 read models.",
   "$defs": {
     "DeploymentEnvironment": {
       "title": "DeploymentEnvironment",
@@ -24,13 +24,13 @@
     },
     "JobStatus": {
       "title": "JobStatus",
-      "description": "Status of a retrieve, validate or assess job (OQ-05 section 4). An evaluate job is a run and uses RunStatus. QUEUED: an attempt exists and waits for its claim. RUNNING: an attempt holds a lease. COMPLETED: an attempt's result was accepted. FAILED: the attempt cap is exhausted or the failure is not retryable. CANCELLED: cancellation ended the job.",
+      "description": "Status of a retrieve, validate or assess job, and of an agent's logical run (OQ-05 section 4). An evaluate job is a run and uses RunStatus. QUEUED: an attempt exists and waits for its claim. RUNNING: an attempt holds a lease. COMPLETED: an attempt's result was accepted. A validate job is COMPLETED with a VALID or an INVALID result. A retrieve job is COMPLETED with COMPLETE, PARTIAL or NO_OBSERVATIONS coverage recorded; missing required data blocks the work that depends on it. An agent run is COMPLETED by a completion. FAILED: the attempt cap is exhausted or the failure is not retried. A retrieve job is FAILED after the bounded retry policy, which retries only transient failure classes. An agent run retries a timeout, a malformed result, a lease expiry or a runner crash within the attempt cap, and is FAILED at once after a refusal, a denied capability or an authentication failure. CANCELLED: cancellation ended the job or agent run.",
       "type": "string",
       "enum": ["QUEUED", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"]
     },
     "AttemptStatus": {
       "title": "AttemptStatus",
-      "description": "Status of one attempt of a logical run or job, batch or agent (OQ-05 section 4). PENDING: created with its budget reservation and outbox entry in one transaction, not yet claimed. CLAIMED: a worker holds its lease. COMPLETED: its result was accepted. FAILED: it ended without an accepted result; its failure code or agent outcome says why. LEASE_EXPIRED: recovery fenced it; a late completion from it is rejected and recorded. CANCELLED: cancellation ended it before completion.",
+      "description": "Status of one attempt of a logical run or job, batch or agent (OQ-05 section 4). PENDING: created with its budget reservation and outbox entry in one transaction, not yet claimed. CLAIMED: a worker holds its lease. COMPLETED: its result was accepted. FAILED: it ended without an accepted result; its failure code or agent outcome says why. LEASE_EXPIRED: recovery fenced it; a late submission from it is rejected with LEASE_EXPIRED, or with STALE_OWNERSHIP once a newer attempt exists, and the rejection is recorded. CANCELLED: cancellation ended it before completion.",
       "type": "string",
       "enum": ["PENDING", "CLAIMED", "COMPLETED", "FAILED", "LEASE_EXPIRED", "CANCELLED"]
     },
@@ -66,15 +66,15 @@
     },
     "DecisionOutcome": {
       "title": "DecisionOutcome",
-      "description": "Decision outcome (OQ-02 section 3.6). For a policy-determined DRAFT to EVALUATING Decision: APPROVED when the critique gave a valid result and no finding blocks the transition; REJECTED when one does; DEFERRED when the critique ended without a valid result after the attempt cap. In S1 no finding category blocks that transition.",
+      "description": "Decision outcome (OQ-02 section 3.6). For a policy-determined DRAFT to EVALUATING Decision: APPROVED when the critique gave a valid result and no finding blocks the transition; REJECTED when one does; DEFERRED when the critique ended without a valid result, at once after an outcome that is not retried (refusal, denied capability, authentication failure or cancellation), or when the attempt cap is exhausted after retried failures (timeout, malformed result, lease expiry or runner crash). In S1 no finding category blocks that transition.",
       "type": "string",
       "enum": ["APPROVED", "REJECTED", "DEFERRED"]
     },
     "MissionStatus": {
       "title": "MissionStatus",
-      "description": "Research Mission status (OQ-02 section 1). BLOCKED: work cannot continue, for example when a budget is exhausted; the reason is shown and outcomes are kept. WITHDRAWN: the Researcher cancelled the mission. CONCLUDED: the mission records one outcome. It shares no value with run, job, attempt, gate, Decision or attention status.",
+      "description": "Research Mission status (OQ-02 section 1). CREATED: create_mission created it and it has not started. IN_PROGRESS: run_mission_now started it; the evaluation plan is recorded at start, before any run. BLOCKED: work cannot continue, for example when a budget is exhausted; the reason is shown and outcomes are kept. WITHDRAWN: the Researcher cancelled the mission. CONCLUDED: the mission records one outcome. It shares no value with run, job, attempt, gate, Decision or attention status.",
       "type": "string",
-      "enum": ["IN_PROGRESS", "BLOCKED", "WITHDRAWN", "CONCLUDED"]
+      "enum": ["CREATED", "IN_PROGRESS", "BLOCKED", "WITHDRAWN", "CONCLUDED"]
     },
     "MissionOutcome": {
       "title": "MissionOutcome",
@@ -84,7 +84,7 @@
     },
     "ApiErrorCode": {
       "title": "ApiErrorCode",
-      "description": "Envelope-only error codes of the S1 API. The first three repeat the contract parse codes. STALE_OWNERSHIP: the attempt is not the current owner, or its ownership revision is not current. LEASE_EXPIRED: the attempt owned the work but its lease ended; the late completion is recorded and rejected. ATTEMPT_NOT_CLAIMABLE: the attempt is terminal or claimed by another worker. IDENTITY_MISMATCH: a submitted binding (input, strategy, engine, method, executable or dispatch digest) differs from the request. DIGEST_MISMATCH: uploaded bytes do not match the declared digest or size. COMMAND_ID_REUSED: a command ID returns with a different body.",
+      "description": "Envelope-only error codes of the S1 API. The first three repeat the contract parse codes. STALE_OWNERSHIP: a newer attempt of the same run or job exists, or the caller's ownership revision is not current. LEASE_EXPIRED: the attempt's lease ended and no newer attempt of the same run or job exists yet. A late submission gets one of these two codes; its rejection is recorded and nothing else changes. ATTEMPT_NOT_CLAIMABLE: the attempt is terminal or claimed by another worker. IDENTITY_MISMATCH: a submitted binding (input, strategy, engine, method, executable or dispatch digest) differs from the request. DIGEST_MISMATCH: uploaded bytes do not match the declared digest or size. COMMAND_ID_REUSED: a command ID returns with a different body.",
       "type": "string",
       "enum": [
         "UNSUPPORTED_SCHEMA_VERSION",
@@ -219,7 +219,7 @@
     },
     "MissionBudget": {
       "title": "MissionBudget",
-      "description": "Per-mission budget (OQ-03 section 1). create_mission sets it. It must lie within the cohort policy maxima, follow its equal-per-proposer rule and fit the period cap that the profile names. A runner or service principal cannot enlarge it; service principals reserve within it. Retries and recovery attempts consume it. Exhaustion makes the mission BLOCKED with the reason (OQ-02 section 1). candidates counts registered Strategy Versions, the seed included. experiments counts evaluation runs. revisions_per_proposer counts the proposals each proposer configuration may make. new_families counts proposals without a parent. model_spend_per_attempt is the reservation of one agent attempt. attempt_cap bounds the attempts of one logical run or job, the first included.",
+      "description": "Per-mission budget (OQ-03 section 1). The Researcher sets it in create_mission. It must lie within the cohort policy maxima, follow its equal-per-proposer rule and fit the period cap that the profile names. A runner or service principal cannot enlarge it; service principals reserve within it. Retries and recovery attempts consume it. Exhaustion makes the mission BLOCKED with the reason (OQ-02 section 1). candidates counts registered Strategy Versions, the seed included. experiments counts evaluation runs. revisions_per_proposer counts the proposals each proposer configuration may make. new_families counts proposals without a parent. model_spend_per_attempt is the reservation of one agent attempt. attempt_cap bounds the attempts of one logical run or job, the first included. Timeouts, output limits and concurrency are not budget values: the cohort policy fixes them as execution limits.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -261,7 +261,7 @@
     },
     "HoldoutExclusion": {
       "title": "HoldoutExclusion",
-      "description": "A window withheld from an agent or an evaluation input. range is the window's resolved scored sessions from the evaluation plan. The label states the limit of the holdout, for example 'historical holdout within model training period'.",
+      "description": "A window withheld from an agent request or an evaluation input. range is the window's resolved scored sessions from the evaluation plan. The label states the limit of the holdout, for example 'historical holdout within model training period'. In S1 every agent request, proposer and critic, carries holdout exclusions that name V and H.",
       "type": "object",
       "additionalProperties": false,
       "required": ["window", "range", "label"],
@@ -294,7 +294,7 @@
     },
     "ExecutorProfile": {
       "title": "ExecutorProfile",
-      "description": "Execution profile chosen for the delegated executor: requested model and effort. executor_default: the runner passes no effort setting and the executor applies its default. low to max are the levels that the pinned Claude Code CLI 2.1.325 accepts for --effort. The applied model and effort are recorded in the attempt result, as reported or unknown.",
+      "description": "Execution profile chosen for the delegated executor: requested model and effort. executor_default: the runner passes no effort setting and the executor applies its default. low to max are the levels that Claude Code CLI 2.1.325 accepts for --effort. 2.1.325 is a candidate version until the P4 schema-output spike pins the executor. The applied model and effort are recorded in the attempt result, as reported or unknown.",
       "type": "object",
       "additionalProperties": false,
       "required": ["model", "effort"],
