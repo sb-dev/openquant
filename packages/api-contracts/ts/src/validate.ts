@@ -133,9 +133,10 @@ const SMALL_VALUE_BOUND = 100_000;
  * parse only checks the text. Any other contract gets 512 KiB, because its parse may build every
  * value: command/1 and strategy-artefact/1 hold a recursive Expr tree, and checkpoint/1 and
  * evaluation-result/1 can hold more than a million values. test/memory.test.ts parses, for every
- * contract at its limit, the bodies that build the most values or the most heap per byte, and the
- * invalid body whose violation listing creates the most Ajv errors, each within 64 MB, half of a
- * Worker isolate's memory.
+ * contract at its limit, the bodies that build the most values or the most heap per byte, that hold
+ * the most keys the parse keeps only in its key sets, and the invalid body whose violation listing
+ * creates the most Ajv errors, each within 64 MB, half of a Worker isolate's memory. The bound is
+ * measured on those bodies in Node 24; it is not proven for every body, nor measured in workerd.
  */
 export function workerBodyLimit(contract: ContractName): number {
   return valueBound(contract) <= SMALL_VALUE_BOUND ? 4 * 1024 * 1024 : 512 * 1024;

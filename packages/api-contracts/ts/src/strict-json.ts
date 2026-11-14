@@ -30,9 +30,10 @@
 // Object keys. A key is read without copying it: the parser measures it, in the bytes of its text
 // and of its decoded form, and hashes its decoded code units. It decodes a key only when the key is
 // stored on a built object or compared with one, and only when the decoded key is within the key
-// limit (`maxKeyBytes`). Every other key is held as its hash and the text offset of its opening
-// quote, and two keys whose hashes are equal are compared by reading both texts again, one decoded
-// code unit at a time. The hash seed is random, so a text cannot be prepared to make keys collide.
+// limit (`maxKeyBytes`). Every other key is held in its object's key set as the text offset of its
+// opening quote and bits of its hash (KeySet, below), and two keys that may be equal are compared by
+// reading both texts again, one decoded code unit at a time. The hash seed is random, so a text
+// cannot be prepared to make keys collide.
 // A key whose text is longer than the key limit is never decoded or stored: the scan names the
 // first one, stops building values, and reads the rest of the text with every rule, duplicate keys
 // included. The contract layer reports it after the version check, as Rust would reach its schema
@@ -138,7 +139,11 @@ const I64_MIN = -9223372036854775808n;
 /** Digits of 2^64 - 1. An integer with more is outside the 64-bit range. */
 const U64_DIGITS = 20;
 /** Keys an object keeps in a plain list before it moves them to a hash table. */
-const SMALL_KEY_SET = 16;
+export const SMALL_KEY_SET = 16;
+/** Slots of the first hash table of an object's keys. */
+export const KEY_TABLE_MIN_SLOTS = 64;
+/** The most keys a hash table of `slots` slots holds, three quarters of them. One more doubles it. */
+export const keyTableHolds = (slots: number) => Math.floor((slots * 3) / 4);
 
 const isDigit = (code: number) => code >= 0x30 && code <= 0x39;
 const isHigh = (code: number) => code >= 0xd800 && code <= 0xdbff;
@@ -163,16 +168,29 @@ function finish(hash: number): number {
   return h ^ (h >>> 15);
 }
 
+/** The bits of a key-table slot that hold the key's text offset. */
+const OFFSET_BITS = 0xffffff;
+
 /**
- * The keys of one object that were not stored on a built object, each held as its hash and the text
- * offset of its opening quote. Keys with equal hashes are compared by reading their texts again.
+ * The keys of one object that were not stored on a built object, each held as the text offset of its
+ * opening quote and its hash, or bits of it, without its text. Keys that may be equal are compared
+ * by reading their texts again, so a duplicate is found exactly, whatever the length of the key.
+ *
+ * Past SMALL_KEY_SET keys the set is a table of 32-bit slots, searched by linear probing from the
+ * low bits of the hash. A slot holds the offset in its low 24 bits, as a text has at most
+ * MAX_PAYLOAD_BYTES = 2^24 code units, and the top 8 bits of the hash above them. Keys whose slots
+ * have the same top 8 bits are compared by their texts. A slot of 0 is empty: a key's opening quote
+ * always follows the brace of its object. The table holds at most three quarters of its slots and
+ * doubles when one more key would pass that, hashing each key again from the text. So n keys take
+ * at most 4 × 8n/3 bytes, about 11 bytes a key; a doubling briefly adds the old table, half as
+ * large, and the tables it leaves behind take as much again until they are collected. The parse
+ * allocates nothing else for a key it does not build.
  */
 class KeySet {
   private readonly parser: Parser;
   /** Hash and offset pairs while the set is small. */
   private small: number[] | undefined = [];
-  private hashes = new Int32Array(0);
-  private offsets = new Int32Array(0);
+  private table = new Int32Array(0);
   private size = 0;
 
   constructor(parser: Parser) {
@@ -180,30 +198,29 @@ class KeySet {
   }
 
   private insert(hash: number, offset: number, check: boolean): boolean {
-    const mask = this.offsets.length - 1;
-    let slot = hash & mask;
+    const table = this.table;
+    const mask = table.length - 1;
+    const slot = (hash & ~OFFSET_BITS) | offset;
+    let at = hash & mask;
     for (;;) {
-      const stored = this.offsets[slot] ?? -1;
-      if (stored < 0) break;
-      if (check && this.hashes[slot] === hash && this.parser.sameKey(stored, offset)) return true;
-      slot = (slot + 1) & mask;
+      const stored = table[at] ?? 0;
+      if (stored === 0) break;
+      if (check && (stored ^ slot) >>> 24 === 0 && this.parser.sameKey(stored & OFFSET_BITS, offset)) return true;
+      at = (at + 1) & mask;
     }
-    this.hashes[slot] = hash;
-    this.offsets[slot] = offset;
+    table[at] = slot;
     this.size += 1;
     return false;
   }
 
   private grow(): void {
-    const hashes = this.hashes;
-    const offsets = this.offsets;
-    const capacity = Math.max(64, offsets.length * 2);
-    this.hashes = new Int32Array(capacity);
-    this.offsets = new Int32Array(capacity).fill(-1);
+    const old = this.table;
+    this.table = new Int32Array(Math.max(KEY_TABLE_MIN_SLOTS, 2 * old.length));
     this.size = 0;
-    for (let slot = 0; slot < offsets.length; slot += 1) {
-      const offset = offsets[slot] ?? -1;
-      if (offset >= 0) this.insert(hashes[slot] ?? 0, offset, false);
+    for (const stored of old) {
+      if (stored === 0) continue;
+      const offset = stored & OFFSET_BITS;
+      this.insert(this.parser.hashKeyAt(offset), offset, false);
     }
   }
 
@@ -222,7 +239,7 @@ class KeySet {
         this.insert(small[index] ?? 0, small[index + 1] ?? 0, false);
       return false;
     }
-    if ((this.size + 1) * 2 > this.offsets.length) this.grow();
+    if (this.size + 1 > keyTableHolds(this.table.length)) this.grow();
     return this.insert(hash, offset, true);
   }
 }
@@ -626,6 +643,14 @@ class Parser {
       default:
         return kind;
     }
+  }
+
+  /** The hash of the checked key whose opening quote is at `open`, as `scanString` computed it. */
+  hashKeyAt(open: number): number {
+    let hash = this.seed;
+    // An unescaped quote ends a key; an escaped one starts with a backslash.
+    for (let at = open + 1; this.text.charCodeAt(at) !== 0x22; at = this.nextUnit) hash = mix(hash, this.unitAt(at));
+    return finish(hash);
   }
 
   /** True when the checked keys whose opening quotes are at `a` and `b` decode to the same text. */

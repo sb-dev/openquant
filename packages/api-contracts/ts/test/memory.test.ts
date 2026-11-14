@@ -4,14 +4,19 @@
 // reports the peak of its heap plus its external memory, which holds the body bytes, typed arrays
 // and, in Node, the decoded text. Its own baseline of about 20 MiB is included.
 //
-// Three kinds of body are measured. The dense shapes build the most values, or the most heap per
+// Four kinds of body are measured. The dense shapes build the most values, or the most heap per
 // byte, that the parse can be made to build; they never reach the violation listing, because each
 // exceeds the value bound or a structural limit. The key shapes hold one key, escaped and two bytes a
 // character, that fills the body at the top level or one level down: the parse refuses it unread,
-// after the version check. The errors shapes are invalid documents of exactly
+// after the version check. The set shapes hold the most keys the parse keeps only in its key sets,
+// in one object or spread over nested objects whose key tables are all twice as large as their keys
+// need. The errors shapes are invalid documents of exactly
 // MAX_NODES values whose listing creates the most Ajv errors the contract allows
 // (support/error-shape.ts), padded to the byte limit with spaces or with long two-byte strings: the
 // listing runs, and its errors are counted against the bound of test/errors.test.ts.
+//
+// The bound is measured on these bodies, in Node 24 and not in workerd. It is not proven for every
+// body: the shapes are the densest ones found for each part of the parse.
 
 import { spawn } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
@@ -23,9 +28,11 @@ import {
   isContractName,
   MAX_PAYLOAD_BYTES,
   RESULT_SCAN_LIMIT,
+  valueBound,
   workerBodyLimit,
 } from '../src/index.ts';
 import { MAX_NODES } from '../src/limits.ts';
+import { keyTableHolds } from '../src/strict-json.ts';
 import { errorBound } from './support/error-bound.ts';
 import { bundleDefs } from './support/error-shape.ts';
 
@@ -36,6 +43,7 @@ const WORKER_HEAP = '--max-old-space-size=128';
 const BUDGET_MIB = (64 * 1000 * 1000) / 2 ** 20;
 const SHAPES = ['zeros', 'arrays', 'objects', 'singletons', 'nested', 'keys', 'shapes', 'escapes', 'wide'] as const;
 const KEY_SHAPES = ['long-key', 'nested-key'] as const;
+const SET_SHAPES = ['set-keys', 'set-objects'];
 const ERROR_SHAPES = ['errors', 'errors-wide'] as const;
 
 interface Child {
@@ -114,6 +122,39 @@ describe('a key that fills the body at each Worker byte limit is refused unread 
   });
 });
 
+describe('the most keys held only in key sets at each Worker byte limit stay within 64 MB', () => {
+  // A first member stops building: it passes the value bound, which only a contract whose bound
+  // fits in the limit can, or it is a long key, which costs fewer bytes and fits every contract.
+  const cases = names.flatMap((name) => {
+    const passable = 2 * valueBound(name) < workerBodyLimit(name);
+    return [...(passable ? SET_SHAPES : []), ...SET_SHAPES.map((shape) => `${shape}-long`)].map(
+      (shape) => [name, shape] as [ContractName, string],
+    );
+  });
+  test.concurrent.each(cases)('%s %s', async (name, shape) => {
+    const limit = workerBodyLimit(name);
+    const long = shape.endsWith('-long');
+    const result = await outcome(shape, name, String(limit));
+    expect(result).toMatchObject({
+      verdict: 'rejected',
+      code: 'SCHEMA_VIOLATION',
+      kind: long ? 'structural-limit' : 'value-bound',
+      listingStopped: true,
+      bytes: limit,
+    });
+    // A key takes eight bytes of the body, fewer for the shortest, so the body holds more than
+    // limit / 8 keys: more than 2^19 at 4 MiB. A zero before the bound takes two bytes.
+    expect(result.keys, JSON.stringify(result)).toBeGreaterThan(limit / 8 - (long ? 0 : valueBound(name) / 4));
+    if (shape.startsWith('set-objects')) {
+      // The largest object holds just more than a table of limit / 8 slots holds, so its table has
+      // limit / 4 slots, and the smaller ones are nested around it.
+      expect(result.objects).toBeGreaterThan(1);
+      expect(result.largestObject).toBeGreaterThan(keyTableHolds(limit / 8));
+    }
+    expect(result.peakTotalMiB, JSON.stringify(result)).toBeLessThanOrEqual(BUDGET_MIB);
+  });
+});
+
 describe('the violation listing of the error-maximising body at each Worker byte limit stays within 64 MB', () => {
   const defs = bundleDefs();
   const cases = names.flatMap((name) => ERROR_SHAPES.map((shape) => [name, shape] as [ContractName, string]));
@@ -130,8 +171,10 @@ describe('the violation listing of the error-maximising body at each Worker byte
 
 describe('the scan of a submitted result at RESULT_SCAN_LIMIT stays within 64 MB', () => {
   // The journal is read but not built: memory is the bytes, the decoded text and the head, which
-  // the value bound and the text bound limit (src/result.ts).
-  test.concurrent.each(['zeros', 'objects', 'keys', 'nested', 'escapes', 'wide'])('%s journal', async (shape) => {
+  // the value bound and the text bound limit, and the key sets of the open objects (src/result.ts).
+  // key-objects holds the most keys the object limit allows in chains of objects open at once.
+  const journals = ['zeros', 'objects', 'keys', 'key-objects', 'nested', 'escapes', 'wide'];
+  test.concurrent.each(journals)('%s journal', async (shape) => {
     const result = await outcomeOf(resultScript, shape, String(RESULT_SCAN_LIMIT));
     expect(result).toMatchObject({ verdict: 'accepted', bytes: RESULT_SCAN_LIMIT });
     expect(result.peakTotalMiB, JSON.stringify(result)).toBeLessThanOrEqual(BUDGET_MIB);
