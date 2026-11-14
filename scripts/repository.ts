@@ -283,8 +283,12 @@ export function checkRepository(base: string): string[] {
     if (file.endsWith('.md') && !file.startsWith('docs/research-logs/imported/') && !file.startsWith('.agents/skills/')) errors.push(...localLinkErrors(base,file,text,all));
     errors.push(...credentialErrors(file,text));
     if (/^\.github\/workflows\/.*\.ya?ml$/.test(file)) {
-      for (const match of text.matchAll(/^\s*-?\s*uses:\s*(\S+)/gm)) {
-        if (!match[1].startsWith('./') && !/^[\w.-]+\/[\w./-]+@[0-9a-f]{40}$/.test(match[1])) errors.push(`Action must use a full commit SHA: ${file}: ${match[1]}`);
+      // Every action reference ends its line with a version comment that Dependabot updates with the SHA (P1 review
+      // finding G6). Only its form is checked; code-owner review checks that it names the release of the SHA.
+      for (const match of text.matchAll(/^\s*-?\s*uses:\s*(\S+)(.*)$/gm)) {
+        if (match[1].startsWith('./')) continue;
+        if (!/^[\w.-]+\/[\w./-]+@[0-9a-f]{40}$/.test(match[1])) errors.push(`Action must use a full commit SHA: ${file}: ${match[1]}`);
+        if (!/^[ \t]+# v\d+\.\d+\.\d+[ \t]*$/.test(match[2])) errors.push(`Action must end its line with a version comment # v<major>.<minor>.<patch>: ${file}: ${match[1]}${match[2]}`);
       }
       if (/pull_request_target\s*:/.test(text)) errors.push(`Privileged PR trigger is prohibited: ${file}`);
     }

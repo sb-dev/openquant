@@ -13,4 +13,4 @@ Implemented commands. [Engineering §1](../specs/06-engineering-delivery-and-ope
 | `pnpm generate:spec-index` | Generate the ownership/version index from the seven front-matter blocks. |
 | `pnpm generate:tree` | Generate the file map from the Git index, or files in an extracted archive. |
 
-Each `pnpm` command runs the script named in root `package.json`. Each S1 pull request that implements a command adds its row here, in the same change as the command's implementation and tests. Do not add a row for a planned command.
+Each `pnpm` command runs the script named in root `package.json`, under the settings of `pnpm-workspace.yaml`. A change to either file can therefore change what `pnpm verify` runs; check such a change with `node scripts/verify.ts`. Each S1 pull request that implements a command adds its row here, in the same change as the command's implementation and tests. Do not add a row for a planned command.

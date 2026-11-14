@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { parse } from 'yaml';
+import { isMap as isMapNode, isScalar, isSeq, parse, parseDocument } from 'yaml';
 
 // Parsed-YAML checks of the GitHub workflows and Dependabot (OQ-06 sections 2.1 to 2.3). They read the YAML
 // as GitHub does, so a comment, an `echo`, `|| true` or a constant `if` cannot satisfy them. They are static:
@@ -15,7 +15,8 @@ const isMap = (value: unknown): value is Record<string, Json> => typeof value ==
 // The steps of the `checks` job, exactly as written and in this order: names, actions, `with` inputs and commands,
 // and no other key (no env, if, shell, working-directory, id or continue-on-error). An action step names its action
 // repository; ci.yml pins it to a full 40-character commit SHA, and any such SHA of the same repository passes, so a
-// Dependabot update passes without a change here (whether a SHA is a release of the action is checked in review).
+// Dependabot update passes without a change here. Its version comment is checked for form only (versionCommentErrors):
+// whether the SHA is the release that comment names, or any upstream release, is checked in code-owner review.
 // The repository checks run as their own step before any install (P1 review finding C6R), and the install runs no
 // install script (G2). The pnpm version comes from the packageManager field of package.json, so a different pnpm
 // cannot install the lockfile in CI. The checkout keeps only persist-credentials: false, so CI checks out the
@@ -73,6 +74,37 @@ function readOnly(permissions: unknown): boolean {
   return isMap(permissions) && Object.values(permissions).every((value) => value === 'read' || value === 'none');
 }
 
+// Every action reference (`uses:` of a job or step, local `./` paths aside) ends its line with a comment
+// `# v<major>.<minor>.<patch>`, which Dependabot updates with the SHA (P1 review finding G6). The comment is read
+// from the source after the value, so a comment on the next line or after a flow mapping does not count. Only the
+// form is checked: not that it names the release of the SHA, nor that the SHA is an upstream release, because the
+// checks make no network call. Code-owner review of .github/** covers that (OQ-06 section 2.3).
+const versionComment = /^[ \t]+# v\d+\.\d+\.\d+[ \t]*$/;
+function versionCommentErrors(file: string, text: string): string[] {
+  const errors: string[] = [];
+  const jobs = parseDocument(text, { uniqueKeys: true, prettyErrors: false }).get('jobs', true);
+  const check = (at: string, node: unknown) => {
+    const uses = isMapNode(node) ? node.get('uses', true) : undefined;
+    if (!isScalar(uses) || typeof uses.value !== 'string' || uses.value.startsWith('./')) return;
+    const end = uses.range?.[1] ?? 0;
+    const line = text.indexOf('\n', end);
+    const rest = text.slice(end, line < 0 ? text.length : line);
+    if (!versionComment.test(rest)) errors.push(`${at} must end its uses line with a version comment # v<major>.<minor>.<patch>, found ${JSON.stringify(rest.trim())}`);
+  };
+  if (!isMapNode(jobs)) return errors;
+  for (const pair of jobs.items) {
+    const where = `${file}: job ${isScalar(pair.key) ? String(pair.key.value) : '?'}`;
+    check(where, pair.value);
+    const steps = isMapNode(pair.value) ? pair.value.get('steps', true) : undefined;
+    if (!isSeq(steps)) continue;
+    steps.items.filter(isMapNode).forEach((step, index) => {
+      const name = step.get('name');
+      check(`${where} step ${index + 1}${typeof name === 'string' ? ` (${name})` : ''}`, step);
+    });
+  }
+  return errors;
+}
+
 function stepsOf(job: Json): Json[] {
   return Array.isArray(job?.steps) ? job.steps.filter(isMap) : [];
 }
@@ -103,6 +135,7 @@ export function workflowErrors(file: string, text: string): string[] {
       if (typeof step.uses === 'string' && !step.uses.startsWith('./') && !sha.test(step.uses)) errors.push(`${at} must use a full commit SHA: ${step.uses}`);
     });
   }
+  errors.push(...versionCommentErrors(file, text));
   return errors;
 }
 

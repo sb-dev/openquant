@@ -161,6 +161,13 @@ test('tracked files cannot escape through a symlink ancestor',()=>mutated((base)
 test('altered source bytes fail provenance',()=>mutated((base)=>edit(base,'docs/research-logs/imported/openquant-design-spec-v2.md',(t)=>t+'\nChanged\n'),/Source hash mismatch/));
 test('new unstaged file in an archive requires a new file map',()=>mutated((base)=>writeFileSync(resolve(base,'extra.txt'),'extra\n'),/Repository tree drift/));
 test('mutable action reference fails',()=>mutated((base)=>edit(base,'.github/workflows/ci.yml',(t)=>t.replace(/actions\/checkout@[0-9a-f]{40}/,'actions/checkout@v7')),/Action must use a full commit SHA/));
+// G6: the text check requires the version comment on every action line, before any install; its form only.
+test('G6: an action without a version comment or with a malformed one fails',()=>{
+  const versionComment = /(?<=actions\/checkout@[0-9a-f]{40}) # v\d+\.\d+\.\d+/;
+  for (const comment of ['',' # v7',' # 7.0.1',' # v7.0.1 latest']) {
+    mutated((base)=>edit(base,'.github/workflows/ci.yml',(t)=>replaceOnce(t.replace(versionComment,'VERSION'),'VERSION',comment)),/Action must end its line with a version comment # v<major>\.<minor>\.<patch>: \.github\/workflows\/ci\.yml: actions\/checkout@[0-9a-f]{40}/);
+  }
+});
 test('CI secret use fails',()=>mutated((base)=>edit(base,'.github/workflows/ci.yml',(t)=>t+'\n# '+'secrets.'+'EXAMPLE\n'),/CI must not use secrets/));
 // Credential patterns: each test value is assembled at run time, so this file holds no credential shape.
 test('each credential pattern finds its token and leaves names, prefixes and placeholders alone',()=>{
