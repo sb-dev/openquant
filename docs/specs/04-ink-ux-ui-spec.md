@@ -1,9 +1,9 @@
 ---
 id: OQ-04
 title: OpenQuant — Ink UX/UI
-version: 1.2.0
+version: 1.3.0
 status: canonical
-updated: 2026-11-08
+updated: 2026-11-14
 owns: screens, navigation, focus, input, states, confirmations, terminal behaviour
 ---
 
@@ -64,6 +64,8 @@ Show NAV, cash, drawdown, exposure, and active strategies only with their period
 
 A Research Mission is a bounded objective. The list shows intent, status, candidate count, and budget use. Detail includes constraints, hypotheses, rejected ideas, competing versions, critic findings, attempts, and remaining budget.
 
+Mission status uses `IN_PROGRESS`, `BLOCKED`, `WITHDRAWN` and `CONCLUDED`. A concluded mission shows its outcome, `ELIGIBLE_FOUND` or `NO_ELIGIBLE_CANDIDATE`, with its reason (OQ-02 §1). Do not reuse run, gate, Decision, attention or activation labels for missions. `NO_ELIGIBLE_CANDIDATE` is a valid completed result, not a failure. A blocked mission shows its reason, such as an exhausted budget. A `DEFERRED` Decision shows its reason. Mission detail shows retrieval, validation and assessment as typed jobs, separate from evaluation runs and trial counts.
+
 Create a mission through a short structured flow. Use free text for the objective. Select one instrument or a saved watchlist version, the market profile, horizon, constraints, cohort policy, candidate limit, experiment limit, compute budget, model budget, and revision limit from valid controls.
 
 Review resource use before starting a costly operation. Show exhaustion as a paused or blocked state with retained outcomes. Do not quietly raise limits.
@@ -111,6 +113,8 @@ A completed evaluation can fail its gates. A passed gate does not grant capital.
 Evidence summaries show contract validity, independent critique, historical testing, robustness, prospective paper evidence, and shadow readiness as separate checks. Each compact label has a discoverable legend. Do not invent a universal gate count when cohort policies differ.
 
 Comparison shows the same metrics, units, periods, methods, costs, trial counts, uncertainty, and open findings for each candidate. Replace unexplained scores such as “robustness HIGH” or “portfolio +0.31” with defined measures and their limits.
+
+In S1, show the D, V and H windows side by side for each candidate, with the base and cost-stress cases and both benchmarks. Label H "historical holdout within model training period". Where uncertainty is not computed, show the cohort policy's recorded limitation; do not show a blank or zero. Show eligibility separately from gate results. S1 records no `EVALUATING` → `PAPER` Decision; show "none recorded" for that Decision only.
 
 For a joint strategy, lead with the complete policy's result and expose per-stock contributions, retained cash and skipped entries. Label standalone stock runs as diagnostics. Display the frozen watchlist, capital basis and execution policy when comparing variants. Do not combine mismatched universes or measurement conditions into an unexplained ranking.
 
