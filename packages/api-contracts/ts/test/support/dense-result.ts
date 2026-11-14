@@ -10,6 +10,11 @@
 // zeros    [[0,0,…],[0,0,…],…]: arrays of MAX_ARRAY_LEN zeros
 // objects  [[{},{},…],…]: arrays of MAX_ARRAY_LEN empty objects
 // keys     [{"k0":0,…},…]: objects of MAX_OBJECT_KEYS keys, so each object holds a key set
+// key-objects  [{" ":0,…,"a":{" ":0,…,"a":{…}}},…]: chains of nested objects as deep as the
+//          nesting limit allows, each the value of the last key of the one before and each with the
+//          MAX_OBJECT_KEYS shortest distinct keys, so every object of a chain holds a key set at
+//          once. The first key is a character outside Latin-1, so the text takes two bytes a
+//          character
 // nested   [[[…[0]…]],…]: chains of 120 arrays
 // escapes  ["\n\n…",…]: strings of MAX_STRING_BYTES decoded bytes, two bytes of text each
 // wide     ["aa…a一",…]: strings of MAX_STRING_BYTES bytes, each with one character outside
@@ -27,7 +32,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GCProfiler, getHeapStatistics } from 'node:v8';
-import { scanEvaluationResult } from '../../src/index.ts';
+import { MAX_NESTING, scanEvaluationResult } from '../../src/index.ts';
 import { MAX_ARRAY_LEN, MAX_OBJECT_KEYS, MAX_STRING_BYTES } from '../../src/limits.ts';
 
 const MiB = 2 ** 20;
@@ -81,9 +86,44 @@ function groups(item: string, perGroup: number): void {
   write(']');
 }
 
+/** The ASCII characters that a key holds without an escape, in order. */
+const ASCII = Array.from({ length: 0x5f }, (_, index) => 0x20 + index).filter((code) => code !== 0x22 && code !== 0x5c);
+
+// Writes a chain of `objects` nested objects of MAX_OBJECT_KEYS one-character keys. The first key of
+// the first chain is Ā (U+0100), two bytes in UTF-8.
+function chain(objects: number, wide: boolean): void {
+  for (let object = 0; object < objects; object += 1) {
+    write('{');
+    for (let key = 0; key < MAX_OBJECT_KEYS; key += 1) {
+      if (key > 0) write(',');
+      write('"');
+      if (wide && object === 0 && key === 0) {
+        bytes[at++] = 0xc4;
+        bytes[at++] = 0x80;
+      } else bytes[at++] = ASCII[key] ?? 0;
+      write('":');
+      if (key < MAX_OBJECT_KEYS - 1 || object === objects - 1) write('0');
+    }
+  }
+  write('}'.repeat(objects));
+}
+
 write(before);
 if (shape === 'root-key') longText(after.length);
-else if (shape === 'journal-key') {
+else if (shape === 'key-objects') {
+  // The root and the journal take two levels of nesting; the chain takes the rest.
+  const objects = MAX_NESTING - 3;
+  // An object writes 64 members of `"c":0`, 63 commas and two braces, 6 bytes a key once the value
+  // 0 of its last key gives way to the next object; the last object of a chain keeps it.
+  const chainBytes = objects * MAX_OBJECT_KEYS * 6 + 1;
+  write('[');
+  chain(objects, true);
+  while (room(after.length + 1) >= chainBytes + 1) {
+    write(',');
+    chain(objects, false);
+  }
+  write(']');
+} else if (shape === 'journal-key') {
   write('{');
   longText(after.length + 3);
   write(':0}');
@@ -132,8 +172,9 @@ const started = Date.now();
 const result = scanEvaluationResult(bytes);
 const milliseconds = Date.now() - started;
 const end = getHeapStatistics();
+const collections = profiler.stop().statistics;
 const samples = [
-  ...profiler.stop().statistics.map((event) => event.beforeGC.heapStatistics),
+  ...collections.map((event) => event.beforeGC.heapStatistics),
   { usedHeapSize: end.used_heap_size, externalMemory: end.external_memory },
 ];
 const peak = (read: (sample: (typeof samples)[number]) => number) => Math.max(...samples.map(read));
@@ -150,6 +191,7 @@ console.log(
     bytes: bytes.length,
     written: at,
     milliseconds,
+    gcs: collections.length,
     baselineHeapMiB: baseline.used_heap_size / MiB,
     peakHeapMiB: peak((sample) => sample.usedHeapSize) / MiB,
     peakExternalMiB: peak((sample) => sample.externalMemory) / MiB,

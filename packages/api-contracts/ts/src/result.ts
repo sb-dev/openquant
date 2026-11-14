@@ -22,14 +22,17 @@
 //   without an escape is a slice of the text; one with an escape is a decoded copy; a stored key is
 //   copied again when V8 internalizes it. Past either bound the scan builds nothing more;
 // - the parse state: the stack of built array items, and for each open object a set of at most
-//   MAX_OBJECT_KEYS hashes and text offsets, without key text, below 128 levels of nesting;
+//   MAX_OBJECT_KEYS keys held as text offsets and hash bits, without key text, below 128 levels of
+//   nesting;
 // - transient copies, one at a time: a top-level key or a key compared with a built object's keys,
 //   decoded and at most MAX_KEY_BYTES; the top-level schema_version, at most MAX_STRING_BYTES; a number
 //   of at most 20 digits. A longer key, string or number is refused before it is decoded or copied;
 // - the validation of the head, and its violation listing, which MAX_NODES bounds (limits.ts).
 // test/memory.test.ts scans bodies of RESULT_SCAN_LIMIT that maximise each of these: dense journals,
-// a head past its value bound, a head of escaped two-byte strings past its text bound, and an escaped
-// two-byte key that fills the body at the top level and inside journal. Each stays within 64 MB.
+// chains of nested objects in journal that each hold the MAX_OBJECT_KEYS shortest keys, a head past
+// its value bound, a head of escaped two-byte strings past its text bound, and an escaped two-byte
+// key that fills the body at the top level and inside journal. Each stays within 64 MB, measured in
+// Node 24: the bound is not proven for every body, nor measured in workerd.
 
 import type { EvaluationResult } from '../dist/generated/types.ts';
 import type { ContractError } from './errors.ts';

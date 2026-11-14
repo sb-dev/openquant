@@ -4,7 +4,14 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { contracts, isContractName, parseContract, StrictJsonError, valueBound } from '../src/index.ts';
+import {
+  contracts,
+  isContractName,
+  MAX_PAYLOAD_BYTES,
+  parseContract,
+  StrictJsonError,
+  valueBound,
+} from '../src/index.ts';
 import { MAX_NODES } from '../src/limits.ts';
 import { type JsonValue, scanStrictJson } from '../src/strict-json.ts';
 import { maxValues } from '../tools/generate.ts';
@@ -160,6 +167,34 @@ describe('the scan past the bound', () => {
     expect(kind(`[0,0,0,{${keys},"k4999":1}]`)).toBe('duplicate-key');
     expect(kind(`[0,0,0,{${keys},"\\u006b17":1}]`)).toBe('duplicate-key');
     expect(kind(`{${keys},"k3":1}`, 100)).toBe('duplicate-key');
+  });
+
+  test('a key table that doubles many times at the end of the largest text finds every duplicate, and no false one', () => {
+    // Four forms of key: plain, with an escape, with a character outside the BMP, and with the same
+    // character as an escaped surrogate pair. The table hashes every key again from the text each
+    // time it doubles, and a slot holds the offset in 24 bits: the object ends the largest text the
+    // parser accepts, so its offsets are just below 2^24.
+    const forms = [
+      (i: number) => `k${i}`,
+      (i: number) => `\\n${i}`,
+      (i: number) => `😀${i}`,
+      (i: number) => `\\ud83d\\ude00${i}x`,
+    ];
+    const keys = Array.from({ length: 40_000 }, (_, i) => `"${forms[i % 4]?.(i)}":0`).join(',');
+    const text = (extra: string) => {
+      const tail = `{${keys}${extra}}]`;
+      const pad = MAX_PAYLOAD_BYTES - '[0,0,0,'.length - new TextEncoder().encode(tail).length;
+      return `[0,0,0,${' '.repeat(pad)}${tail}`;
+    };
+    expect(new TextEncoder().encode(text('')).length).toBe(MAX_PAYLOAD_BYTES);
+    expect(text('').lastIndexOf('"k39996"')).toBeGreaterThan(2 ** 23);
+    expect(kind(text(''))).toBe('accepted');
+    expect(kind(text(',"k40000":1,"\\ud83d\\ude002x":1,"😀3":1'))).toBe('accepted');
+    expect(kind(text(',"k0":1'))).toBe('duplicate-key');
+    expect(kind(text(',"\\u000a1":1'))).toBe('duplicate-key');
+    expect(kind(text(',"\\ud83d\\ude002":1'))).toBe('duplicate-key');
+    expect(kind(text(',"😀39999x":1'))).toBe('duplicate-key');
+    expect(kind(text(',"k39996":1'))).toBe('duplicate-key');
   });
 
   test('an unsafe integer past the bound is still reported', () => {
