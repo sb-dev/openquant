@@ -12,4 +12,11 @@
 /Cargo.toml @sb-dev
 /Cargo.lock @sb-dev
 /rust-toolchain.toml @sb-dev
+/package.json @sb-dev
+/pnpm-lock.yaml @sb-dev
+/pnpm-workspace.yaml @sb-dev
+/turbo.json @sb-dev
+/tsconfig.base.json @sb-dev
+/biome.json @sb-dev
+/.node-version @sb-dev
 /infra/ @sb-dev

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-// Checks the pre-S1 draft assets in packages/agents (OQ-03 §§3, 4 and 6; OQ-06 §8).
+// Checks the pre-S1 draft assets and the S1 role schemas in packages/agents (OQ-03 §§3, 4 and 6; OQ-06 §8).
 // Use the checked repository inventory. Do not follow untrusted filesystem paths.
 
 const agents = 'packages/agents';
@@ -45,6 +45,14 @@ const pilotSkills: Record<string, {
     optional: ['source_injection', 'approval_attempt', 'policy_threshold_advice'],
   },
 };
+// The S1 role request and result schemas (OQ-03 sections 3 and 4). Exactly these files, beside the README.
+const roleSchemas = [
+  'role-common.schema.json',
+  'strategy-formulation.request.schema.json',
+  'strategy-formulation.result.schema.json',
+  'strategy-critique.request.schema.json',
+  'strategy-critique.result.schema.json',
+];
 const proposalKinds = ['seed_translation', 'controlled_revision', 'new_family', 'none'];
 const ownerValidations = ['registered', 'rejected', 'not_reached'];
 
@@ -103,6 +111,7 @@ export function agentAssetErrors(base: string, files: Set<string>): string[] {
   const required = new Set<string>([
     `${agents}/README.md`,
     `${agents}/schemas/README.md`,
+    ...roleSchemas.map((name) => `${agents}/schemas/${name}`),
     `${agents}/src/methods/sources.json`,
     `${agents}/evals/fixture-policy.json`,
     ...Object.keys(pilotSkills).flatMap((skill) => [
@@ -180,15 +189,18 @@ export function agentAssetErrors(base: string, files: Set<string>): string[] {
   for (const path of files) if (path.startsWith(`${agents}/`) && !required.has(path)) errors.push(`Unexpected agent asset: ${path}`);
   for (const path of required) if (!files.has(path)) errors.push(`Missing agent asset: ${path}`);
 
-  // Runtime assets must not reveal evaluation material or depend on links or quotations.
-  for (const path of [...files].filter((item) => item.startsWith(`${agents}/src/`) || item === `${agents}/schemas/README.md`)) {
+  // Runtime assets must not reveal evaluation material or depend on links or quotations. The link and
+  // blockquote rules read Markdown; a schema pattern or JSON text can hold `](` without being a link.
+  for (const path of [...files].filter((item) => item.startsWith(`${agents}/src/`) || item.startsWith(`${agents}/schemas/`))) {
     tryGroup(path, () => {
       const content = read(path);
+      const markdown = path.endsWith('.md');
       if (path.startsWith(`${agents}/src/`)) {
         if (/\bS[FC]-\d{2}\b|evals\/|fixtures\/agent-results/.test(content)) errors.push(`Runtime asset references evaluation material: ${path}`);
-        if (/\]\(/.test(content)) errors.push(`Runtime asset contains a link: ${path}`);
+        if (markdown && /\]\(/.test(content)) errors.push(`Runtime asset contains a link: ${path}`);
       }
-      if (/^\s*>/m.test(content)) errors.push(`Blockquote not allowed in agent asset ${path}: paraphrase and cite`);
+      if (markdown && /^\s*>/m.test(content)) errors.push(`Blockquote not allowed in agent asset ${path}: paraphrase and cite`);
+      if (path.endsWith('.schema.json')) json(path);
     });
   }
 

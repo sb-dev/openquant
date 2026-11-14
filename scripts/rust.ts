@@ -5,11 +5,13 @@ import { resolve } from 'node:path';
 
 // The Rust steps of `pnpm verify`. Each is real work; none prints success on its own.
 // scripts/s0.ts compares this list, step by step and in order, with a literal copy of the expected steps.
+// The contracts report is the Rust side of the TypeScript parity test that the TypeScript steps run.
 export const cargoCommands = [
   'cargo fmt --all --check',
   'cargo clippy --workspace --all-targets --locked -- -D warnings',
   'cargo test --workspace --locked',
   'cargo run --locked -p openquant-engine --bin s0-replay -- --out local-runs/s0',
+  'cargo run --locked -p openquant-contracts --bin contracts-report -- --out local-runs/contracts',
 ] as const;
 
 export function toolchainChannel(base: string): string {

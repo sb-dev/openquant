@@ -1443,7 +1443,15 @@ scripts/repository.ts
 scripts/rust.ts
 scripts/s0.ts
 scripts/tests/repository.test.ts
+scripts/typescript.ts
 scripts/verify.ts
+scripts/workspace/boundaries.ts
+scripts/workspace/check-workspace.ts
+scripts/workspace/licences.ts
+scripts/workspace/tests/boundaries.test.ts
+scripts/workspace/tests/licences.test.ts
+scripts/workspace/tests/workflows.test.ts
+scripts/workspace/workflows.ts
 skills-lock.json
 tsconfig.base.json
 turbo.json

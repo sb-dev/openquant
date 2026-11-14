@@ -14,19 +14,14 @@ Proposers create strategies. Critics challenge them. Software produces official 
 
 ## Verify the bootstrap
 
-Use the Node version in `.node-version` and the Rust toolchain pinned in `rust-toolchain.toml` (`rustup toolchain install` installs it). The checks need no cloud, model, market-data or broker credentials. The repository checks need no dependency installation. The Rust steps fetch the crates locked in `Cargo.lock`.
+Use Node 24 (the version in `.node-version`), the pnpm version in `packageManager` in `package.json`, and the Rust toolchain pinned in `rust-toolchain.toml` (`rustup toolchain install` installs it). The checks need no cloud, model, market-data or broker credentials. Install the locked dependencies first. Verification compares the install with `pnpm-lock.yaml`, fails with the install command when they differ, and never installs. The Rust steps fetch the crates locked in `Cargo.lock`.
 
 ```bash
-node scripts/verify.ts
-```
-
-With the pinned pnpm version, the equivalent command is:
-
-```bash
+pnpm install --frozen-lockfile
 pnpm verify
 ```
 
-`verify` runs the repository checks, `cargo fmt`, `cargo clippy`, `cargo test` and the S0 replay. Replay the S0 fixture cases and read the report:
+`pnpm verify` runs `node scripts/verify.ts`: the repository checks, `cargo fmt`, `cargo clippy`, `cargo test`, the S0 replay and the Rust contracts report, then the S1 TypeScript steps: Turborepo typecheck, lint, test and build without cached results, and the workspace checks (licences, import boundaries, workflow files). S1 is incomplete. Real-Postgres tests arrive with the S1 durable API. Replay the S0 fixture cases and read the report:
 
 ```bash
 cargo run --locked -p openquant-engine --bin s0-replay

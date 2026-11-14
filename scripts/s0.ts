@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { posix, resolve } from 'node:path';
 import { cargoCommands } from './rust.ts';
+import { typescriptCommands } from './typescript.ts';
 
 // OQ-06 section 8: the S0 rows of "Connected slices and acceptance cases".
 export const s0Rows = [
@@ -50,6 +51,16 @@ export const expectedCargoCommands: readonly string[] = [
   'cargo clippy --workspace --all-targets --locked -- -D warnings',
   'cargo test --workspace --locked',
   'cargo run --locked -p openquant-engine --bin s0-replay -- --out local-runs/s0',
+  'cargo run --locked -p openquant-contracts --bin contracts-report -- --out local-runs/contracts',
+];
+
+// The TypeScript steps that verification must run after the dependency check, in this order (OQ-06 sections
+// 1 and 2). A literal for the same reason: it must not be read from scripts/typescript.ts. Turborepo runs
+// without cached results (--force); the workspace checks and their tests need the installed dependencies.
+export const expectedTypescriptCommands: readonly string[] = [
+  'pnpm exec turbo run typecheck lint test build --force',
+  'pnpm exec node scripts/workspace/check-workspace.ts',
+  'pnpm exec node --test scripts/workspace/tests/*.test.ts',
 ];
 
 // Protocol manifest vocabulary. The Rust tests select entries by these exact expect values. For
@@ -62,17 +73,25 @@ export const protocolEngineContracts: readonly string[] = ['strategy-artefact', 
 export const protocolConnectedContracts: readonly string[] = ['evaluation-plan', 'evaluation-request', 'evaluation-submission', 'job-dispatch', 'attempt-claim', 'command', 'research-profile', 'cohort-policy', 'dataset-manifest', 'retrieval-request', 'retrieval-result', 'validation-result', 'evaluation-metrics', 'gate-report', 'agent-dispatch', 'agent-attempt-result', 'api-error', 'release-manifest'];
 
 // Exact equality with the expected list: same steps, same flags, same order, nothing extra.
-export function cargoCommandErrors(commands: readonly string[]): string[] {
+function stepListErrors(file: string, kind: string, expected: readonly string[], commands: readonly string[]): string[] {
   const errors: string[] = [];
-  for (const command of expectedCargoCommands) {
-    if (!commands.includes(command)) errors.push(`scripts/rust.ts must run: ${command}`);
+  for (const command of expected) {
+    if (!commands.includes(command)) errors.push(`${file} must run: ${command}`);
   }
   for (const command of commands) {
-    if (!expectedCargoCommands.includes(command)) errors.push(`scripts/rust.ts runs a Rust step that is not expected: ${command}`);
+    if (!expected.includes(command)) errors.push(`${file} runs a ${kind} step that is not expected: ${command}`);
   }
-  const same = commands.length === expectedCargoCommands.length && commands.every((command, index) => command === expectedCargoCommands[index]);
-  if (!same && errors.length === 0) errors.push(`scripts/rust.ts must list the Rust steps once each, in this order: ${expectedCargoCommands.join(' | ')}`);
+  const same = commands.length === expected.length && commands.every((command, index) => command === expected[index]);
+  if (!same && errors.length === 0) errors.push(`${file} must list the ${kind} steps once each, in this order: ${expected.join(' | ')}`);
   return errors;
+}
+
+export function cargoCommandErrors(commands: readonly string[]): string[] {
+  return stepListErrors('scripts/rust.ts', 'Rust', expectedCargoCommands, commands);
+}
+
+export function typescriptCommandErrors(commands: readonly string[]): string[] {
+  return stepListErrors('scripts/typescript.ts', 'TypeScript', expectedTypescriptCommands, commands);
 }
 
 // Source text without comments, so a comment cannot satisfy a code-shape check. String and template
@@ -83,8 +102,9 @@ export function withoutComments(source: string): string {
 }
 
 // Code shapes that scripts/verify.ts must keep, in this order. Each is the statement that makes a
-// step bind: the exit-code checks, the toolchain pin check, the fixture digest comparison and the
-// report check. The behavioural tests run the real driver as well; these shapes fail fast and say what is missing.
+// step bind: the exit-code checks, the toolchain pin check, the fixture digest comparisons, the report
+// check and the dependency check before the TypeScript steps. The behavioural tests run the real driver
+// as well; these shapes fail fast and say what is missing.
 const driverShapes: ReadonlyArray<readonly [string, RegExp]> = [
   ['stop when the repository checks or their tests fail', /for\s*\(\s*const\s+args\s+of\s+\[\s*\[\s*'scripts\/check-repository\.ts'\s*\]\s*,\s*\[\s*'--test'\s*,\s*'scripts\/tests\/repository\.test\.ts'\s*\]\s*\]\s*\)\s*\{\s*const\s+result\s*=\s*spawnSync\(\s*process\.execPath\s*,\s*args\s*,\s*\{[^}]*\}\s*\)\s*;\s*(?:if\s*\(\s*result\.error\s*\)\s*console\.error\(\s*result\.error\.message\s*\)\s*;\s*)?if\s*\(\s*result\.status\s*!==\s*0\s*\)\s*process\.exit\(\s*result\.status\s*\?\?\s*1\s*\)/],
   ['fail when the pinned toolchain is not the one that runs', /const\s+pinError\s*=\s*toolchainPinError\(\s*root\s*\)\s*;\s*if\s*\(\s*pinError\s*\)\s*fail\(\s*pinError\s*\)\s*;/],
@@ -92,6 +112,10 @@ const driverShapes: ReadonlyArray<readonly [string, RegExp]> = [
   ['run every Cargo command and fail on a non-zero exit status', /for\s*\(\s*const\s+command\s+of\s+cargoCommands\s*\)\s*\{\s*const\s+status\s*=\s*runCargo\(\s*root\s*,\s*command\s*\)\s*;\s*if\s*\(\s*status\s*!==\s*0\s*\)\s*fail\(/],
   ['compare the fixture digest after the Cargo steps', /if\s*\(\s*fixtureDigest\(\s*root\s*\)\s*!==\s*fixturesBefore\s*\)\s*fail\(/],
   ['fail on any replay report problem', /const\s+problems\s*=\s*reportErrors\(\s*root\s*\)\s*;\s*if\s*\(\s*problems\.length\s*\)\s*fail\(/],
+  ['fail when the installed dependencies do not match pnpm-lock.yaml', /const\s+installError\s*=\s*dependencyInstallError\(\s*root\s*\)\s*;\s*if\s*\(\s*installError\s*\)\s*fail\(\s*installError\s*\)\s*;/],
+  ['record the fixture digest before the TypeScript steps', /const\s+typescriptFixturesBefore\s*=\s*fixtureDigest\(\s*root\s*\)\s*;/],
+  ['run every TypeScript command and fail on a non-zero exit status', /for\s*\(\s*const\s+command\s+of\s+typescriptCommands\s*\)\s*\{\s*const\s+status\s*=\s*runTypescript\(\s*root\s*,\s*command\s*\)\s*;\s*if\s*\(\s*status\s*!==\s*0\s*\)\s*fail\(/],
+  ['compare the fixture digest after the TypeScript steps', /if\s*\(\s*fixtureDigest\(\s*root\s*\)\s*!==\s*typescriptFixturesBefore\s*\)\s*fail\(/],
   ['report success only after those checks', /console\.log\(\s*'\\nVerification passed/],
 ];
 const driverFail = /function\s+fail\(\s*message\s*:\s*string\s*\)\s*:\s*never\s*\{\s*console\.error\(`\\nVerification failed: \$\{message\}`\)\s*;\s*process\.exit\(\s*1\s*\)\s*;\s*\}/;
@@ -120,6 +144,26 @@ export function rustModuleErrors(source: string): string[] {
   const errors: string[] = [];
   if (!/return\s+result\.status\s*\?\?\s*1\s*;/.test(code)) errors.push('scripts/rust.ts runCargo must return the exit status of the command, or 1 when it did not run');
   if (!/stdout\.startsWith\(\s*`rustc \$\{channel\} `\s*\)/.test(code)) errors.push('scripts/rust.ts must compare the installed rustc version with the pinned channel');
+  return errors;
+}
+
+// The parts of scripts/typescript.ts whose behaviour the driver relies on. The driver tests exercise them.
+export function typescriptModuleErrors(source: string): string[] {
+  const code = withoutComments(source);
+  const errors: string[] = [];
+  const body = (name: string) => new RegExp(`export\\s+function\\s+${name}\\s*\\([^)]*\\)\\s*:[^{]*\\{([\\s\\S]*?)\\n\\}`).exec(code)?.[1] ?? '';
+  const run = body('runTypescript');
+  if (!/return\s+result\.status\s*\?\?\s*1\s*;/.test(run)) errors.push('scripts/typescript.ts runTypescript must return the exit status of the command, or 1 when it did not run');
+  if (!/TURBO_TELEMETRY_DISABLED\s*:\s*'1'/.test(run) || !/pnpm_config_verify_deps_before_run\s*:\s*'error'/.test(run) || !/spawnSync\(\s*program\s*,\s*args\s*,\s*\{[^}]*\benv\b[^}]*\}\s*\)/.test(run)) {
+    errors.push('scripts/typescript.ts runTypescript must run each step with TURBO_TELEMETRY_DISABLED=1 and pnpm verify-deps-before-run=error');
+  }
+  const check = body('dependencyInstallError');
+  if (!/'node_modules\/\.pnpm\/lock\.yaml'/.test(check) || !/'pnpm-lock\.yaml'/.test(check) || !/if\s*\(\s*!\s*readFileSync\(\s*installed\s*\)\.equals\(\s*readFileSync\(\s*wanted\s*\)\s*\)\s*\)\s*\{?\s*return\s/.test(check)) {
+    errors.push('scripts/typescript.ts dependencyInstallError must compare node_modules/.pnpm/lock.yaml with pnpm-lock.yaml byte for byte');
+  }
+  if (!/if\s*\(\s*result\.stdout\.trim\(\)\s*!==\s*pinned\s*\)\s*\{?\s*return\s/.test(check)) errors.push('scripts/typescript.ts dependencyInstallError must compare the running pnpm version with packageManager');
+  if (!/export\s+const\s+installCommand\s*=\s*'pnpm install --frozen-lockfile'\s*;/.test(code)) errors.push('scripts/typescript.ts must tell the user to run: pnpm install --frozen-lockfile');
+  if (/['"`](?:install|add|update)['"`]/.test(code)) errors.push('scripts/typescript.ts must never install, add or update dependencies');
   return errors;
 }
 
@@ -166,6 +210,14 @@ export function s0Errors(base: string, files: Set<string>): string[] {
     if (install < 0 || run < 0 || install > run) errors.push('CI must install the pinned Rust toolchain before node scripts/verify.ts');
     const timeout = /timeout-minutes:\s*(\d+)/.exec(ci.slice(ci.indexOf('checks:')));
     if (!timeout || Number(timeout[1]) < 20) errors.push('CI checks job needs timeout-minutes of at least 20 for a cold Cargo build');
+    const dependencies = ci.indexOf('pnpm install --frozen-lockfile');
+    if (dependencies < 0 || run < 0 || dependencies > run) errors.push('CI must install the locked dependencies with pnpm install --frozen-lockfile before node scripts/verify.ts');
+  });
+
+  guard('TypeScript verification', () => {
+    // The imported list is the one the driver runs. It is compared with the literal expectation above.
+    errors.push(...typescriptCommandErrors(typescriptCommands));
+    errors.push(...typescriptModuleErrors(text(base, 'scripts/typescript.ts')));
   });
 
   const caseDirs = [...new Set([...files].map((f) => /^fixtures\/s0\/cases\/([^/]+)\//.exec(f)?.[1]).filter((c): c is string => !!c))].sort();
