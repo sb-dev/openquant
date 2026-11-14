@@ -1303,6 +1303,7 @@ packages/api-contracts/README.md
 packages/api-contracts/routes/v1.json
 packages/api-contracts/rust/Cargo.toml
 packages/api-contracts/rust/build.rs
+packages/api-contracts/rust/src/bin/contracts_report.rs
 packages/api-contracts/rust/src/canonical.rs
 packages/api-contracts/rust/src/decimal.rs
 packages/api-contracts/rust/src/error.rs
@@ -1314,6 +1315,7 @@ packages/api-contracts/rust/src/strict.rs
 packages/api-contracts/rust/tests/contracts.rs
 packages/api-contracts/rust/tests/exact.rs
 packages/api-contracts/rust/tests/protocol.rs
+packages/api-contracts/rust/tests/registry.rs
 packages/api-contracts/rust/tests/validation_limits.rs
 packages/api-contracts/schemas/agent-attempt-result.schema.json
 packages/api-contracts/schemas/agent-dispatch.schema.json

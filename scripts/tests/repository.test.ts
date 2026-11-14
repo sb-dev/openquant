@@ -584,7 +584,7 @@ test('a manifest entry with an unrecognised expect value fails',()=>mutated(mani
   entries.find((entry)=>entry.path==='protocol/invalid/strategy.version-2.json').expect = 'ignored';
 }),/Protocol manifest entry protocol\/invalid\/strategy\.version-2\.json: expect must be one of valid, schema_invalid, semantic_invalid, found "ignored"/));
 test('a manifest entry with a missing expect value fails',()=>mutated(manifestEdit((entries)=>{ delete entries[0].expect; }),/expect must be one of valid, schema_invalid, semantic_invalid, found undefined/));
-test('a manifest entry with an unknown contract fails',()=>mutated(manifestEdit((entries)=>{ entries[0].contract = 'strategy'; }),/contract must be one of strategy-artefact, evaluation-input, evaluation-result, checkpoint, found "strategy"/));
+test('a manifest entry with an unknown contract fails',()=>mutated(manifestEdit((entries)=>{ entries[0].contract = 'strategy'; }),/contract must be one of strategy-artefact, evaluation-input, evaluation-result, checkpoint, evaluation-plan, evaluation-request, evaluation-submission, job-dispatch, attempt-claim, command, research-profile, cohort-policy, dataset-manifest, retrieval-request, retrieval-result, validation-result, evaluation-metrics, gate-report, agent-dispatch, agent-attempt-result, api-error, release-manifest, found "strategy"/));
 test('an invalid manifest entry must state its failure code',()=>mutated(manifestEdit((entries)=>{
   delete entries.find((entry)=>entry.expect==='schema_invalid').code;
 }),/an invalid fixture must state its expected failure code/));

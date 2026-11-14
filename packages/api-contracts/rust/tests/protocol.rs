@@ -1,8 +1,9 @@
 //! Shared protocol fixtures (`fixtures/protocol`): valid payloads parse, schema-invalid payloads
 //! are rejected with the expected code, and the manifest lists every file.
 //!
-//! The same manifest drives the core-level checks in `packages/quant-core/tests/protocol.rs`.
-//! S1 runs the same fixtures through the TypeScript validators.
+//! The manifest lists the engine contracts and the S1 connected envelopes (OQ-05 section 7). The
+//! same manifest drives the core-level checks in `packages/quant-core/tests/protocol.rs`, which
+//! skip the envelopes, and the `contracts-report` binary that the TypeScript parity test reads.
 
 #![allow(
     clippy::unwrap_used,
@@ -13,10 +14,7 @@
 
 use std::{collections::BTreeSet, path::Path};
 
-use openquant_contracts::{
-    Checkpoint, Contract, EvaluationInput, EvaluationResult, StrategyArtefact, digest, parse,
-    parse_json, payload_digest,
-};
+use openquant_contracts::{AnyContract, digest, parse_json};
 use serde_json::{Value, json};
 
 const FIXTURES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../fixtures");
@@ -36,24 +34,12 @@ fn text_of(entry: &Value) -> String {
     std::fs::read_to_string(format!("{FIXTURES}/{path}")).unwrap_or_else(|e| panic!("{path}: {e}"))
 }
 
-/// Parse through the typed binding; return the failure code text on rejection.
+/// Parse through the typed binding; return the digest, or the failure code text on rejection.
 fn parse_as(contract: &str, text: &str) -> Result<String, String> {
-    let reject = |e: openquant_contracts::ContractError| e.failure_code().to_string();
-    match contract {
-        "strategy-artefact" => parse::<StrategyArtefact>(text)
-            .map(|p| payload_digest(&p).unwrap())
-            .map_err(reject),
-        "evaluation-input" => parse::<EvaluationInput>(text)
-            .map(|p| payload_digest(&p).unwrap())
-            .map_err(reject),
-        "evaluation-result" => parse::<EvaluationResult>(text)
-            .map(|p| payload_digest(&p).unwrap())
-            .map_err(reject),
-        "checkpoint" => parse::<Checkpoint>(text)
-            .map(|p| payload_digest(&p).unwrap())
-            .map_err(reject),
-        other => panic!("unknown contract {other}"),
-    }
+    AnyContract::from_name(contract)
+        .unwrap_or_else(|| panic!("unknown contract {contract}"))
+        .parse_digest(text)
+        .map_err(|e| e.failure_code().to_string())
 }
 
 /// Why an entry would be silently skipped or would panic late, or `Ok` when every test acts on it.
@@ -69,11 +55,8 @@ fn check_entry(entry: &Value) -> Result<(), String> {
             "{path}: unrecognised expect {expect:?}; every test would skip it. Use one of {EXPECTATIONS:?}"
         ));
     }
-    let known: Vec<&str> = Contract::ALL
-        .iter()
-        .filter_map(|c| c.version_tag().split('/').next())
-        .collect();
-    if !known.contains(&contract) {
+    if AnyContract::from_name(contract).is_none() {
+        let known: Vec<&str> = AnyContract::all().map(AnyContract::name).collect();
         return Err(format!(
             "{path}: unknown contract {contract:?}; use one of {known:?}"
         ));
@@ -103,11 +86,15 @@ fn the_entry_check_rejects_an_unrecognised_expectation_or_contract() {
     assert!(check_entry(&entry("checkpoint", "valid")).is_ok());
     assert!(check_entry(&entry("strategy-artefact", "schema_invalid")).is_ok());
     assert!(check_entry(&entry("evaluation-input", "semantic_invalid")).is_ok());
+    assert!(check_entry(&entry("job-dispatch", "valid")).is_ok());
+    assert!(check_entry(&entry("command", "schema_invalid")).is_ok());
     for (bad, needle) in [
         (entry("checkpoint", "ignored"), "unrecognised expect"),
         (entry("checkpoint", "Valid"), "unrecognised expect"),
         (entry("checkpoint", ""), "unrecognised expect"),
         (entry("strategy", "valid"), "unknown contract"),
+        (entry("connected-common", "valid"), "unknown contract"),
+        (entry("common", "valid"), "unknown contract"),
         (entry("", "valid"), "unknown contract"),
         (json!({"path": "p", "contract": "checkpoint"}), "`expect`"),
         (json!({"path": "p", "expect": "valid"}), "`contract`"),
@@ -137,12 +124,7 @@ fn valid_payloads_parse_and_round_trip_without_adding_or_dropping_fields() {
         );
         seen.insert(contract.to_owned());
     }
-    for contract in [
-        "strategy-artefact",
-        "evaluation-input",
-        "evaluation-result",
-        "checkpoint",
-    ] {
+    for contract in AnyContract::all().map(AnyContract::name) {
         assert!(seen.contains(contract), "no valid fixture for {contract}");
     }
 }
@@ -150,6 +132,7 @@ fn valid_payloads_parse_and_round_trip_without_adding_or_dropping_fields() {
 #[test]
 fn schema_invalid_payloads_are_rejected_with_the_expected_code() {
     let mut codes = BTreeSet::new();
+    let mut seen = BTreeSet::new();
     let mut count = 0;
     for entry in manifest()
         .iter()
@@ -162,7 +145,14 @@ fn schema_invalid_payloads_are_rejected_with_the_expected_code() {
             Err(code) => assert_eq!(code, expected, "{}", entry["path"]),
         }
         codes.insert(expected.to_owned());
+        seen.insert(contract.to_owned());
         count += 1;
+    }
+    for contract in AnyContract::all().map(AnyContract::name) {
+        assert!(
+            seen.contains(contract),
+            "no schema-invalid fixture for {contract}"
+        );
     }
     assert!(
         count >= 8,
