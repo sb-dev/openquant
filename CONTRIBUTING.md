@@ -27,7 +27,7 @@ pnpm verify
 
 Regenerate spec metadata and the repository file map when needed. In a Git checkout, stage intended added and removed paths before generating the map. Do not stage secrets or local output.
 
-New executable packages must add their required checks. S0 added real Rust fixture evaluation to `pnpm verify`. S1 adds the TypeScript steps: Turborepo typecheck, lint, test and build without cached results, and the workspace checks. The remaining S1 work and later M1 slices must add verified research execution. Public CLI release separately requires a clean installed demo. A mock or screenshot cannot satisfy those gates.
+New executable packages must add their required checks. S0 added real Rust fixture evaluation to `pnpm verify`. S1 adds the TypeScript steps: Turborepo typecheck, lint, test and build without cached results, and the workspace checks. A new workspace package also adds its directory, name and task scripts to `expectedWorkspacePackages` in `scripts/s0.ts`, its Vitest configuration to `pinnedFiles`, and the test reporter to its `test` script, so verification fails while one of its tasks is missing or runs no test. The remaining S1 work and later M1 slices must add verified research execution. Public CLI release separately requires a clean installed demo. A mock or screenshot cannot satisfy those gates.
 
 ## Commit and review
 

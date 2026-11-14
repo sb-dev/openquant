@@ -1,15 +1,19 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { stepEnvironment } from './environment.ts';
 
 // The TypeScript steps of `pnpm verify` (OQ-06 sections 1 and 2). They run after the Rust steps because the
 // contract parity test reads the Rust contracts report. Each is real work; none prints success on its own.
-// Turborepo runs with --force, so no cached task result can stand in for a run.
+// The workspace checks run first: among them, the Turborepo task list must hold exactly the expected package
+// tasks, so a run with a package or a task missing cannot pass. Turborepo then runs with --force, so no cached
+// task result can stand in for a run. The workspace test files are named one by one, so a missing file fails,
+// and their reporter fails a run in which a file ran no test or a test was skipped.
 // scripts/s0.ts compares this list, step by step and in order, with a literal copy of the expected steps.
 export const typescriptCommands = [
-  'pnpm exec turbo run typecheck lint test build --force',
   'pnpm exec node scripts/workspace/check-workspace.ts',
-  'pnpm exec node --test scripts/workspace/tests/*.test.ts',
+  'pnpm exec turbo run typecheck lint test build --force',
+  'pnpm exec node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./scripts/workspace/test-reporter.ts --test-reporter-destination=stderr scripts/workspace/tests/boundaries.test.ts scripts/workspace/tests/licences.test.ts scripts/workspace/tests/reporters.test.ts scripts/workspace/tests/tasks.test.ts scripts/workspace/tests/workflows.test.ts',
 ] as const;
 
 export const installCommand = 'pnpm install --frozen-lockfile';
@@ -32,7 +36,7 @@ export function dependencyInstallError(base: string): string | undefined {
   } catch (error) {
     return error instanceof Error ? error.message : String(error);
   }
-  const result = spawnSync('pnpm', ['--version'], { cwd: base, encoding: 'utf8' });
+  const result = spawnSync('pnpm', ['--version'], { cwd: base, encoding: 'utf8', env: stepEnvironment() });
   if ((result.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') {
     return `pnpm was not found on PATH. Verification needs pnpm ${pinned} (packageManager in package.json) and the dependencies locked in pnpm-lock.yaml. Install pnpm ${pinned}, then ${instruction}`;
   }
@@ -52,13 +56,12 @@ export function dependencyInstallError(base: string): string | undefined {
   return undefined;
 }
 
+// Every step runs with stepEnvironment() (scripts/environment.ts): no inherited NODE_OPTIONS, NODE_TEST_* or
+// TURBO_* variable, Turborepo telemetry off, and pnpm set to fail instead of installing.
 export function runTypescript(base: string, command: string): number {
   const [program, ...args] = command.split(' ');
   console.log(`\n$ ${command}`);
-  // No Turborepo telemetry. pnpm 11 installs before `exec` when it finds the install out of date; here it must
-  // fail instead, so a step can never install silently.
-  const env = { ...process.env, TURBO_TELEMETRY_DISABLED: '1', pnpm_config_verify_deps_before_run: 'error' };
-  const result = spawnSync(program, args, { cwd: base, stdio: 'inherit', env });
+  const result = spawnSync(program, args, { cwd: base, stdio: 'inherit', env: stepEnvironment() });
   if (result.error) console.error(result.error.message);
   return result.status ?? 1;
 }

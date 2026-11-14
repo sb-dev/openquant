@@ -55,13 +55,53 @@ export const expectedCargoCommands: readonly string[] = [
 ];
 
 // The TypeScript steps that verification must run after the dependency check, in this order (OQ-06 sections
-// 1 and 2). A literal for the same reason: it must not be read from scripts/typescript.ts. Turborepo runs
-// without cached results (--force); the workspace checks and their tests need the installed dependencies.
-export const expectedTypescriptCommands: readonly string[] = [
-  'pnpm exec turbo run typecheck lint test build --force',
-  'pnpm exec node scripts/workspace/check-workspace.ts',
-  'pnpm exec node --test scripts/workspace/tests/*.test.ts',
+// 1 and 2). A literal for the same reason: it must not be read from scripts/typescript.ts. The workspace checks
+// run first and compare the Turborepo task list with expectedWorkspacePackages. Turborepo runs without cached
+// results (--force). The workspace test files are named one by one, so a missing file fails, and their
+// reporter fails a file that ran no test or any skipped test.
+export const workspaceTestFiles: readonly string[] = [
+  'scripts/workspace/tests/boundaries.test.ts',
+  'scripts/workspace/tests/licences.test.ts',
+  'scripts/workspace/tests/reporters.test.ts',
+  'scripts/workspace/tests/tasks.test.ts',
+  'scripts/workspace/tests/workflows.test.ts',
 ];
+export const expectedTypescriptCommands: readonly string[] = [
+  'pnpm exec node scripts/workspace/check-workspace.ts',
+  'pnpm exec turbo run typecheck lint test build --force',
+  `pnpm exec node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./scripts/workspace/test-reporter.ts --test-reporter-destination=stderr ${workspaceTestFiles.join(' ')}`,
+];
+
+// The workspace packages, in the order pnpm-workspace.yaml lists them (OQ-06 section 1), and the exact script
+// behind each Turborepo task. A literal, so the expectation is not read from the files being checked. The test
+// script names the reporter that fails a run with no executed test or a skipped one. The workspace checks compare
+// this list with the Turborepo dry run before Turborepo runs.
+export const workspaceTasks = ['typecheck', 'lint', 'test', 'build'] as const;
+export interface WorkspacePackage {
+  directory: string;
+  name: string;
+  scripts: Readonly<Record<(typeof workspaceTasks)[number], string>>;
+}
+export const expectedWorkspacePackages: readonly WorkspacePackage[] = [
+  {
+    directory: 'packages/api-contracts/ts',
+    name: '@openquant/api-contracts',
+    scripts: {
+      typecheck: 'node tools/generate.ts && tsc -p tsconfig.json && tsc -p tsconfig.test.json',
+      lint: 'biome check --error-on-warnings .',
+      test: 'node tools/generate.ts && vitest run --reporter=default --reporter=./test-reporter.ts',
+      build: 'node tools/generate.ts && tsc -p tsconfig.json && node tools/bundle-check.ts',
+    },
+  },
+];
+
+// Files that decide whether a test run counts, pinned by SHA-256 of their bytes: the two reporters and the Vitest
+// configuration. A change to one is a change to this list in the same review.
+export const pinnedFiles: Readonly<Record<string, string>> = {
+  'scripts/workspace/test-reporter.ts': '7457088ad4e295409b74bb5a92397f42efca6bb446ab87aace1dbdf30e0c3d1e',
+  'packages/api-contracts/ts/test-reporter.ts': '5a19ae965e6153903150f7fe3e37fc39a1e5b26a7729bb115065b70faf1d865d',
+  'packages/api-contracts/ts/vitest.config.ts': '58433531d0bf46b50dba6178f0ce16c6b86c1972d8b3021edcbd9e3c3d5550fb',
+};
 
 // Protocol manifest vocabulary. The Rust tests select entries by these exact expect values. For
 // contracts, packages/api-contracts/rust/tests/protocol.rs and the contracts-report binary reject an
@@ -101,6 +141,123 @@ export function withoutComments(source: string): string {
   return source.replace(token, (match, literal) => (literal === undefined ? ' ' : match));
 }
 
+// The code of a source file: no comments, no trailing spaces and no blank lines. The literal copies below hold the
+// reviewed code of the files that run verification in this form, so a comment or a blank line may change freely
+// and any other change, such as an added statement, an early exit or an environment change, does not pass.
+export function codeLines(source: string): string[] {
+  return withoutComments(source).split('\n').map((line) => line.trimEnd()).filter((line) => line.trim() !== '');
+}
+
+// The code lines of one top-level function, from its declaration to the closing brace at column 0.
+export function functionLines(source: string, name: string): string[] {
+  const lines = codeLines(source);
+  const start = lines.findIndex((line) => line.startsWith(`export function ${name}(`));
+  if (start < 0) return [];
+  const end = lines.indexOf('}', start);
+  return lines.slice(start, end < 0 ? undefined : end + 1);
+}
+
+function codeDifference(file: string, part: string, expected: readonly string[], actual: readonly string[]): string[] {
+  for (let index = 0; index < Math.max(expected.length, actual.length); index += 1) {
+    if (expected[index] !== actual[index]) {
+      return [`${file} must keep the reviewed code of ${part} (scripts/s0.ts), comments and blank lines aside; code line ${index + 1} differs: expected ${JSON.stringify(expected[index] ?? '(nothing)')}, found ${JSON.stringify(actual[index] ?? '(nothing)')}`];
+    }
+  }
+  return [];
+}
+
+// The reviewed code of scripts/verify.ts, the whole file. Lines with single quotes are written in double quotes.
+export const expectedVerifyCode: readonly string[] = [
+  "import { spawnSync } from 'node:child_process';",
+  "import { stepEnvironment } from './environment.ts';",
+  "import { root } from './repository.ts';",
+  "import { cargoCommands, fixtureDigest, runCargo, toolchainPinError } from './rust.ts';",
+  "import { reportErrors } from './s0.ts';",
+  "import { dependencyInstallError, runTypescript, typescriptCommands } from './typescript.ts';",
+  'function fail(message: string): never {',
+  '  console.error(`\\nVerification failed: ${message}`);',
+  '  process.exit(1);',
+  '}',
+  "for (const args of [['scripts/check-repository.ts'], ['--test', 'scripts/tests/repository.test.ts']]) {",
+  "  const result = spawnSync(process.execPath, args, { cwd: root, stdio: 'inherit', env: stepEnvironment() });",
+  '  if (result.error) console.error(result.error.message);',
+  '  if (result.status !== 0) process.exit(result.status ?? 1);',
+  '}',
+  'const pinError = toolchainPinError(root);',
+  'if (pinError) fail(pinError);',
+  'const fixturesBefore = fixtureDigest(root);',
+  'for (const command of cargoCommands) {',
+  '  const status = runCargo(root, command);',
+  '  if (status !== 0) fail(`${command} exited with status ${status}`);',
+  '}',
+  "if (fixtureDigest(root) !== fixturesBefore) fail('fixtures changed while verification ran; golden data is never regenerated during a test');",
+  'const problems = reportErrors(root);',
+  "if (problems.length) fail(problems.join('\\n'));",
+  'const installError = dependencyInstallError(root);',
+  'if (installError) fail(installError);',
+  'const typescriptFixturesBefore = fixtureDigest(root);',
+  'for (const command of typescriptCommands) {',
+  '  const status = runTypescript(root, command);',
+  '  if (status !== 0) fail(`${command} exited with status ${status}`);',
+  '}',
+  "if (fixtureDigest(root) !== typescriptFixturesBefore) fail('fixtures changed while the TypeScript steps ran; golden data is never regenerated during a test');",
+  "console.log('\\nVerification passed: repository checks, Rust format, clippy, tests, the S0 offline replay, the contracts report, and the TypeScript typecheck, lint, test, build and workspace checks. S1 is incomplete: the connected competition is not implemented.');",
+];
+
+// The reviewed code of scripts/environment.ts, the whole file: the environment of every process verification starts.
+export const expectedEnvironmentCode: readonly string[] = [
+  'const removedNames: ReadonlySet<string> = new Set([',
+  "  'BASH_ENV',",
+  "  'ENV',",
+  "  'NODE_OPTIONS',",
+  "  'RUSTFLAGS',",
+  "  'RUSTDOCFLAGS',",
+  "  'RUSTC_WRAPPER',",
+  "  'RUSTC_WORKSPACE_WRAPPER',",
+  "  'CARGO_BUILD_RUSTFLAGS',",
+  "  'CARGO_BUILD_RUSTDOCFLAGS',",
+  "  'CARGO_ENCODED_RUSTFLAGS',",
+  "  'CARGO_ENCODED_RUSTDOCFLAGS',",
+  "  'CARGO_BUILD_RUSTC_WRAPPER',",
+  "  'CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER',",
+  "  'BIOME_CONFIG_PATH',",
+  ']);',
+  'const removedPatterns: readonly RegExp[] = [/^NODE_TEST_/, /^TURBO_/, /^CARGO_TARGET_.+_(?:RUNNER|RUSTFLAGS|RUSTDOCFLAGS|LINKER)$/];',
+  'export function isRemovedVariable(name: string): boolean {',
+  '  const key = name.toUpperCase();',
+  '  return removedNames.has(key) || removedPatterns.some((pattern) => pattern.test(key));',
+  '}',
+  'export function stepEnvironment(): Record<string, string | undefined> {',
+  '  const environment: Record<string, string | undefined> = { ...process.env };',
+  '  for (const name of Object.keys(environment)) {',
+  '    if (isRemovedVariable(name)) delete environment[name];',
+  '  }',
+  "  environment.TURBO_TELEMETRY_DISABLED = '1';",
+  "  environment.pnpm_config_verify_deps_before_run = 'error';",
+  '  return environment;',
+  '}',
+];
+
+// The reviewed code of runCargo in scripts/rust.ts and runTypescript in scripts/typescript.ts.
+export const expectedRunCargoCode: readonly string[] = [
+  'export function runCargo(base: string, command: string): number {',
+  "  const [program, ...args] = command.split(' ');",
+  '  console.log(`\\n$ ${command}`);',
+  "  const result = spawnSync(program, args, { cwd: base, stdio: 'inherit', env: stepEnvironment() });",
+  '  if (result.error) console.error(result.error.message);',
+  '  return result.status ?? 1;',
+  '}',
+];
+export const expectedRunTypescriptCode: readonly string[] = [
+  'export function runTypescript(base: string, command: string): number {',
+  "  const [program, ...args] = command.split(' ');",
+  '  console.log(`\\n$ ${command}`);',
+  "  const result = spawnSync(program, args, { cwd: base, stdio: 'inherit', env: stepEnvironment() });",
+  '  if (result.error) console.error(result.error.message);',
+  '  return result.status ?? 1;',
+  '}',
+];
+
 // Code shapes that scripts/verify.ts must keep, in this order. Each is the statement that makes a
 // step bind: the exit-code checks, the toolchain pin check, the fixture digest comparisons, the report
 // check and the dependency check before the TypeScript steps. The behavioural tests run the real driver
@@ -135,6 +292,52 @@ export function verifyDriverErrors(source: string): string[] {
       errors.push(`scripts/verify.ts must ${driverShapes[step - 1][0]} before it can ${driverShapes[step][0]}`);
     }
   }
+  errors.push(...codeDifference('scripts/verify.ts', 'the whole file', expectedVerifyCode, codeLines(source)));
+  return errors;
+}
+
+// scripts/environment.ts: the whole file, and the two settings that every step needs.
+export function environmentModuleErrors(source: string): string[] {
+  const code = withoutComments(source);
+  const errors: string[] = [];
+  if (!/environment\.TURBO_TELEMETRY_DISABLED\s*=\s*'1'\s*;/.test(code) || !/environment\.pnpm_config_verify_deps_before_run\s*=\s*'error'\s*;/.test(code)) {
+    errors.push('scripts/environment.ts stepEnvironment must run each step with TURBO_TELEMETRY_DISABLED=1 and pnpm verify-deps-before-run=error');
+  }
+  errors.push(...codeDifference('scripts/environment.ts', 'the whole file', expectedEnvironmentCode, codeLines(source)));
+  return errors;
+}
+
+// Every process that verification starts takes stepEnvironment(). In each script that starts one, the only
+// child_process import is spawnSync, stepEnvironment comes from scripts/environment.ts, and every spawnSync call
+// ends with an options object literal whose last property is env: stepEnvironment().
+export function spawnEnvironmentErrors(file: string, source: string): string[] {
+  const code = withoutComments(source);
+  if (!/\bchild_process\b|\bspawnSync\b/.test(code)) return [];
+  const errors: string[] = [];
+  const spawnImport = /^import \{ spawnSync \} from 'node:child_process';$/m;
+  if (!spawnImport.test(code) || [...code.matchAll(/\bchild_process\b/g)].length !== 1) errors.push(`${file} may import only spawnSync from node:child_process, once`);
+  if (!/^import \{ stepEnvironment \} from '\.\.?\/environment\.ts';$/m.test(code) || /\b(?:function|const|let|var|class)\s+stepEnvironment\b/.test(code)) {
+    errors.push(`${file} must import stepEnvironment from scripts/environment.ts and not define its own`);
+  }
+  const uses = [...code.matchAll(/\bspawnSync\b/g)].length - (spawnImport.test(code) ? 1 : 0);
+  const calls = [...code.matchAll(/\bspawnSync\([^;{]*\{\s*(?:(?:cwd|stdio|encoding|maxBuffer)\s*:\s*[^,{}]+,\s*)*env\s*:\s*stepEnvironment\(\)\s*\}\s*\)/g)].length;
+  if (uses === 0 || calls !== uses) errors.push(`${file}: every spawnSync call must pass env: stepEnvironment() as the last option (${calls} of ${uses} do)`);
+  return errors;
+}
+
+// The modules that verify.ts imports run their top-level code before step 1. They may not use process,
+// globalThis, eval, Function, Reflect, prototypes, require or a dynamic import, and may not reassign a function
+// they declare, so none of them can exit early, change the environment of a step or replace a checked function.
+// scripts/environment.ts reads process.env and is checked whole; scripts/s0.ts is this guard.
+export const verifyModules: readonly string[] = ['scripts/repository.ts', 'scripts/rust.ts', 'scripts/typescript.ts', 'scripts/development-skills.ts', 'scripts/agent-assets.ts'];
+export function verifyModuleErrors(file: string, source: string): string[] {
+  const code = withoutComments(source);
+  const errors: string[] = [];
+  const used = /\b(?:process|globalThis|global|eval|Function|Reflect|prototype|__proto__)\b|\b(?:import|require)\s*\(/.exec(code);
+  if (used) errors.push(`${file} must not use ${used[0].replace(/\s*\($/, '()')}: verify.ts imports it, and only scripts/environment.ts reads the environment`);
+  for (const [, name] of code.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)/g)) {
+    if (new RegExp(`(?<!\\b(?:const|let|var)\\s+)(?<![.\\w$])${name.replace(/\$/g, '\\$')}\\s*(?:[-+*/%&|^]|\\*\\*|<<|>>>?|&&|\\|\\||\\?\\?)?=(?![=>])`).test(code)) errors.push(`${file} must not reassign its function ${name}`);
+  }
   return errors;
 }
 
@@ -144,6 +347,9 @@ export function rustModuleErrors(source: string): string[] {
   const errors: string[] = [];
   if (!/return\s+result\.status\s*\?\?\s*1\s*;/.test(code)) errors.push('scripts/rust.ts runCargo must return the exit status of the command, or 1 when it did not run');
   if (!/stdout\.startsWith\(\s*`rustc \$\{channel\} `\s*\)/.test(code)) errors.push('scripts/rust.ts must compare the installed rustc version with the pinned channel');
+  errors.push(...codeDifference('scripts/rust.ts', 'runCargo', expectedRunCargoCode, functionLines(source, 'runCargo')));
+  errors.push(...spawnEnvironmentErrors('scripts/rust.ts', source));
+  errors.push(...verifyModuleErrors('scripts/rust.ts', source));
   return errors;
 }
 
@@ -154,8 +360,8 @@ export function typescriptModuleErrors(source: string): string[] {
   const body = (name: string) => new RegExp(`export\\s+function\\s+${name}\\s*\\([^)]*\\)\\s*:[^{]*\\{([\\s\\S]*?)\\n\\}`).exec(code)?.[1] ?? '';
   const run = body('runTypescript');
   if (!/return\s+result\.status\s*\?\?\s*1\s*;/.test(run)) errors.push('scripts/typescript.ts runTypescript must return the exit status of the command, or 1 when it did not run');
-  if (!/TURBO_TELEMETRY_DISABLED\s*:\s*'1'/.test(run) || !/pnpm_config_verify_deps_before_run\s*:\s*'error'/.test(run) || !/spawnSync\(\s*program\s*,\s*args\s*,\s*\{[^}]*\benv\b[^}]*\}\s*\)/.test(run)) {
-    errors.push('scripts/typescript.ts runTypescript must run each step with TURBO_TELEMETRY_DISABLED=1 and pnpm verify-deps-before-run=error');
+  if (!/spawnSync\(\s*program\s*,\s*args\s*,\s*\{[^}]*\benv\s*:\s*stepEnvironment\(\)\s*\}\s*\)/.test(run)) {
+    errors.push('scripts/typescript.ts runTypescript must run each step with env: stepEnvironment()');
   }
   const check = body('dependencyInstallError');
   if (!/'node_modules\/\.pnpm\/lock\.yaml'/.test(check) || !/'pnpm-lock\.yaml'/.test(check) || !/if\s*\(\s*!\s*readFileSync\(\s*installed\s*\)\.equals\(\s*readFileSync\(\s*wanted\s*\)\s*\)\s*\)\s*\{?\s*return\s/.test(check)) {
@@ -164,6 +370,9 @@ export function typescriptModuleErrors(source: string): string[] {
   if (!/if\s*\(\s*result\.stdout\.trim\(\)\s*!==\s*pinned\s*\)\s*\{?\s*return\s/.test(check)) errors.push('scripts/typescript.ts dependencyInstallError must compare the running pnpm version with packageManager');
   if (!/export\s+const\s+installCommand\s*=\s*'pnpm install --frozen-lockfile'\s*;/.test(code)) errors.push('scripts/typescript.ts must tell the user to run: pnpm install --frozen-lockfile');
   if (/['"`](?:install|add|update)['"`]/.test(code)) errors.push('scripts/typescript.ts must never install, add or update dependencies');
+  errors.push(...codeDifference('scripts/typescript.ts', 'runTypescript', expectedRunTypescriptCode, functionLines(source, 'runTypescript')));
+  errors.push(...spawnEnvironmentErrors('scripts/typescript.ts', source));
+  errors.push(...verifyModuleErrors('scripts/typescript.ts', source));
   return errors;
 }
 
@@ -173,6 +382,82 @@ function text(base: string, path: string): string {
 
 function json(base: string, path: string): any {
   return JSON.parse(text(base, path));
+}
+
+// The packages block of pnpm-workspace.yaml, one `  - path` line per package. Another form gives undefined.
+export function workspacePackageList(source: string): string[] | undefined {
+  const lines = source.split('\n');
+  const start = lines.findIndex((line) => /^packages:[ \t]*$/.test(line));
+  if (start < 0) return undefined;
+  const list: string[] = [];
+  for (const line of lines.slice(start + 1)) {
+    const item = /^  - ([^\s#'"]+)[ \t]*$/.exec(line);
+    if (item) list.push(item[1]);
+    else if (!/^[ \t]*(?:#.*)?$/.test(line)) break;
+  }
+  return list;
+}
+
+// The TypeScript workspace (OQ-06 sections 1 and 7): the package list, each package's task scripts, the files
+// pinned by digest, the named workspace test files, and the settings that would let a check pass without checking:
+// tsc noCheck or strict off, Biome's linter off, Vitest test selection or a passing empty run, and skipped tests.
+export function workspaceErrors(base: string, files: ReadonlySet<string>): string[] {
+  const errors: string[] = [];
+  const expected = expectedWorkspacePackages.map((item) => item.directory);
+  const listed = workspacePackageList(text(base, 'pnpm-workspace.yaml'));
+  if (JSON.stringify(listed) !== JSON.stringify(expected)) {
+    errors.push(`pnpm-workspace.yaml must list exactly these packages, one per line, in this order: ${expected.join(', ')}; found ${listed?.join(', ') || 'none'}`);
+  }
+  for (const item of expectedWorkspacePackages) {
+    const path = `${item.directory}/package.json`;
+    if (!files.has(path)) { errors.push(`Missing workspace package manifest: ${path}`); continue; }
+    const manifest = json(base, path);
+    if (manifest.name !== item.name) errors.push(`${path} must be named ${item.name}, found ${JSON.stringify(manifest.name)}`);
+    for (const task of workspaceTasks) {
+      const script = manifest.scripts?.[task];
+      if (script !== item.scripts[task]) errors.push(`${path} must have the ${task} script ${JSON.stringify(item.scripts[task])}, found ${JSON.stringify(script)}`);
+    }
+  }
+  for (const [path, digest] of Object.entries(pinnedFiles)) {
+    if (!files.has(path)) { errors.push(`Missing pinned file: ${path}`); continue; }
+    const actual = createHash('sha256').update(readFileSync(resolve(base, path))).digest('hex');
+    if (actual !== digest) errors.push(`${path} changed: review the change, then set its SHA-256 in pinnedFiles in scripts/s0.ts to ${actual}`);
+  }
+  for (const file of workspaceTestFiles) if (!files.has(file)) errors.push(`Missing workspace test file: ${file}`);
+  for (const file of [...files].sort()) {
+    if (/^scripts\/workspace\/tests\/[^/]+\.test\.ts$/.test(file) && !workspaceTestFiles.includes(file)) {
+      errors.push(`Workspace test file is not run by verification: ${file}. Add it to workspaceTestFiles in scripts/s0.ts`);
+    }
+    const name = file.split('/').at(-1) ?? '';
+    if (/^tsconfig.*\.json$/.test(name)) {
+      const source = text(base, file);
+      if (/"noCheck"/.test(source)) errors.push(`${file} must not set noCheck: tsc would not report type errors`);
+      if (/"strict"\s*:\s*false/.test(source)) errors.push(`${file} must not turn strict off`);
+    }
+    if (/^biome\.jsonc?$/.test(name) && file !== 'biome.json') errors.push(`Only the root biome.json may configure Biome: ${file}`);
+    if (/^(?:vitest|vite)\.(?:config|workspace)\.[cm]?[jt]s$/.test(name)) {
+      const code = withoutComments(text(base, file));
+      for (const option of ['testNamePattern', 'allowOnly']) if (new RegExp(`\\b${option}\\b`).test(code)) errors.push(`${file} must not set ${option}`);
+      if (!/\bpassWithNoTests\s*:\s*false\b/.test(code) || /\bpassWithNoTests\s*:\s*(?!\s|false\b)/.test(code)) errors.push(`${file} must set passWithNoTests: false, and only that`);
+    }
+    const directory = expected.find((item) => file.startsWith(`${item}/`));
+    if (directory === undefined || !/\.[cm]?[jt]sx?$/.test(name)) continue;
+    const source = text(base, file);
+    if (/@ts-nocheck\b/.test(source)) errors.push(`${file} must not use @ts-nocheck`);
+    if (/biome-ignore-all\b/.test(source)) errors.push(`${file} must not use biome-ignore-all`);
+    if (/(^|\/)test\//.test(file.slice(directory.length)) || /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(name)) {
+      const skip = /\.(skip|only|todo|skipIf|runIf)\b/.exec(withoutComments(source));
+      if (skip) errors.push(`${file} must not use .${skip[1]}: every test runs in verification`);
+    }
+  }
+  if (json(base, 'tsconfig.base.json').compilerOptions?.strict !== true) errors.push('tsconfig.base.json must set strict: true');
+  const biome = json(base, 'biome.json');
+  if (JSON.stringify(biome.linter) !== JSON.stringify({ enabled: true, rules: { preset: 'recommended' } })) {
+    errors.push(`biome.json linter must be {"enabled":true,"rules":{"preset":"recommended"}}, found ${JSON.stringify(biome.linter)}`);
+  }
+  if (biome.formatter?.enabled !== true) errors.push('biome.json must keep the formatter enabled');
+  if ('overrides' in biome) errors.push('biome.json must not set overrides');
+  return errors;
 }
 
 // Static S0 rules. They run with the other repository checks, before any Cargo step.
@@ -197,6 +482,16 @@ export function s0Errors(base: string, files: Set<string>): string[] {
     for (const component of ['rustfmt', 'clippy']) {
       if (!new RegExp(`components\\s*=\\s*\\[[^\\]]*"${component}"`).test(toolchain)) errors.push(`rust-toolchain.toml must include ${component}`);
     }
+    // Cargo reads .cargo/config.toml in the directory it runs in and in every parent. Rustflags such as
+    // --cap-lints, a test runner, a wrapper or an alias there would change what the Cargo steps check. A manifest
+    // that turns off target discovery or a test harness would leave tests unbuilt or unrun.
+    for (const file of [...files].sort()) {
+      if (/(^|\/)\.cargo\/config(\.toml)?$/.test(file)) errors.push(`Cargo configuration must not be tracked: ${file}`);
+      if (!/(^|\/)Cargo\.toml$/.test(file)) continue;
+      for (const match of text(base, file).matchAll(/\b(autotests|autobins|test|harness|doctest)\s*=\s*false\b/g)) {
+        errors.push(`${file} must not set ${match[1]} = false: Cargo would leave tests unbuilt or unrun`);
+      }
+    }
   });
 
   guard('Rust verification', () => {
@@ -204,6 +499,14 @@ export function s0Errors(base: string, files: Set<string>): string[] {
     errors.push(...cargoCommandErrors(cargoCommands));
     errors.push(...rustModuleErrors(text(base, 'scripts/rust.ts')));
     errors.push(...verifyDriverErrors(text(base, 'scripts/verify.ts')));
+    errors.push(...environmentModuleErrors(text(base, 'scripts/environment.ts')));
+    for (const file of verifyModules.filter((item) => item !== 'scripts/rust.ts' && item !== 'scripts/typescript.ts')) errors.push(...verifyModuleErrors(file, text(base, file)));
+    for (const file of [...files].filter((item) => /^scripts\/(?:workspace\/)?[^/]+\.ts$/.test(item) && !['scripts/rust.ts', 'scripts/typescript.ts', 'scripts/s0.ts'].includes(item)).sort()) {
+      errors.push(...spawnEnvironmentErrors(file, text(base, file)));
+    }
+    if (!/^export const root = resolve\(dirname\(fileURLToPath\(import\.meta\.url\)\), '\.\.'\);$/m.test(withoutComments(text(base, 'scripts/repository.ts')))) {
+      errors.push('scripts/repository.ts must set root to the directory above scripts/');
+    }
     const ci = text(base, '.github/workflows/ci.yml');
     const install = ci.indexOf('rustup toolchain install');
     const run = ci.indexOf('node scripts/verify.ts');
@@ -220,6 +523,7 @@ export function s0Errors(base: string, files: Set<string>): string[] {
     errors.push(...typescriptModuleErrors(text(base, 'scripts/typescript.ts')));
     // pnpm 11 otherwise installs before `pnpm verify` and every other `pnpm run` when the install is out of date.
     if (!/^verifyDepsBeforeRun:[ \t]*error[ \t]*$/m.test(text(base, 'pnpm-workspace.yaml'))) errors.push('pnpm-workspace.yaml must set verifyDepsBeforeRun: error, so pnpm never installs before a script');
+    errors.push(...workspaceErrors(base, files));
   });
 
   const caseDirs = [...new Set([...files].map((f) => /^fixtures\/s0\/cases\/([^/]+)\//.exec(f)?.[1]).filter((c): c is string => !!c))].sort();

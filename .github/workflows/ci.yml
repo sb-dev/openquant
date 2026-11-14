@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   checks:
-    name: Bootstrap checks
+    name: Repository checks
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
