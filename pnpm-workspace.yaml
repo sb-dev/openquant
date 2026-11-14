@@ -2,6 +2,10 @@
 packages:
   - packages/api-contracts/ts
 
+# pnpm 11 installs, and can rewrite pnpm-lock.yaml, before `pnpm run` or `pnpm exec` when it finds the
+# install out of date. Verification never installs (OQ-06 section 1), so pnpm fails instead and says to install.
+verifyDepsBeforeRun: error
+
 # Dependency install scripts. pnpm refuses to install while a script has no decision.
 # Allow a script only when the package cannot work without it, and record why here.
 allowBuilds:

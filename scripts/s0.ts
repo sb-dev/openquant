@@ -218,6 +218,8 @@ export function s0Errors(base: string, files: Set<string>): string[] {
     // The imported list is the one the driver runs. It is compared with the literal expectation above.
     errors.push(...typescriptCommandErrors(typescriptCommands));
     errors.push(...typescriptModuleErrors(text(base, 'scripts/typescript.ts')));
+    // pnpm 11 otherwise installs before `pnpm verify` and every other `pnpm run` when the install is out of date.
+    if (!/^verifyDepsBeforeRun:[ \t]*error[ \t]*$/m.test(text(base, 'pnpm-workspace.yaml'))) errors.push('pnpm-workspace.yaml must set verifyDepsBeforeRun: error, so pnpm never installs before a script');
   });
 
   const caseDirs = [...new Set([...files].map((f) => /^fixtures\/s0\/cases\/([^/]+)\//.exec(f)?.[1]).filter((c): c is string => !!c))].sort();
