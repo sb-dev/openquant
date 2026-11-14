@@ -1,6 +1,6 @@
 [package]
 name = "openquant-contracts"
-description = "Generated Rust bindings, runtime validation, canonical JSON and digests for the shared S0 schemas"
+description = "Generated Rust bindings, runtime validation, canonical JSON and digests for the shared engine and connected schemas"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -19,6 +19,10 @@ thiserror.workspace = true
 sha2.workspace = true
 regress.workspace = true
 jsonschema.workspace = true
+
+[[bin]]
+name = "contracts-report"
+path = "src/bin/contracts_report.rs"
 
 [build-dependencies]
 typify = "=0.8.0"

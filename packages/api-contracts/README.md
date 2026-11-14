@@ -48,4 +48,21 @@ The agent role schemas live in `packages/agents/schemas`. They reference these s
 - Errors: every error body is `api-error/1`. The common errors apply to every route, and the manifest maps each error code to its HTTP status.
 - The internal commands `record_evaluation_decision` and `freeze_candidates` have no route. Only the workflows service principal applies them.
 
+## Contract sets
+
+The Rust crate has two contract sets (OQ-05 §7):
+
+- `Contract`: the engine-scope contracts. Their version tags are part of engine identity. A test pins the SHA-256 of each engine-scope schema file. A change to one needs a new version tag or an A18 decision.
+- `Envelope`: the S1 connected envelopes. They are outside engine identity.
+
+`common` and `connected-common` hold shared definitions only. Each set validates against its own schema registry. Both sets use the same contract layer and the same failure codes.
+
+`contracts-report` runs every protocol fixture through the contract layer and writes the verdicts for the TypeScript parity test:
+
+```sh
+cargo run --locked -p openquant-contracts --bin contracts-report -- --out <dir>
+```
+
+It writes `<dir>/report.json` (`contracts-report/1`). Each entry has the verdict, the failure code of a rejected payload and the canonical digest of an accepted one. It never runs core semantics, so a `semantic_invalid` fixture is accepted.
+
 See [architecture](../../docs/specs/05-system-architecture-and-data-spec.md) and the [M1 guide](../../docs/guides/m1-watchlist-research.md).

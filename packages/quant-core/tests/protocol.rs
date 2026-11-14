@@ -1,5 +1,8 @@
 //! Core-level protocol checks: payloads that parse but must be rejected by the shared validator,
 //! run preparation or checkpoint restore, plus valid payloads that must be accepted.
+//!
+//! The manifest also lists the S1 connected envelopes. They have no core-level check, so these
+//! tests skip them by name. Any other unknown contract name fails.
 
 #![allow(
     clippy::unwrap_used,
@@ -10,7 +13,7 @@
 
 use std::collections::BTreeSet;
 
-use openquant_contracts::{Checkpoint, EvaluationInput, StrategyArtefact, parse};
+use openquant_contracts::{AnyContract, Checkpoint, EvaluationInput, StrategyArtefact, parse};
 use openquant_core::{Run, validate_strategy};
 use serde_json::Value;
 
@@ -20,9 +23,24 @@ fn read(path: &str) -> String {
     std::fs::read_to_string(format!("{FIXTURES}/{path}")).unwrap_or_else(|e| panic!("{path}: {e}"))
 }
 
+/// The manifest entries of the engine contracts. Envelope entries are skipped explicitly; an
+/// unknown contract name panics, so no entry is skipped by accident.
 fn entries() -> Vec<Value> {
     let value: Value = serde_json::from_str(&read("protocol/manifest.json")).unwrap();
-    value["entries"].as_array().unwrap().clone()
+    value["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|entry| {
+            let name = entry["contract"].as_str().unwrap();
+            match AnyContract::from_name(name) {
+                Some(AnyContract::Engine(_)) => true,
+                Some(AnyContract::Envelope(_)) => false,
+                None => panic!("{}: unknown contract {name:?}", entry["path"]),
+            }
+        })
+        .cloned()
+        .collect()
 }
 
 /// Run the core-level check for one entry; return the failure code text if rejected.
@@ -49,7 +67,9 @@ fn core_check(entry: &Value) -> Result<(), String> {
             let run = Run::prepare(&with_strategy(), &with_input()).unwrap();
             run.restore(&checkpoint).map(|_| ()).map_err(code)
         }
-        _ => Ok(()),
+        // A result has no core-level check beyond the contract layer.
+        "evaluation-result" => Ok(()),
+        other => panic!("{}: no core check for contract {other:?}", entry["path"]),
     }
 }
 
