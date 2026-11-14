@@ -13,17 +13,51 @@
     "suite_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
     "profile": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/RecordRef" },
     "conditions": { "$ref": "#/$defs/CohortConditions" },
-    "gates": { "type": "array", "minItems": 1, "maxItems": 32, "items": { "$ref": "#/$defs/GateRule" } },
+    "gates": {
+      "description": "Each gate of the suite (every GateId) exactly once: REQUIRED, RECORDED_INSUFFICIENT or NOT_APPLICABLE with its reason. A policy cannot drop a required check (OQ-02 section 3.2). There are as many entries as GateId values, and the root not rejects a gate listed twice, so every gate is listed.",
+      "type": "array",
+      "minItems": 17,
+      "maxItems": 17,
+      "items": { "$ref": "#/$defs/GateRule" }
+    },
     "finding_treatment": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/FindingTreatmentRule" } },
     "metrics": { "$ref": "#/$defs/MetricPolicy" },
     "budget_limits": { "$ref": "#/$defs/MissionBudgetLimits" },
     "limits": { "$ref": "#/$defs/ExecutionLimits" },
     "promotion": { "$ref": "#/$defs/PromotionPolicy" }
   },
+  "not": {
+    "description": "A gate listed twice. With exactly one entry per GateId value in gates, this makes every gate appear exactly once.",
+    "required": ["gates"],
+    "properties": {
+      "gates": {
+        "type": "array",
+        "anyOf": [
+          { "contains": { "type": "object", "required": ["gate"], "properties": { "gate": { "enum": ["DEFINITION_VALIDATION"] } } }, "minContains": 2 },
+          { "contains": { "type": "object", "required": ["gate"], "properties": { "gate": { "enum": ["DETERMINISTIC_REPLAY"] } } }, "minContains": 2 },
+          { "contains": { "type": "object", "required": ["gate"], "properties": { "gate": { "enum": ["ACCOUNTING_RECONCILIATION"] } } }, "minContains": 2 },
+          { "contains": { "type": "object", "required": ["gate"], "properties": { "gate": { "enum": ["SIGNAL_DATA_TIMING"] } } }, "minContains": 2 },
+          { "contains": { "type": "object", "required": ["gate"], "properties": { "gate": { "enum": ["POINT_IN_TIME_DATA"] } } }, "minContains": 2 },
+          { "contains": { "type": "object", "required": ["gate"], "properties": { "gate": { "enum": ["BASE_COST_MODEL"] } } }, "minContains": 2 },
+          { "contains": { "type": "object", "required": ["gate"], "properties": { "gate": { "enum": ["EXCESS_OVER_BUY_AND_HOLD"] } } }, "minContains": 2 },
+          { "contains": { "type": "object", "required": ["gate"], "properties": { "gate": { "enum": ["WALK_FORWARD"] } } }, "minContains": 2 },
+          { "contains": { "type": "object", "required": ["gate"], "properties": { "gate": { "enum": ["MINIMUM_TRADE_COUNT"] } } }, "minContains": 2 },
+          { "contains": { "type": "object", "required": ["gate"], "properties": { "gate": { "enum": ["COST_STRESS"] } } }, "minContains": 2 },
+          { "contains": { "type": "object", "required": ["gate"], "properties": { "gate": { "enum": ["PARAMETER_SENSITIVITY"] } } }, "minContains": 2 },
+          { "contains": { "type": "object", "required": ["gate"], "properties": { "gate": { "enum": ["EXECUTION_DELAY"] } } }, "minContains": 2 },
+          { "contains": { "type": "object", "required": ["gate"], "properties": { "gate": { "enum": ["ADVERSE_REGIMES"] } } }, "minContains": 2 },
+          { "contains": { "type": "object", "required": ["gate"], "properties": { "gate": { "enum": ["RESAMPLING"] } } }, "minContains": 2 },
+          { "contains": { "type": "object", "required": ["gate"], "properties": { "gate": { "enum": ["PROSPECTIVE_EVIDENCE"] } } }, "minContains": 2 },
+          { "contains": { "type": "object", "required": ["gate"], "properties": { "gate": { "enum": ["PORTFOLIO_FIT"] } } }, "minContains": 2 },
+          { "contains": { "type": "object", "required": ["gate"], "properties": { "gate": { "enum": ["OPERATING_READINESS"] } } }, "minContains": 2 }
+        ]
+      }
+    }
+  },
   "$defs": {
     "CohortConditions": {
       "title": "CohortConditions",
-      "description": "Conditions every candidate in the cohort shares: capital, execution and base cost policy, cost stress, benchmarks, window rules, permitted operators and the scope of a controlled revision. revision_scope ENTRY_OR_EXIT: a controlled revision changes entry rules or exit rules, not both.",
+      "description": "Conditions every candidate in the cohort shares: capital, execution and base cost policy, cost stress, benchmarks, window rules, permitted operators and the scope of a controlled revision. revision_scope ENTRY_OR_EXIT: a controlled revision changes entry rules or exit rules, not both, classified by dependency as the change_scope of validation-result/1 (OQ-02 section 3.1); selection, sizing and execution changes are outside a controlled revision.",
       "type": "object",
       "additionalProperties": false,
       "required": ["initial_capital", "execution_policy", "cost_stress", "benchmarks", "windows", "operators", "revision_scope"],
@@ -44,12 +78,12 @@
     },
     "CostStress": {
       "title": "CostStress",
-      "description": "The COST_STRESS scenario multiplies each named component of the base cost model by multiplier. Nothing else changes.",
+      "description": "The COST_STRESS scenario multiplies each named component of the base cost model by multiplier, which is greater than 1. Nothing else changes.",
       "type": "object",
       "additionalProperties": false,
       "required": ["multiplier", "components"],
       "properties": {
-        "multiplier": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "multiplier": { "$ref": "#/$defs/StressMultiplier" },
         "components": {
           "type": "array",
           "minItems": 1,
@@ -57,6 +91,12 @@
           "items": { "type": "string", "enum": ["fixed_fee_per_fill", "fee_bps", "gap_exit_slippage_bps"] }
         }
       }
+    },
+    "StressMultiplier": {
+      "title": "StressMultiplier",
+      "description": "A Decimal greater than 1, so the stress scenario raises costs. A malformed decimal is INVALID_DECIMAL; a well-formed value of 1 or less is SCHEMA_VIOLATION.",
+      "type": "string",
+      "allOf": [{ "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" }, { "not": { "pattern": "^(?:-.*|0(?:\\.[0-9]+)?|1(?:\\.0+)?)$" } }]
     },
     "WindowRules": {
       "title": "WindowRules",
@@ -72,7 +112,7 @@
     },
     "WindowRule": {
       "title": "WindowRule",
-      "description": "One scored window rule. scored holds calendar-date bounds, not resolved sessions. label states what the window can claim, for example 'historical holdout within model training period'.",
+      "description": "One scored window rule. scored holds calendar-date bounds, not resolved sessions. label states what the window can claim (OQ-02 section 3.3): a window that ends on or before the latest knowledge cutoff of the configured models, or for which a configured model's cutoff is unknown, has the label 'historical window within model training period', whatever its role.",
       "type": "object",
       "additionalProperties": false,
       "required": ["role", "scored", "label"],
@@ -126,7 +166,7 @@
     },
     "RequiredGate": {
       "title": "RequiredGate",
-      "description": "An evaluated gate. It passes only when every threshold holds in every listed window under its cost scenario; there is no averaging across windows. below_threshold is the result when a threshold does not hold: FAIL, or INSUFFICIENT for a sample-size gate such as the minimum trade count. A gate without thresholds is decided by its reviewed method.",
+      "description": "An evaluated gate. It passes only when every threshold holds in every listed window under its cost scenario; there is no averaging across windows. below_threshold is the result when a threshold does not hold: FAIL, or INSUFFICIENT for a sample-size gate such as the minimum trade count. A gate without thresholds is decided by its reviewed method. A PASS covers only what the gate checks. limitation records, with the policy approval, what the gate does not evidence; every gate report repeats it with the gate's result.",
       "type": "object",
       "additionalProperties": false,
       "required": ["requirement", "gate", "category", "thresholds", "below_threshold"],
@@ -135,7 +175,8 @@
         "gate": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/GateId" },
         "category": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/EvidenceCategory" },
         "thresholds": { "type": "array", "maxItems": 8, "items": { "$ref": "#/$defs/MetricThreshold" } },
-        "below_threshold": { "type": "string", "enum": ["FAIL", "INSUFFICIENT"] }
+        "below_threshold": { "type": "string", "enum": ["FAIL", "INSUFFICIENT"] },
+        "limitation": { "type": "string", "minLength": 1, "maxLength": 1000 }
       }
     },
     "RecordedInsufficientGate": {
@@ -223,7 +264,7 @@
     },
     "MissionBudgetLimits": {
       "title": "MissionBudgetLimits",
-      "description": "Bounds on the per-mission budget that the Researcher sets in create_mission. Each value of a mission budget is at most the matching value in maxima. proposer_allocation EQUAL: every proposer configuration in a mission gets the same revision count and per-attempt reservation; the API rejects a mission that favours one configuration.",
+      "description": "Bounds on the per-mission budget that the Researcher sets in create_mission. Each value of a mission budget is at most the matching value in maxima. proposer_allocation EQUAL: every proposer configuration in a mission gets the same revision count, the same per-attempt reservation and the same allowance (proposer_allowance: model spend and agent attempts), and reserves only from its own allowance. The budget has one proposer_allowance that applies to each configuration, so no mission can favour one; the API also checks the sums that MissionBudget states.",
       "type": "object",
       "additionalProperties": false,
       "required": ["maxima", "proposer_allocation"],

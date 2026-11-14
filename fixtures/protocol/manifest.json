@@ -1370,6 +1370,219 @@
       "contract": "api-error",
       "expect": "schema_invalid",
       "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/agent-attempt-result.negative-cost.json",
+      "contract": "agent-attempt-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/agent-dispatch.negative-reservation.json",
+      "contract": "agent-dispatch",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/command.create-mission-negative-allowance.json",
+      "contract": "command",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/valid/api-error.schema-violation.json",
+      "contract": "api-error",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/invalid/api-error.empty-violations.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/gate-report.empty-evidence.json",
+      "contract": "gate-report",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/gate-report.empty-observations.json",
+      "contract": "gate-report",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/validation-result.missing-duration.json",
+      "contract": "validation-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/gate-report.missing-duration.json",
+      "contract": "gate-report",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/valid/validation-result.valid-seed.json",
+      "contract": "validation-result",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/invalid/validation-result.unknown-change-scope.json",
+      "contract": "validation-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/valid/retrieval-result.authentication-failed.json",
+      "contract": "retrieval-result",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/invalid/retrieval-result.authentication-retryable.json",
+      "contract": "retrieval-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/retrieval-result.cancelled-retryable.json",
+      "contract": "retrieval-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/retrieval-request.max-requests-above-calls.json",
+      "contract": "retrieval-request",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/cohort-policy.gate-missing.json",
+      "contract": "cohort-policy",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/cohort-policy.gate-listed-twice.json",
+      "contract": "cohort-policy",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/cohort-policy.cost-stress-multiplier-one.json",
+      "contract": "cohort-policy",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/cohort-policy.cost-stress-multiplier-below-one.json",
+      "contract": "cohort-policy",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/cohort-policy.cost-stress-multiplier-exponent.json",
+      "contract": "cohort-policy",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-wrong-version.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-wrong-version-last.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-schema.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-version-last.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-missing-version.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-version-not-a-string.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-unsafe-integer.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-float.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-grammar.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-duplicate-key.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-duplicate-key-escaped.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-duplicate-version.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-no-duplicate-wide.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/api-error.wrong-version-duplicate-key.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.wrong-version-float.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.wrong-version-unsafe-integer.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
     }
   ]
 }

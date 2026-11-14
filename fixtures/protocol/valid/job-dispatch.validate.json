@@ -21,9 +21,9 @@
       "size_bytes": 4792
     },
     "cohort_policy": {
-      "digest": "sha256:0e8ea5f12262374def68a65011850ff52e6867a8963f6dd4f95970436b1b5482",
+      "digest": "sha256:da04f3c489c7804cf5bcf73cdfe617148d4917ff321e0a481530fef1a134edd3",
       "media_type": "application/json",
-      "size_bytes": 9417
+      "size_bytes": 9994
     }
   }
 }

@@ -32,5 +32,9 @@
         "detail": "The declared changes list one leaf; the computed difference from the parent has two."
       }
     ]
+  },
+  "duration": {
+    "label": "observed",
+    "milliseconds": 1840
   }
 }

@@ -10,7 +10,7 @@
   "cohort_policy": {
     "id": "s1-aapl-daily-swing",
     "revision": 1,
-    "digest": "sha256:0e8ea5f12262374def68a65011850ff52e6867a8963f6dd4f95970436b1b5482"
+    "digest": "sha256:da04f3c489c7804cf5bcf73cdfe617148d4917ff321e0a481530fef1a134edd3"
   },
   "suite_id": "s1-single-stock-suite",
   "calendar": {
@@ -25,7 +25,7 @@
         "start": "2023-01-01",
         "end": "2023-12-31"
       },
-      "label": "development",
+      "label": "historical window within model training period",
       "resolved": {
         "warmup_start": "2022-10-6",
         "scored_start": "2023-01-03",
@@ -40,7 +40,7 @@
         "start": "2024-01-01",
         "end": "2024-12-31"
       },
-      "label": "validation",
+      "label": "historical window within model training period",
       "resolved": {
         "warmup_start": "2023-10-05",
         "scored_start": "2024-01-02",
@@ -55,7 +55,7 @@
         "start": "2025-01-01",
         "end": "2025-12-31"
       },
-      "label": "historical holdout within model training period",
+      "label": "historical window within model training period",
       "resolved": {
         "warmup_start": "2024-10-07",
         "scored_start": "2025-01-02",

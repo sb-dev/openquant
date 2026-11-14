@@ -13,7 +13,16 @@ export interface SchemaViolation {
   readonly decimalGrammar: boolean;
 }
 
-export type ContractErrorKind = StrictJsonErrorKind | 'missing-version' | 'unsupported-version' | 'schema';
+/**
+ * value-bound: the document holds more values than any document valid against its contract can
+ * hold (validate.ts). It is reported after the version check, as SCHEMA_VIOLATION.
+ */
+export type ContractErrorKind =
+  | StrictJsonErrorKind
+  | 'missing-version'
+  | 'unsupported-version'
+  | 'value-bound'
+  | 'schema';
 
 /**
  * The code of a rejection, as `ContractError::failure_code` gives it in Rust. A schema rejection is

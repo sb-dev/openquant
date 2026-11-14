@@ -59,6 +59,21 @@ describe('the checks run in the Rust order', () => {
     );
   });
 
+  // The same three byte strings are in the contracts-report test
+  // (packages/api-contracts/rust/src/bin/contracts_report.rs), which gives SCHEMA_VIOLATION too. They
+  // are built here because the repository checks read every tracked fixture as text.
+  test.each<[string, number[]]>([
+    ['a lone surrogate in its CESU-8 form', [0xed, 0xa0, 0x80]],
+    ['an invalid byte', [0xff]],
+    ['a truncated sequence', [0xc3]],
+  ])('bytes that are not UTF-8 are a strict-JSON error: %s', (_label, inner) => {
+    for (const tag of ['api-error/1', 'api-error/2']) {
+      const head = new TextEncoder().encode(`{"schema_version":"${tag}","message":"`);
+      const bytes = new Uint8Array([...head, ...inner, 0x22, 0x7d]);
+      expect(outcome('api-error', bytes), tag).toEqual(rejected('SCHEMA_VIOLATION', 'json'));
+    }
+  });
+
   test('then the version: a missing or non-string version is SCHEMA_VIOLATION', () => {
     const { schema_version: _, ...rest } = apiError();
     expect(outcome('api-error', JSON.stringify(rest))).toEqual(rejected('SCHEMA_VIOLATION', 'missing-version'));

@@ -19,16 +19,16 @@
   "cohort_policy": {
     "id": "s1-aapl-daily-swing",
     "revision": 1,
-    "digest": "sha256:0e8ea5f12262374def68a65011850ff52e6867a8963f6dd4f95970436b1b5482"
+    "digest": "sha256:da04f3c489c7804cf5bcf73cdfe617148d4917ff321e0a481530fef1a134edd3"
   },
   "inputs": [
     {
       "kind": "EVALUATION_PLAN",
-      "digest": "sha256:dde8a9d48ef9772f51a87c4b4b8480b976f1f234c9a1225cbf57f57f02117428"
+      "digest": "sha256:bf71366fb6c488e67bc2e1055732258a4cb5a351d47e6498e5544edf9d5db5f5"
     },
     {
       "kind": "VALIDATION_RESULT",
-      "digest": "sha256:bb671b1db84bd52e931a9fba86a1d14f1dd11da7e13d0f6a43b30fe5d1f682fa"
+      "digest": "sha256:8fe0d2c0561737b5984c98cde9c83476e00c8f4069ab273ec4ad76c2c64ecfaf"
     },
     {
       "kind": "EVALUATION_SUBMISSION",
@@ -76,7 +76,7 @@
       "gate": "DEFINITION_VALIDATION",
       "category": "CORRECTNESS",
       "evidence": [
-        "sha256:bb671b1db84bd52e931a9fba86a1d14f1dd11da7e13d0f6a43b30fe5d1f682fa"
+        "sha256:8fe0d2c0561737b5984c98cde9c83476e00c8f4069ab273ec4ad76c2c64ecfaf"
       ],
       "observations": []
     },
@@ -125,7 +125,8 @@
       "evidence": [
         "sha256:1d4233481fb69a963ddcb137ea172912841341b840b522ba4c5c82bbe1ad9f19"
       ],
-      "observations": []
+      "observations": [],
+      "limitation": "PASS covers what the gate checks: every bar and corporate action has an availability time from the profile rules, and no run failed with FUTURE_DATA. Provider revision history is not evidenced: the snapshot is retrieved after the period it covers and can hold later provider corrections (OQ-02 section 1.1)."
     },
     {
       "result": "PASS",
@@ -448,5 +449,9 @@
       "reason": "No paper, shadow or live path exists in S1."
     }
   ],
-  "eligible": false
+  "eligible": false,
+  "duration": {
+    "label": "observed",
+    "milliseconds": 2310
+  }
 }

@@ -17,6 +17,9 @@
 //! semantics are never run, so a `semantic_invalid` fixture is `accepted`. Entries keep manifest
 //! order. `manifest_sha256` is the lower-case hex SHA-256 of the manifest file bytes.
 //!
+//! A fixture is read as bytes, as a request body arrives. Bytes that are not UTF-8 are a strict-JSON
+//! error, `SCHEMA_VIOLATION`, as the TypeScript parser reports them.
+//!
 //! Exit status: 0 when the report is written. 2 for a usage error, an I/O error, a malformed
 //! manifest or an entry whose contract this build does not know.
 
@@ -25,7 +28,7 @@ use std::{
     process::ExitCode,
 };
 
-use openquant_contracts::{AnyContract, digest_bytes};
+use openquant_contracts::{AnyContract, ContractError, digest_bytes};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -89,6 +92,13 @@ fn text_field(entry: &Value, position: usize, name: &str) -> Result<String, Stri
         .ok_or_else(|| format!("manifest entry {position}: `{name}` is missing or not a string"))
 }
 
+/// Run the contract layer on bytes. Bytes that are not UTF-8 are [`ContractError::Json`].
+fn parse_digest_bytes(kind: AnyContract, bytes: &[u8]) -> Result<String, ContractError> {
+    let text = std::str::from_utf8(bytes)
+        .map_err(|e| ContractError::Json(format!("payload is not valid UTF-8: {e}")))?;
+    kind.parse_digest(text)
+}
+
 /// Run one manifest entry through the contract layer.
 fn check(fixtures: &Path, entry: &Value, position: usize) -> Result<Entry, String> {
     let path = text_field(entry, position, "path")?;
@@ -97,8 +107,8 @@ fn check(fixtures: &Path, entry: &Value, position: usize) -> Result<Entry, Strin
     let kind = AnyContract::from_name(&contract)
         .ok_or_else(|| format!("{path}: unknown contract {contract:?}"))?;
     let file = fixtures.join(&path);
-    let text = std::fs::read_to_string(&file).map_err(|e| format!("{}: {e}", file.display()))?;
-    let (verdict, code, digest) = match kind.parse_digest(&text) {
+    let bytes = std::fs::read(&file).map_err(|e| format!("{}: {e}", file.display()))?;
+    let (verdict, code, digest) = match parse_digest_bytes(kind, &bytes) {
         Ok(digest) => (Verdict::Accepted, None, Some(digest)),
         Err(error) => (
             Verdict::Rejected,
@@ -205,6 +215,36 @@ mod tests {
 
     use super::{Verdict, check, parse_args, report};
 
+    /// A fixtures directory with one manifest entry, for bytes that the shared manifest cannot
+    /// hold: the repository checks read every tracked file as text. It is removed when dropped.
+    struct Scratch(PathBuf);
+
+    impl Scratch {
+        fn new(name: &str, bytes: &[u8]) -> Self {
+            let dir = std::env::temp_dir().join(format!(
+                "openquant-contracts-report-{name}-{}",
+                std::process::id()
+            ));
+            std::fs::create_dir_all(dir.join("protocol")).unwrap();
+            std::fs::write(dir.join("protocol/payload.json"), bytes).unwrap();
+            let manifest = json!({"schema": "s0-protocol-manifest/1", "entries": [
+                {"path": "protocol/payload.json", "contract": "api-error", "expect": "schema_invalid", "code": "SCHEMA_VIOLATION"}
+            ]});
+            std::fs::write(
+                dir.join("protocol/manifest.json"),
+                serde_json::to_vec(&manifest).unwrap(),
+            )
+            .unwrap();
+            Self(dir)
+        }
+    }
+
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
     fn fixtures() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures")
     }
@@ -293,6 +333,45 @@ mod tests {
         let error = check(&fixtures(), &json!({"contract": "checkpoint"}), 7).unwrap_err();
         assert!(error.contains("manifest entry 7: `path`"), "{error}");
         assert!(report(Path::new("/nonexistent-fixtures")).is_err());
+    }
+
+    /// Bytes that are not UTF-8 get a verdict, `SCHEMA_VIOLATION`, instead of failing the report.
+    /// TypeScript gives the same code for the same bytes
+    /// (packages/api-contracts/ts/test/validate.test.ts).
+    #[test]
+    fn bytes_that_are_not_utf8_are_a_schema_violation() {
+        let cases: [(&str, &[u8]); 3] = [
+            // A lone surrogate in its CESU-8 form, ED A0 80.
+            (
+                "lone-surrogate",
+                b"{\"schema_version\":\"api-error/1\",\"message\":\"\xed\xa0\x80\"}",
+            ),
+            (
+                "invalid-byte",
+                b"{\"schema_version\":\"api-error/1\",\"message\":\"\xff\"}",
+            ),
+            (
+                "truncated",
+                b"{\"schema_version\":\"api-error/1\",\"message\":\"\xc3\"}",
+            ),
+        ];
+        for (name, bytes) in cases {
+            assert!(std::str::from_utf8(bytes).is_err(), "{name}");
+            let scratch = Scratch::new(name, bytes);
+            let report = report(&scratch.0).unwrap();
+            let entry = &report.entries[0];
+            assert_eq!(entry.verdict, Verdict::Rejected, "{name}");
+            assert_eq!(entry.code.as_deref(), Some("SCHEMA_VIOLATION"), "{name}");
+            assert_eq!(entry.digest, None, "{name}");
+        }
+        // Valid UTF-8 reaches the contract layer: this body is accepted.
+        let body = "{\"schema_version\":\"api-error/1\",\"code\":\"INTERNAL\",\"message\":\"é\",\
+                    \"state_changed\":\"UNKNOWN\",\"retry_safe\":false,\"diagnostic_ref\":\"d\"}";
+        let scratch = Scratch::new("valid", body.as_bytes());
+        assert_eq!(
+            report(&scratch.0).unwrap().entries[0].verdict,
+            Verdict::Accepted
+        );
     }
 
     #[test]

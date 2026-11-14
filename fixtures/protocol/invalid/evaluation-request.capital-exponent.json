@@ -35,10 +35,10 @@
     "cohort_policy": {
       "id": "s1-aapl-daily-swing",
       "revision": 1,
-      "digest": "sha256:0e8ea5f12262374def68a65011850ff52e6867a8963f6dd4f95970436b1b5482"
+      "digest": "sha256:da04f3c489c7804cf5bcf73cdfe617148d4917ff321e0a481530fef1a134edd3"
     },
     "suite_id": "s1-single-stock-suite",
-    "plan_digest": "sha256:dde8a9d48ef9772f51a87c4b4b8480b976f1f234c9a1225cbf57f57f02117428",
+    "plan_digest": "sha256:bf71366fb6c488e67bc2e1055732258a4cb5a351d47e6498e5544edf9d5db5f5",
     "trial_slot": "rev-a",
     "run_slot": "rev-a.v.base",
     "window_role": "VALIDATION",
@@ -87,7 +87,7 @@
         "start": "2025-01-02",
         "end": "2025-12-31"
       },
-      "label": "historical holdout within model training period"
+      "label": "historical window within model training period"
     }
   ]
 }

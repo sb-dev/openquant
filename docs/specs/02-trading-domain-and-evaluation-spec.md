@@ -179,7 +179,7 @@ In S1 the registered comparison is an evaluation plan. The API records it when t
 - the H slots of each trial slot;
 - the gates, by reference to the cohort policy (§3.2). The policy also declares the benchmarks and metric scale (§3.6).
 
-A planned slot is not a run. Runs, budget reservations and dispatch entries are written later (§4). The repeat checks determinism; it is not a new trial. The plan freezes these conditions. A controlled revision changes entry rules or exit rules, not both.
+A planned slot is not a run. Runs, budget reservations and dispatch entries are written later (§4). The repeat checks determinism; it is not a new trial. The plan freezes these conditions. A controlled revision changes entry rules or exit rules, not both. Its rule changes are classified by dependency. A change to the entry rule affects entry, and a change to an exit rule affects exits. A changed indicator counts as a change to every rule that references it, directly or through other indicators. Changes to selection, sizing or execution, and changes to an indicator that no entry or exit rule references, are outside a controlled revision. Rust validation reports the classification beside the recomputed rule differences (`change_scope` in `validation-result/1`). A revision registers only when it changes entry alone or exits alone.
 
 Retain the complete history of experiments performed within OpenQuant. Imported results disclose any unknown external search history. Do not infer a precise independent-trial count from raw job count.
 
@@ -196,7 +196,7 @@ Repeated selection can inflate apparent performance. The Deflated Sharpe Ratio l
 | Portfolio fit | Aggregate exposure, strategy-family overlap, costs, capacity, and contribution to the selected portfolio objective |
 | Operating readiness | Production-path behaviour, failure recovery, reconciliation, mandate enforcement, and emergency procedures |
 
-Do not remove a required test to make a candidate pass. A skipped or inapplicable test needs a policy-approved reason. Missing evidence is `INSUFFICIENT`, not a pass.
+Do not remove a required test to make a candidate pass. A skipped or inapplicable test needs a policy-approved reason. Missing evidence is `INSUFFICIENT`, not a pass. A gate passes only on what it checks; a policy records what a gate does not evidence as an approved limitation, and every result of the gate shows it.
 
 A cheap integrity failure can stop an invalid run. Required tests for an otherwise valid candidate remain required. Avoid an indiscriminate Cartesian product of every possible stress dimension; use the declared suite and explicit combined stress cases.
 
@@ -208,6 +208,10 @@ The S1 cohort policy assigns these checks to `EVALUATING` → `PAPER` eligibilit
 | Historical validity | Gates: point-in-time data, the base cost model, excess return over buy-and-hold, walk-forward over D, V and H (§3.1), and a minimum trade count. |
 | Robustness | Gate: cost stress at twice the base costs. Parameter sensitivity, execution delay and adverse regimes are `INSUFFICIENT` with a reason. Resampling is `NOT_APPLICABLE` with the policy reason. |
 | Prospective evidence, portfolio fit, operating readiness | `NOT_APPLICABLE` to this transition, with the policy reason. |
+
+The S1 cohort policy lists each gate of its suite exactly once: required, recorded as `INSUFFICIENT`, or `NOT_APPLICABLE`, each with its reason. `cohort-policy/1` rejects a policy that omits a gate or lists one twice, and a cost-stress multiplier that is not greater than 1.
+
+The S1 point-in-time gate checks that every bar and corporate action carries an availability time from the profile rules and that no run fails with `FUTURE_DATA`. It does not evidence the provider's revision history: a snapshot retrieved after the period it covers can hold later corrections (§1.1). The cohort policy records this as the gate's approved limitation, and every gate report repeats it with the gate's result.
 
 Required robustness checks stay `INSUFFICIENT` in S1, so no S1 candidate can become eligible. The expected S1 mission outcome is therefore a valid `NO_ELIGIBLE_CANDIDATE`. Offline fixtures under a separate test policy cover the `PASS` path. Thresholds belong to the registered policy, not to this specification.
 
@@ -221,7 +225,7 @@ An agent cannot inspect a final holdout before submitting its version. Once feed
 
 Historical data may already be represented in an LLM's training. A historical holdout is therefore not a complete defence against model contamination. Keep prospective paper evidence and record model provenance.
 
-In S1 the evaluation plan holds the H slots from the start (§3.1). Only the freeze step writes H runs, once every trial slot is terminal (§4). In S1 every agent request, proposer and critic, carries holdout exclusions that name V and H. Revision context holds D results and findings only. Revealing an H result writes a holdout-consumption record. Label H "historical holdout within model training period". Record each configured model's published knowledge cutoff, or record that the checked source does not state it (OQ-03 §2).
+In S1 the evaluation plan holds the H slots from the start (§3.1). Only the freeze step writes H runs, once every trial slot is terminal (§4). In S1 every agent request, proposer and critic, carries holdout exclusions that name V and H. Revision context holds D results and findings only. Revealing an H result writes a holdout-consumption record. Record each configured model's published knowledge cutoff, or record that the checked source does not state it (OQ-03 §2). Label every scored window that ends on or before the latest recorded cutoff of the mission's configured models, or for which a configured model's cutoff is unknown, "historical window within model training period". In the S1 pilot that is D, V and H. H keeps its holdout role, and V and H stay excluded from agent requests, but none of the three windows is free of possible model contamination.
 
 ### 3.4 Live paper competition
 
