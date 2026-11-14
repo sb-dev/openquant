@@ -93,12 +93,38 @@ test('C0: a changed setup-node input fails', () => {
   rejects(replaceOnce(ci, 'node-version-file: .node-version', 'node-version: 22'), /checks step 2 \(Set up Node\) must have with:/, 'node version');
 });
 
-// Dependabot updates the pinned commit of each action weekly. Any full commit SHA of the same action repository passes;
-// another repository, a tag or a short SHA fails, and the step order, inputs and commands stay fixed.
+// Dependabot updates the pinned commit of each action weekly, with its version comment. Any full commit SHA of the same
+// action repository passes; another repository, a tag or a short SHA fails, and the step order, inputs and commands stay
+// fixed. Whether the SHA is the release its comment names, or any upstream release, is left to code-owner review.
 const newSha = 'a'.repeat(8) + '0123456789abcdef0123456789abcdef';
 test('Dependabot: a new full commit SHA of the same action passes', () => {
-  const bumped = replaceOnce(replaceOnce(ci, /actions\/checkout@[0-9a-f]{40}/, `actions/checkout@${newSha}`), /actions\/setup-node@[0-9a-f]{40}/, `actions/setup-node@${'0'.repeat(40)}`);
+  const bumped = replaceOnce(replaceOnce(ci, /actions\/checkout@[0-9a-f]{40} # v\d+\.\d+\.\d+/, `actions/checkout@${newSha} # v8.0.0`), /actions\/setup-node@[0-9a-f]{40}/, `actions/setup-node@${'0'.repeat(40)}`);
   assert.deepEqual(ciWorkflowErrors(bumped, pnpm), []);
+});
+
+// G6: every action reference ends its line with `# v<major>.<minor>.<patch>`. A missing or malformed comment fails.
+const versionComment = /(?<=actions\/checkout@[0-9a-f]{40}) # v\d+\.\d+\.\d+/;
+const versionError = /job checks step 1 \(Check out source\) must end its uses line with a version comment # v<major>\.<minor>\.<patch>/;
+test('G6: a missing version comment fails', () => {
+  rejects(replaceOnce(ci, versionComment, ''), versionError, 'no comment');
+  rejects(replaceOnce(ci, versionComment, '\n        # v7.0.1'), versionError, 'comment on the next line');
+});
+test('G6: a malformed version comment fails', () => {
+  for (const comment of [' # v7', ' # v7.0', ' # 7.0.1', ' #v7.0.1', ' # v7.0.1-rc.1', ' # v7.0.1 latest', ' # version 7.0.1']) {
+    rejects(replaceOnce(ci, versionComment, comment), versionError, `comment ${JSON.stringify(comment)}`);
+  }
+});
+test('G6: every workflow needs the version comment on a step or job action, and a local action needs none', () => {
+  const file = '.github/workflows/other.yml';
+  const pinned = `o/action@${'b'.repeat(40)}`;
+  const workflow = (step: string, job = '') => `on: push\npermissions:\n  contents: read\njobs:\n${job}  a:\n    runs-on: ubuntu-latest\n    steps:\n      - ${step}\n`;
+  assert.deepEqual(workflowErrors(file, workflow(`uses: ${pinned} # v1.2.3`)), []);
+  assert.deepEqual(workflowErrors(file, workflow('uses: ./.github/actions/local')), []);
+  for (const step of [`uses: ${pinned}`, `{ uses: ${pinned} } # v1.2.3`]) {
+    assert.ok(workflowErrors(file, workflow(step)).some((error) => /job a step 1 must end its uses line with a version comment/.test(error)), step);
+  }
+  const reusable = `  b:\n    uses: o/repository/.github/workflows/build.yml@${'c'.repeat(40)}\n`;
+  assert.ok(workflowErrors(file, workflow(`uses: ${pinned} # v1.2.3`, reusable)).some((error) => /job b must end its uses line with a version comment # v<major>\.<minor>\.<patch>, found ""/.test(error)));
 });
 test('Dependabot: another action repository, a tag or a short SHA fails', () => {
   rejects(replaceOnce(ci, /actions\/checkout@[0-9a-f]{40}/, `someone/checkout@${newSha}`), /checks step 1 \(Check out source\) must use actions\/checkout at a full 40-character commit SHA, found "someone\/checkout@a{8}0123/, 'another repository');
