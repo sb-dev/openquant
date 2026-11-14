@@ -177,7 +177,7 @@ describe('decimal and Exact grammar failures are INVALID_DECIMAL', () => {
 });
 
 describe('structural limits apply only to an invalid document', () => {
-  // About 10 values per ledger entry: 2,500 entries is more than 20,000 values, within maxItems 4,000.
+  // About 10 values per ledger entry: 2,500 entries is more than MAX_NODES values, within maxItems 4,000.
   const large = () => {
     const doc = checkpoint();
     const [entry] = doc.state.journal.cash_ledger as Doc[];
@@ -198,7 +198,8 @@ describe('structural limits apply only to an invalid document', () => {
     if (result.ok) return;
     expect(result.error.code).toBe('SCHEMA_VIOLATION');
     expect(result.error.violations).toHaveLength(2);
-    expect(result.error.violations[0]?.message).toMatch(/more than 20000 values/);
+    expect(result.error.violations[0]?.message).toMatch(new RegExp(`more than ${MAX_NODES} values`));
+    expect(result.error.listingStopped).toBe(true);
     expect(result.error.violations[1]).toMatchObject({ pointer: '/state/cash_available', decimalGrammar: true });
   });
 });

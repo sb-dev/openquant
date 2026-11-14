@@ -293,6 +293,27 @@ function withoutAnnotations(schema: Json): Json {
   return out;
 }
 
+// After a call to the validator of a referenced definition, Ajv appends the callee's errors with
+// `vErrors = vErrors === null ? f.errors : vErrors.concat(f.errors)`. Each concat copies every error
+// collected so far, so the all-errors validator of an array of n invalid items copies O(n^2) entries
+// and leaves each copy behind as garbage. The rewrite appends in place instead: each error is copied
+// once per definition it passes through on the way up. The order of the errors is unchanged. The
+// callee's array may be adopted and then extended by appendErrors, which validatorModule defines.
+// That is safe because a validator builds a new array on every call and its caller reads `f.errors`
+// only right after that call, as Ajv's own code already relies on when it truncates an adopted array.
+const CONCAT_ERRORS =
+  /vErrors = vErrors === null \? ([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.errors : vErrors\.concat\(\1\.errors\);/g;
+
+export function appendErrorsInPlace(code: string): string {
+  const rewritten = code.replace(
+    CONCAT_ERRORS,
+    (_match, callee: string) =>
+      `vErrors = vErrors === null ? ${callee}.errors : appendErrors(vErrors, ${callee}.errors);`,
+  );
+  if (/\.concat\s*\(/.test(rewritten)) fail('a generated validator still copies its errors with concat');
+  return rewritten;
+}
+
 /** Ajv standalone ESM validators for every contract root, free of require() and run-time code generation. */
 export function validatorModule(bundle: Bundle, allErrors: boolean): string {
   const ajv = new Ajv2020({
@@ -307,6 +328,7 @@ export function validatorModule(bundle: Bundle, allErrors: boolean): string {
   let code = standaloneCode(ajv, exports).replace(/^"use strict";/, '');
   // maxLength counts code points. Ajv emits a require() of its runtime helper; inline an equivalent.
   code = code.replace(CODE_POINT_LENGTH, 'codePointLength');
+  code = appendErrorsInPlace(code);
   if (/\brequire\s*\(/.test(code)) fail('a generated validator still requires a CommonJS module');
   if (/\bnew Function\b|\beval\s*\(/.test(code)) fail('a generated validator compiles code at run time');
   const table = bundle.contracts.map((c) => `  ${JSON.stringify(c.name)}: ${c.typeName},`).join('\n');
@@ -317,6 +339,10 @@ export function validatorModule(bundle: Bundle, allErrors: boolean): string {
     '  let count = 0;',
     '  for (const _ of text) count += 1;',
     '  return count;',
+    '};',
+    'const appendErrors = (target, source) => {',
+    '  for (let index = 0; index < source.length; index += 1) target.push(source[index]);',
+    '  return target;',
     '};',
     code,
     `export const byContract = {\n${table}\n};`,

@@ -1647,6 +1647,36 @@
       "contract": "retrieval-result",
       "expect": "schema_invalid",
       "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-wrong-version-at-4096.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-wrong-version-at-4097.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-version-at-4097.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/dataset-manifest.listed-decimals-at-4096.json",
+      "contract": "dataset-manifest",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL"
+    },
+    {
+      "path": "protocol/invalid/dataset-manifest.unlisted-decimals-at-4097.json",
+      "contract": "dataset-manifest",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
     }
   ]
 }

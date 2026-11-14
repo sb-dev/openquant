@@ -19,11 +19,13 @@ const nest = (depth: number): JsonValue => {
 describe('a document within the limits has no excess', () => {
   test.each<[string, JsonValue]>([
     ['scalars', 'text'],
-    ['the largest array', Array(MAX_ARRAY_LEN).fill(0)],
+    // MAX_ARRAY_LEN is above MAX_NODES, so the longest array within every limit holds MAX_NODES - 1
+    // items; a longer one up to MAX_ARRAY_LEN exceeds the value count, a longer one still its length.
+    ['the longest array', Array(MAX_NODES - 1).fill(0)],
     ['the widest object', Object.fromEntries(Array.from({ length: MAX_OBJECT_KEYS }, (_, i) => [`k${i}`, i]))],
     ['the longest string', 'x'.repeat(MAX_STRING_BYTES)],
-    // 1 + 7 × (1 + 2856) = 20,000 values.
-    ['the most values', Array.from({ length: 7 }, () => Array(2856).fill(0))],
+    // 1 + 4 × (1 + 1023) = 4,097 values would be one too many: 1 + 5 × (1 + 818) = 4,096.
+    ['the most values', Array.from({ length: 5 }, () => Array(818).fill(0))],
     ['the deepest value', nest(MAX_DEPTH - 1)],
   ])('%s', (_label, value) => {
     expect(firstExcess(value)).toBeUndefined();
@@ -45,11 +47,12 @@ describe('the first excess, in document order', () => {
       '/s',
       /string of 16386 bytes is longer than 16384/,
     ],
-    // Values 1 to 16,004 are the root, two arrays of 8,000 and the third array; value 20,001 is item 3,996.
+    // Values 1 to 4,002 are the root and the first array of 4,000; value 4,003 is the second array
+    // and value 4,097 its item 93.
     [
       'the value count',
-      Array.from({ length: 3 }, () => Array(8000).fill(0)),
-      '/2/3996',
+      Array.from({ length: 2 }, () => Array(4000).fill(0)),
+      '/1/93',
       new RegExp(`more than ${MAX_NODES} values`),
     ],
     ['the depth', nest(MAX_DEPTH), `/${Array(MAX_DEPTH).fill('0').join('/')}`, /deeper than 128 levels/],

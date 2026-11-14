@@ -26,6 +26,11 @@
 // that only an invalid document can exceed it (validate.ts). The values it does build are compact:
 // each array is copied off a shared stack at its exact length, and a string with escapes is decoded
 // in one piece. The Worker byte limit of each contract bounds the rest (validate.ts).
+//
+// A scan can also skip top-level members: it reads them with every rule but builds none of their
+// values and does not count them towards the value bound. With structural limits it checks the
+// length of every array, object and string value over the whole text, built or not. The check of a
+// submitted result uses both (result.ts).
 
 import { utf8, utf8Length } from './platform.ts';
 
@@ -39,7 +44,13 @@ export const MAX_PAYLOAD_BYTES = 16 * 1024 * 1024;
 /** Nesting of this many arrays or objects is refused (the serde_json recursion limit). */
 export const MAX_NESTING = 128;
 
-export type StrictJsonErrorKind = 'too-large' | 'json' | 'duplicate-key' | 'float-number' | 'unsafe-integer';
+export type StrictJsonErrorKind =
+  | 'too-large'
+  | 'json'
+  | 'duplicate-key'
+  | 'float-number'
+  | 'unsafe-integer'
+  | 'structural-limit';
 
 /** A text that breaks the strict JSON rules. Every kind reports SCHEMA_VIOLATION. */
 export class StrictJsonError extends Error {
@@ -53,22 +64,41 @@ export class StrictJsonError extends Error {
   }
 }
 
+/** Structural limits that a scan checks over the whole text, built or not (limits.ts). */
+export interface ScanLimits {
+  /** Items in one array. */
+  readonly maxArrayItems: number;
+  /** Properties in one object. */
+  readonly maxObjectKeys: number;
+  /** UTF-8 bytes of one string value, after its escapes are decoded. */
+  readonly maxStringBytes: number;
+}
+
 export interface ScanOptions {
   /**
    * The most values the parse builds. A text with more values is still read to the end and checked,
    * but only its first `valueBound` values and the top-level schema_version member are kept.
    */
   readonly valueBound?: number;
+  /**
+   * Top-level members that are read with every rule but never built, and whose values do not count
+   * towards the value bound. The scan names those present in `skipped`.
+   */
+  readonly skip?: readonly string[];
+  /** Structural limits to check over the whole text. An excess is a structural-limit error. */
+  readonly limits?: ScanLimits;
 }
 
 /**
  * A parsed value, the first integer whose magnitude is above 2^53 - 1, if any, and the value bound
- * when the text holds more values than it. The value is then incomplete.
+ * when the text holds more values than it. The value is then incomplete. `skipped` names the
+ * skipped top-level members that the text holds, in text order.
  */
 export interface StrictScan {
   readonly value: JsonValue;
   readonly unsafeInteger?: string;
   readonly exceededValueBound?: number;
+  readonly skipped?: readonly string[];
 }
 
 const U64_MAX = 18446744073709551615n;
@@ -157,9 +187,18 @@ class KeySet {
   }
 }
 
+/** The UTF-8 bytes of one UTF-16 code unit outside a surrogate pair. */
+const utf8Bytes = (code: number) => (code < 0x80 ? 1 : code < 0x800 ? 2 : 3);
+
 class Parser {
   private readonly text: string;
   private readonly bound: number;
+  private readonly skip: ReadonlySet<string>;
+  private readonly limits: ScanLimits | undefined;
+  /** The skipped top-level members present, in text order. */
+  readonly skipped: string[] = [];
+  /** The decoded UTF-8 bytes of the last string read, counted when there are limits. */
+  private stringBytes = 0;
   private readonly seed = (Math.random() * 0x100000000) | 0;
   private index = 0;
   /** The items of the arrays being read, innermost last (see `parseArray`). */
@@ -170,9 +209,11 @@ class Parser {
   private building = true;
   unsafeInteger: string | undefined;
 
-  constructor(text: string, bound: number) {
+  constructor(text: string, bound: number, skip: readonly string[] = [], limits?: ScanLimits) {
     this.text = text;
     this.bound = bound;
+    this.skip = new Set(skip);
+    this.limits = limits;
   }
 
   get exceeded(): boolean {
@@ -214,7 +255,11 @@ class Parser {
     const code = this.text.charCodeAt(this.index);
     if (code === 0x7b) return this.parseObject(root);
     if (code === 0x5b) return this.parseArray();
-    if (code === 0x22) return this.parseString(this.building);
+    if (code === 0x22) {
+      const text = this.parseString(this.building);
+      this.checkStringBytes();
+      return text;
+    }
     if (code === 0x2d || isDigit(code)) return this.parseNumber();
     for (const [literal, value] of [
       ['true', true],
@@ -235,6 +280,13 @@ class Parser {
     this.index += 1;
   }
 
+  /** With limits, a string value longer than the limit is an error. */
+  checkStringBytes(): void {
+    if (this.limits !== undefined && this.stringBytes > this.limits.maxStringBytes) {
+      this.fail('structural-limit', `string of ${this.stringBytes} bytes is longer than ${this.limits.maxStringBytes}`);
+    }
+  }
+
   parseArray(): JsonValue[] {
     this.enter();
     this.skipWhitespace();
@@ -247,7 +299,9 @@ class Parser {
     // V8 gives an array that grows by push room for at least 16 items, so `[[[…[0]…]]]` would
     // take about 100 bytes of heap for each byte of text instead of about 35.
     const start = this.stack.length;
-    for (;;) {
+    const maxItems = this.limits?.maxArrayItems ?? Number.POSITIVE_INFINITY;
+    for (let items = 1; ; items += 1) {
+      if (items > maxItems) this.fail('structural-limit', `array of more than ${maxItems} items`);
       this.skipWhitespace();
       const item = this.parseValue();
       if (this.building) this.stack.push(item);
@@ -274,7 +328,9 @@ class Parser {
       this.depth -= 1;
       return out;
     }
-    for (;;) {
+    const maxKeys = this.limits?.maxObjectKeys ?? Number.POSITIVE_INFINITY;
+    for (let keys = 1; ; keys += 1) {
+      if (keys > maxKeys) this.fail('structural-limit', `object of more than ${maxKeys} properties`);
       this.skipWhitespace();
       if (this.text.charCodeAt(this.index) !== 0x22) this.fail('json', 'expected a string key');
       const offset = this.index;
@@ -292,8 +348,21 @@ class Parser {
       // counts as a value like any other. Another value past the bound is stored as null, a
       // non-string.
       const keep = root && key === 'schema_version';
-      const value = keep && this.text.charCodeAt(this.index) === 0x22 ? this.keptString() : this.parseValue();
-      if (this.building || keep) {
+      // A skipped member is read with every rule but not built, and its values are not counted.
+      const skipped = root && this.skip.has(key);
+      let value: JsonValue = null;
+      if (skipped) {
+        const [building, values] = [this.building, this.values];
+        this.building = false;
+        this.parseValue();
+        [this.building, this.values] = [building, values];
+        this.skipped.push(key);
+      } else if (keep && this.text.charCodeAt(this.index) === 0x22) {
+        value = this.keptString();
+      } else {
+        value = this.parseValue();
+      }
+      if ((this.building || keep) && !skipped) {
         // An own property even for __proto__, as JSON.parse does.
         Object.defineProperty(out, key, {
           value: !this.building && typeof value !== 'string' ? null : value,
@@ -320,7 +389,9 @@ class Parser {
   keptString(): string {
     this.values += 1;
     if (this.values > this.bound) this.building = false;
-    return this.parseString(true);
+    const text = this.parseString(true);
+    this.checkStringBytes();
+    return text;
   }
 
   hexEscape(): number {
@@ -330,11 +401,16 @@ class Parser {
     return Number.parseInt(digits, 16);
   }
 
-  /** Read a string. When `keep` is false it is checked and an empty string is returned. */
+  /**
+   * Read a string. When `keep` is false it is checked and an empty string is returned. With limits,
+   * `stringBytes` is set to the UTF-8 bytes of the decoded string.
+   */
   parseString(keep: boolean): string {
     const open = this.index;
     this.index += 1;
     let escaped = false;
+    const counting = this.limits !== undefined;
+    let bytes = 0;
     for (;;) {
       const code = this.text.charCodeAt(this.index);
       if (Number.isNaN(code)) this.fail('json', 'end of text while parsing a string');
@@ -343,15 +419,20 @@ class Parser {
       if (isHigh(code)) {
         if (!isLow(this.text.charCodeAt(this.index + 1))) this.fail('json', 'lone surrogate in a string');
         this.index += 2;
+        bytes += 4;
         continue;
       }
       if (isLow(code)) this.fail('json', 'lone surrogate in a string');
       this.index += 1;
       if (code === 0x5c) {
-        this.checkEscape();
+        const decoded = this.checkEscape();
+        if (counting) bytes += decoded;
         escaped = true;
+      } else if (counting) {
+        bytes += utf8Bytes(code);
       }
     }
+    this.stringBytes = bytes;
     this.index += 1;
     if (!keep) return '';
     if (!escaped) return this.text.slice(open + 1, this.index - 1);
@@ -360,8 +441,8 @@ class Parser {
     return JSON.parse(this.text.slice(open, this.index)) as string;
   }
 
-  /** Check one escape after its backslash. */
-  checkEscape(): void {
+  /** Check one escape after its backslash, and give the UTF-8 bytes of the character it stands for. */
+  checkEscape(): number {
     const code = this.text.charCodeAt(this.index);
     this.index += 1;
     switch (code) {
@@ -373,21 +454,21 @@ class Parser {
       case 0x6e:
       case 0x72:
       case 0x74:
-        return;
+        return 1;
       case 0x75: {
         const unit = this.hexEscape();
         if (isLow(unit)) this.fail('json', 'lone surrogate in a \\u escape');
-        if (!isHigh(unit)) return;
+        if (!isHigh(unit)) return utf8Bytes(unit);
         if (this.text.charCodeAt(this.index) !== 0x5c || this.text.charCodeAt(this.index + 1) !== 0x75) {
           this.fail('json', 'unexpected end of a surrogate pair escape');
         }
         this.index += 2;
         const low = this.hexEscape();
         if (!isLow(low)) this.fail('json', 'lone surrogate in a \\u escape');
-        return;
+        return 4;
       }
       default:
-        this.fail('json', 'invalid escape');
+        return this.fail('json', 'invalid escape');
     }
   }
 
@@ -462,12 +543,13 @@ export function scanStrictJson(input: string | Uint8Array, options: ScanOptions 
     text = decoded;
   }
   const bound = options.valueBound ?? Number.POSITIVE_INFINITY;
-  const parser = new Parser(text, bound);
+  const parser = new Parser(text, bound, options.skip, options.limits);
   const value = parser.parseDocument();
   return {
     value,
     ...(parser.unsafeInteger === undefined ? {} : { unsafeInteger: parser.unsafeInteger }),
     ...(parser.exceeded ? { exceededValueBound: bound } : {}),
+    ...(options.skip === undefined ? {} : { skipped: parser.skipped }),
   };
 }
 
