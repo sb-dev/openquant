@@ -41,17 +41,29 @@ export class ContractError extends Error {
   readonly kind: ContractErrorKind;
   readonly code: ContractFailureCode;
   /**
-   * Schema violations: at most 20, then one entry without a pointer that stands for all later ones
-   * and is decimal-grammar only if every one of them is. A document beyond the structural limits
-   * holds the limit it exceeds, then its first violation.
+   * Schema violations. When the listing ran: at most 20, then one entry without a pointer that
+   * stands for all later ones and is decimal-grammar only if every one of them is. When it stopped
+   * (listingStopped): the limit that stopped it, then, for a structural limit, the first violation.
    */
   readonly violations: readonly SchemaViolation[];
+  /**
+   * True when the document was not listed in full: it holds more values than its value bound
+   * (kind value-bound), or, invalid, it exceeds a structural limit such as more than MAX_NODES
+   * values (limits.ts). Only the first violation was then found, and the code is SCHEMA_VIOLATION.
+   */
+  readonly listingStopped: boolean;
 
-  constructor(kind: ContractErrorKind, message: string, violations: readonly SchemaViolation[] = []) {
+  constructor(
+    kind: ContractErrorKind,
+    message: string,
+    violations: readonly SchemaViolation[] = [],
+    listingStopped = false,
+  ) {
     super(message);
     this.name = 'ContractError';
     this.kind = kind;
     this.violations = violations;
-    this.code = failureCode(kind, violations);
+    this.listingStopped = listingStopped;
+    this.code = listingStopped ? 'SCHEMA_VIOLATION' : failureCode(kind, violations);
   }
 }

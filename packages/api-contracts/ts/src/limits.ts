@@ -1,12 +1,22 @@
 // Structural limits that gate the full diagnostic pass of schema validation, mirroring
 // packages/api-contracts/rust/src/limits.rs.
 //
-// Validation first asks for one error, which is cheap at any size. Only an invalid document within
-// these limits goes on to the pass that lists every violation. A valid document returns before this
-// check, so the limits never reject one, although a valid result or checkpoint can hold more than
-// MAX_NODES values. They are not a memory bound: the parse builds the document before validation
-// runs. The parse is bounded by the contract's value bound and Worker byte limit instead
-// (validate.ts, strict-json.ts).
+// Validation first runs the first-error validator, which decides validity at any size. Only an
+// invalid document within these limits goes on to the all-errors validator, which lists its
+// violations. A document beyond a limit reports that limit, then its first violation: the listing
+// stopped (ContractError.listingStopped), and the code is SCHEMA_VIOLATION even when the first
+// violation is a decimal-grammar one.
+//
+// The listing costs memory in proportion to the errors Ajv creates, and one value can carry up to
+// 34 of them (test/support/error-bound.ts derives the most for each contract from the schemas).
+// MAX_NODES therefore bounds the listing: at most 4,096 values, so at most 34 × 4,096 = 139,264
+// errors. test/memory.test.ts parses the document with the most errors of every contract at its
+// Worker byte limit within 64 MB. The other limits only stop the walk early.
+//
+// A valid document returns before this check, so the limits never reject one, although a valid
+// result or checkpoint can hold more than MAX_NODES values. They do not bound the parse, which builds
+// the document before validation runs. The contract's value bound and Worker byte limit bound the
+// parse instead (validate.ts, strict-json.ts).
 // The walk visits values in the order Rust does: arrays by index, object keys in byte order (the
 // serde_json map is sorted), and stops at the first excess.
 
@@ -14,8 +24,8 @@ import type { SchemaViolation } from './errors.ts';
 import { utf8Length } from './platform.ts';
 import type { JsonObject, JsonValue } from './strict-json.ts';
 
-/** Values in the whole document. */
-export const MAX_NODES = 20_000;
+/** Values in the whole document. An invalid document with more is not listed in full. */
+export const MAX_NODES = 4_096;
 /** Nesting depth. */
 export const MAX_DEPTH = 128;
 /** Items in one array. */

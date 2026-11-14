@@ -180,7 +180,7 @@ The cohort policy fixes the execution limits below. The Researcher does not set 
 | Execution limit | Value |
 | --- | --- |
 | Per-attempt timeout | Agent attempt 15 minutes. Batch `retrieve` and `evaluate` 10 minutes; `validate` and `assess` 5 minutes. P3 replaces the batch values with the measured worst-case 400-session time plus a margin, and derives the lease and queue visibility from it. |
-| Output limit | Agent standard output 512 KiB; a longer output is a malformed result. Each uploaded batch artefact 8 MiB. |
+| Output limit | Agent standard output 512 KiB; a longer output is a malformed result. Each uploaded batch artefact 8 MiB. The API scans a submitted `evaluation-result/1` within the same 8 MiB before commit (OQ-05 section 7); the largest result within the S0 limits measured 2,369,582 bytes. |
 | Concurrency | At most 2 batch attempts and 2 agent attempts at a time. |
 
 The `agent-attempt-result/1` contract bounds diagnostic text to 2000 characters.

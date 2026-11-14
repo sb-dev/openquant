@@ -9,11 +9,15 @@
 //    and the schema rejects it, because every schema integer has a maximum below 2^31 and every
 //    object is closed;
 // 4. more values than the contract's value bound: SCHEMA_VIOLATION (see below);
-// 5. the schema, first error only. A valid document stops here;
-// 6. for an invalid document beyond the structural limits (limits.ts): SCHEMA_VIOLATION;
-// 7. otherwise every violation is listed. The code is INVALID_DECIMAL when every violation is a
-//    failure of the Decimal or Exact pattern (an Exact text longer than 80 characters fails
-//    maxLength, which is SCHEMA_VIOLATION), and SCHEMA_VIOLATION otherwise (error.rs).
+// 5. the schema, with the first-error validator, which decides validity at any size. A valid
+//    document stops here;
+// 6. an invalid document beyond the structural limits (limits.ts), such as one with more than
+//    MAX_NODES (4,096) values, is not listed: it reports the limit, then its first violation, marks
+//    the listing as stopped (ContractError.listingStopped) and is SCHEMA_VIOLATION;
+// 7. otherwise the all-errors validator lists the violations, 20 and a counted rest, at a cost
+//    bounded by MAX_NODES (limits.ts). The code is INVALID_DECIMAL when every violation is a failure
+//    of the Decimal or Exact pattern (an Exact text longer than 80 characters fails maxLength, which
+//    is SCHEMA_VIOLATION), and SCHEMA_VIOLATION otherwise (error.rs).
 //
 // The value bound limits what the parse builds. It is the larger of the most values a document
 // valid against the contract's schema can hold (tools/generate.ts derives it from the closed objects
@@ -55,31 +59,47 @@ export function isContractName(name: string): name is ContractName {
   return Object.hasOwn(contracts, name);
 }
 
-function reject(kind: ContractErrorKind, message: string, violations: readonly SchemaViolation[] = []) {
-  return { ok: false, error: new ContractError(kind, message, violations) } as const;
+export function reject(
+  kind: ContractErrorKind,
+  message: string,
+  violations: readonly SchemaViolation[] = [],
+  listingStopped = false,
+) {
+  return { ok: false, error: new ContractError(kind, message, violations, listingStopped) } as const;
 }
 
 function violation(error: ValidatorError | undefined): SchemaViolation {
   if (error === undefined) return { pointer: '', message: 'the schema rejected the document', decimalGrammar: false };
-  const pattern = error.keyword === 'pattern' ? error.params.pattern : undefined;
   return {
     pointer: error.instancePath,
     message: `${error.instancePath || '/'} ${error.message ?? error.keyword}`,
-    decimalGrammar: pattern === DECIMAL_PATTERN || pattern === EXACT_PATTERN,
+    decimalGrammar: isDecimalGrammar(error),
   };
 }
 
-// The first violations, then one marker for the rest that is decimal-grammar only if all of them are.
+function isDecimalGrammar(error: ValidatorError): boolean {
+  const pattern = error.keyword === 'pattern' ? error.params.pattern : undefined;
+  return pattern === DECIMAL_PATTERN || pattern === EXACT_PATTERN;
+}
+
+// The first violations, then one marker for the rest that is decimal-grammar only if all of them
+// are. The rest are counted and classified in place, so no violation is built for them.
 function collect(errors: readonly ValidatorError[], first: SchemaViolation): SchemaViolation[] {
   const listed = errors.slice(0, MAX_REPORTED_VIOLATIONS).map(violation);
-  const omitted = errors.slice(MAX_REPORTED_VIOLATIONS).map(violation);
   // The first-error pass rejected the document, so never turn that into success.
   if (listed.length === 0) listed.push(first);
-  if (omitted.length > 0) {
+  let omitted = 0;
+  let omittedAllDecimal = true;
+  for (let index = MAX_REPORTED_VIOLATIONS; index < errors.length; index += 1) {
+    omitted += 1;
+    const error = errors[index];
+    if (error === undefined || !isDecimalGrammar(error)) omittedAllDecimal = false;
+  }
+  if (omitted > 0) {
     listed.push({
       pointer: '',
-      message: `${omitted.length} further violation(s) not listed`,
-      decimalGrammar: omitted.every((v) => v.decimalGrammar),
+      message: `${omitted} further violation(s) not listed`,
+      decimalGrammar: omittedAllDecimal,
     });
   }
   return listed;
@@ -108,14 +128,20 @@ const SMALL_VALUE_BOUND = 100_000;
  * stored artefact. A contract with a value bound of at most 100,000 gets 4 MiB: past its bound the
  * parse only checks the text. Any other contract gets 512 KiB, because its parse may build every
  * value: command/1 and strategy-artefact/1 hold a recursive Expr tree, and checkpoint/1 and
- * evaluation-result/1 can hold more than a million values. test/memory.test.ts parses the densest
- * bodies of every contract at its limit within 64 MB, half of a Worker isolate's memory.
+ * evaluation-result/1 can hold more than a million values. test/memory.test.ts parses, for every
+ * contract at its limit, the bodies that build the most values or the most heap per byte, and the
+ * invalid body whose violation listing creates the most Ajv errors, each within 64 MB, half of a
+ * Worker isolate's memory.
  */
 export function workerBodyLimit(contract: ContractName): number {
   return valueBound(contract) <= SMALL_VALUE_BOUND ? 4 * 1024 * 1024 : 512 * 1024;
 }
 
-function check<C extends ContractName>(
+/**
+ * The checks after strict JSON: the version, an unsafe integer, the value bound and the schema, with
+ * the violation listing within the structural limits. scanEvaluationResult (result.ts) shares them.
+ */
+export function checkScanned<C extends ContractName>(
   contract: C,
   value: JsonValue,
   unsafeInteger: string | undefined,
@@ -135,13 +161,17 @@ function check<C extends ContractName>(
   }
   if (exceededValueBound !== undefined) {
     const message = `document has more than ${exceededValueBound} values; the document is not examined further`;
-    return reject('value-bound', message, [{ pointer: '', message, decimalGrammar: false }]);
+    return reject('value-bound', message, [{ pointer: '', message, decimalGrammar: false }], true);
   }
+  // Validity is decided here, at any size.
   const quick = firstErrorValidators[contract];
   if (quick(value)) return { ok: true, value: value as unknown as ContractTypes[C] };
   const first = violation(quick.errors?.[0]);
+  // The listing runs only within the structural limits, which bound its Ajv errors.
   const excess = firstExcess(value);
-  if (excess !== undefined) return reject('schema', 'payload violates the schema at 2 location(s)', [excess, first]);
+  if (excess !== undefined) {
+    return reject('schema', 'payload violates the schema at 2 location(s)', [excess, first], true);
+  }
   const full = allErrorValidators[contract];
   full(value);
   const violations = collect(full.errors ?? [], first);
@@ -158,7 +188,7 @@ export function parseContract<C extends ContractName>(
 ): ContractResult<ContractTypes[C]> {
   try {
     const { value, unsafeInteger, exceededValueBound } = scanStrictJson(input, { valueBound: valueBound(contract) });
-    return check(contract, value, unsafeInteger, exceededValueBound);
+    return checkScanned(contract, value, unsafeInteger, exceededValueBound);
   } catch (error) {
     if (error instanceof StrictJsonError) return reject(error.kind, error.message);
     throw error;

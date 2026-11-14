@@ -19,14 +19,26 @@
 // wide        {"schema_version":"<tag>","violations":"\naa…a一"}: one escape and one character
 //             outside Latin-1, so the text and the decoded string take two bytes a character
 //
+// errors      the document of the contract whose violation listing creates the most Ajv errors
+//             (support/error-shape.ts), with MAX_NODES values, so the listing runs
+// errors-wide the same, with long strings under an extra key in place of some items: each string
+//             holds MAX_STRING_BYTES bytes and one character outside Latin-1, so the strings and
+//             the decoded text take two bytes a character while the listing runs
+//
 // "unbounded" parses the body with parseStrictJson, which builds every value, as a control.
+//
+// For the errors shapes the child also reports how many values the document holds and how many
+// errors the all-errors validator creates for it, counted after the measurement.
 //
 // The peak is the largest heap V8 reported before any garbage collection during the parse, or
 // after the parse. External memory holds the body bytes, typed arrays and, in Node, the decoded
 // text; peakTotalMiB adds it to the heap, and test/memory.test.ts checks that sum.
 
 import { GCProfiler, getHeapStatistics } from 'node:v8';
+import { byContract as allErrorValidators } from '../../dist/generated/validators-all.js';
 import { contracts, isContractName, parseContract, parseStrictJson } from '../../src/index.ts';
+import { MAX_NODES, MAX_STRING_BYTES } from '../../src/limits.ts';
+import { errorShape } from './error-shape.ts';
 
 const MiB = 2 ** 20;
 const [shape = '', contract = '', size = '', mode = ''] = process.argv.slice(2);
@@ -42,7 +54,35 @@ const room = (tail: number) => bytes.length - at - tail;
 const tag = contracts[contract].versionTag;
 
 const items: Record<string, string> = { zeros: '0', arrays: '[]', objects: '{}', singletons: '[0]' };
-if (shape === 'keys') {
+let counted: { strings: number } | undefined;
+if (shape === 'errors' || shape === 'errors-wide') {
+  const { open, item, close, skeleton } = errorShape(contract);
+  // A string of MAX_STRING_BYTES bytes: ASCII, then 一 (U+4E00), three bytes in UTF-8.
+  const stringBytes = MAX_STRING_BYTES + 2;
+  let strings = 0;
+  if (shape === 'errors-wide') {
+    const fixed = open.length + close.length + ',"pad":[]'.length + (MAX_NODES - skeleton) * (item.length + 1);
+    strings = Math.max(0, Math.floor((bytes.length - fixed) / (stringBytes + 1)));
+  }
+  // The pad array and its strings are values too.
+  const repeated = MAX_NODES - skeleton - (shape === 'errors-wide' ? strings + 1 : 0);
+  write(open);
+  for (let index = 0; index < repeated; index += 1) write(index === 0 ? item : `,${item}`);
+  write(close.slice(0, -1));
+  if (shape === 'errors-wide') {
+    write(',"pad":[');
+    for (let index = 0; index < strings; index += 1) {
+      write(index === 0 ? '"' : ',"');
+      write('a'.repeat(MAX_STRING_BYTES - 3));
+      bytes.set([0xe4, 0xb8, 0x80], at);
+      at += 3;
+      write('"');
+    }
+    write(']');
+  }
+  write('}');
+  counted = { strings };
+} else if (shape === 'keys') {
   write(`{"schema_version":"${tag}"`);
   for (let key = 0; ; key += 1) {
     const member = `,"k${key.toString(36)}":0`;
@@ -95,7 +135,13 @@ if (mode === 'unbounded') {
   const result = parseContract(contract, bytes);
   outcome = result.ok
     ? { verdict: 'accepted' }
-    : { verdict: 'rejected', code: result.error.code, kind: result.error.kind };
+    : {
+        verdict: 'rejected',
+        code: result.error.code,
+        kind: result.error.kind,
+        listingStopped: result.error.listingStopped,
+        violations: result.error.violations.length,
+      };
 }
 const milliseconds = Date.now() - started;
 const after = getHeapStatistics();
@@ -104,6 +150,20 @@ const samples = [
   { usedHeapSize: after.used_heap_size, externalMemory: after.external_memory },
 ];
 const peak = (read: (sample: (typeof samples)[number]) => number) => Math.max(...samples.map(read));
+if (counted !== undefined) {
+  const validate = allErrorValidators[contract];
+  const document = parseStrictJson(bytes);
+  const values = (value: unknown): number => {
+    if (Array.isArray(value)) return 1 + value.reduce<number>((sum, item) => sum + values(item), 0);
+    if (typeof value === 'object' && value !== null) {
+      return 1 + Object.values(value).reduce<number>((sum, item) => sum + values(item), 0);
+    }
+    return 1;
+  };
+  outcome.values = values(document);
+  outcome.ajvErrors = validate(document) ? 0 : (validate.errors?.length ?? 0);
+  outcome.strings = counted.strings;
+}
 console.log(
   JSON.stringify({
     ...outcome,
