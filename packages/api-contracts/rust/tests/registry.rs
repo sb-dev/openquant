@@ -7,7 +7,7 @@
     clippy::indexing_slicing
 )]
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use openquant_contracts::{
     AnyContract, Checkpoint, Contract, ContractError, ContractKind, Envelope, EvaluationInput,
@@ -209,4 +209,143 @@ fn an_envelope_checks_its_version_tag_before_its_schema() {
         validate(Envelope::ApiError, &json!({})).unwrap_err(),
         ContractError::MissingVersion
     ));
+}
+
+/// Every schema file by its `$id`.
+fn schemas_by_id() -> BTreeMap<String, Value> {
+    schema_names()
+        .into_iter()
+        .map(|name| {
+            let value = schema(&name);
+            (value["$id"].as_str().unwrap().to_owned(), value)
+        })
+        .collect()
+}
+
+/// The schema a `$ref` names, and the document it is in.
+fn resolve<'a>(
+    documents: &'a BTreeMap<String, Value>,
+    document: &'a Value,
+    reference: &str,
+) -> (&'a Value, &'a Value) {
+    let (base, fragment) = reference.split_once('#').unwrap_or((reference, ""));
+    let target = if base.is_empty() {
+        document
+    } else {
+        documents
+            .get(base)
+            .unwrap_or_else(|| panic!("unknown schema {base}"))
+    };
+    let resolved = if fragment.is_empty() {
+        target
+    } else {
+        let name = fragment.strip_prefix("/$defs/").unwrap();
+        &target["$defs"][name]
+    };
+    (resolved, target)
+}
+
+/// Each property that an object schema does not require, whose schema (through references) is an
+/// array, as `file: pointer/property` with its `minItems`.
+fn optional_arrays(
+    documents: &BTreeMap<String, Value>,
+    document: &Value,
+    file: &str,
+    node: &Value,
+    pointer: &str,
+    out: &mut Vec<(String, u64)>,
+) {
+    match node {
+        Value::Object(map) => {
+            if let Some(Value::Object(properties)) = map.get("properties") {
+                let required: BTreeSet<&str> = map
+                    .get("required")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .collect();
+                for (name, property) in properties {
+                    if required.contains(name.as_str()) {
+                        continue;
+                    }
+                    let (mut target, mut owner) = (property, document);
+                    while let Some(reference) = target["$ref"].as_str() {
+                        (target, owner) = resolve(documents, owner, reference);
+                    }
+                    if target["type"] == "array" {
+                        let min = target["minItems"].as_u64().unwrap_or(0);
+                        out.push((format!("{file}: {pointer}/properties/{name}"), min));
+                    }
+                }
+            }
+            for (key, child) in map {
+                optional_arrays(
+                    documents,
+                    document,
+                    file,
+                    child,
+                    &format!("{pointer}/{key}"),
+                    out,
+                );
+            }
+        }
+        Value::Array(items) => {
+            for (index, child) in items.iter().enumerate() {
+                optional_arrays(
+                    documents,
+                    document,
+                    file,
+                    child,
+                    &format!("{pointer}/{index}"),
+                    out,
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+/// The generated bindings skip an empty `Vec` when they serialise an optional array
+/// (`skip_serializing_if = "Vec::is_empty"`), and identity digests are computed from the binding
+/// (`payload_digest`). An optional array that the schema allowed to be empty would give `[]` and an
+/// absent field one digest in Rust and two in TypeScript (OQ-05 section 7). Every optional array, in
+/// the engine-scope and the connected schemas, therefore holds at least one item: absent and present
+/// are then the only forms, and the binding writes back exactly what was parsed.
+#[test]
+fn every_optional_array_holds_at_least_one_item() {
+    let documents = schemas_by_id();
+    let mut found = Vec::new();
+    for name in schema_names() {
+        let document = schema(&name);
+        optional_arrays(
+            &documents,
+            &document,
+            &format!("{name}.schema.json"),
+            &document,
+            "",
+            &mut found,
+        );
+    }
+    let empty: Vec<&String> = found
+        .iter()
+        .filter(|(_, min)| *min < 1)
+        .map(|(path, _)| path)
+        .collect();
+    assert!(
+        empty.is_empty(),
+        "optional arrays that may be empty: {empty:#?}"
+    );
+    // The walk reaches the three optional arrays of the S1 schemas.
+    let paths: BTreeSet<&str> = found.iter().map(|(path, _)| path.as_str()).collect();
+    for expected in [
+        "api-error.schema.json: /properties/violations",
+        "gate-report.schema.json: /$defs/UndecidedGate/properties/evidence",
+        "gate-report.schema.json: /$defs/UndecidedGate/properties/observations",
+    ] {
+        assert!(
+            paths.contains(expected),
+            "{expected} not found in {paths:#?}"
+        );
+    }
 }

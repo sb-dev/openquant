@@ -8,11 +8,21 @@
 // 3. an integer whose magnitude is above 2^53 - 1: SCHEMA_VIOLATION. Rust reaches the schema with it
 //    and the schema rejects it, because every schema integer has a maximum below 2^31 and every
 //    object is closed;
-// 4. the schema, first error only. A valid document stops here;
-// 5. for an invalid document beyond the structural limits (limits.ts): SCHEMA_VIOLATION;
-// 6. otherwise every violation is listed. The code is INVALID_DECIMAL when every violation is a
+// 4. more values than the contract's value bound: SCHEMA_VIOLATION (see below);
+// 5. the schema, first error only. A valid document stops here;
+// 6. for an invalid document beyond the structural limits (limits.ts): SCHEMA_VIOLATION;
+// 7. otherwise every violation is listed. The code is INVALID_DECIMAL when every violation is a
 //    failure of the Decimal or Exact pattern (an Exact text longer than 80 characters fails
 //    maxLength, which is SCHEMA_VIOLATION), and SCHEMA_VIOLATION otherwise (error.rs).
+//
+// The value bound keeps the parse within a Worker's memory. It is the larger of the most values a
+// document valid against the contract's schema can hold (tools/generate.ts derives it from the closed
+// objects and the array maxItems) and MAX_NODES. A document above it is therefore invalid, and it
+// has more than MAX_NODES values, so Rust reports SCHEMA_VIOLATION for it too (limits.rs), once its
+// strict JSON and its version tag pass. The parse still checks the whole text past the bound, so a
+// strict-JSON error or a wrong version gives the same code as in Rust. A contract whose schema is
+// recursive (an Expr tree) has no such maximum and no bound; the API limits the request body of
+// the routes that accept one (routes/v1.json, OQ-05 §7).
 //
 // Semantic rules stay in Rust: the Exact canonical form, decimal range and scale, operator types and
 // run preparation. A payload that passes here may still be rejected there.
@@ -28,7 +38,7 @@ import { byContract as allErrorValidators } from '../dist/generated/validators-a
 import { byContract as firstErrorValidators, type ValidatorError } from '../dist/generated/validators-first.js';
 import { CanonicalError, canonicalJson } from './canonical.ts';
 import { ContractError, type ContractErrorKind, type SchemaViolation } from './errors.ts';
-import { firstExcess } from './limits.ts';
+import { firstExcess, MAX_NODES } from './limits.ts';
 import { type JsonValue, StrictJsonError, scanStrictJson } from './strict-json.ts';
 
 /** Violations listed one by one. Later ones are counted in one marker entry. */
@@ -77,10 +87,20 @@ function schemaVersion(value: JsonValue): JsonValue | undefined {
   return Object.hasOwn(value, 'schema_version') ? value.schema_version : undefined;
 }
 
+/**
+ * The most values a parse of this contract builds: no document valid against the contract holds
+ * more. Infinite for a contract whose schema is recursive.
+ */
+export function valueBound(contract: ContractName): number {
+  const schemaMaximum: number | null = contracts[contract].maxValues;
+  return schemaMaximum === null ? Number.POSITIVE_INFINITY : Math.max(MAX_NODES, schemaMaximum);
+}
+
 function check<C extends ContractName>(
   contract: C,
   value: JsonValue,
   unsafeInteger: string | undefined,
+  exceededValueBound: number | undefined,
 ): ContractResult<ContractTypes[C]> {
   const expected = contracts[contract].versionTag;
   const found = schemaVersion(value);
@@ -93,6 +113,10 @@ function check<C extends ContractName>(
   }
   if (unsafeInteger !== undefined) {
     return reject('unsafe-integer', `integer ${unsafeInteger} is outside the exact range of 2^53 - 1`);
+  }
+  if (exceededValueBound !== undefined) {
+    const message = `document has more than ${exceededValueBound} values; the document is not examined further`;
+    return reject('value-bound', message, [{ pointer: '', message, decimalGrammar: false }]);
   }
   const quick = firstErrorValidators[contract];
   if (quick(value)) return { ok: true, value: value as unknown as ContractTypes[C] };
@@ -114,8 +138,8 @@ export function parseContract<C extends ContractName>(
   input: string | Uint8Array,
 ): ContractResult<ContractTypes[C]> {
   try {
-    const { value, unsafeInteger } = scanStrictJson(input);
-    return check(contract, value, unsafeInteger);
+    const { value, unsafeInteger, exceededValueBound } = scanStrictJson(input, { valueBound: valueBound(contract) });
+    return check(contract, value, unsafeInteger, exceededValueBound);
   } catch (error) {
     if (error instanceof StrictJsonError) return reject(error.kind, error.message);
     throw error;

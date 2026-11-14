@@ -28,7 +28,12 @@
         "from": "5",
         "to": "4"
       }
-    ]
+    ],
+    "change_scope": "EXIT"
   },
-  "approved": true
+  "approved": true,
+  "duration": {
+    "label": "observed",
+    "milliseconds": 1840
+  }
 }

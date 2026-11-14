@@ -1,6 +1,6 @@
 # Cross-runtime protocol fixtures
 
-Status: S0 fixtures implemented and validated in Rust. The S1 envelope fixtures are added, but no runtime validates them yet. Rust and TypeScript validation of the envelopes arrives later in S1.
+Status: S0 and S1 fixtures implemented. Rust validates every fixture, and the TypeScript contract layer gives every entry the same verdict, code and digest (`packages/api-contracts/ts`). No API or worker uses the S1 envelopes yet.
 
 ## Manifest
 
@@ -20,5 +20,8 @@ S1 adds fixtures for the connected envelopes in `packages/api-contracts/schemas`
 - A fixture that cites another fixture cites its canonical SHA-256 digest. When a cited fixture changes, recompute its digest and update every fixture that cites it.
 - Provider-shaped payloads, such as dataset manifests and job dispatches, use an obviously synthetic instrument and round synthetic values. They hold no real market data ([publication and data policy](../../docs/specs/07-open-source-project-organisation-spec.md#7-publication-and-data-policy)).
 - A case whose verdict depends on attempt ownership, such as stale ownership or a late completion, needs the API's state. It arrives with the API as a `semantic_invalid` entry that declares its attempt context.
+- `api-error.value-bound-*` payloads hold more than 20,000 values, the TypeScript value bound of `api-error/1`. They pin the order of the checks around that bound in both runtimes: a strict-JSON error anywhere, then the version tag, then the bound. They are written on one line.
+- `api-error.wrong-version-*` payloads pin that strict JSON runs before the version check.
+- Bytes that are not UTF-8 are not committed, because the repository checks read every tracked file as text. The Rust contracts-report test and the TypeScript validation test build the same byte strings and both expect `SCHEMA_VIOLATION`.
 
 The S1 TypeScript layer will run every shared payload and compare its verdict, and the digest of a valid payload, with Rust. Keep provisional harness-only wire formats out of this shared contract.

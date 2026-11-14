@@ -36,7 +36,7 @@
     },
     "RetrievalFailure": {
       "title": "RetrievalFailure",
-      "description": "No snapshot. Only transient classes are retried, within max_retries and the attempt cap; then the job is FAILED. Authentication, permission and unsupported-capability errors are never retried as transient. retry_after_seconds preserves a provider Retry-After value when present.",
+      "description": "No snapshot. Only transient classes are retried, within max_retries and the attempt cap; then the job is FAILED. AUTHENTICATION, PERMISSION, UNSUPPORTED_CAPABILITY and CANCELLED are never retried (OQ-05 sections 4 and 7.1), so retryable is false for them; the schema rejects true. retry_after_seconds preserves a provider Retry-After value when present.",
       "type": "object",
       "additionalProperties": false,
       "required": ["status", "error", "retryable", "detail"],
@@ -46,6 +46,13 @@
         "retryable": { "type": "boolean" },
         "retry_after_seconds": { "type": "integer", "minimum": 0, "maximum": 86400 },
         "detail": { "type": "string", "maxLength": 1000 }
+      },
+      "not": {
+        "required": ["error", "retryable"],
+        "properties": {
+          "error": { "enum": ["AUTHENTICATION", "PERMISSION", "UNSUPPORTED_CAPABILITY", "CANCELLED"] },
+          "retryable": { "enum": [true] }
+        }
       }
     },
     "RetrievalErrorClass": {
@@ -61,7 +68,7 @@
       "additionalProperties": false,
       "required": ["sequence", "operation", "started_at", "result"],
       "properties": {
-        "sequence": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "sequence": { "type": "integer", "minimum": 1, "maximum": 1000 },
         "operation": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ProviderCapabilityRef" },
         "started_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
         "result": { "type": "string", "enum": ["SUCCEEDED", "FAILED"] },
