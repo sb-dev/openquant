@@ -477,6 +477,11 @@ test('the repository check rejects a TypeScript step dropped from scripts/typesc
   assert.equal(run.status,1);
   assert.match(run.output,/scripts\/typescript\.ts must run: pnpm exec node scripts\/workspace\/check-workspace\.ts/);
 });
+test('pnpm must fail instead of installing before a script',()=>{
+  mutated((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'verifyDepsBeforeRun: error\n','')),/pnpm-workspace\.yaml must set verifyDepsBeforeRun: error/);
+  mutated((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'verifyDepsBeforeRun: error\n','verifyDepsBeforeRun: install\n')),/pnpm-workspace\.yaml must set verifyDepsBeforeRun: error/);
+  mutated((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'verifyDepsBeforeRun: error\n','# verifyDepsBeforeRun: error\n')),/pnpm-workspace\.yaml must set verifyDepsBeforeRun: error/);
+});
 test('the repository check rejects a verify.ts without its dependency check',()=>mutated((base)=>edit(base,'scripts/verify.ts',(t)=>replaceOnce(t,'if (installError) fail(installError);',''))
   ,/scripts\/verify\.ts must fail when the installed dependencies do not match pnpm-lock\.yaml/));
 test('rust.ts cannot ignore the exit status or the pinned version',()=>{
