@@ -1,6 +1,6 @@
 # Shared wire schemas
 
-Status: S0 implemented for the schema source and Rust validation (crate `openquant-contracts` in `rust`, bindings generated at build time from `schemas`). The S1 connected envelopes and the route manifest are contracts only: no runtime validates them yet. S1 adds their Rust and TypeScript validation.
+Status: implemented for S0 and the S1 contract layer. The crate `openquant-contracts` in `rust` validates the engine-scope contracts and the S1 connected envelopes, with bindings generated at build time from `schemas`. The TypeScript package `@openquant/api-contracts` in [`ts`](ts/README.md) validates the same contracts; its parity with Rust is checked against the Rust contracts report. No API or worker uses the envelopes yet.
 
 Language-neutral contracts and runtime validation. Generate bindings and execute shared valid/invalid fixtures in TypeScript and Rust. Money and quantities are decimal strings.
 

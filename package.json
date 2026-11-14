@@ -12,8 +12,13 @@
   "scripts": {
     "verify": "node scripts/verify.ts",
     "verify:repository": "node scripts/check-repository.ts",
+    "verify:contracts": "pnpm --filter @openquant/api-contracts run test:parity",
     "test": "node --test scripts/tests/repository.test.ts",
     "generate:spec-index": "node scripts/generate-spec-index.ts",
     "generate:tree": "node scripts/generate-repository-tree.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.7",
+    "turbo": "2.11.11"
   }
 }

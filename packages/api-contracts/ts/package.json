@@ -1,0 +1,27 @@
+{
+  "name": "@openquant/api-contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "TypeScript types, strict parsing, validation and canonical digests for the shared contracts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "node tools/generate.ts",
+    "typecheck": "node tools/generate.ts && tsc -p tsconfig.json && tsc -p tsconfig.test.json",
+    "lint": "biome check --error-on-warnings .",
+    "test": "node tools/generate.ts && vitest run",
+    "test:parity": "node tools/generate.ts && vitest run test/parity.test.ts",
+    "build": "node tools/generate.ts && tsc -p tsconfig.json && node tools/bundle-check.ts"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "ajv": "8.20.0",
+    "esbuild": "0.28.2",
+    "json-schema-to-typescript": "16.0.0",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  }
+}
