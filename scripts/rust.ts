@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { stepEnvironment } from './environment.ts';
 
 // The Rust steps of `pnpm verify`. Each is real work; none prints success on its own.
 // scripts/s0.ts compares this list, step by step and in order, with a literal copy of the expected steps.
@@ -24,7 +25,7 @@ export function toolchainChannel(base: string): string {
 // The pinned toolchain must be the one that runs. rustup does not install it on its own.
 export function toolchainPinError(base: string): string | undefined {
   const channel = toolchainChannel(base);
-  const result = spawnSync('rustc', ['--version'], { cwd: base, encoding: 'utf8' });
+  const result = spawnSync('rustc', ['--version'], { cwd: base, encoding: 'utf8', env: stepEnvironment() });
   if ((result.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') {
     return `rustc was not found on PATH. S0 verification needs the pinned Rust toolchain ${channel}. Install rustup (https://rustup.rs), then run: rustup toolchain install`;
   }
@@ -52,10 +53,12 @@ export function fixtureDigest(base: string): string {
   return hash.digest('hex');
 }
 
+// Every step runs with stepEnvironment() (scripts/environment.ts), so no inherited RUSTFLAGS, wrapper or test
+// runner reaches Cargo.
 export function runCargo(base: string, command: string): number {
   const [program, ...args] = command.split(' ');
   console.log(`\n$ ${command}`);
-  const result = spawnSync(program, args, { cwd: base, stdio: 'inherit' });
+  const result = spawnSync(program, args, { cwd: base, stdio: 'inherit', env: stepEnvironment() });
   if (result.error) console.error(result.error.message);
   return result.status ?? 1;
 }

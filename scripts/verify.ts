@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { stepEnvironment } from './environment.ts';
 import { root } from './repository.ts';
 import { cargoCommands, fixtureDigest, runCargo, toolchainPinError } from './rust.ts';
 import { reportErrors } from './s0.ts';
@@ -9,9 +10,13 @@ function fail(message: string): never {
   process.exit(1);
 }
 
+// scripts/s0.ts compares this file, without comments and blank lines, with a literal copy of its code. A
+// statement added anywhere (an early exit, an environment change) fails the repository checks. Every process
+// starts with stepEnvironment() from scripts/environment.ts.
+
 // 1. Repository checks and their regression tests (Node only; no dependency install).
 for (const args of [['scripts/check-repository.ts'], ['--test', 'scripts/tests/repository.test.ts']]) {
-  const result = spawnSync(process.execPath, args, { cwd: root, stdio: 'inherit' });
+  const result = spawnSync(process.execPath, args, { cwd: root, stdio: 'inherit', env: stepEnvironment() });
   if (result.error) console.error(result.error.message);
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
@@ -30,8 +35,9 @@ if (fixtureDigest(root) !== fixturesBefore) fail('fixtures changed while verific
 const problems = reportErrors(root);
 if (problems.length) fail(problems.join('\n'));
 
-// 4. TypeScript: the installed dependencies must match pnpm-lock.yaml (never installed here), then Turborepo
-// typecheck, lint, test and build without cached results, and the dependency-using workspace checks.
+// 4. TypeScript: the installed dependencies must match pnpm-lock.yaml (never installed here), then the
+// dependency-using workspace checks (including the Turborepo task list), Turborepo typecheck, lint, test and
+// build without cached results, and the workspace tests.
 const installError = dependencyInstallError(root);
 if (installError) fail(installError);
 const typescriptFixturesBefore = fixtureDigest(root);

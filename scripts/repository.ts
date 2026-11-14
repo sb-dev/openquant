@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { developmentSkillErrors } from './development-skills.ts';
 import { agentAssetErrors } from './agent-assets.ts';
+import { stepEnvironment } from './environment.ts';
 import { s0Errors } from './s0.ts';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -30,7 +31,7 @@ export function read(base: string, path: string): string {
 
 export function paths(base: string): string[] {
   if (existsSync(resolve(base, '.git'))) {
-    const result = spawnSync('git', ['ls-files', '-z'], { cwd: base, encoding: 'utf8' });
+    const result = spawnSync('git', ['ls-files', '-z'], { cwd: base, encoding: 'utf8', env: stepEnvironment() });
     if (result.status !== 0) throw new Error(`Cannot read Git index: ${result.stderr}`);
     return result.stdout.split('\0').filter(Boolean).sort();
   }

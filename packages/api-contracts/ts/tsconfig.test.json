@@ -3,5 +3,12 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "dist/generated/**/*.ts", "test/**/*.ts", "tools/**/*.ts", "vitest.config.ts"]
+  "include": [
+    "src/**/*.ts",
+    "dist/generated/**/*.ts",
+    "test/**/*.ts",
+    "tools/**/*.ts",
+    "test-reporter.ts",
+    "vitest.config.ts"
+  ]
 }

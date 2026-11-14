@@ -12,8 +12,8 @@
     "generate": "node tools/generate.ts",
     "typecheck": "node tools/generate.ts && tsc -p tsconfig.json && tsc -p tsconfig.test.json",
     "lint": "biome check --error-on-warnings .",
-    "test": "node tools/generate.ts && vitest run",
-    "test:parity": "node tools/generate.ts && vitest run test/parity.test.ts",
+    "test": "node tools/generate.ts && vitest run --reporter=default --reporter=./test-reporter.ts",
+    "test:parity": "node tools/generate.ts && vitest run --reporter=default --reporter=./test-reporter.ts test/parity.test.ts",
     "build": "node tools/generate.ts && tsc -p tsconfig.json && node tools/bundle-check.ts"
   },
   "devDependencies": {

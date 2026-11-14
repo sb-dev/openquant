@@ -1355,6 +1355,7 @@ packages/api-contracts/ts/src/limits.ts
 packages/api-contracts/ts/src/platform.ts
 packages/api-contracts/ts/src/strict-json.ts
 packages/api-contracts/ts/src/validate.ts
+packages/api-contracts/ts/test-reporter.ts
 packages/api-contracts/ts/test/bundle.test.ts
 packages/api-contracts/ts/test/canonical.test.ts
 packages/api-contracts/ts/test/limits.test.ts
@@ -1437,6 +1438,7 @@ scripts/README.md
 scripts/agent-assets.ts
 scripts/check-repository.ts
 scripts/development-skills.ts
+scripts/environment.ts
 scripts/generate-repository-tree.ts
 scripts/generate-spec-index.ts
 scripts/repository.ts
@@ -1448,8 +1450,12 @@ scripts/verify.ts
 scripts/workspace/boundaries.ts
 scripts/workspace/check-workspace.ts
 scripts/workspace/licences.ts
+scripts/workspace/tasks.ts
+scripts/workspace/test-reporter.ts
 scripts/workspace/tests/boundaries.test.ts
 scripts/workspace/tests/licences.test.ts
+scripts/workspace/tests/reporters.test.ts
+scripts/workspace/tests/tasks.test.ts
 scripts/workspace/tests/workflows.test.ts
 scripts/workspace/workflows.ts
 skills-lock.json

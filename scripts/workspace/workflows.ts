@@ -12,18 +12,43 @@ type Json = any;
 const sha = /^[\w.-]+\/[\w./-]+@[0-9a-f]{40}$/;
 const isMap = (value: unknown): value is Record<string, Json> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
-// The steps of the `checks` job that must run exactly as written, in this order. The pnpm version comes from
-// the packageManager field of package.json, so a different pnpm cannot install the lockfile in CI.
-export function requiredSteps(pnpm: string): ReadonlyArray<readonly [string, (step: Json) => boolean]> {
-  const runs = (command: string) => (step: Json) => typeof step.run === 'string' && step.run.trim() === command;
+// The steps of the `checks` job, exactly as written and in this order: names, pinned action commits, `with`
+// inputs and commands, and no other key (no env, if, shell, working-directory, id or continue-on-error). The pnpm
+// version comes from the packageManager field of package.json, so a different pnpm cannot install the lockfile in
+// CI. The checkout keeps only persist-credentials: false, so CI checks out the revision under test and no other.
+// A Dependabot update of either action changes this list in the same reviewed change.
+export function expectedChecksSteps(pnpm: string): ReadonlyArray<Record<string, Json>> {
   return [
-    ['check out the source', (step) => typeof step.uses === 'string' && step.uses.startsWith('actions/checkout@')],
-    ['set up Node from .node-version', (step) => typeof step.uses === 'string' && step.uses.startsWith('actions/setup-node@') && step.with?.['node-version-file'] === '.node-version'],
-    [`install pnpm ${pnpm}`, runs(`npm install --global --ignore-scripts pnpm@${pnpm}`)],
-    ['install the locked dependencies', runs('pnpm install --frozen-lockfile')],
-    ['install the pinned Rust toolchain', runs('rustup toolchain install --profile minimal')],
-    ['run node scripts/verify.ts', runs('node scripts/verify.ts')],
+    { name: 'Check out source', uses: 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1', with: { 'persist-credentials': false } },
+    { name: 'Set up Node', uses: 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1', with: { 'node-version-file': '.node-version', 'package-manager-cache': false } },
+    { name: 'Install pinned pnpm', run: `npm install --global --ignore-scripts pnpm@${pnpm}` },
+    { name: 'Install locked dependencies', run: 'pnpm install --frozen-lockfile' },
+    { name: 'Install pinned Rust toolchain', run: 'rustup toolchain install --profile minimal' },
+    { name: 'Verify repository', run: 'node scripts/verify.ts' },
   ];
+}
+
+// The only environment variables ci.yml may set at workflow or job level, with their only values.
+export const allowedCiEnvironment: Readonly<Record<string, string>> = { CARGO_INCREMENTAL: '0', CARGO_TERM_COLOR: 'always' };
+
+// Variables that change which shell file runs first, which Node, Rust, Cargo, Turborepo, Biome, npm or pnpm
+// options apply, or which tests run. ci.yml may not set them anywhere, except the allowed values above.
+export function bannedCiVariable(name: string): boolean {
+  const key = name.toUpperCase();
+  return ['BASH_ENV', 'ENV', 'NODE_OPTIONS', 'RUSTFLAGS', 'RUSTDOCFLAGS', 'RUSTC_WRAPPER', 'RUSTC_WORKSPACE_WRAPPER', 'BIOME_CONFIG_PATH'].includes(key)
+    || /^(?:NODE_TEST_|CARGO_|TURBO_|NPM_CONFIG_|PNPM_CONFIG_)/.test(key);
+}
+
+function sameValue(left: Json, right: Json): boolean {
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left) && Array.isArray(right) && left.length === right.length && left.every((item, index) => sameValue(item, right[index]));
+  }
+  if (isMap(left) || isMap(right)) {
+    if (!isMap(left) || !isMap(right)) return false;
+    const keys = Object.keys(left);
+    return keys.length === Object.keys(right).length && keys.every((key) => key in right && sameValue(left[key], right[key]));
+  }
+  return left === right;
 }
 
 // An `if` whose value is constant false disables its job or step.
@@ -72,11 +97,49 @@ export function workflowErrors(file: string, text: string): string[] {
   return errors;
 }
 
+// ci.yml sets environment variables only at workflow and job level, and only the allowed ones with their values;
+// required steps set none (their keys are fixed above). No env anywhere may set a banned variable, so neither
+// another job nor the aggregate can carry one.
+function environmentErrors(file: string, workflow: Json): string[] {
+  const errors: string[] = [];
+  const scopes: Array<[string, Json, boolean]> = [['the workflow', workflow.env, true]];
+  for (const [id, job] of Object.entries(workflow.jobs as Record<string, Json>)) {
+    if (!isMap(job)) continue;
+    scopes.push([`job ${id}`, job.env, id !== 'ci']);
+    stepsOf(job).forEach((step, index) => scopes.push([`job ${id} step ${index + 1}`, step.env, false]));
+  }
+  for (const [where, env, allowListed] of scopes) {
+    if (env === undefined) continue;
+    if (!isMap(env)) { errors.push(`${file}: ${where} env must be a mapping`); continue; }
+    for (const [name, value] of Object.entries(env)) {
+      const allowed = allowListed && name in allowedCiEnvironment;
+      if (allowed && value !== allowedCiEnvironment[name]) errors.push(`${file}: ${where} must set ${name} to ${JSON.stringify(allowedCiEnvironment[name])}, found ${JSON.stringify(value)}`);
+      else if (!allowed && bannedCiVariable(name)) errors.push(`${file}: ${where} must not set ${name}`);
+      else if (!allowed && allowListed) errors.push(`${file}: ${where} may set only ${Object.keys(allowedCiEnvironment).join(' and ')}, found ${name}`);
+    }
+  }
+  return errors;
+}
+
 // The aggregate job `ci` must run after every other job whatever their result, and fail unless each succeeded.
+// Its shape is fixed: these keys only, on ubuntu-latest, and steps that only test needs.<job>.result values.
 function aggregateErrors(file: string, jobs: Record<string, Json>): string[] {
   const errors: string[] = [];
   const ci = jobs.ci;
   if (!isMap(ci)) return [`${file}: the aggregate job ci is missing`];
+  for (const key of Object.keys(ci)) {
+    if (!['name', 'if', 'needs', 'runs-on', 'timeout-minutes', 'steps'].includes(key)) errors.push(`${file}: the aggregate job ci must not set ${key}`);
+  }
+  if (ci.name !== 'ci') errors.push(`${file}: the aggregate job ci must be named ci`);
+  if (ci['runs-on'] !== 'ubuntu-latest') errors.push(`${file}: the aggregate job ci must run on ubuntu-latest, found ${JSON.stringify(ci['runs-on'])}`);
+  if (!Number.isInteger(ci['timeout-minutes']) || ci['timeout-minutes'] < 1) errors.push(`${file}: the aggregate job ci needs a timeout-minutes`);
+  if (!Array.isArray(ci.steps) || ci.steps.length === 0) errors.push(`${file}: the aggregate job ci needs steps`);
+  for (const step of Array.isArray(ci.steps) ? ci.steps : []) {
+    const keys = isMap(step) ? Object.keys(step) : [];
+    if (!isMap(step) || keys.some((key) => !['name', 'env', 'run'].includes(key)) || !('run' in step) || !isMap(step.env)) {
+      errors.push(`${file}: an aggregate step may set only name, env and run: ${JSON.stringify(step)}`);
+    }
+  }
   const others = Object.keys(jobs).filter((id) => id !== 'ci');
   const needs: string[] = typeof ci.needs === 'string' ? [ci.needs] : Array.isArray(ci.needs) ? ci.needs : [];
   for (const id of others) if (!needs.includes(id)) errors.push(`${file}: the aggregate job ci must need ${id}`);
@@ -114,27 +177,37 @@ export function ciWorkflowErrors(text: string, pnpm: string): string[] {
     if (keys.some((key) => key !== 'branches') || !Array.isArray(branches) || !branches.includes('main')) errors.push(`${file}: the push trigger may only filter branches, and must include main`);
   }
   if (isMap(workflow.defaults)) errors.push(`${file}: workflow defaults must not change how steps run`);
+  for (const key of Object.keys(workflow)) {
+    if (!['name', 'on', 'permissions', 'concurrency', 'env', 'jobs', 'defaults'].includes(key)) errors.push(`${file}: the workflow must not set ${key}`);
+  }
   for (const [id, job] of Object.entries(workflow.jobs as Record<string, Json>)) {
     if (isMap(job) && 'permissions' in job && !readOnly(job.permissions)) errors.push(`${file}: job ${id} must not grant write permissions`);
     if (isMap(job) && isMap(job.defaults)) errors.push(`${file}: job ${id} defaults must not change how steps run`);
   }
   const checks = workflow.jobs.checks;
   if (!isMap(checks)) return [...errors, `${file}: the checks job is missing`];
-  if ('if' in checks) errors.push(`${file}: the checks job must not have an if`);
+  for (const key of Object.keys(checks)) {
+    if (!['name', 'runs-on', 'timeout-minutes', 'env', 'steps'].includes(key)) errors.push(`${file}: the checks job must not set ${key}`);
+  }
+  if (checks.name !== 'Repository checks') errors.push(`${file}: the checks job must be named Repository checks`);
+  if (checks['runs-on'] !== 'ubuntu-latest') errors.push(`${file}: the checks job must run on ubuntu-latest, found ${JSON.stringify(checks['runs-on'])}`);
   const timeout = checks['timeout-minutes'];
   if (typeof timeout !== 'number' || !Number.isInteger(timeout) || timeout < 20) errors.push(`${file}: the checks job needs timeout-minutes of at least 20, found ${JSON.stringify(timeout)}`);
-  const steps = stepsOf(checks);
-  let previous = -1;
-  for (const [purpose, matches] of requiredSteps(pnpm)) {
-    const found = steps.flatMap((step, index) => (matches(step) ? [index] : []));
-    if (found.length !== 1) { errors.push(`${file}: the checks job must ${purpose} in exactly one step, found ${found.length}`); continue; }
-    const step = steps[found[0]];
-    for (const key of ['if', 'continue-on-error', 'shell', 'working-directory']) {
-      if (key in step) errors.push(`${file}: the step that must ${purpose} must not set ${key}`);
+  const steps: Json[] = Array.isArray(checks.steps) ? checks.steps : [];
+  const expected = expectedChecksSteps(pnpm);
+  if (steps.length !== expected.length) errors.push(`${file}: the checks job must have exactly ${expected.length} steps, found ${steps.length}`);
+  for (let index = 0; index < Math.max(steps.length, expected.length); index += 1) {
+    const [want, step] = [expected[index], steps[index]];
+    if (want === undefined) { errors.push(`${file}: the checks job has an unexpected step ${index + 1}: ${JSON.stringify(step)}`); continue; }
+    const at = `${file}: checks step ${index + 1} (${want.name})`;
+    if (!isMap(step)) { errors.push(`${at} is missing`); continue; }
+    for (const key of Object.keys(step)) if (!(key in want)) errors.push(`${at} must not set ${key}`);
+    for (const [key, value] of Object.entries(want)) {
+      if (!(key in step)) errors.push(`${at} must set ${key}: ${JSON.stringify(value)}`);
+      else if (!sameValue(step[key], value)) errors.push(`${at} must have ${key}: ${JSON.stringify(value)}, found ${JSON.stringify(step[key])}`);
     }
-    if (found[0] < previous) errors.push(`${file}: the checks job must ${purpose} after the steps listed before it`);
-    previous = Math.max(previous, found[0]);
   }
+  errors.push(...environmentErrors(file, workflow));
   const verifySteps = Object.values(workflow.jobs as Record<string, Json>).flatMap((job) => stepsOf(job)).filter((step) => typeof step.run === 'string' && step.run.includes('scripts/verify.ts'));
   if (verifySteps.length !== 1) errors.push(`${file}: exactly one step may mention scripts/verify.ts, found ${verifySteps.length}`);
   errors.push(...aggregateErrors(file, workflow.jobs));

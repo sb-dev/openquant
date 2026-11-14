@@ -31,20 +31,22 @@ const verifyStep = '      - name: Verify repository\n        run: node scripts/v
 const rustStep = '      - name: Install pinned Rust toolchain\n        run: rustup toolchain install --profile minimal\n';
 const pnpmStep = '      - name: Install locked dependencies\n        run: pnpm install --frozen-lockfile\n';
 const comment = (block: string) => block.split('\n').map((line) => (line ? line.replace(/^( *)/, '$1# ') : line)).join('\n');
-test('V2-1: verify with || true fails', () => rejects(replaceOnce(ci, 'run: node scripts/verify.ts', 'run: node scripts/verify.ts || true'), /must run node scripts\/verify\.ts in exactly one step, found 0/, '|| true'));
-test('V2-1: an echo of the verify command fails', () => rejects(replaceOnce(ci, 'run: node scripts/verify.ts', 'run: echo node scripts/verify.ts'), /must run node scripts\/verify\.ts in exactly one step, found 0/, 'echo'));
+const verifyRun = /checks step 6 \(Verify repository\) must have run: "node scripts\/verify\.ts"/;
+test('V2-1: verify with || true fails', () => rejects(replaceOnce(ci, 'run: node scripts/verify.ts', 'run: node scripts/verify.ts || true'), verifyRun, '|| true'));
+test('V2-1: an echo of the verify command fails', () => rejects(replaceOnce(ci, 'run: node scripts/verify.ts', 'run: echo node scripts/verify.ts'), verifyRun, 'echo'));
 test('V2-1: a constant false if on the verify step fails', () => {
   const source = replaceOnce(ci, verifyStep, verifyStep.replace('        run:', '        if: ${{ false }}\n        run:'));
   rejects(source, /step \d+ \(Verify repository\) is disabled by a constant false if/, 'if false');
-  rejects(source, /the step that must run node scripts\/verify\.ts must not set if/, 'if on a required step');
+  rejects(source, /checks step 6 \(Verify repository\) must not set if/, 'if on a required step');
 });
 test('V2-1: a commented install step fails', () => {
-  rejects(replaceOnce(ci, rustStep, comment(rustStep)), /must install the pinned Rust toolchain in exactly one step, found 0/, 'commented rustup');
-  rejects(replaceOnce(ci, pnpmStep, comment(pnpmStep)), /must install the locked dependencies in exactly one step, found 0/, 'commented pnpm install');
+  rejects(replaceOnce(ci, rustStep, comment(rustStep)), /the checks job must have exactly 6 steps, found 5/, 'commented rustup');
+  rejects(replaceOnce(ci, rustStep, comment(rustStep)), /checks step 5 \(Install pinned Rust toolchain\) must have name: "Install pinned Rust toolchain", found "Verify repository"/, 'commented rustup, shifted');
+  rejects(replaceOnce(ci, pnpmStep, comment(pnpmStep)), /checks step 4 \(Install locked dependencies\) must have name/, 'commented pnpm install');
 });
 test('V2-1: an echo install step fails', () => {
-  rejects(replaceOnce(ci, 'run: rustup toolchain install --profile minimal', 'run: echo rustup toolchain install --profile minimal'), /must install the pinned Rust toolchain in exactly one step, found 0/, 'echo rustup');
-  rejects(replaceOnce(ci, 'run: pnpm install --frozen-lockfile', 'run: echo pnpm install --frozen-lockfile'), /must install the locked dependencies in exactly one step, found 0/, 'echo pnpm install');
+  rejects(replaceOnce(ci, 'run: rustup toolchain install --profile minimal', 'run: echo rustup toolchain install --profile minimal'), /checks step 5 \(Install pinned Rust toolchain\) must have run: "rustup toolchain install --profile minimal", found "echo rustup/, 'echo rustup');
+  rejects(replaceOnce(ci, 'run: pnpm install --frozen-lockfile', 'run: echo pnpm install --frozen-lockfile'), /checks step 4 \(Install locked dependencies\) must have run: "pnpm install --frozen-lockfile", found "echo pnpm/, 'echo pnpm install');
 });
 test('V2-1: a commented timeout before a short one fails', () => {
   rejects(replaceOnce(ci, /    timeout-minutes: 30\n/, '    # timeout-minutes: 30\n    timeout-minutes: 10\n'), /needs timeout-minutes of at least 20, found 10/, 'short timeout');
@@ -57,15 +59,75 @@ test('the triggers cannot be narrowed', () => {
   rejects(replaceOnce(ci, '    branches: [main]\n', '    branches: [release]\n'), /push trigger may only filter branches, and must include main/, 'other branch');
 });
 test('a required step cannot change its shell, directory or failure handling', () => {
-  rejects(replaceOnce(ci, verifyStep, `${verifyStep}        shell: 'true {0}'\n`), /run node scripts\/verify\.ts must not set shell/, 'shell');
+  rejects(replaceOnce(ci, verifyStep, `${verifyStep}        shell: 'true {0}'\n`), /checks step 6 \(Verify repository\) must not set shell/, 'shell');
   rejects(replaceOnce(ci, verifyStep, `${verifyStep}        working-directory: elsewhere\n`), /must not set working-directory/, 'working-directory');
   rejects(replaceOnce(ci, verifyStep, `${verifyStep}        continue-on-error: true\n`), /must not set continue-on-error/, 'continue-on-error');
 });
 test('a second verify step or a reordered install fails', () => {
-  rejects(replaceOnce(ci, verifyStep, `${verifyStep}${verifyStep}`), /run node scripts\/verify\.ts in exactly one step, found 2/, 'two verify steps');
-  rejects(replaceOnce(ci, `${rustStep}${verifyStep}`, `${verifyStep}${rustStep}`), /must install the pinned Rust toolchain after|run node scripts\/verify\.ts after/, 'verify before rustup');
+  rejects(replaceOnce(ci, verifyStep, `${verifyStep}${verifyStep}`), /the checks job has an unexpected step 7/, 'two verify steps');
+  rejects(replaceOnce(ci, verifyStep, `${verifyStep}${verifyStep}`), /exactly one step may mention scripts\/verify\.ts, found 2/, 'two verify steps');
+  rejects(replaceOnce(ci, `${rustStep}${verifyStep}`, `${verifyStep}${rustStep}`), /checks step 5 \(Install pinned Rust toolchain\) must have name: "Install pinned Rust toolchain", found "Verify repository"/, 'verify before rustup');
 });
-test('pnpm must be the pinned version', () => rejects(replaceOnce(ci, `pnpm@${pnpm}`, 'pnpm@10.0.0'), new RegExp(`must install pnpm ${pnpm.replaceAll('.', '\\.')} in exactly one step, found 0`), 'pnpm version'));
+test('pnpm must be the pinned version', () => rejects(replaceOnce(ci, `pnpm@${pnpm}`, 'pnpm@10.0.0'), new RegExp(`checks step 3 \\(Install pinned pnpm\\) must have run: "npm install --global --ignore-scripts pnpm@${pnpm.replaceAll('.', '\\.')}"`), 'pnpm version'));
+
+// C0: the parsed checks must fix every input of the checks job, not only the run text of its required steps.
+// The reviewer's combined edit: a step that defines a shell function named node, and BASH_ENV on the verify step,
+// so that `node scripts/verify.ts` prints a line and exits 0.
+const prepareShell = `      - name: Prepare shell\n        run: echo 'node() { echo verify skipped; }' > "$RUNNER_TEMP/env.sh"\n`;
+const bashEnv = '        env:\n          BASH_ENV: ${{ runner.temp }}/env.sh\n';
+test('C0: the reviewer\'s BASH_ENV edit fails: an extra step and env on the verify step', () => {
+  const source = replaceOnce(replaceOnce(ci, rustStep, `${prepareShell}${rustStep}`), verifyStep, `${verifyStep}${bashEnv}`);
+  rejects(source, /the checks job must have exactly 6 steps, found 7/, 'extra step');
+  rejects(source, /checks step 5 \(Install pinned Rust toolchain\) must have name: "Install pinned Rust toolchain", found "Prepare shell"/, 'extra step in place');
+  rejects(source, /the checks job has an unexpected step 7/, 'extra step at the end');
+  rejects(source, /job checks step 7 must not set BASH_ENV/, 'BASH_ENV');
+  rejects(replaceOnce(ci, verifyStep, `${verifyStep}${bashEnv}`), /checks step 6 \(Verify repository\) must not set env/, 'env alone');
+});
+test('C0: a checkout of a fixed commit, another repository or path fails', () => {
+  const checkout = '          persist-credentials: false\n';
+  rejects(replaceOnce(ci, checkout, `${checkout}          ref: 5b3c257bba3600b9143fcb5b3425886d6d2008db\n`), /checks step 1 \(Check out source\) must have with: \{"persist-credentials":false\}, found \{"persist-credentials":false,"ref":"5b3c257bba3600b9143fcb5b3425886d6d2008db"\}/, 'ref');
+  rejects(replaceOnce(ci, checkout, `${checkout}          repository: someone/else\n`), /checks step 1 \(Check out source\) must have with:/, 'repository');
+  rejects(replaceOnce(ci, checkout, '          persist-credentials: true\n'), /checks step 1 \(Check out source\) must have with:/, 'persisted credentials');
+});
+test('C0: an action at another commit or a changed setup-node input fails', () => {
+  rejects(replaceOnce(ci, /actions\/checkout@[0-9a-f]{40}/, `actions/checkout@${'0'.repeat(40)}`), /checks step 1 \(Check out source\) must have uses: "actions\/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"/, 'checkout commit');
+  rejects(replaceOnce(ci, 'node-version-file: .node-version', 'node-version: 22'), /checks step 2 \(Set up Node\) must have with:/, 'node version');
+});
+test('C0: workflow and job env may set only the allowed variables, with their values', () => {
+  const jobEnv = "    env:\n      CARGO_INCREMENTAL: '0'\n      CARGO_TERM_COLOR: always\n";
+  rejects(replaceOnce(ci, jobEnv, `${jobEnv}      NODE_OPTIONS: --test-skip-pattern=.\n      RUSTFLAGS: --cap-lints=allow\n`), /job checks must not set NODE_OPTIONS/, 'NODE_OPTIONS');
+  rejects(replaceOnce(ci, jobEnv, `${jobEnv}      NODE_OPTIONS: --test-skip-pattern=.\n      RUSTFLAGS: --cap-lints=allow\n`), /job checks must not set RUSTFLAGS/, 'RUSTFLAGS');
+  rejects(replaceOnce(ci, jobEnv, `${jobEnv}      PATH: /tmp/fake\n`), /job checks may set only CARGO_INCREMENTAL and CARGO_TERM_COLOR, found PATH/, 'PATH');
+  rejects(replaceOnce(ci, "CARGO_INCREMENTAL: '0'", "CARGO_INCREMENTAL: '1'"), /job checks must set CARGO_INCREMENTAL to "0", found "1"/, 'allowed key, other value');
+  rejects(replaceOnce(ci, 'concurrency:\n', 'env:\n  BASH_ENV: /tmp/env.sh\nconcurrency:\n'), /the workflow must not set BASH_ENV/, 'workflow BASH_ENV');
+  rejects(replaceOnce(ci, 'concurrency:\n', 'env:\n  GREETING: hello\nconcurrency:\n'), /the workflow may set only CARGO_INCREMENTAL and CARGO_TERM_COLOR, found GREETING/, 'workflow other key');
+});
+test('C0: a banned variable fails anywhere in the workflow', () => {
+  const banned = ['BASH_ENV', 'ENV', 'NODE_OPTIONS', 'NODE_TEST_CONTEXT', 'RUSTFLAGS', 'RUSTDOCFLAGS', 'RUSTC_WRAPPER', 'RUSTC_WORKSPACE_WRAPPER', 'CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER', 'CARGO_BUILD_RUSTFLAGS', 'TURBO_FORCE', 'npm_config_script_shell', 'pnpm_config_verify_deps_before_run', 'NPM_CONFIG_IGNORE_SCRIPTS', 'BIOME_CONFIG_PATH'];
+  const aggregateEnv = '          CHECK_RESULT: ${{ needs.checks.result }}\n';
+  const extra = '  extra:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo extra\n        env:\n          NAME: value\n\n';
+  for (const name of banned) {
+    rejects(replaceOnce(ci, aggregateEnv, `${aggregateEnv}          ${name}: x\n`), new RegExp(`job ci step 1 must not set ${name}`), `aggregate step ${name}`);
+    rejects(replaceOnce(ci, '  ci:\n', `${extra.replace('NAME', name)}  ci:\n`), new RegExp(`job extra step 1 must not set ${name}`), `other job ${name}`);
+  }
+});
+test('C0: the checks job keeps its keys, runner and name', () => {
+  const timeout = '    timeout-minutes: 30\n';
+  rejects(replaceOnce(ci, timeout, `${timeout}    container: attacker/image:latest\n`), /the checks job must not set container/, 'container');
+  rejects(replaceOnce(ci, timeout, `${timeout}    services:\n      x:\n        image: y\n`), /the checks job must not set services/, 'services');
+  rejects(replaceOnce(ci, timeout, `${timeout}    strategy:\n      matrix:\n        x: [1]\n`), /the checks job must not set strategy/, 'strategy');
+  rejects(replaceOnce(ci, '    runs-on: ubuntu-latest\n    timeout-minutes: 30\n', '    runs-on: self-hosted\n    timeout-minutes: 30\n'), /the checks job must run on ubuntu-latest, found "self-hosted"/, 'self-hosted');
+  rejects(replaceOnce(ci, 'name: Repository checks', 'name: Other checks'), /the checks job must be named Repository checks/, 'name');
+  rejects(replaceOnce(ci, 'concurrency:\n', 'run-name: x\nconcurrency:\n'), /the workflow must not set run-name/, 'unknown workflow key');
+});
+test('C0: the aggregate job keeps a fixed shape', () => {
+  const aggregate = '    timeout-minutes: 2\n';
+  rejects(replaceOnce(ci, aggregate, `${aggregate}    env:\n      LEVEL: x\n`), /the aggregate job ci must not set env/, 'job env');
+  rejects(replaceOnce(ci, aggregate, `${aggregate}    container: attacker/image:latest\n`), /the aggregate job ci must not set container/, 'container');
+  rejects(replaceOnce(ci, '    runs-on: ubuntu-latest\n    timeout-minutes: 2\n', '    runs-on: self-hosted\n    timeout-minutes: 2\n'), /the aggregate job ci must run on ubuntu-latest/, 'runner');
+  rejects(replaceOnce(ci, '      - name: Require successful checks\n', '      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1\n      - name: Require successful checks\n'), /an aggregate step may set only name, env and run/, 'uses step');
+});
+
 test('a job cannot be disabled or allowed to fail', () => {
   rejects(replaceOnce(ci, '    timeout-minutes: 30\n', '    timeout-minutes: 30\n    if: false\n'), /job checks is disabled by a constant false if/, 'job if false');
   rejects(replaceOnce(ci, '    timeout-minutes: 30\n', '    timeout-minutes: 30\n    continue-on-error: true\n'), /job checks must not set continue-on-error/, 'job continue-on-error');
