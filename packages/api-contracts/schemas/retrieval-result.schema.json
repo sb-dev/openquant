@@ -36,7 +36,7 @@
     },
     "RetrievalFailure": {
       "title": "RetrievalFailure",
-      "description": "No snapshot. Only transient classes are retried, within max_retries and the attempt cap; then the job is FAILED. AUTHENTICATION, PERMISSION, UNSUPPORTED_CAPABILITY and CANCELLED are never retried (OQ-05 sections 4 and 7.1), so retryable is false for them; the schema rejects true. retry_after_seconds preserves a provider Retry-After value when present.",
+      "description": "No snapshot. Only transient classes are retried, within max_retries and the attempt cap; then the job is FAILED. AUTHENTICATION, PERMISSION, UNSUPPORTED_CAPABILITY, CANCELLED and EGRESS_REFUSED are never retried (OQ-05 sections 4 and 7.1), so retryable is false for them; the schema rejects true. EGRESS_REFUSED is a configuration or policy failure, not a transient one. retry_after_seconds preserves a provider Retry-After value when present.",
       "type": "object",
       "additionalProperties": false,
       "required": ["status", "error", "retryable", "detail"],
@@ -50,7 +50,7 @@
       "not": {
         "required": ["error", "retryable"],
         "properties": {
-          "error": { "enum": ["AUTHENTICATION", "PERMISSION", "UNSUPPORTED_CAPABILITY", "CANCELLED"] },
+          "error": { "enum": ["AUTHENTICATION", "PERMISSION", "UNSUPPORTED_CAPABILITY", "CANCELLED", "EGRESS_REFUSED"] },
           "retryable": { "enum": [true] }
         }
       }

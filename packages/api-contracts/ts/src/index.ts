@@ -23,4 +23,11 @@ export {
   StrictJsonError,
   type StrictJsonErrorKind,
 } from './strict-json.ts';
-export { type ContractResult, isContractName, parseContract, validateContract, valueBound } from './validate.ts';
+export {
+  type ContractResult,
+  isContractName,
+  parseContract,
+  validateContract,
+  valueBound,
+  workerBodyLimit,
+} from './validate.ts';

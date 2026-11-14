@@ -34,7 +34,7 @@
     },
     "ControlledRevisionProposal": {
       "title": "ControlledRevisionProposal",
-      "description": "A controlled revision names its parent hash from the request and lists every changed leaf with its prior and new form. The list must equal the actual difference between parent and proposed definitions.",
+      "description": "A controlled revision names its parent hash from the request and lists every changed leaf with its prior and new form. The list must equal the actual difference between the parent and the proposed strategy. It changes the entry rule or the exit rules, not both. A change to selection, sizing, execution, an indicator that no entry or exit rule references, the operator set or the contract text is outside a controlled revision. Validation rejects any other revision with REVISION_SCOPE (OQ-02 section 3.1).",
       "type": "object",
       "additionalProperties": false,
       "required": ["schema_version", "proposal_kind", "parent_hash", "strategy", "source_refs", "rule_changes", "claims", "unresolved", "method_refs"],

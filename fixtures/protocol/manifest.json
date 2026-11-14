@@ -1583,6 +1583,70 @@
       "contract": "api-error",
       "expect": "schema_invalid",
       "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-wrong-version-at-20000.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-wrong-version-at-20001.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/api-error.value-bound-version-at-20001.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/valid/validation-result.revision-scope.json",
+      "contract": "validation-result",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/invalid/validation-result.revision-without-scope.json",
+      "contract": "validation-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/validation-result.seed-with-scope.json",
+      "contract": "validation-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/validation-result.valid-scope-both.json",
+      "contract": "validation-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/validation-result.valid-scope-outside.json",
+      "contract": "validation-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/validation-result.revision-no-change.json",
+      "contract": "validation-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/valid/retrieval-result.egress-refused.json",
+      "contract": "retrieval-result",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/invalid/retrieval-result.egress-refused-retryable.json",
+      "contract": "retrieval-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
     }
   ]
 }

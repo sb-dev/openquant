@@ -15,14 +15,17 @@
 //    failure of the Decimal or Exact pattern (an Exact text longer than 80 characters fails
 //    maxLength, which is SCHEMA_VIOLATION), and SCHEMA_VIOLATION otherwise (error.rs).
 //
-// The value bound keeps the parse within a Worker's memory. It is the larger of the most values a
-// document valid against the contract's schema can hold (tools/generate.ts derives it from the closed
-// objects and the array maxItems) and MAX_NODES. A document above it is therefore invalid, and it
-// has more than MAX_NODES values, so Rust reports SCHEMA_VIOLATION for it too (limits.rs), once its
-// strict JSON and its version tag pass. The parse still checks the whole text past the bound, so a
+// The value bound limits what the parse builds. It is the larger of the most values a document
+// valid against the contract's schema can hold (tools/generate.ts derives it from the closed objects
+// and the array maxItems) and MAX_NODES. A document above it is therefore invalid, and it has more
+// than MAX_NODES values, so Rust reports SCHEMA_VIOLATION for it too (limits.rs), once its strict
+// JSON and its version tag pass. The parse still checks the whole text past the bound, so a
 // strict-JSON error or a wrong version gives the same code as in Rust. A contract whose schema is
-// recursive (an Expr tree) has no such maximum and no bound; the API limits the request body of
-// the routes that accept one (routes/v1.json, OQ-05 §7).
+// recursive (an Expr tree) has no such maximum and no bound.
+//
+// The Worker byte limit (`workerBodyLimit`) keeps a Worker's parse within memory: with the value
+// bound for most contracts, and alone for the others. The API applies it before it parses a body
+// (routes/v1.json, OQ-05 §7). parseContract itself accepts the 16 MiB that Rust accepts.
 //
 // Semantic rules stay in Rust: the Exact canonical form, decimal range and scale, operator types and
 // run preparation. A payload that passes here may still be rejected there.
@@ -94,6 +97,22 @@ function schemaVersion(value: JsonValue): JsonValue | undefined {
 export function valueBound(contract: ContractName): number {
   const schemaMaximum: number | null = contracts[contract].maxValues;
   return schemaMaximum === null ? Number.POSITIVE_INFINITY : Math.max(MAX_NODES, schemaMaximum);
+}
+
+/** The largest value bound for which a contract gets the larger Worker byte limit. */
+const SMALL_VALUE_BOUND = 100_000;
+
+/**
+ * The largest body, in UTF-8 bytes, that a Worker parses as this contract (OQ-05 §7). The API
+ * refuses a larger request body with LIMIT_EXCEEDED before it parses it, and never parses a larger
+ * stored artefact. A contract with a value bound of at most 100,000 gets 4 MiB: past its bound the
+ * parse only checks the text. Any other contract gets 512 KiB, because its parse may build every
+ * value: command/1 and strategy-artefact/1 hold a recursive Expr tree, and checkpoint/1 and
+ * evaluation-result/1 can hold more than a million values. test/memory.test.ts parses the densest
+ * bodies of every contract at its limit within 64 MB, half of a Worker isolate's memory.
+ */
+export function workerBodyLimit(contract: ContractName): number {
+  return valueBound(contract) <= SMALL_VALUE_BOUND ? 4 * 1024 * 1024 : 512 * 1024;
 }
 
 function check<C extends ContractName>(

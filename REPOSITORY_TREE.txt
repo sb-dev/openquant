@@ -618,8 +618,11 @@ fixtures/protocol/invalid/api-error.value-bound-missing-version.json
 fixtures/protocol/invalid/api-error.value-bound-no-duplicate-wide.json
 fixtures/protocol/invalid/api-error.value-bound-schema.json
 fixtures/protocol/invalid/api-error.value-bound-unsafe-integer.json
+fixtures/protocol/invalid/api-error.value-bound-version-at-20001.json
 fixtures/protocol/invalid/api-error.value-bound-version-last.json
 fixtures/protocol/invalid/api-error.value-bound-version-not-a-string.json
+fixtures/protocol/invalid/api-error.value-bound-wrong-version-at-20000.json
+fixtures/protocol/invalid/api-error.value-bound-wrong-version-at-20001.json
 fixtures/protocol/invalid/api-error.value-bound-wrong-version-last.json
 fixtures/protocol/invalid/api-error.value-bound-wrong-version.json
 fixtures/protocol/invalid/api-error.version-2.json
@@ -758,6 +761,7 @@ fixtures/protocol/invalid/retrieval-request.unknown-field.json
 fixtures/protocol/invalid/retrieval-request.version-2.json
 fixtures/protocol/invalid/retrieval-result.authentication-retryable.json
 fixtures/protocol/invalid/retrieval-result.cancelled-retryable.json
+fixtures/protocol/invalid/retrieval-result.egress-refused-retryable.json
 fixtures/protocol/invalid/retrieval-result.failure-with-manifest.json
 fixtures/protocol/invalid/retrieval-result.manifest-digest-malformed.json
 fixtures/protocol/invalid/retrieval-result.unknown-field.json
@@ -777,9 +781,14 @@ fixtures/protocol/invalid/strategy.version-2.json
 fixtures/protocol/invalid/strategy.window-over-limit.json
 fixtures/protocol/invalid/validation-result.draft-digest-malformed.json
 fixtures/protocol/invalid/validation-result.missing-duration.json
+fixtures/protocol/invalid/validation-result.revision-no-change.json
+fixtures/protocol/invalid/validation-result.revision-without-scope.json
+fixtures/protocol/invalid/validation-result.seed-with-scope.json
 fixtures/protocol/invalid/validation-result.unknown-change-scope.json
 fixtures/protocol/invalid/validation-result.unknown-code.json
 fixtures/protocol/invalid/validation-result.unknown-field.json
+fixtures/protocol/invalid/validation-result.valid-scope-both.json
+fixtures/protocol/invalid/validation-result.valid-scope-outside.json
 fixtures/protocol/invalid/validation-result.version-2.json
 fixtures/protocol/manifest.json
 fixtures/protocol/valid/agent-attempt-result.completion.json
@@ -833,8 +842,10 @@ fixtures/protocol/valid/retrieval-request.aapl-mission.json
 fixtures/protocol/valid/retrieval-request.synthetic-dividend-window.json
 fixtures/protocol/valid/retrieval-result.authentication-failed.json
 fixtures/protocol/valid/retrieval-result.complete.json
+fixtures/protocol/valid/retrieval-result.egress-refused.json
 fixtures/protocol/valid/retrieval-result.rate-limited.json
 fixtures/protocol/valid/validation-result.invalid-draft.json
+fixtures/protocol/valid/validation-result.revision-scope.json
 fixtures/protocol/valid/validation-result.valid-revision.json
 fixtures/protocol/valid/validation-result.valid-seed.json
 fixtures/s0/README.md
