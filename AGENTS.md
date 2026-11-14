@@ -23,7 +23,7 @@ Apply `pragmatic-developer` for ordinary coding and review.
 
 ## Verification
 
-Run `pnpm verify`, or `node scripts/verify.ts` without pnpm. This runs the repository checks and the implemented S0 Rust checks. Connected slices remain unimplemented.
+Use Node 24 (`.node-version`) and the pnpm version in `packageManager`. Run `pnpm install --frozen-lockfile` first, then `pnpm verify` or `node scripts/verify.ts`. This runs the repository checks, the S0 Rust checks and replay, the Rust contracts report, and the S1 TypeScript steps: Turborepo typecheck, lint, test and build without cached results, then the workspace checks. Verification fails when the installed dependencies differ from `pnpm-lock.yaml`; it never installs. S1 is incomplete: the connected competition is not implemented, and real-Postgres tests arrive with the S1 durable API.
 
 After editing spec metadata, run `pnpm generate:spec-index`. Stage intended added/deleted paths before `pnpm generate:tree` in a Git checkout. Regenerate and verify again.
 

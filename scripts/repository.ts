@@ -8,7 +8,12 @@ import { agentAssetErrors } from './agent-assets.ts';
 import { s0Errors } from './s0.ts';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const ignored = new Set(['.git', 'node_modules', 'target', 'dist', '.wrangler', '.turbo', 'coverage', '.cache', 'local-runs']);
+// Local output and installed dependencies, never source. An extracted archive is read without them, and the
+// regression tests copy a checkout without them (scripts/tests/repository.test.ts).
+export const ignoredNames: ReadonlySet<string> = new Set(['.git', 'node_modules', 'target', 'dist', '.wrangler', '.turbo', 'coverage', '.cache', 'local-runs']);
+export function isIgnored(name: string): boolean {
+  return ignoredNames.has(name) || name.endsWith('.tsbuildinfo');
+}
 const expectedSpecs = [
   '01-product-design-spec.md',
   '02-trading-domain-and-evaluation-spec.md',
@@ -32,7 +37,7 @@ export function paths(base: string): string[] {
   const result: string[] = [];
   function walk(directory: string) {
     for (const item of readdirSync(resolve(base, directory), { withFileTypes: true })) {
-      if (ignored.has(item.name)) continue;
+      if (isIgnored(item.name)) continue;
       const path = directory ? `${directory}/${item.name}` : item.name;
       if (item.isSymbolicLink()) result.push(path);
       else if (item.isDirectory()) walk(path);
@@ -169,6 +174,50 @@ export function localLinkErrors(base: string, file: string, text: string, files:
   return errors;
 }
 
+// High-confidence credential patterns. Each needs the full token shape, or a value assigned to a name that
+// says it holds a key, so text can still name a variable, a prefix or a placeholder. `firstParty` patterns
+// skip vendored skills and imported references, whose examples are bound by recorded hashes.
+export const credentialPatterns: ReadonlyArray<{ label: string; pattern: RegExp; firstParty?: true }> = [
+  { label: 'GitHub token', pattern: /\b(?:ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{50,})\b/ },
+  { label: 'AWS access key ID', pattern: /\bAKIA[A-Z0-9]{16}\b/ },
+  { label: 'private key', pattern: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/ },
+  { label: 'Anthropic key', pattern: /\bsk-ant-[a-z]+\d{2}-[A-Za-z0-9_-]{40,}/ },
+  { label: 'Fly.io token', pattern: /\bfo1_[A-Za-z0-9_-]{30,}|\bFlyV1\s+fm2_[A-Za-z0-9+/=_-]{40,}/ },
+  { label: 'Alpaca key ID', pattern: /\b(?:APCA[_-]API[_-]KEY[_-]ID|ALPACA[_-](?:API[_-])?KEY(?:[_-]ID)?)["']?\s*[:=]\s*["']?(?:PK|AK)[A-Z0-9]{16,}\b/ },
+  { label: 'Alpaca secret key', pattern: /\b(?:APCA[_-]API[_-]SECRET[_-]KEY|ALPACA[_-](?:API[_-])?SECRET(?:[_-]KEY)?)["']?\s*[:=]\s*["']?[A-Za-z0-9/+]{30,}/ },
+  { label: 'Cloudflare token', pattern: /\b(?:CLOUDFLARE|CF)_API_(?:TOKEN|KEY)["']?\s*[:=]\s*["']?[A-Za-z0-9_-]{37,}/ },
+  { label: 'Postgres URL with a password', pattern: /\bpostgres(?:ql)?:\/\/[^\s:@/'"`]+:(?![$<{])[^\s@/'"`]+@/, firstParty: true },
+];
+
+export function credentialErrors(file: string, text: string): string[] {
+  const vendored = file.startsWith('.agents/skills/') || file.startsWith('docs/research-logs/imported/');
+  return credentialPatterns.filter(({ pattern, firstParty }) => !(firstParty && vendored) && pattern.test(text)).map(({ label }) => `Potential credential in ${file}: ${label}`);
+}
+
+// The aggregate job `ci` must need every other job, run whatever their result and check each result
+// (OQ-06 section 2.2). Text-based and dependency-free; scripts/workspace/workflows.ts checks the parsed YAML.
+export function aggregateErrors(ci: string): string[] {
+  const code = ci.split('\n').map((line) => line.replace(/(^|\s)#.*$/, '')).join('\n');
+  const start = code.search(/^jobs:[ \t]*$/m);
+  if (start < 0) return ['CI declares no jobs'];
+  const rest = code.slice(start + 'jobs:'.length);
+  const end = rest.search(/^\S/m);
+  const body = end < 0 ? rest : rest.slice(0, end);
+  const jobs = [...body.matchAll(/^  ([A-Za-z_][\w-]*):[ \t]*$/gm)];
+  const aggregate = jobs.find((match) => match[1] === 'ci');
+  if (!aggregate) return ['CI aggregate job ci is missing'];
+  const next = jobs.find((match) => match.index > aggregate.index);
+  const block = body.slice(aggregate.index, next?.index);
+  const inline = /^    needs:[ \t]*\[([^\]]*)\][ \t]*$|^    needs:[ \t]*([\w-]+)[ \t]*$/m.exec(block);
+  const listed = /^    needs:[ \t]*\n((?:      - [\w-]+[ \t]*\n)+)/m.exec(block);
+  const needs = inline ? (inline[1] ?? inline[2]).split(',').map((item) => item.trim()).filter(Boolean) : listed ? [...listed[1].matchAll(/- ([\w-]+)/g)].map((match) => match[1]) : [];
+  const errors: string[] = [];
+  if (!/always\(\)/.test(block)) errors.push('CI aggregate must run with always()');
+  for (const [, id] of jobs) if (id !== 'ci' && !needs.includes(id)) errors.push(`CI aggregate must need every other job: ${id}`);
+  for (const id of needs) if (!new RegExp(`needs\\.${id.replace(/[-]/g, '\\-')}\\.result`).test(block)) errors.push(`CI aggregate must check the result of ${id}`);
+  return errors;
+}
+
 export function checkRepository(base: string): string[] {
   const errors: string[] = [];
   let files: string[];
@@ -226,12 +275,12 @@ export function checkRepository(base: string): string[] {
   for (const file of files) {
     const absolute = resolve(base,file);
     if (lstatSync(absolute).isSymbolicLink()) continue;
-    if (/(^|\/)(\.env(?!\.example$)(\.|$)|\.dev\.vars(\.|$)|[^/]+\.tfstate(\.|$)|[^/]+\.pem$|[^/]+\.key$)/.test(file)) errors.push(`Private file must not be tracked: ${file}`);
+    if (/(^|\/)(\.env(?!\.example$)(\.|$)|\.dev\.vars(?!\.example$)(\.|$)|[^/]+\.tfstate(\.|$)|[^/]+\.pem$|[^/]+\.key$)/.test(file)) errors.push(`Private file must not be tracked: ${file}`);
     const text = read(base,file);
     // Vendored documentation can link to unselected files in its upstream repository.
     // Keep first-party Claude guidance and all non-link checks in scope.
     if (file.endsWith('.md') && !file.startsWith('docs/research-logs/imported/') && !file.startsWith('.agents/skills/')) errors.push(...localLinkErrors(base,file,text,all));
-    if (/\b(?:ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{50,}|AKIA[A-Z0-9]{16})\b/.test(text) || /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/.test(text)) errors.push(`Potential credential in ${file}`);
+    errors.push(...credentialErrors(file,text));
     if (/^\.github\/workflows\/.*\.ya?ml$/.test(file)) {
       for (const match of text.matchAll(/^\s*-?\s*uses:\s*(\S+)/gm)) {
         if (!match[1].startsWith('./') && !/^[\w.-]+\/[\w./-]+@[0-9a-f]{40}$/.test(match[1])) errors.push(`Action must use a full commit SHA: ${file}: ${match[1]}`);
@@ -243,7 +292,7 @@ export function checkRepository(base: string): string[] {
     const ci = read(base,'.github/workflows/ci.yml');
     if (!/^permissions:\n  contents: read$/m.test(ci)) errors.push('CI must declare read-only contents permission');
     if (/secrets\.|continue-on-error:\s*true|permissions:\s*write-all|contents:\s*write/.test(ci)) errors.push('CI must not use secrets, write permission, or ignored failures');
-    if (!/^  ci:\n/m.test(ci) || !/always\(\)/.test(ci) || !/needs\.checks\.result/.test(ci)) errors.push('CI aggregate must check dependency success');
+    errors.push(...aggregateErrors(ci));
   } catch (error) { errors.push(`CI: ${error}`); }
   return errors;
 }

@@ -31,6 +31,11 @@ jobs:
         with:
           node-version-file: .node-version
           package-manager-cache: false
+      # The version must equal packageManager in package.json; verify compares them.
+      - name: Install pinned pnpm
+        run: npm install --global --ignore-scripts pnpm@11.25.0
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
       - name: Install pinned Rust toolchain
         run: rustup toolchain install --profile minimal
       - name: Verify repository

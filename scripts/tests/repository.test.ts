@@ -4,13 +4,16 @@ import { mkdtempSync, mkdirSync, cpSync, copyFileSync, rmSync, readFileSync, rea
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { delimiter, relative, resolve, sep } from 'node:path';
-import { root, checkRepository, paths } from '../repository.ts';
+import { root, checkRepository, paths, isIgnored, credentialErrors } from '../repository.ts';
 
-// Directories that are not part of a checkout. The pattern is applied to the path relative to the
+// Paths that are not part of a checkout: the names that scripts/repository.ts ignores (installed
+// dependencies and local output) and nested worktrees. The test is applied to the path relative to the
 // copied root, so a checkout that itself lives under .claude/worktrees is still copied in full.
-const notCopied = /(^|\/)(\.git|node_modules|target|local-runs|\.claude\/worktrees)(\/|$)/;
+function notCopied(path: string): boolean {
+  return path.split('/').some(isIgnored) || /(^|\/)\.claude\/worktrees(\/|$)/.test(path);
+}
 function copyRepository(source: string, destination: string) {
-  cpSync(source,destination,{recursive:true,verbatimSymlinks:true,filter:(path)=>!notCopied.test(relative(source,path).split(sep).join('/'))});
+  cpSync(source,destination,{recursive:true,verbatimSymlinks:true,filter:(path)=>!notCopied(relative(source,path).split(sep).join('/'))});
 }
 function mutationErrors(change: (directory: string) => void, source: string = root): string[] {
   const temporary = mkdtempSync(resolve(tmpdir(),'openquant-check-'));
@@ -52,6 +55,17 @@ test('the repository copy works from a path inside .claude/worktrees and skips o
     assert.deepEqual(mutationErrors((base)=>{ copied.push(...paths(base)); },checkout),[]);
     assert.ok(copied.includes('scripts/verify.ts'));
     assert.ok(!copied.some((file)=>file.startsWith('.claude/worktrees/')),'a nested .claude/worktrees directory is not copied');
+  } finally { rmSync(temporary,{recursive:true,force:true}); }
+});
+test('the archive walk and the test copy skip the same local output and installed dependencies',()=>{
+  const temporary = mkdtempSync(resolve(tmpdir(),'openquant-output-'));
+  try {
+    const checkout = resolve(temporary,'checkout');
+    copyRepository(root,checkout);
+    const output = ['dist/x.js','packages/api-contracts/ts/dist/generated/types.ts','.turbo/cache/x','apps/api/.wrangler/state/x','coverage/lcov.info','.cache/x','node_modules/x/index.js','local-runs/s0/report.md','packages/api-contracts/ts/tsconfig.tsbuildinfo','target/debug/x'];
+    for (const file of output) { mkdirSync(resolve(checkout,file,'..'),{recursive:true}); writeFileSync(resolve(checkout,file),'output\n'); }
+    assert.deepEqual(paths(checkout),paths(root),'an extracted archive is read without local output');
+    assert.deepEqual(mutationErrors((base)=>{ for (const file of output) assert.ok(!existsSync(resolve(base,file)),`copied: ${file}`); },checkout),[]);
   } finally { rmSync(temporary,{recursive:true,force:true}); }
 });
 test('removing a declared skill and its alias fails inventory verification',()=>mutated((base)=>{
@@ -148,6 +162,46 @@ test('altered source bytes fail provenance',()=>mutated((base)=>edit(base,'docs/
 test('new unstaged file in an archive requires a new file map',()=>mutated((base)=>writeFileSync(resolve(base,'extra.txt'),'extra\n'),/Repository tree drift/));
 test('mutable action reference fails',()=>mutated((base)=>edit(base,'.github/workflows/ci.yml',(t)=>t.replace(/actions\/checkout@[0-9a-f]{40}/,'actions/checkout@v7')),/Action must use a full commit SHA/));
 test('CI secret use fails',()=>mutated((base)=>edit(base,'.github/workflows/ci.yml',(t)=>t+'\n# '+'secrets.'+'EXAMPLE\n'),/CI must not use secrets/));
+// Credential patterns: each test value is assembled at run time, so this file holds no credential shape.
+test('each credential pattern finds its token and leaves names, prefixes and placeholders alone',()=>{
+  const cases: Array<[string,string,string]> = [
+    ['Anthropic key',`ANTHROPIC_API_KEY=${'sk-ant-'}api03-${'A1b-'.repeat(24)}`,'Anthropic keys start with sk-ant-, for example sk-ant-api03-<key>.'],
+    ['Fly.io token',`FLY_API_TOKEN=${'fo1'}_${'Ab3_'.repeat(11)}`,'Fly.io tokens start with fo1_ or FlyV1 fm2_.'],
+    ['Fly.io token',`Authorization: ${'FlyV1'} fm2_${'lJPE'.repeat(20)}`,'Authorization: FlyV1 fm2_<token>'],
+    ['Alpaca key ID',`APCA_API_KEY_ID=${'PK'}${'A1B2C3D4E5F6G7H8I9'}`,`An order reference ${'PK'}${'A1B2C3D4E5F6G7H8I9'} outside a key context, and APCA_API_KEY_ID= left empty.`],
+    ['Alpaca secret key',`"APCA_API_SECRET_KEY": "${'aB3d'.repeat(10)}"`,'APCA_API_SECRET_KEY: ${{ secrets.ALPACA_PAPER_SECRET }}'],
+    ['Cloudflare token',`CLOUDFLARE_API_TOKEN=${'aB3_'.repeat(10)}`,'CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}'],
+    ['Postgres URL with a password',`DATABASE_URL=${'postgres'}://openquant:${'s3cret'}@localhost:5432/openquant`,'postgres://openquant@localhost:5432/openquant and postgresql://openquant:${PGPASSWORD}@localhost/openquant'],
+  ];
+  for (const [label,positive,negative] of cases) {
+    assert.deepEqual(credentialErrors('docs/example.md',positive),[`Potential credential in docs/example.md: ${label}`],positive);
+    assert.deepEqual(credentialErrors('docs/example.md',negative),[],negative);
+  }
+});
+test('vendored examples may hold a database URL with a password, first-party files may not',()=>{
+  const url = `${'postgresql'}://user:${'pass'}@localhost:5432/db`;
+  assert.deepEqual(credentialErrors('.agents/skills/node/rules/environment.md',url),[]);
+  assert.deepEqual(credentialErrors('docs/research-logs/imported/example.md',url),[]);
+  mutated((base)=>edit(base,'README.md',(t)=>`${t}\n${url}\n`),/Potential credential in README\.md: Postgres URL with a password/);
+});
+test('a tracked .dev.vars.example is allowed and a .dev.vars file is not',()=>{
+  const errors = mutationErrors((base)=>{
+    writeFileSync(resolve(base,'apps/api/.dev.vars.example'),'CLOUDFLARE_API_TOKEN=\n');
+    writeFileSync(resolve(base,'apps/api/.dev.vars'),'CLOUDFLARE_API_TOKEN=\n');
+  });
+  assert.ok(errors.includes('Private file must not be tracked: apps/api/.dev.vars'),errors.join('\n'));
+  assert.ok(!errors.some((error)=>error.includes('.dev.vars.example')),errors.join('\n'));
+});
+const extraJob = '  extra:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo extra\n\n';
+test('the CI aggregate must need every other job',()=>mutated((base)=>edit(base,'.github/workflows/ci.yml',(t)=>replaceOnce(t,'  ci:\n',`${extraJob}  ci:\n`)),/CI aggregate must need every other job: extra/));
+test('the CI aggregate must check the result of every job it needs',()=>{
+  const listed = (t: string) => replaceOnce(replaceOnce(t,'  ci:\n',`${extraJob}  ci:\n`),'needs: [checks]','needs:\n      - checks\n      - extra');
+  mutated((base)=>edit(base,'.github/workflows/ci.yml',listed),/CI aggregate must check the result of extra/);
+  mutated((base)=>edit(base,'.github/workflows/ci.yml',(t)=>listed(t).replace('= success','= success # needs.extra.result')),/CI aggregate must check the result of extra/);
+  mutated((base)=>edit(base,'.github/workflows/ci.yml',(t)=>replaceOnce(t,'${{ needs.checks.result }}',"'success'")),/CI aggregate must check the result of checks/);
+  const checked = mutationErrors((base)=>edit(base,'.github/workflows/ci.yml',(t)=>listed(t).replace('        run: test "$CHECK_RESULT" = success\n','        run: test "$CHECK_RESULT" = success\n      - env:\n          EXTRA_RESULT: ${{ needs.extra.result }}\n        run: test "$EXTRA_RESULT" = success\n')));
+  assert.ok(!checked.some((error)=>/CI aggregate/.test(error)),checked.join('\n'));
+});
 test('archive manifest cannot leave its directory',()=>mutated((base)=>edit(base,'docs/research-logs/imported/manifest.json',(t)=>t.replace('"file": "2026-09-14','"file": "../2026-09-14')),/Invalid archive path/));
 
 const agents = 'packages/agents';
@@ -217,10 +271,26 @@ test('affects_executable_rule follows affected elements',()=>mutated((base)=>edi
 test('every finding category stays covered',()=>mutated((base)=>editJson(base,criticCases,(value)=>{
   for (const item of value.cases) item.expected.findings = item.expected.findings.filter((finding: any)=>finding.category!=='operational_risk');
 }),/Uncovered finding category in .*: operational_risk/));
+const roleSchema = `${agents}/schemas/strategy-critique.result.schema.json`;
+test('the role schemas are exactly the five listed files',()=>{
+  mutated((base)=>writeFileSync(resolve(base,`${agents}/schemas/extra.schema.json`),'{}\n'),/Unexpected agent asset: packages\/agents\/schemas\/extra\.schema\.json/);
+  mutated((base)=>rmSync(resolve(base,`${agents}/schemas/role-common.schema.json`)),/Missing agent asset: packages\/agents\/schemas\/role-common\.schema\.json/);
+  mutated((base)=>writeFileSync(resolve(base,roleSchema),'{\n'),/Invalid JSON in packages\/agents\/schemas\/strategy-critique\.result\.schema\.json/);
+});
+test('the link and blockquote rules read Markdown only',()=>{
+  const errors = mutationErrors((base)=>{
+    editJson(base,sourcesPath,(value)=>{ value.description = `${value.description} Pattern [a](b).`; });
+    editJson(base,roleSchema,(value)=>{ value.description = 'Matches [a](b) and > c.'; });
+  });
+  assert.ok(!errors.some((error)=>error.includes(sourcesPath) || error.includes(roleSchema)),errors.join('\n'));
+  mutated((base)=>edit(base,`${agents}/schemas/README.md`,(t)=>`${t}\n> Quoted schema text.\n`),/Blockquote not allowed in agent asset packages\/agents\/schemas\/README\.md/);
+  mutated((base)=>edit(base,proposerProcedure,(t)=>`${t}\n[OQ-03](../../../../../docs/specs/03-model-backed-execution-spec.md)\n`),/Runtime asset contains a link: packages\/agents\/src\/skills\/strategy-formulation\/procedure\.md/);
+});
 
 // S0: Rust verification, fixtures and protocol rules.
-import { reportErrors, reportSections, caseSections, s0Rows, expectedCargoCommands, cargoCommandErrors, verifyDriverErrors, rustModuleErrors, withoutComments } from '../s0.ts';
+import { reportErrors, reportSections, caseSections, s0Rows, expectedCargoCommands, cargoCommandErrors, verifyDriverErrors, rustModuleErrors, withoutComments, expectedTypescriptCommands, typescriptCommandErrors, typescriptModuleErrors } from '../s0.ts';
 import { cargoCommands, toolchainChannel, toolchainPinError } from '../rust.ts';
+import { typescriptCommands, dependencyInstallError, pinnedPnpm } from '../typescript.ts';
 
 // The Cargo steps are compared with a literal list kept in scripts/s0.ts, not with the file they came from.
 const steps: string[] = [...cargoCommands];
@@ -236,7 +306,8 @@ test('a Cargo step cannot be dropped, shortened or changed',()=>{
   const fmt = 'cargo fmt --all --check';
   const clippy = 'cargo clippy --workspace --all-targets --locked -- -D warnings';
   const tests = 'cargo test --workspace --locked';
-  const replay = steps.find((step)=>step.startsWith('cargo run'))!;
+  const replay = steps.find((step)=>step.includes('--bin s0-replay'))!;
+  const report = steps.find((step)=>step.includes('--bin contracts-report'))!;
   const mutations: Record<string,string[]> = {
     'drop fmt': withStep(fmt),
     'drop clippy': withStep(clippy),
@@ -249,6 +320,10 @@ test('a Cargo step cannot be dropped, shortened or changed',()=>{
     'clippy without --locked': withStep(clippy,clippy.replace(' --locked','')),
     'replay without --locked': withStep(replay,replay.replace(' --locked','')),
     'replay to another directory': withStep(replay,replay.replace('local-runs/s0','local-runs/other')),
+    'drop the contracts report': withStep(report),
+    'contracts report without --locked': withStep(report,report.replace(' --locked','')),
+    'contracts report to another directory': withStep(report,report.replace('local-runs/contracts','local-runs/other')),
+    'contracts report before the replay': [...steps.slice(0,3),report,replay],
     'fmt without --check': withStep(fmt,'cargo fmt --all'),
     'no steps': [],
     'a step twice': [...steps,fmt],
@@ -292,12 +367,14 @@ test('the live verify driver and Rust module hold every required code shape',()=
   assert.deepEqual(rustModuleErrors(liveRust),[]);
 });
 test('verify.ts cannot lose the exit-code, digest, toolchain pin or report checks',()=>{
+  // The Cargo and TypeScript loops hold the same status check, so each mutation names its loop.
+  const cargoRun = 'const status = runCargo(root, command);\n  ';
   const statusCheck = 'if (status !== 0) fail(`${command} exited with status ${status}`);';
   const mutations: Record<string,[string,RegExp]> = {
-    'exit-code check removed': [replaceOnce(liveVerify,statusCheck,''),/run every Cargo command and fail on a non-zero exit status/],
-    'exit-code check disabled': [replaceOnce(liveVerify,'if (status !== 0) fail(','if (false) fail('),/run every Cargo command and fail on a non-zero exit status/],
-    'exit-code check only in a line comment': [replaceOnce(liveVerify,statusCheck,`// ${statusCheck}`),/run every Cargo command and fail on a non-zero exit status/],
-    'exit-code check only in a block comment': [replaceOnce(liveVerify,statusCheck,`/* ${statusCheck} */`),/run every Cargo command and fail on a non-zero exit status/],
+    'exit-code check removed': [replaceOnce(liveVerify,cargoRun+statusCheck,cargoRun),/run every Cargo command and fail on a non-zero exit status/],
+    'exit-code check disabled': [replaceOnce(liveVerify,`${cargoRun}if (status !== 0) fail(`,`${cargoRun}if (false) fail(`),/run every Cargo command and fail on a non-zero exit status/],
+    'exit-code check only in a line comment': [replaceOnce(liveVerify,cargoRun+statusCheck,`${cargoRun}// ${statusCheck}`),/run every Cargo command and fail on a non-zero exit status/],
+    'exit-code check only in a block comment': [replaceOnce(liveVerify,cargoRun+statusCheck,`${cargoRun}/* ${statusCheck} */`),/run every Cargo command and fail on a non-zero exit status/],
     'Cargo steps not run': [liveVerify.replaceAll('runCargo','skipCargo'),/run every Cargo command and fail on a non-zero exit status/],
     'digest comparison disabled': [replaceOnce(liveVerify,"if (fixtureDigest(root) !== fixturesBefore) fail(",'if (false) fail('),/compare the fixture digest after the Cargo steps/],
     'digest comparison removed': [replaceOnce(liveVerify,/if \(fixtureDigest\(root\) !== fixturesBefore\) fail\([^\n]*\n/.exec(liveVerify)![0],''),/compare the fixture digest after the Cargo steps/],
@@ -320,6 +397,88 @@ test('verify.ts checks must keep their order',()=>{
   const moved = replaceOnce(liveVerify,pin,'').replace('// 3. The replay report',`${pin}// 3. The replay report`);
   assert.match(verifyDriverErrors(moved).join('\n'),/must fail when the pinned toolchain is not the one that runs before it can record the fixture digest/);
 });
+test('verify.ts cannot lose the dependency check, the TypeScript loop or its digest comparison',()=>{
+  const typescriptRun = 'const status = runTypescript(root, command);\n  ';
+  const statusCheck = 'if (status !== 0) fail(`${command} exited with status ${status}`);';
+  const loop = /for \(const command of typescriptCommands\) \{[\s\S]*?\n\}\n/.exec(liveVerify)![0];
+  const compare = /if \(fixtureDigest\(root\) !== typescriptFixturesBefore\) fail\([^\n]*\n/.exec(liveVerify)![0];
+  const install = 'if (installError) fail(installError);';
+  const mutations: Record<string,[string,RegExp]> = {
+    'TypeScript loop removed': [replaceOnce(liveVerify,loop,''),/run every TypeScript command and fail on a non-zero exit status/],
+    'TypeScript steps not run': [liveVerify.replaceAll('runTypescript','skipTypescript'),/run every TypeScript command and fail on a non-zero exit status/],
+    'TypeScript status ignored': [replaceOnce(liveVerify,typescriptRun+statusCheck,typescriptRun),/run every TypeScript command and fail on a non-zero exit status/],
+    'TypeScript status check disabled': [replaceOnce(liveVerify,`${typescriptRun}if (status !== 0) fail(`,`${typescriptRun}if (false) fail(`),/run every TypeScript command and fail on a non-zero exit status/],
+    'TypeScript status check only in a comment': [replaceOnce(liveVerify,typescriptRun+statusCheck,`${typescriptRun}// ${statusCheck}`),/run every TypeScript command and fail on a non-zero exit status/],
+    'TypeScript digest comparison removed': [replaceOnce(liveVerify,compare,''),/compare the fixture digest after the TypeScript steps/],
+    'TypeScript digest comparison only in a comment': [replaceOnce(liveVerify,compare,`/* ${compare.trim()} */\n`),/compare the fixture digest after the TypeScript steps/],
+    'TypeScript digest never recorded': [replaceOnce(liveVerify,'const typescriptFixturesBefore = fixtureDigest(root);','const typescriptFixturesBefore = fixturesBefore;'),/record the fixture digest before the TypeScript steps/],
+    'dependency check removed': [replaceOnce(liveVerify,install,''),/fail when the installed dependencies do not match pnpm-lock\.yaml/],
+    'dependency check only in a comment': [replaceOnce(liveVerify,install,`// ${install}`),/fail when the installed dependencies do not match pnpm-lock\.yaml/],
+    'dependency check replaced': [replaceOnce(liveVerify,'const installError = dependencyInstallError(root);','const installError = undefined;'),/fail when the installed dependencies do not match pnpm-lock\.yaml/],
+  };
+  for (const [name,[source,expected]] of Object.entries(mutations)) {
+    const errors = verifyDriverErrors(source);
+    assert.ok(errors.some((error)=>expected.test(error)),`${name}: ${errors.join(' | ') || 'no error'}`);
+  }
+});
+test('the TypeScript block must follow the report check and come before the success message',()=>{
+  const block = liveVerify.slice(liveVerify.indexOf('// 4. TypeScript'),liveVerify.indexOf("console.log('\\nVerification passed"));
+  const early = replaceOnce(liveVerify,block,'').replace('// 3. The replay report',`${block}// 3. The replay report`);
+  assert.match(verifyDriverErrors(early).join('\n'),/must fail on any replay report problem before it can fail when the installed dependencies do not match pnpm-lock\.yaml/);
+  const late = `${replaceOnce(liveVerify,block,'')}\n${block}`;
+  assert.match(verifyDriverErrors(late).join('\n'),/must compare the fixture digest after the TypeScript steps before it can report success only after those checks/);
+  const install = 'const installError = dependencyInstallError(root);\nif (installError) fail(installError);\n';
+  const checkLast = replaceOnce(liveVerify,install,'').replace("\nconsole.log('\\nVerification passed",`\n${install}console.log('\\nVerification passed`);
+  assert.match(verifyDriverErrors(checkLast).join('\n'),/must fail when the installed dependencies do not match pnpm-lock\.yaml before it can record the fixture digest before the TypeScript steps/);
+});
+const liveTypescript = readFileSync(resolve(root,'scripts/typescript.ts'),'utf8');
+test('the live TypeScript module holds every required code shape and the expected steps',()=>{
+  assert.deepEqual(typescriptModuleErrors(liveTypescript),[]);
+  assert.deepEqual(typescriptCommandErrors(typescriptCommands),[]);
+  assert.deepEqual([...typescriptCommands],[...expectedTypescriptCommands]);
+});
+test('typescript.ts cannot ignore the exit status, drop its environment, skip the lockfile comparison or install',()=>{
+  const mutations: Record<string,[string,RegExp]> = {
+    'status ignored': [replaceOnce(liveTypescript,'return result.status ?? 1;','return 0;'),/runTypescript must return the exit status/],
+    'status only in a comment': [replaceOnce(liveTypescript,'return result.status ?? 1;','// return result.status ?? 1;\n  return 0;'),/runTypescript must return the exit status/],
+    'telemetry left on': [replaceOnce(liveTypescript,"TURBO_TELEMETRY_DISABLED: '1', ",''),/TURBO_TELEMETRY_DISABLED=1/],
+    'environment not passed': [replaceOnce(liveTypescript,"{ cwd: base, stdio: 'inherit', env }","{ cwd: base, stdio: 'inherit' }"),/TURBO_TELEMETRY_DISABLED=1/],
+    'pnpm allowed to install before exec': [replaceOnce(liveTypescript,"pnpm_config_verify_deps_before_run: 'error'","pnpm_config_verify_deps_before_run: 'install'"),/verify-deps-before-run=error/],
+    'lockfile comparison disabled': [replaceOnce(liveTypescript,'if (!readFileSync(installed).equals(readFileSync(wanted))) {','if (false) {'),/compare node_modules\/\.pnpm\/lock\.yaml with pnpm-lock\.yaml/],
+    'lockfile comparison only in a comment': [replaceOnce(liveTypescript,'if (!readFileSync(installed).equals(readFileSync(wanted))) {','// if (!readFileSync(installed).equals(readFileSync(wanted))) {\n  if (false) {'),/compare node_modules\/\.pnpm\/lock\.yaml with pnpm-lock\.yaml/],
+    'pnpm version not compared': [replaceOnce(liveTypescript,'if (result.stdout.trim() !== pinned) {','if (false) {'),/compare the running pnpm version with packageManager/],
+    'silent install': [replaceOnce(liveTypescript,"spawnSync('pnpm', ['--version']","spawnSync('pnpm', ['install']"),/must never install, add or update dependencies/],
+    'instruction weakened': [replaceOnce(liveTypescript,"installCommand = 'pnpm install --frozen-lockfile'","installCommand = 'pnpm install'"),/must tell the user to run: pnpm install --frozen-lockfile/],
+  };
+  for (const [name,[source,expected]] of Object.entries(mutations)) {
+    const errors = typescriptModuleErrors(source);
+    assert.ok(errors.some((error)=>expected.test(error)),`${name}: ${errors.join(' | ') || 'no error'}`);
+  }
+});
+test('a TypeScript step cannot be dropped, cached, changed or joined by an install',()=>{
+  const live: string[] = [...typescriptCommands];
+  const [turbo,check,tests] = live;
+  const mutations: Record<string,string[]> = {
+    'drop turbo': [check,tests],
+    'turbo without --force': [turbo.replace(' --force',''),check,tests],
+    'turbo without test': [turbo.replace(' test ',' '),check,tests],
+    'drop the workspace checks': [turbo,tests],
+    'drop the workspace tests': [turbo,check],
+    'an install step': ['pnpm install --frozen-lockfile',...live],
+    'reordered steps': [check,turbo,tests],
+    'a step twice': [...live,turbo],
+    'no steps': [],
+  };
+  for (const [name,list] of Object.entries(mutations)) assert.notDeepEqual(typescriptCommandErrors(list),[],name);
+  assert.match(typescriptCommandErrors([turbo.replace(' --force',''),check,tests]).join('\n'),/scripts\/typescript\.ts must run: pnpm exec turbo run typecheck lint test build --force[\s\S]*not expected: pnpm exec turbo run typecheck lint test build$/m);
+});
+test('the repository check rejects a TypeScript step dropped from scripts/typescript.ts',()=>{
+  const run = checkerRun((base)=>edit(base,'scripts/typescript.ts',(t)=>replaceOnce(t,"  'pnpm exec node scripts/workspace/check-workspace.ts',\n",'')));
+  assert.equal(run.status,1);
+  assert.match(run.output,/scripts\/typescript\.ts must run: pnpm exec node scripts\/workspace\/check-workspace\.ts/);
+});
+test('the repository check rejects a verify.ts without its dependency check',()=>mutated((base)=>edit(base,'scripts/verify.ts',(t)=>replaceOnce(t,'if (installError) fail(installError);',''))
+  ,/scripts\/verify\.ts must fail when the installed dependencies do not match pnpm-lock\.yaml/));
 test('rust.ts cannot ignore the exit status or the pinned version',()=>{
   assert.match(rustModuleErrors(replaceOnce(liveRust,'return result.status ?? 1;','return 0;')).join('\n'),/runCargo must return the exit status/);
   assert.match(rustModuleErrors(replaceOnce(liveRust,'return result.status ?? 1;','// return result.status ?? 1;\n  return 0;')).join('\n'),/runCargo must return the exit status/);
@@ -328,17 +487,19 @@ test('rust.ts cannot ignore the exit status or the pinned version',()=>{
 test('comments are removed but string literals are kept',()=>{
   assert.equal(withoutComments("const a = 'https://x'; // gone\nconst b = `//kept`; /* gone */ const c = \"/*kept*/\";").replace(/\s+/g,' '),"const a = 'https://x'; const b = `//kept`; const c = \"/*kept*/\";");
 });
-test('the repository check rejects a verify.ts without its exit-code check',()=>mutated((base)=>edit(base,'scripts/verify.ts',(t)=>replaceOnce(t,'if (status !== 0) fail(','if (false) fail(')),/scripts\/verify\.ts must run every Cargo command and fail on a non-zero exit status/));
+test('the repository check rejects a verify.ts without its exit-code check',()=>mutated((base)=>edit(base,'scripts/verify.ts',(t)=>replaceOnce(t,'runCargo(root, command);\n  if (status !== 0) fail(','runCargo(root, command);\n  if (false) fail(')),/scripts\/verify\.ts must run every Cargo command and fail on a non-zero exit status/));
 test('the repository check rejects a runCargo that returns success',()=>mutated((base)=>edit(base,'scripts/rust.ts',(t)=>replaceOnce(t,'return result.status ?? 1;','return 0;')),/runCargo must return the exit status/));
 
-// Behavioural tests of the verify driver. The real scripts run in a temporary root. Two of its inputs are
+// Behavioural tests of the verify driver. The real scripts run in a temporary root. Its other inputs are
 // stand-ins: scripts/check-repository.ts and scripts/tests/repository.test.ts (the driver's Node steps would
-// otherwise run this test file again), and `cargo` and `rustc`, which are shell scripts placed first on PATH.
-// The driver, rust.ts, s0.ts and the rest of scripts/ are byte-for-byte copies, so nothing in a normal
-// verification run can switch a step off.
+// otherwise run this test file again), and `cargo`, `rustc` and `pnpm`, which are shell scripts placed first
+// on PATH. The root also holds package.json, a lockfile and, unless a test removes or changes it, the copy
+// that pnpm writes on install. The driver, rust.ts, typescript.ts, s0.ts and the rest of scripts/ are
+// byte-for-byte copies, so nothing in a normal verification run can switch a step off.
 interface Driver {
   cases?: string[]; replay?: string[] | 'failing' | 'none'; checkStatus?: number; testsFail?: boolean;
   cargoFails?: string; touchFixtures?: boolean; rustc?: string;
+  pnpmFails?: string; touchFixturesInTypescript?: boolean; install?: 'current' | 'missing' | 'stale'; pnpmVersion?: string;
 }
 function driverRun(options: Driver = {}) {
   const temporary = mkdtempSync(resolve(tmpdir(),'openquant-driver-'));
@@ -352,6 +513,13 @@ function driverRun(options: Driver = {}) {
     writeFileSync(resolve(base,'scripts/check-repository.ts'),`console.log('stand-in repository checks');\nprocess.exit(${options.checkStatus ?? 0});\n`);
     writeFileSync(resolve(base,'scripts/tests/repository.test.ts'),`import test from 'node:test';\ntest('stand-in repository tests',()=>{${options.testsFail ? " throw new Error('stand-in failure');" : ''}});\n`);
     copyFileSync(resolve(root,'rust-toolchain.toml'),resolve(base,'rust-toolchain.toml'));
+    copyFileSync(resolve(root,'package.json'),resolve(base,'package.json'));
+    const lockfile = 'lockfileVersion: \'9.0\'\n\nimporters:\n\n  .: {}\n';
+    writeFileSync(resolve(base,'pnpm-lock.yaml'),lockfile);
+    if ((options.install ?? 'current') !== 'missing') {
+      mkdirSync(resolve(base,'node_modules/.pnpm'),{recursive:true});
+      writeFileSync(resolve(base,'node_modules/.pnpm/lock.yaml'),options.install === 'stale' ? lockfile.replace('{}','{ devDependencies: {} }') : lockfile);
+    }
     for (const id of cases) { mkdirSync(resolve(base,`fixtures/s0/cases/${id}`),{recursive:true}); writeFileSync(resolve(base,`fixtures/s0/cases/${id}/case.json`),'{}\n'); }
     const replay = options.replay ?? cases;
     if (replay !== 'none') {
@@ -360,58 +528,117 @@ function driverRun(options: Driver = {}) {
       writeFileSync(resolve(temporary,'replay/report.md'),replayReport(ids));
       writeFileSync(resolve(temporary,'replay/index.json'),replayIndex(ids,replay !== 'failing'));
     }
-    const log = resolve(temporary,'cargo.log');
+    // One log for every stand-in, so the tests can check the order across Cargo and TypeScript steps.
+    const log = resolve(temporary,'steps.log');
     writeFileSync(resolve(bin,'cargo'),[
       '#!/bin/sh',
-      'echo "$*" >> "$STAND_IN_LOG"',
-      'if [ "$STAND_IN_FAIL" = "$1" ]; then echo "stand-in cargo fails: $1" >&2; exit 1; fi',
+      'echo "cargo $*" >> "$STAND_IN_LOG"',
+      'if [ "$STAND_IN_FAIL" = "$*" ]; then echo "stand-in cargo fails: $*" >&2; exit 1; fi',
       'if [ "$1" = test ] && [ -n "$STAND_IN_TOUCH" ]; then echo changed >> fixtures/s0/cases/CASE-1/case.json; fi',
       'if [ "$1" = run ] && [ -d "$STAND_IN_REPLAY" ]; then mkdir -p local-runs/s0 && cp "$STAND_IN_REPLAY"/* local-runs/s0/; fi',
       'exit 0',
       '',
     ].join('\n'),{mode:0o755});
     writeFileSync(resolve(bin,'rustc'),`#!/bin/sh\necho '${options.rustc ?? `rustc ${toolchainChannel(root)} (stand-in 2000-01-01)`}'\n`,{mode:0o755});
+    // The stand-in pnpm answers the version check, records each step and refuses to run a step without the
+    // environment that runTypescript must set. It never installs anything.
+    writeFileSync(resolve(bin,'pnpm'),[
+      '#!/bin/sh',
+      'if [ "$1" = --version ]; then echo "$STAND_IN_PNPM_VERSION"; exit 0; fi',
+      'echo "pnpm $*" >> "$STAND_IN_LOG"',
+      'if [ "$TURBO_TELEMETRY_DISABLED" != 1 ] || [ "$pnpm_config_verify_deps_before_run" != error ]; then echo "stand-in pnpm: step environment not set" >&2; exit 2; fi',
+      'if [ "$STAND_IN_PNPM_FAIL" = "$*" ]; then echo "stand-in pnpm fails: $*" >&2; exit 1; fi',
+      'if [ "$2" = turbo ] && [ -n "$STAND_IN_PNPM_TOUCH" ]; then echo changed >> fixtures/s0/cases/CASE-1/case.json; fi',
+      'exit 0',
+      '',
+    ].join('\n'),{mode:0o755});
     const env: Record<string,string|undefined> = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, STAND_IN_LOG: log, STAND_IN_REPLAY: resolve(temporary,'replay'),
-      STAND_IN_FAIL: options.cargoFails ?? '', STAND_IN_TOUCH: options.touchFixtures ? '1' : '' };
+      STAND_IN_FAIL: options.cargoFails ?? '', STAND_IN_TOUCH: options.touchFixtures ? '1' : '',
+      STAND_IN_PNPM_FAIL: options.pnpmFails ?? '', STAND_IN_PNPM_TOUCH: options.touchFixturesInTypescript ? '1' : '', STAND_IN_PNPM_VERSION: options.pnpmVersion ?? pinnedPnpm(root) };
     delete env.NODE_TEST_CONTEXT; // a nested `node --test` must run as a runner, not as a child of this one
+    delete env.TURBO_TELEMETRY_DISABLED; // the driver must set these two itself
+    delete env.pnpm_config_verify_deps_before_run;
     const result = spawnSync(process.execPath,['scripts/verify.ts'],{cwd:base,env,encoding:'utf8',timeout:60000});
-    const cargo = existsSync(log) ? readFileSync(log,'utf8').split('\n').filter(Boolean) : [];
-    return { status: result.status, stdout: result.stdout, stderr: result.stderr, cargo };
+    const steps = existsSync(log) ? readFileSync(log,'utf8').split('\n').filter(Boolean) : [];
+    const only = (tool: string) => steps.filter((line)=>line.startsWith(`${tool} `)).map((line)=>line.slice(tool.length+1));
+    return { status: result.status, stdout: result.stdout, stderr: result.stderr, steps, cargo: only('cargo'), pnpm: only('pnpm') };
   } finally { rmSync(temporary,{recursive:true,force:true}); }
 }
-const driverSkip = process.platform === 'win32' ? 'the driver tests use sh stand-ins for cargo and rustc' : false;
+const driverSkip = process.platform === 'win32' ? 'the driver tests use sh stand-ins for cargo, rustc and pnpm' : false;
 const cargoArguments = expectedCargoCommands.map((command)=>command.replace(/^cargo /,''));
-test('the verify driver runs every Cargo step in order and passes when all of them pass',{skip:driverSkip},()=>{
+const pnpmArguments = expectedTypescriptCommands.map((command)=>command.replace(/^pnpm /,''));
+test('the verify driver runs every Cargo step, then every TypeScript step, in order, and passes when all pass',{skip:driverSkip},()=>{
   const run = driverRun();
   assert.equal(run.status,0,run.stderr);
   assert.match(run.stdout,/Verification passed/);
   assert.deepEqual(run.cargo,cargoArguments);
+  assert.deepEqual(run.pnpm,pnpmArguments);
+  assert.deepEqual(run.steps,[...expectedCargoCommands,...expectedTypescriptCommands]);
 });
 test('the verify driver fails when any one Cargo step exits non-zero, and runs nothing after it',{skip:driverSkip},()=>{
-  ['fmt','clippy','test','run'].forEach((subcommand,position)=>{
-    const run = driverRun({cargoFails:subcommand});
-    assert.equal(run.status,1,subcommand);
-    assert.ok(run.stderr.includes(`Verification failed: ${expectedCargoCommands[position]} exited with status 1`),`${subcommand}: ${run.stderr}`);
-    assert.ok(!run.stdout.includes('Verification passed'),subcommand);
-    assert.deepEqual(run.cargo,cargoArguments.slice(0,position+1),subcommand);
+  cargoArguments.forEach((step,position)=>{
+    const run = driverRun({cargoFails:step});
+    assert.equal(run.status,1,step);
+    assert.ok(run.stderr.includes(`Verification failed: ${expectedCargoCommands[position]} exited with status 1`),`${step}: ${run.stderr}`);
+    assert.ok(!run.stdout.includes('Verification passed'),step);
+    assert.deepEqual(run.cargo,cargoArguments.slice(0,position+1),step);
+    assert.deepEqual(run.pnpm,[],step);
   });
+});
+test('the verify driver fails when any one TypeScript step exits non-zero, and runs nothing after it',{skip:driverSkip},()=>{
+  pnpmArguments.forEach((step,position)=>{
+    const run = driverRun({pnpmFails:step});
+    assert.equal(run.status,1,step);
+    assert.ok(run.stderr.includes(`Verification failed: ${expectedTypescriptCommands[position]} exited with status 1`),`${step}: ${run.stderr}`);
+    assert.ok(!run.stdout.includes('Verification passed'),step);
+    assert.deepEqual(run.cargo,cargoArguments,step);
+    assert.deepEqual(run.pnpm,pnpmArguments.slice(0,position+1),step);
+  });
+});
+test('the verify driver fails before any TypeScript step when the install is missing or stale, and says how to install',{skip:driverSkip},()=>{
+  for (const [install,message] of [['missing',/Verification failed: The dependencies in pnpm-lock\.yaml are not installed\. Run: pnpm install --frozen-lockfile/],['stale',/Verification failed: The installed dependencies do not match pnpm-lock\.yaml\. Run: pnpm install --frozen-lockfile/]] as const) {
+    const run = driverRun({install});
+    assert.equal(run.status,1,install);
+    assert.match(run.stderr,message,install);
+    assert.deepEqual(run.cargo,cargoArguments,install);
+    assert.deepEqual(run.pnpm,[],install);
+    assert.ok(!run.stdout.includes('Verification passed'),install);
+  }
+  const version = driverRun({pnpmVersion:'10.0.0'});
+  assert.equal(version.status,1);
+  assert.match(version.stderr,/Verification failed: Expected pnpm \d+\.\d+\.\d+ from package\.json, found: 10\.0\.0\. Install pnpm \d+\.\d+\.\d+, then Run: pnpm install --frozen-lockfile/);
+  assert.deepEqual(version.pnpm,[]);
+});
+test('the dependency check explains a missing pnpm',()=>{
+  const saved = process.env.PATH;
+  process.env.PATH = resolve(tmpdir(),'openquant-no-pnpm-here');
+  try { assert.match(dependencyInstallError(root) ?? '',/pnpm was not found on PATH\. Verification needs pnpm \d+\.\d+\.\d+ .*Run: pnpm install --frozen-lockfile/); }
+  finally { process.env.PATH = saved; }
+});
+test('the verify driver fails when a TypeScript step changes a fixture',{skip:driverSkip},()=>{
+  const run = driverRun({touchFixturesInTypescript:true});
+  assert.equal(run.status,1);
+  assert.match(run.stderr,/Verification failed: fixtures changed while the TypeScript steps ran/);
+  assert.ok(!run.stdout.includes('Verification passed'));
 });
 test('the verify driver fails before any Cargo step when the pinned toolchain is not the one that runs',{skip:driverSkip},()=>{
   const run = driverRun({rustc:'rustc 0.0.1 (stand-in 2000-01-01)'});
   assert.equal(run.status,1);
   assert.match(run.stderr,/Verification failed: Expected rustc \d+\.\d+\.\d+ from rust-toolchain\.toml, found: rustc 0\.0\.1/);
-  assert.deepEqual(run.cargo,[]);
+  assert.deepEqual(run.steps,[]);
 });
 test('the verify driver fails when a Cargo step changes a fixture',{skip:driverSkip},()=>{
   const run = driverRun({touchFixtures:true});
   assert.equal(run.status,1);
   assert.match(run.stderr,/Verification failed: fixtures changed while verification ran/);
   assert.ok(!run.stdout.includes('Verification passed'));
+  assert.deepEqual(run.pnpm,[]);
 });
 test('the verify driver fails on a replay report problem',{skip:driverSkip},()=>{
   const failing = driverRun({replay:'failing'});
   assert.equal(failing.status,1);
   assert.match(failing.stderr,/Verification failed: [\s\S]*Replay case failed: CASE-1/);
+  assert.deepEqual(failing.pnpm,[]);
   const missing = driverRun({replay:'none'});
   assert.equal(missing.status,1);
   assert.match(missing.stderr,/Verification failed: Missing replay report/);
@@ -423,10 +650,10 @@ test('the verify driver fails on a replay report problem',{skip:driverSkip},()=>
 test('the verify driver stops before Cargo when the repository checks or their tests fail',{skip:driverSkip},()=>{
   const check = driverRun({checkStatus:3});
   assert.equal(check.status,3);
-  assert.deepEqual(check.cargo,[]);
+  assert.deepEqual(check.steps,[]);
   const tests = driverRun({testsFail:true});
   assert.notEqual(tests.status,0);
-  assert.deepEqual(tests.cargo,[]);
+  assert.deepEqual(tests.steps,[]);
   assert.ok(!tests.stdout.includes('Verification passed'));
 });
 

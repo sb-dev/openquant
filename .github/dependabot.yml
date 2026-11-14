@@ -19,5 +19,18 @@ updates:
     ignore:
       - dependency-name: '*'
         update-types: ['version-update:semver-major']
-# Add npm updates when implemented TypeScript packages introduce dependency
-# manifests in S1.
+  # The pnpm workspace (pnpm-lock.yaml). The cooldown matches the default
+  # minimum release age of pnpm 11 (one day), so an update can be installed.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 1
+    groups:
+      npm:
+        patterns: ['*']
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']

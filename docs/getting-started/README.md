@@ -1,19 +1,20 @@
 # Getting started
 
-Clone the repository and use the Node version in `.node-version`.
+Clone the repository. Use Node 24 (the version in `.node-version`) and the pnpm version in `packageManager` in `package.json`. Install the dependencies locked in `pnpm-lock.yaml`:
 
 ```bash
 git clone https://github.com/sb-dev/openquant.git
 cd openquant
+pnpm install --frozen-lockfile
 ```
 
-Run the bootstrap verification:
+Run the verification:
 
 ```bash
 node scripts/verify.ts
 ```
 
-No cloud, model, market-data or broker credentials are required. The Node checks need no dependency installation. The Rust steps need the toolchain pinned in `rust-toolchain.toml` (`rustup toolchain install`) and fetch the crates locked in `Cargo.lock`. The check verifies repository structure, spec metadata, local links, acceptance IDs, source hashes, workflow conventions, regression cases, Rust formatting, clippy, Rust tests and the S0 offline replay. It does not start a trading application.
+No cloud, model, market-data or broker credentials are required. The repository checks run with Node alone. The TypeScript steps need the installed dependencies: verification compares them with `pnpm-lock.yaml` and stops with `Run: pnpm install --frozen-lockfile` when they are missing or differ. It never installs. The Rust steps need the toolchain pinned in `rust-toolchain.toml` (`rustup toolchain install`) and fetch the crates locked in `Cargo.lock`. The check verifies repository structure, spec metadata, local links, acceptance IDs, source hashes, workflow conventions, regression cases, Rust formatting, clippy, Rust tests, the S0 offline replay, the Rust contracts report, TypeScript type checks, lint, tests and builds, and the licences, import boundaries and workflow files. It does not start a trading application. S1 is incomplete; real-Postgres tests arrive with the S1 durable API.
 
 To replay the S0 fixture cases and read the report:
 
