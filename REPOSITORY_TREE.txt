@@ -607,6 +607,10 @@ fixtures/protocol/invalid/agent-dispatch.tool-granted.json
 fixtures/protocol/invalid/agent-dispatch.unknown-field.json
 fixtures/protocol/invalid/agent-dispatch.version-2.json
 fixtures/protocol/invalid/api-error.empty-violations.json
+fixtures/protocol/invalid/api-error.long-key-duplicate-wrong-version.json
+fixtures/protocol/invalid/api-error.long-key-nested.json
+fixtures/protocol/invalid/api-error.long-key-top-level.json
+fixtures/protocol/invalid/api-error.long-key-wrong-version.json
 fixtures/protocol/invalid/api-error.unknown-code.json
 fixtures/protocol/invalid/api-error.unknown-field.json
 fixtures/protocol/invalid/api-error.value-bound-duplicate-key-escaped.json
@@ -691,6 +695,8 @@ fixtures/protocol/invalid/dataset-manifest.request-digest-malformed.json
 fixtures/protocol/invalid/dataset-manifest.unknown-nested-field.json
 fixtures/protocol/invalid/dataset-manifest.unlisted-decimals-at-4097.json
 fixtures/protocol/invalid/dataset-manifest.version-2.json
+fixtures/protocol/invalid/evaluation-input.listed-decimals-at-4096.json
+fixtures/protocol/invalid/evaluation-input.unlisted-decimals-at-4097.json
 fixtures/protocol/invalid/evaluation-metrics.missing-turnover.json
 fixtures/protocol/invalid/evaluation-metrics.net-return-exponent.json
 fixtures/protocol/invalid/evaluation-metrics.unknown-field.json
@@ -807,6 +813,7 @@ fixtures/protocol/valid/checkpoint.exact-open-position-fraction.json
 fixtures/protocol/valid/checkpoint.exact-pending-fraction.json
 fixtures/protocol/valid/checkpoint.open-position.json
 fixtures/protocol/valid/checkpoint.pending-entry.json
+fixtures/protocol/valid/cohort-policy.escaped-longest-keys.json
 fixtures/protocol/valid/cohort-policy.s1-pilot.json
 fixtures/protocol/valid/command.cancel-mission.json
 fixtures/protocol/valid/command.create-mission.json
@@ -1412,6 +1419,7 @@ packages/api-contracts/ts/test-reporter.ts
 packages/api-contracts/ts/test/bundle.test.ts
 packages/api-contracts/ts/test/canonical.test.ts
 packages/api-contracts/ts/test/errors.test.ts
+packages/api-contracts/ts/test/keys.test.ts
 packages/api-contracts/ts/test/limits.test.ts
 packages/api-contracts/ts/test/manifest.test.ts
 packages/api-contracts/ts/test/memory.test.ts
@@ -1427,6 +1435,7 @@ packages/api-contracts/ts/test/support/error-bound.ts
 packages/api-contracts/ts/test/support/error-shape.ts
 packages/api-contracts/ts/test/support/manifest.ts
 packages/api-contracts/ts/test/support/parity.ts
+packages/api-contracts/ts/test/support/schema-text.ts
 packages/api-contracts/ts/test/validate.test.ts
 packages/api-contracts/ts/test/value-bound.test.ts
 packages/api-contracts/ts/tools/bundle-check.ts

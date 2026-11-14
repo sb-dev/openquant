@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import {
   MAX_NESTING,
   MAX_PAYLOAD_BYTES,
@@ -117,6 +117,21 @@ describe('the strict parser rejects what strict.rs rejects', () => {
     expect(kindOf(new Uint8Array([0x22, 0xc3, 0xa9, 0x22]))).toBe('accepted');
     expect(kindOf(new Uint8Array([0xef, 0xbb, 0xbf, 0x7b, 0x7d]))).toBe('json');
   });
+});
+
+test('an integer of more than 20 digits is refused without reading it as a BigInt', () => {
+  const big = vi.spyOn(globalThis, 'BigInt');
+  try {
+    expect(kindOf('9'.repeat(1_000_000))).toBe('float-number');
+    expect(kindOf(`-${'1'.repeat(21)}`)).toBe('float-number');
+    expect(big).not.toHaveBeenCalled();
+    // 20 digits are read: 2^64 - 1 is an unsafe integer and 2^64 is out of range.
+    expect(kindOf('18446744073709551615')).toBe('unsafe-integer');
+    expect(kindOf('18446744073709551616')).toBe('float-number');
+    expect(big).toHaveBeenCalledTimes(2);
+  } finally {
+    big.mockRestore();
+  }
 });
 
 test('the scan defers an unsafe integer and reports the first one', () => {

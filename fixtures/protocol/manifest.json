@@ -1677,6 +1677,47 @@
       "contract": "dataset-manifest",
       "expect": "schema_invalid",
       "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.long-key-top-level.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.long-key-nested.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.long-key-wrong-version.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/api-error.long-key-duplicate-wrong-version.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/valid/cohort-policy.escaped-longest-keys.json",
+      "contract": "cohort-policy",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/invalid/evaluation-input.listed-decimals-at-4096.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL"
+    },
+    {
+      "path": "protocol/invalid/evaluation-input.unlisted-decimals-at-4097.json",
+      "contract": "evaluation-input",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
     }
   ]
 }

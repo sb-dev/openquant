@@ -16,6 +16,12 @@
 //          Latin-1, so the decoded text takes two bytes a character
 // head     the journal is valid and an extra top-level member holds `[0,0,…]` arrays: the head is
 //          built up to its value bound, then only read
+// head-strings  the journal is valid and an extra top-level member holds strings of
+//          MAX_STRING_BYTES decoded bytes, each with an escape and a character outside Latin-1:
+//          the head builds them, decoded and two bytes a character, within its value bound
+// root-key the journal is valid and one extra top-level member has a key that fills the body: an
+//          escape, then `a`, then a character outside Latin-1
+// journal-key  the journal is one object whose only key fills the body in the same way
 
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -42,9 +48,23 @@ const room = (tail: number) => bytes.length - at - tail;
 const journalStart = document.indexOf('"journal":') + '"journal":'.length;
 const journalEnd = document.indexOf(',"outcome":');
 const [before, after] =
-  shape === 'head'
+  shape === 'head' || shape === 'head-strings'
     ? [`${document.slice(0, -1)},"extra":`, '}']
-    : [document.slice(0, journalStart), document.slice(journalEnd)];
+    : shape === 'root-key'
+      ? [`${document.slice(0, -1)},`, ':0}']
+      : [document.slice(0, journalStart), document.slice(journalEnd)];
+
+// A key or string of an escape, `a` up to the room left before `tail` bytes, and 一 (U+4E00, three
+// bytes in UTF-8). The `a` run is written in place, so the setup leaves no long string behind.
+function longText(tail: number): void {
+  write('"\\n');
+  const end = bytes.length - tail - 4;
+  bytes.fill(0x61, at, end);
+  at = end;
+  bytes.set([0xe4, 0xb8, 0x80], at);
+  at += 3;
+  write('"');
+}
 
 // Writes `[` item, item, … `]` groups of at most `perGroup` items inside one outer array.
 function groups(item: string, perGroup: number): void {
@@ -62,7 +82,27 @@ function groups(item: string, perGroup: number): void {
 }
 
 write(before);
-if (shape === 'zeros' || shape === 'head') groups('0', MAX_ARRAY_LEN);
+if (shape === 'root-key') longText(after.length);
+else if (shape === 'journal-key') {
+  write('{');
+  longText(after.length + 3);
+  write(':0}');
+} else if (shape === 'head-strings') {
+  // Each string is MAX_STRING_BYTES + 3 bytes of text and decodes to MAX_STRING_BYTES bytes: the
+  // escape decodes to one byte and 一 to three.
+  const item = MAX_STRING_BYTES + 3;
+  write('[');
+  for (let first = true; room(after.length + 1) >= item + 1; first = false) {
+    if (!first) write(',');
+    write('"\\n');
+    bytes.fill(0x61, at, at + MAX_STRING_BYTES - 4);
+    at += MAX_STRING_BYTES - 4;
+    bytes.set([0xe4, 0xb8, 0x80], at);
+    at += 3;
+    write('"');
+  }
+  write(']');
+} else if (shape === 'zeros' || shape === 'head') groups('0', MAX_ARRAY_LEN);
 else if (shape === 'objects') groups('{}', MAX_ARRAY_LEN);
 else if (shape === 'keys') {
   const object = `{${Array.from({ length: MAX_OBJECT_KEYS }, (_, key) => `"k${key}":0`).join(',')}}`;
@@ -101,7 +141,12 @@ console.log(
   JSON.stringify({
     ...(result.ok
       ? { verdict: 'accepted' }
-      : { verdict: 'rejected', code: result.error.code, kind: result.error.kind }),
+      : {
+          verdict: 'rejected',
+          code: result.error.code,
+          kind: result.error.kind,
+          listingStopped: result.error.listingStopped,
+        }),
     bytes: bytes.length,
     written: at,
     milliseconds,

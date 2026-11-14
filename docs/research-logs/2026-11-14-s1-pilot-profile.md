@@ -213,6 +213,7 @@ Two properties of the pilot also make eligibility unlikely, independently of the
 - Engine identity and every S0 fixture stay byte-identical. The provider source value is the only engine-scope schema change, under an A18 note.
 - No acceptance identifier changes. A01 to A18 and R01 to R10 keep their wording and order.
 - Specification versions: OQ-02, OQ-03, OQ-05 and OQ-06 to 1.4.0 and OQ-04 to 1.3.0 (compatible new requirements).
+- S0 contract layer: the value limit of the violation listing, `MAX_NODES` in `packages/api-contracts/rust/src/limits.rs`, falls from 20,000 to 4,096. An invalid document of 4,097 to 20,000 values whose violations are all decimal-grammar ones, such as a near-maximal S0 evaluation input with one malformed decimal, now reports `SCHEMA_VIOLATION` with its first violation instead of a classified code such as `INVALID_DECIMAL`. Verdicts, the S0 fixtures and the engine identity are unchanged. The reason is code parity between TypeScript and Rust within the Worker memory bound: TypeScript lists the violations of the worst document of every contract within half of a Worker isolate's memory only up to 4,096 values (OQ-05 section 7), and Rust stops at the same limit so that both give the same code. A Rust test, and the `evaluation-input.listed-decimals-at-4096` and `evaluation-input.unlisted-decimals-at-4097` protocol fixtures in both runtimes, pin `INVALID_DECIMAL` at 4,096 values and `SCHEMA_VIOLATION` at 4,097. The S0 log keeps the old value as its historical record.
 
 ## Risks
 
@@ -240,4 +241,4 @@ The owner must approve, or change, each item before P2 to P4 start:
 
 ## Verification
 
-This change edits documents only. The specification index was regenerated with `node scripts/generate-spec-index.ts`. The repository check result is in the pull request. No implementation, provider call, model call or deployment was run for this log.
+This log is a document. It records decisions and proposed values, and no provider call, model call or deployment was run for it. The specification index was regenerated with `node scripts/generate-spec-index.ts`. The contract and tooling checks of P1, and their results, are in the pull request.

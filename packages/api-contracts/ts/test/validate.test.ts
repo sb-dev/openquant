@@ -202,6 +202,32 @@ describe('structural limits apply only to an invalid document', () => {
     expect(result.error.listingStopped).toBe(true);
     expect(result.error.violations[1]).toMatchObject({ pointer: '/state/cash_available', decimalGrammar: true });
   });
+
+  // The Rust test decimal_errors_are_classified_up_to_4096_values_and_not_past_them builds the same
+  // documents. S1 P1 lowered the limit from 20,000; the S1 pilot log records the change.
+  test('an engine input with only decimal errors is INVALID_DECIMAL at 4,096 values, SCHEMA_VIOLATION at 4,097', () => {
+    const count = (value: unknown): number => {
+      if (Array.isArray(value)) return 1 + value.reduce<number>((sum, item) => sum + count(item), 0);
+      if (typeof value === 'object' && value !== null) {
+        return 1 + Object.values(value).reduce<number>((sum, item) => sum + count(item), 0);
+      }
+      return 1;
+    };
+    const cases = [
+      ['protocol/invalid/evaluation-input.listed-decimals-at-4096.json', MAX_NODES, 'INVALID_DECIMAL', false, 3],
+      ['protocol/invalid/evaluation-input.unlisted-decimals-at-4097.json', MAX_NODES + 1, 'SCHEMA_VIOLATION', true, 2],
+    ] as const;
+    for (const [path, values, code, listingStopped, violations] of cases) {
+      const text = readFileSync(resolve(fixturesDir, path), 'utf8');
+      expect(count(JSON.parse(text)), path).toBe(values);
+      const result = parseContract('evaluation-input', text);
+      expect(result.ok, path).toBe(false);
+      if (result.ok) continue;
+      expect(result.error, path).toMatchObject({ code, listingStopped });
+      expect(result.error.violations, path).toHaveLength(violations);
+      expect(result.error.violations.at(-1), path).toMatchObject({ decimalGrammar: true });
+    }
+  });
 });
 
 describe('validateContract checks a value built in code through its canonical text', () => {

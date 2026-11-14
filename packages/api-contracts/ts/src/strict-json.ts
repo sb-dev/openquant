@@ -21,16 +21,28 @@
 // parser builds at most that many values. Past the bound it still reads the whole text and applies
 // every rule above, so a strict-JSON error anywhere is still reported, but it keeps only the
 // top-level schema_version member, which the version check needs; it keeps that member also when
-// its own value is the one that passes the bound. Object keys past the bound are held as a hash and
-// a text offset, not as strings. The contract layer sets the bound from the contract's schema so
-// that only an invalid document can exceed it (validate.ts). The values it does build are compact:
-// each array is copied off a shared stack at its exact length, and a string with escapes is decoded
-// in one piece. The Worker byte limit of each contract bounds the rest (validate.ts).
+// its own value is the one that passes the bound. The contract layer sets the bound from the
+// contract's schema so that only an invalid document can exceed it (validate.ts). The values it does
+// build are compact: each array is copied off a shared stack at its exact length, and a string with
+// escapes is decoded in one piece. The Worker byte limit of each contract bounds the rest
+// (validate.ts).
+//
+// Object keys. A key is read without copying it: the parser measures it, in the bytes of its text
+// and of its decoded form, and hashes its decoded code units. It decodes a key only when the key is
+// stored on a built object or compared with one, and only when the decoded key is within the key
+// limit (`maxKeyBytes`). Every other key is held as its hash and the text offset of its opening
+// quote, and two keys whose hashes are equal are compared by reading both texts again, one decoded
+// code unit at a time. The hash seed is random, so a text cannot be prepared to make keys collide.
+// A key whose text is longer than the key limit is never decoded or stored: the scan names the
+// first one, stops building values, and reads the rest of the text with every rule, duplicate keys
+// included. The contract layer reports it after the version check, as Rust would reach its schema
+// with it.
 //
 // A scan can also skip top-level members: it reads them with every rule but builds none of their
 // values and does not count them towards the value bound. With structural limits it checks the
-// length of every array, object and string value over the whole text, built or not. The check of a
-// submitted result uses both (result.ts).
+// length of every array, object and string value over the whole text, built or not, before it
+// decodes a string. With a text bound it stops building once the strings and keys it built hold
+// more decoded bytes than the bound. The check of a submitted result uses all three (result.ts).
 
 import { utf8, utf8Length } from './platform.ts';
 
@@ -81,28 +93,50 @@ export interface ScanOptions {
    */
   readonly valueBound?: number;
   /**
+   * The longest object key, in UTF-8 bytes of its text between the quotes. A longer key is never
+   * decoded: the scan names the first one in `longKey` and builds no more values.
+   */
+  readonly maxKeyBytes?: number;
+  /**
    * Top-level members that are read with every rule but never built, and whose values do not count
    * towards the value bound. The scan names those present in `skipped`.
    */
   readonly skip?: readonly string[];
   /** Structural limits to check over the whole text. An excess is a structural-limit error. */
   readonly limits?: ScanLimits;
+  /**
+   * The most decoded UTF-8 bytes of the strings and keys that the parse builds. Past it the parse
+   * builds no more values, as past the value bound, and names the bound in `exceededTextBound`.
+   */
+  readonly textBound?: number;
+}
+
+/** The first object key longer than the key limit: its opening quote, its text bytes and the limit. */
+export interface LongKey {
+  readonly offset: number;
+  readonly bytes: number;
+  readonly limit: number;
 }
 
 /**
- * A parsed value, the first integer whose magnitude is above 2^53 - 1, if any, and the value bound
- * when the text holds more values than it. The value is then incomplete. `skipped` names the
- * skipped top-level members that the text holds, in text order.
+ * A parsed value, the first integer whose magnitude is above 2^53 - 1, if any, the first key longer
+ * than the key limit, if any, and the value bound or text bound when the text holds more than that.
+ * The value is then incomplete. `skipped` names the skipped top-level members that the text holds,
+ * in text order.
  */
 export interface StrictScan {
   readonly value: JsonValue;
   readonly unsafeInteger?: string;
+  readonly longKey?: LongKey;
   readonly exceededValueBound?: number;
+  readonly exceededTextBound?: number;
   readonly skipped?: readonly string[];
 }
 
 const U64_MAX = 18446744073709551615n;
 const I64_MIN = -9223372036854775808n;
+/** Digits of 2^64 - 1. An integer with more is outside the 64-bit range. */
+const U64_DIGITS = 20;
 /** Keys an object keeps in a plain list before it moves them to a hash table. */
 const SMALL_KEY_SET = 16;
 
@@ -110,42 +144,48 @@ const isDigit = (code: number) => code >= 0x30 && code <= 0x39;
 const isHigh = (code: number) => code >= 0xd800 && code <= 0xdbff;
 const isLow = (code: number) => code >= 0xdc00 && code <= 0xdfff;
 
+/** The value of one hexadecimal digit, or -1. */
+function hexDigit(code: number): number {
+  if (code >= 0x30 && code <= 0x39) return code - 0x30;
+  if (code >= 0x41 && code <= 0x46) return code - 0x37;
+  if (code >= 0x61 && code <= 0x66) return code - 0x57;
+  return -1;
+}
+
+/** One step of the key hash, over one decoded UTF-16 code unit. */
+function mix(hash: number, unit: number): number {
+  const h = Math.imul(hash ^ unit, 0x5bd1e995);
+  return h ^ (h >>> 15);
+}
+
+function finish(hash: number): number {
+  const h = Math.imul(hash ^ (hash >>> 13), 0x5bd1e995);
+  return h ^ (h >>> 15);
+}
+
 /**
- * The keys of one object that were not stored on a built object. A key is held as its hash and the
- * text offset of its opening quote; equal hashes are compared by reading the keys again. The hash
- * seed is random, so a text cannot be prepared to make the keys collide.
+ * The keys of one object that were not stored on a built object, each held as its hash and the text
+ * offset of its opening quote. Keys with equal hashes are compared by reading their texts again.
  */
 class KeySet {
   private readonly parser: Parser;
-  private readonly seed: number;
-  private smallKeys: string[] | undefined = [];
-  private smallOffsets: number[] = [];
+  /** Hash and offset pairs while the set is small. */
+  private small: number[] | undefined = [];
   private hashes = new Int32Array(0);
   private offsets = new Int32Array(0);
   private size = 0;
 
-  constructor(parser: Parser, seed: number) {
+  constructor(parser: Parser) {
     this.parser = parser;
-    this.seed = seed;
   }
 
-  private hash(key: string): number {
-    let h = this.seed;
-    for (let index = 0; index < key.length; index += 1) {
-      h = Math.imul(h ^ key.charCodeAt(index), 0x5bd1e995);
-      h ^= h >>> 15;
-    }
-    h = Math.imul(h ^ (h >>> 13), 0x5bd1e995);
-    return h ^ (h >>> 15);
-  }
-
-  private insert(hash: number, offset: number, key: string | undefined): boolean {
+  private insert(hash: number, offset: number, check: boolean): boolean {
     const mask = this.offsets.length - 1;
     let slot = hash & mask;
     for (;;) {
       const stored = this.offsets[slot] ?? -1;
       if (stored < 0) break;
-      if (key !== undefined && this.hashes[slot] === hash && this.parser.keyAt(stored) === key) return true;
+      if (check && this.hashes[slot] === hash && this.parser.sameKey(stored, offset)) return true;
       slot = (slot + 1) & mask;
     }
     this.hashes[slot] = hash;
@@ -163,27 +203,27 @@ class KeySet {
     this.size = 0;
     for (let slot = 0; slot < offsets.length; slot += 1) {
       const offset = offsets[slot] ?? -1;
-      if (offset >= 0) this.insert(hashes[slot] ?? 0, offset, undefined);
+      if (offset >= 0) this.insert(hashes[slot] ?? 0, offset, false);
     }
   }
 
-  /** True when the key is already present; otherwise adds it. */
-  hasOrAdd(key: string, offset: number): boolean {
-    if (this.smallKeys !== undefined) {
-      if (this.smallKeys.includes(key)) return true;
-      this.smallKeys.push(key);
-      this.smallOffsets.push(offset);
-      if (this.smallKeys.length <= SMALL_KEY_SET) return false;
-      const keys = this.smallKeys;
-      this.smallKeys = undefined;
+  /** True when a key equal to the key at `offset` is already present; otherwise adds it. */
+  hasOrAdd(hash: number, offset: number): boolean {
+    const small = this.small;
+    if (small !== undefined) {
+      for (let index = 0; index < small.length; index += 2) {
+        if (small[index] === hash && this.parser.sameKey(small[index + 1] ?? 0, offset)) return true;
+      }
+      small.push(hash, offset);
+      if (small.length <= 2 * SMALL_KEY_SET) return false;
+      this.small = undefined;
       this.grow();
-      for (const [index, small] of keys.entries())
-        this.insert(this.hash(small), this.smallOffsets[index] ?? 0, undefined);
-      this.smallOffsets = [];
+      for (let index = 0; index < small.length; index += 2)
+        this.insert(small[index] ?? 0, small[index + 1] ?? 0, false);
       return false;
     }
     if ((this.size + 1) * 2 > this.offsets.length) this.grow();
-    return this.insert(this.hash(key), offset, key);
+    return this.insert(hash, offset, true);
   }
 }
 
@@ -193,31 +233,52 @@ const utf8Bytes = (code: number) => (code < 0x80 ? 1 : code < 0x800 ? 2 : 3);
 class Parser {
   private readonly text: string;
   private readonly bound: number;
+  private readonly maxKeyBytes: number;
   private readonly skip: ReadonlySet<string>;
   private readonly limits: ScanLimits | undefined;
+  private readonly textBound: number;
   /** The skipped top-level members present, in text order. */
   readonly skipped: string[] = [];
-  /** The decoded UTF-8 bytes of the last string read, counted when there are limits. */
+  /** The last string read by `scanString`: its decoded UTF-8 bytes. */
   private stringBytes = 0;
+  /** The last string read: the UTF-8 bytes of its text between the quotes. */
+  private rawBytes = 0;
+  /** The last string read: whether it holds an escape. */
+  private escaped = false;
+  /** The last string read with hashing: the hash of its decoded code units. */
+  private keyHash = 0;
+  /** The low surrogate of the last escape read, or -1. */
+  private escapeLow = -1;
+  /** The position after the last code unit read by `unitAt`. */
+  private nextUnit = 0;
   private readonly seed = (Math.random() * 0x100000000) | 0;
   private index = 0;
   /** The items of the arrays being read, innermost last (see `parseArray`). */
   private readonly stack: JsonValue[] = [];
   private depth = 0;
   private values = 0;
-  /** False once more than `bound` values were read. Values are then checked, not built. */
+  /** Decoded UTF-8 bytes of the strings and keys built so far. */
+  private builtText = 0;
+  /**
+   * False once more than `bound` values were read, once a key longer than the key limit was read,
+   * or once the built text passed the text bound. Values are then checked, not built.
+   */
   private building = true;
   unsafeInteger: string | undefined;
+  longKey: LongKey | undefined;
+  exceededText = false;
 
-  constructor(text: string, bound: number, skip: readonly string[] = [], limits?: ScanLimits) {
+  constructor(text: string, options: ScanOptions) {
     this.text = text;
-    this.bound = bound;
-    this.skip = new Set(skip);
-    this.limits = limits;
+    this.bound = options.valueBound ?? Number.POSITIVE_INFINITY;
+    this.maxKeyBytes = options.maxKeyBytes ?? Number.POSITIVE_INFINITY;
+    this.skip = new Set(options.skip ?? []);
+    this.limits = options.limits;
+    this.textBound = options.textBound ?? Number.POSITIVE_INFINITY;
   }
 
   get exceeded(): boolean {
-    return !this.building;
+    return this.values > this.bound;
   }
 
   fail(kind: StrictJsonErrorKind, message: string): never {
@@ -240,25 +301,37 @@ class Parser {
     return value;
   }
 
-  /** The key whose opening quote is at `offset`. The text there was read once already. */
-  keyAt(offset: number): string {
-    const resume = this.index;
-    this.index = offset;
-    const key = this.parseString(true);
-    this.index = resume;
-    return key;
+  /** Count one value, and stop building past the value bound. */
+  countValue(): void {
+    this.values += 1;
+    if (this.values > this.bound) this.building = false;
+  }
+
+  /**
+   * Add `bytes` of decoded text to what the parse built, or stop building when that would pass the
+   * text bound. True when the text may be built.
+   */
+  buildText(bytes: number): boolean {
+    if (!this.building) return false;
+    if (this.builtText + bytes > this.textBound) {
+      this.exceededText = true;
+      this.building = false;
+      return false;
+    }
+    this.builtText += bytes;
+    return true;
   }
 
   parseValue(root = false): JsonValue {
-    this.values += 1;
-    if (this.values > this.bound) this.building = false;
+    this.countValue();
     const code = this.text.charCodeAt(this.index);
     if (code === 0x7b) return this.parseObject(root);
     if (code === 0x5b) return this.parseArray();
     if (code === 0x22) {
-      const text = this.parseString(this.building);
+      const open = this.index;
+      this.scanString(false);
       this.checkStringBytes();
-      return text;
+      return this.buildText(this.stringBytes) ? this.decodeString(open) : '';
     }
     if (code === 0x2d || isDigit(code)) return this.parseNumber();
     for (const [literal, value] of [
@@ -280,7 +353,7 @@ class Parser {
     this.index += 1;
   }
 
-  /** With limits, a string value longer than the limit is an error. */
+  /** With limits, a string value longer than the limit is an error. Called before it is decoded. */
   checkStringBytes(): void {
     if (this.limits !== undefined && this.stringBytes > this.limits.maxStringBytes) {
       this.fail('structural-limit', `string of ${this.stringBytes} bytes is longer than ${this.limits.maxStringBytes}`);
@@ -317,10 +390,17 @@ class Parser {
     return items;
   }
 
+  /** Name the first key longer than the key limit, and build no more values. */
+  noteLongKey(offset: number): void {
+    this.longKey ??= { offset, bytes: this.rawBytes, limit: this.maxKeyBytes };
+    this.building = false;
+  }
+
   parseObject(root: boolean): JsonObject {
     this.enter();
     const out: JsonObject = {};
-    // Keys read after the bound was passed: they are not stored on `out`.
+    // Keys stored on `out`. Every other key is held in `later`, as a hash and a text offset.
+    let stored = 0;
     let later: KeySet | undefined;
     this.skipWhitespace();
     if (this.text.charCodeAt(this.index) === 0x7d) {
@@ -334,10 +414,19 @@ class Parser {
       this.skipWhitespace();
       if (this.text.charCodeAt(this.index) !== 0x22) this.fail('json', 'expected a string key');
       const offset = this.index;
-      const key = this.parseString(true);
-      // A key is on `out` (read while building) or in `later` (read after the bound was passed).
-      if (Object.hasOwn(out, key) || later?.hasOrAdd(key, offset)) {
-        this.fail('duplicate-key', `duplicate object key: ${key}`);
+      this.scanString(true);
+      const hash = this.keyHash;
+      const keyBytes = this.stringBytes;
+      const long = this.rawBytes > this.maxKeyBytes;
+      if (long) this.noteLongKey(offset);
+      // The key is decoded only when it may be stored on `out`, compared with a key stored there, or,
+      // at the top level, compared with schema_version and the skipped members; and only when it
+      // decodes to at most the key limit. A key stored on `out` has a text within the limit, so a
+      // key that decodes to more cannot equal one.
+      const needed = root || stored > 0 || (this.building && !long);
+      const key = needed && keyBytes <= this.maxKeyBytes ? this.decodeString(offset) : undefined;
+      if ((key !== undefined && stored > 0 && Object.hasOwn(out, key)) || later?.hasOrAdd(hash, offset)) {
+        this.fail('duplicate-key', `duplicate object key${key === undefined ? '' : `: ${key}`}`);
       }
       this.skipWhitespace();
       if (this.text.charCodeAt(this.index) !== 0x3a) this.fail('json', 'expected : after a key');
@@ -349,20 +438,21 @@ class Parser {
       // non-string.
       const keep = root && key === 'schema_version';
       // A skipped member is read with every rule but not built, and its values are not counted.
-      const skipped = root && this.skip.has(key);
+      const skipped = root && key !== undefined && this.skip.has(key);
       let value: JsonValue = null;
       if (skipped) {
-        const [building, values] = [this.building, this.values];
+        const values = this.values;
         this.building = false;
         this.parseValue();
-        [this.building, this.values] = [building, values];
+        this.values = values;
+        this.building = !this.exceeded && this.longKey === undefined && !this.exceededText;
         this.skipped.push(key);
       } else if (keep && this.text.charCodeAt(this.index) === 0x22) {
         value = this.keptString();
       } else {
         value = this.parseValue();
       }
-      if ((this.building || keep) && !skipped) {
+      if (key !== undefined && !long && !skipped && (keep || this.buildText(keyBytes))) {
         // An own property even for __proto__, as JSON.parse does.
         Object.defineProperty(out, key, {
           value: !this.building && typeof value !== 'string' ? null : value,
@@ -370,10 +460,11 @@ class Parser {
           writable: true,
           configurable: true,
         });
+        stored += 1;
       } else if (later === undefined) {
         // The first key that is not stored on `out`. It was checked against `out` above.
-        later = new KeySet(this, this.seed);
-        later.hasOrAdd(key, offset);
+        later = new KeySet(this);
+        later.hasOrAdd(hash, offset);
       }
       this.skipWhitespace();
       const code = this.text.charCodeAt(this.index);
@@ -387,88 +478,170 @@ class Parser {
 
   /** A string value that is kept even when it passes the bound. It counts as a value. */
   keptString(): string {
-    this.values += 1;
-    if (this.values > this.bound) this.building = false;
-    const text = this.parseString(true);
+    this.countValue();
+    const open = this.index;
+    this.scanString(false);
     this.checkStringBytes();
-    return text;
-  }
-
-  hexEscape(): number {
-    const digits = this.text.slice(this.index, this.index + 4);
-    if (!/^[0-9A-Fa-f]{4}$/.test(digits)) this.fail('json', 'invalid \\u escape');
-    this.index += 4;
-    return Number.parseInt(digits, 16);
+    this.buildText(this.stringBytes);
+    return this.decodeString(open);
   }
 
   /**
-   * Read a string. When `keep` is false it is checked and an empty string is returned. With limits,
-   * `stringBytes` is set to the UTF-8 bytes of the decoded string.
+   * Check one escape after its backslash. Return the decoded code unit, and set `escapeLow` to the
+   * low surrogate of an escaped pair, or to -1.
    */
-  parseString(keep: boolean): string {
-    const open = this.index;
-    this.index += 1;
-    let escaped = false;
-    const counting = this.limits !== undefined;
-    let bytes = 0;
-    for (;;) {
-      const code = this.text.charCodeAt(this.index);
-      if (Number.isNaN(code)) this.fail('json', 'end of text while parsing a string');
-      if (code === 0x22) break;
-      if (code < 0x20) this.fail('json', 'control character in a string');
-      if (isHigh(code)) {
-        if (!isLow(this.text.charCodeAt(this.index + 1))) this.fail('json', 'lone surrogate in a string');
-        this.index += 2;
-        bytes += 4;
-        continue;
-      }
-      if (isLow(code)) this.fail('json', 'lone surrogate in a string');
-      this.index += 1;
-      if (code === 0x5c) {
-        const decoded = this.checkEscape();
-        if (counting) bytes += decoded;
-        escaped = true;
-      } else if (counting) {
-        bytes += utf8Bytes(code);
-      }
-    }
-    this.stringBytes = bytes;
-    this.index += 1;
-    if (!keep) return '';
-    if (!escaped) return this.text.slice(open + 1, this.index - 1);
-    // JSON.parse decodes the literal checked above into one flat string. Appending each decoded
-    // escape instead builds a chain of string parts: 16 MiB of escapes would take about 256 MB.
-    return JSON.parse(this.text.slice(open, this.index)) as string;
-  }
-
-  /** Check one escape after its backslash, and give the UTF-8 bytes of the character it stands for. */
   checkEscape(): number {
     const code = this.text.charCodeAt(this.index);
     this.index += 1;
+    this.escapeLow = -1;
     switch (code) {
       case 0x22:
       case 0x5c:
       case 0x2f:
+        return code;
       case 0x62:
+        return 0x08;
       case 0x66:
+        return 0x0c;
       case 0x6e:
+        return 0x0a;
       case 0x72:
+        return 0x0d;
       case 0x74:
-        return 1;
+        return 0x09;
       case 0x75: {
         const unit = this.hexEscape();
         if (isLow(unit)) this.fail('json', 'lone surrogate in a \\u escape');
-        if (!isHigh(unit)) return utf8Bytes(unit);
+        if (!isHigh(unit)) return unit;
         if (this.text.charCodeAt(this.index) !== 0x5c || this.text.charCodeAt(this.index + 1) !== 0x75) {
           this.fail('json', 'unexpected end of a surrogate pair escape');
         }
         this.index += 2;
         const low = this.hexEscape();
         if (!isLow(low)) this.fail('json', 'lone surrogate in a \\u escape');
-        return 4;
+        this.escapeLow = low;
+        return unit;
       }
       default:
         return this.fail('json', 'invalid escape');
+    }
+  }
+
+  /** Read four hexadecimal digits without copying them. */
+  hexEscape(): number {
+    let unit = 0;
+    for (let digit = 0; digit < 4; digit += 1) {
+      const value = hexDigit(this.text.charCodeAt(this.index + digit));
+      if (value < 0) this.fail('json', 'invalid \\u escape');
+      unit = unit * 16 + value;
+    }
+    this.index += 4;
+    return unit;
+  }
+
+  /**
+   * Read and check a string without copying it, from its opening quote to after its closing quote.
+   * Set `stringBytes`, `rawBytes` and `escaped`, and with `hashing` the hash of its decoded code
+   * units in `keyHash`.
+   */
+  scanString(hashing: boolean): void {
+    this.index += 1;
+    let escaped = false;
+    let bytes = 0;
+    let raw = 0;
+    let hash = this.seed;
+    for (;;) {
+      const code = this.text.charCodeAt(this.index);
+      if (Number.isNaN(code)) this.fail('json', 'end of text while parsing a string');
+      if (code === 0x22) break;
+      if (code < 0x20) this.fail('json', 'control character in a string');
+      if (isHigh(code)) {
+        const low = this.text.charCodeAt(this.index + 1);
+        if (!isLow(low)) this.fail('json', 'lone surrogate in a string');
+        this.index += 2;
+        bytes += 4;
+        raw += 4;
+        if (hashing) hash = mix(mix(hash, code), low);
+        continue;
+      }
+      if (isLow(code)) this.fail('json', 'lone surrogate in a string');
+      if (code === 0x5c) {
+        const start = this.index;
+        this.index += 1;
+        const unit = this.checkEscape();
+        const low = this.escapeLow;
+        bytes += low < 0 ? utf8Bytes(unit) : 4;
+        raw += this.index - start;
+        escaped = true;
+        if (hashing) hash = low < 0 ? mix(hash, unit) : mix(mix(hash, unit), low);
+        continue;
+      }
+      this.index += 1;
+      const size = utf8Bytes(code);
+      bytes += size;
+      raw += size;
+      if (hashing) hash = mix(hash, code);
+    }
+    this.index += 1;
+    this.stringBytes = bytes;
+    this.rawBytes = raw;
+    this.escaped = escaped;
+    if (hashing) this.keyHash = finish(hash);
+  }
+
+  /** The decoded string whose opening quote is at `open`, after `scanString` read it. */
+  decodeString(open: number): string {
+    if (!this.escaped) return this.text.slice(open + 1, this.index - 1);
+    // JSON.parse decodes the literal checked above into one flat string. Appending each decoded
+    // escape instead builds a chain of string parts: 16 MiB of escapes would take about 256 MB.
+    return JSON.parse(this.text.slice(open, this.index)) as string;
+  }
+
+  /** The decoded code unit at `at` in a string that was checked; sets `nextUnit` past it. */
+  unitAt(at: number): number {
+    const code = this.text.charCodeAt(at);
+    if (code !== 0x5c) {
+      this.nextUnit = at + 1;
+      return code;
+    }
+    const kind = this.text.charCodeAt(at + 1);
+    if (kind === 0x75) {
+      this.nextUnit = at + 6;
+      let unit = 0;
+      for (let digit = 2; digit < 6; digit += 1) unit = unit * 16 + hexDigit(this.text.charCodeAt(at + digit));
+      return unit;
+    }
+    this.nextUnit = at + 2;
+    switch (kind) {
+      case 0x62:
+        return 0x08;
+      case 0x66:
+        return 0x0c;
+      case 0x6e:
+        return 0x0a;
+      case 0x72:
+        return 0x0d;
+      case 0x74:
+        return 0x09;
+      default:
+        return kind;
+    }
+  }
+
+  /** True when the checked keys whose opening quotes are at `a` and `b` decode to the same text. */
+  sameKey(a: number, b: number): boolean {
+    let p = a + 1;
+    let q = b + 1;
+    for (;;) {
+      // An unescaped quote ends a key; an escaped one starts with a backslash.
+      const endP = this.text.charCodeAt(p) === 0x22;
+      const endQ = this.text.charCodeAt(q) === 0x22;
+      if (endP || endQ) return endP && endQ;
+      const x = this.unitAt(p);
+      p = this.nextUnit;
+      const y = this.unitAt(q);
+      q = this.nextUnit;
+      if (x !== y) return false;
     }
   }
 
@@ -502,14 +675,16 @@ class Parser {
       this.digits();
       float = true;
     }
-    const literal = this.text.slice(start, integerEnd);
-    if (float || literal === '-0') {
+    const digits = integerEnd - start - (negative ? 1 : 0);
+    if (float || (negative && digits === 1 && this.text.charCodeAt(start + 1) === 0x30)) {
       this.fail('float-number', 'floating-point number is not allowed: use an integer or a decimal string');
     }
-    // 15 digits are always within 2^53 - 1.
-    if (literal.length - (negative ? 1 : 0) <= 15) return Number(literal);
-    const big = BigInt(literal);
-    if (big > U64_MAX || big < I64_MIN) {
+    // 15 digits are always within 2^53 - 1. More than 20 are always outside the 64-bit range, and
+    // are refused without reading them as a BigInt.
+    if (digits <= 15) return Number(this.text.slice(start, integerEnd));
+    const literal = this.text.slice(start, integerEnd);
+    const big = digits > U64_DIGITS ? undefined : BigInt(literal);
+    if (big === undefined || big > U64_MAX || big < I64_MIN) {
       this.fail('float-number', 'integer outside the 64-bit range is read as a floating-point number');
     }
     const value = Number(literal);
@@ -522,8 +697,8 @@ class Parser {
  * Parse strict JSON text, or UTF-8 bytes (invalid UTF-8 is an error), and report the first integer
  * whose magnitude is above 2^53 - 1 instead of rejecting it. The contract layer rejects it after the
  * version check. With a value bound, a text with more values is still checked to its end, but the
- * result keeps only its first values and its top-level schema_version, and names the bound. Use
- * `parseStrictJson` everywhere else.
+ * result keeps only its first values and its top-level schema_version, and names the bound. With a
+ * key limit, the first longer key is named, not decoded. Use `parseStrictJson` everywhere else.
  *
  * @throws StrictJsonError
  */
@@ -542,13 +717,14 @@ export function scanStrictJson(input: string | Uint8Array, options: ScanOptions 
     if (decoded === undefined) throw new StrictJsonError('json', 'payload is not valid UTF-8');
     text = decoded;
   }
-  const bound = options.valueBound ?? Number.POSITIVE_INFINITY;
-  const parser = new Parser(text, bound, options.skip, options.limits);
+  const parser = new Parser(text, options);
   const value = parser.parseDocument();
   return {
     value,
     ...(parser.unsafeInteger === undefined ? {} : { unsafeInteger: parser.unsafeInteger }),
-    ...(parser.exceeded ? { exceededValueBound: bound } : {}),
+    ...(parser.longKey === undefined ? {} : { longKey: parser.longKey }),
+    ...(parser.exceeded ? { exceededValueBound: options.valueBound ?? Number.POSITIVE_INFINITY } : {}),
+    ...(parser.exceededText ? { exceededTextBound: options.textBound ?? Number.POSITIVE_INFINITY } : {}),
     ...(options.skip === undefined ? {} : { skipped: parser.skipped }),
   };
 }

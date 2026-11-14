@@ -1,15 +1,17 @@
 // The check of a submitted result before commit (src/result.ts, OQ-05 sections 4 and 7): the whole
-// document is read with strict JSON and the structural limits, and only the head is built and
-// validated.
+// document is read with strict JSON and the array, object, string and key limits, and only the head
+// is built, within its value and text bounds, and validated.
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { parseContract, RESULT_SCAN_LIMIT, scanEvaluationResult } from '../src/index.ts';
-import { MAX_ARRAY_LEN, MAX_NODES, MAX_OBJECT_KEYS, MAX_STRING_BYTES } from '../src/limits.ts';
+import { MAX_ARRAY_LEN, MAX_KEY_BYTES, MAX_NODES, MAX_OBJECT_KEYS, MAX_STRING_BYTES } from '../src/limits.ts';
+import { HEAD_TEXT_BOUND } from '../src/result.ts';
 import { maxValues } from '../tools/generate.ts';
 import { bundleDefs } from './support/error-shape.ts';
 import { fixturesDir, readManifest, repositoryRoot } from './support/manifest.ts';
+import { maxText, patternMaxBytes } from './support/schema-text.ts';
 
 // biome-ignore lint/suspicious/noExplicitAny: the tests edit fixture documents by path.
 type Doc = Record<string, any>;
@@ -105,6 +107,27 @@ describe('the head is checked as parseContract checks it', () => {
       'SCHEMA_VIOLATION',
       'value-bound',
     ],
+    [
+      'a head beyond the text bound',
+      (d) => (d.outcome.detail = Array(5).fill('x'.repeat(MAX_STRING_BYTES))),
+      'SCHEMA_VIOLATION',
+      'value-bound',
+    ],
+    [
+      'a key longer than the key limit in the head',
+      (d) => (d.outcome['k'.repeat(MAX_KEY_BYTES + 1)] = 0),
+      'SCHEMA_VIOLATION',
+      'structural-limit',
+    ],
+    [
+      'a key longer than the key limit and another version',
+      (d) => {
+        d['k'.repeat(MAX_KEY_BYTES + 1)] = 0;
+        d.schema_version = 'evaluation-result/2';
+      },
+      'UNSUPPORTED_SCHEMA_VERSION',
+      'unsupported-version',
+    ],
   ])('%s', (_label, edit, code, kind) => {
     expect(outcome(rewrite(edit))).toEqual({ verdict: 'rejected', code, kind });
   });
@@ -118,12 +141,46 @@ describe('the head is checked as parseContract checks it', () => {
     expect(outcome(JSON.stringify(document))).toEqual({ verdict: 'accepted' });
   });
 
-  test('the head of a valid result holds far fewer values than the bound', () => {
+  const headSchema = () => {
     const defs = bundleDefs();
     const result = defs.EvaluationResult as Doc;
     const { journal: _journal, final: _final, ...properties } = result.properties as Doc;
     const head = { ...result, properties, required: (result.required as string[]).filter((key) => key in properties) };
+    return { defs, head };
+  };
+
+  test('the head of a valid result holds far fewer values than the bound', () => {
+    const { defs, head } = headSchema();
     expect(maxValues(defs as never, head as never)).toBeLessThan(MAX_NODES / 10);
+  });
+
+  test('the head of a valid result holds far fewer bytes of strings and keys than the text bound', () => {
+    const { defs, head } = headSchema();
+    // Every string of the head is bounded by maxLength, an enum or a pattern of fixed atoms.
+    expect(maxText(defs as never, head as never)).toBe(8_729);
+    expect(maxText(defs as never, head as never)).toBeLessThan(HEAD_TEXT_BOUND / 4);
+  });
+
+  test.each<[string, number]>([
+    ['^sha256:[0-9a-f]{64}$', 71],
+    ['^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$', 64],
+    ['^[0-9]{4}-[0-9]{2}-[0-9]{2}$', 10],
+    ['^é?[^a]{2}\\.$', 11],
+    ['^a+$', Number.POSITIVE_INFINITY],
+    ['^a{2,}$', Number.POSITIVE_INFINITY],
+    ['^(?:a|b)$', Number.POSITIVE_INFINITY],
+    ['^.{3}$', Number.POSITIVE_INFINITY],
+    ['^\\p{L}$', Number.POSITIVE_INFINITY],
+    ['abc', Number.POSITIVE_INFINITY],
+  ])('the text of pattern %s is at most %d bytes', (pattern, bytes) => {
+    expect(patternMaxBytes(pattern)).toBe(bytes);
+  });
+
+  test('a valid head with the longest strings it can hold is within the text bound', () => {
+    const document = f0();
+    document.outcome = { status: 'FAILED', code: 'SCHEMA_VIOLATION', detail: '😀'.repeat(1000) };
+    document.engine.schema_versions = Array(16).fill('😀'.repeat(64));
+    expect(outcome(JSON.stringify(document))).toEqual({ verdict: 'accepted' });
   });
 });
 
@@ -182,10 +239,35 @@ describe('the whole text is read with strict JSON and the structural limits', ()
     expect(outcome(duplicated)).toEqual({ verdict: 'rejected', code: 'SCHEMA_VIOLATION', kind: 'duplicate-key' });
   });
 
-  test('a key is not a string value: a long key is within the limits', () => {
-    expect(outcome(withJournal(JSON.stringify({ ['k'.repeat(MAX_STRING_BYTES + 1)]: 0 })))).toEqual({
-      verdict: 'accepted',
+  test('a key of MAX_KEY_BYTES bytes of text is read, one byte more is refused before it is decoded', () => {
+    const key = (bytes: number) => JSON.stringify({ ['k'.repeat(bytes)]: 0 });
+    expect(outcome(withJournal(key(MAX_KEY_BYTES)))).toEqual({ verdict: 'accepted' });
+    expect(outcome(withJournal(`{"${'\\n'.repeat(MAX_KEY_BYTES / 2)}":0}`))).toEqual({ verdict: 'accepted' });
+    expect(outcome(withJournal(key(MAX_KEY_BYTES + 1)))).toEqual({
+      verdict: 'rejected',
+      code: 'SCHEMA_VIOLATION',
+      kind: 'structural-limit',
     });
+  });
+
+  test('a structural excess stops the listing', () => {
+    for (const journal of [
+      `[${Array(MAX_ARRAY_LEN + 1)
+        .fill(0)
+        .join(',')}]`,
+      `{"${'k'.repeat(MAX_KEY_BYTES + 1)}":0}`,
+    ]) {
+      const result = scanEvaluationResult(withJournal(journal));
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toMatchObject({
+          code: 'SCHEMA_VIOLATION',
+          kind: 'structural-limit',
+          listingStopped: true,
+        });
+        expect(result.error.violations).toHaveLength(1);
+      }
+    }
   });
 });
 
