@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:strategy-critique.result:1",
+  "title": "StrategyCritiqueResult",
+  "description": "Model-facing critic output (OQ-03 section 4): a possibly empty list of typed findings. It holds no host provenance, usage, applicability, approval, closure, severity, treatment or finding_source. Parsing labels every returned finding model_judgement; the registered policy assigns treatment. An empty list is not a pass.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "findings"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["strategy-critique.result/1"] },
+    "findings": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/CritiqueFinding" } }
+  },
+  "$defs": {
+    "CritiqueFinding": {
+      "title": "CritiqueFinding",
+      "description": "category is the one primary category that names the defect. method_advice covers optional preferences only, never a concrete defect. method_refs are supplied rule IDs; evidence_refs are evidence IDs from the request. affected_elements are JSON Pointers to definition elements whose behaviour or values the concern bears on; the list may be empty.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "description", "method_refs", "evidence_refs", "location", "affected_elements"],
+      "properties": {
+        "category": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/FindingCategory" },
+        "related_categories": {
+          "type": "array",
+          "maxItems": 10,
+          "items": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/FindingCategory" }
+        },
+        "description": { "type": "string", "maxLength": 2000 },
+        "method_refs": { "type": "array", "maxItems": 16, "items": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" } },
+        "evidence_refs": { "type": "array", "maxItems": 16, "items": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" } },
+        "location": { "$ref": "#/$defs/FindingLocation" },
+        "affected_elements": { "type": "array", "maxItems": 32, "items": { "type": "string", "maxLength": 256 } },
+        "proposed_tests": { "$ref": "urn:openquant:schema:strategy-artefact:1#/$defs/TextList" }
+      }
+    },
+    "FindingLocation": {
+      "title": "FindingLocation",
+      "description": "Where the defect is. contract and definition: an element of the registered version, named by pointer. A defect such a version cannot contain is located in its cited sources, the supplied evidence, its rationale or expected-effect claims, or its requested tests; pointer then names the item where one applies.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["area"],
+      "properties": {
+        "area": {
+          "type": "string",
+          "enum": ["contract", "definition", "source_refs", "evidence", "rationale", "expected_effect", "requested_tests"]
+        },
+        "pointer": { "type": "string", "maxLength": 256 }
+      }
+    }
+  }
+}

@@ -1,6 +1,8 @@
 # Reference
 
-Implemented bootstrap commands:
+The [command reference](commands.md) lists every implemented command and its behaviour.
+
+Root package scripts:
 
 | Command | Purpose |
 | --- | --- |

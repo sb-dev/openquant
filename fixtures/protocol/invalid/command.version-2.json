@@ -1,0 +1,78 @@
+{
+  "schema_version": "command/2",
+  "form": "request",
+  "command_id": "cmd-0a1b2c3d-0004",
+  "expected_revision": 0,
+  "issued_at": "2026-11-14T09:40:00Z",
+  "payload": {
+    "kind": "create_mission",
+    "mission": {
+      "objective": "Compare two controlled revisions of the daily swing seed on AAPL under the registered S1 cohort policy.",
+      "instrument": {
+        "instrument_id": "alpaca:11111111-2222-4333-8444-555555555555",
+        "symbol": "AAPL",
+        "provider": "alpaca",
+        "provider_asset_id": "11111111-2222-4333-8444-555555555555",
+        "effective_from": "2022-01-03"
+      },
+      "profile": {
+        "id": "aapl-us-daily-sip",
+        "revision": 1,
+        "digest": "sha256:88d99561343c7c8f783fc9b932308f5d93d00e0898c779552756ab4d83e12cd8"
+      },
+      "cohort_policy": {
+        "id": "s1-aapl-daily-swing",
+        "revision": 1,
+        "digest": "sha256:d3420be2f8b4aee0922b98c23a49aa868a47338136e029e6fb909be51e923d22"
+      },
+      "budget": {
+        "id": "staging-2026-11",
+        "revision": 1,
+        "digest": "sha256:c0bc5daa0b57efaf85c1dd570927a32189e29f14e2c881fecbeaae8a86693db8"
+      },
+      "seed_hash": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
+      "proposers": [
+        {
+          "configuration_id": "proposer-a",
+          "executor_profile": {
+            "model": "claude-opus-5-5",
+            "effort": "high"
+          },
+          "bundle_hash": "sha256:3f61ba35f535d63131c5e907d6efe2fe5010a74ed670b739b9e4df76ea79e3ca",
+          "knowledge_cutoff": {
+            "status": "published",
+            "cutoff": "2026-06",
+            "source": "Model provider documentation for this model (fixture value, not a verified fact).",
+            "read_on": "2026-11-14"
+          }
+        },
+        {
+          "configuration_id": "proposer-b",
+          "executor_profile": {
+            "model": "claude-sonnet-5-5",
+            "effort": "high"
+          },
+          "bundle_hash": "sha256:3f61ba35f535d63131c5e907d6efe2fe5010a74ed670b739b9e4df76ea79e3ca",
+          "knowledge_cutoff": {
+            "status": "unknown",
+            "reason": "Fixture value. The approval records the published cutoff with its source and the date it was read."
+          }
+        }
+      ],
+      "critic": {
+        "configuration_id": "critic",
+        "executor_profile": {
+          "model": "claude-opus-5-5",
+          "effort": "high"
+        },
+        "bundle_hash": "sha256:3f61ba35f535d63131c5e907d6efe2fe5010a74ed670b739b9e4df76ea79e3ca",
+        "knowledge_cutoff": {
+          "status": "published",
+          "cutoff": "2026-06",
+          "source": "Model provider documentation for this model (fixture value, not a verified fact).",
+          "read_on": "2026-11-14"
+        }
+      }
+    }
+  }
+}

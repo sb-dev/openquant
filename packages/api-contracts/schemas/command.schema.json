@@ -1,0 +1,291 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:command:1",
+  "title": "Command",
+  "description": "Guarded operator command and its read-back status (OQ-05 sections 3 and 8, OQ-04 section 12). The client sends the request form with its own command_id; a repeat with the same body returns the same status. The API answers with the status form, and GET returns it again. PENDING, APPLIED and REJECTED are server states. UNKNOWN is a client state: a timeout does not prove that no state changed.",
+  "oneOf": [
+    { "$ref": "#/$defs/CommandRequest" },
+    { "$ref": "#/$defs/CommandPending" },
+    { "$ref": "#/$defs/CommandApplied" },
+    { "$ref": "#/$defs/CommandRejected" }
+  ],
+  "$defs": {
+    "CommandKind": {
+      "title": "CommandKind",
+      "type": "string",
+      "enum": [
+        "register_research_profile",
+        "register_cohort_policy",
+        "register_budget",
+        "register_seed",
+        "create_mission",
+        "run_mission_now",
+        "cancel_mission"
+      ]
+    },
+    "CommandRequest": {
+      "title": "CommandRequest",
+      "description": "expected_revision is the compare-and-set revision of the target record. 0 means the record must not exist yet.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "form", "command_id", "expected_revision", "issued_at", "payload"],
+      "properties": {
+        "schema_version": { "type": "string", "enum": ["command/1"] },
+        "form": { "type": "string", "enum": ["request"] },
+        "command_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "expected_revision": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "issued_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "payload": { "$ref": "#/$defs/CommandPayload" }
+      }
+    },
+    "CommandPayload": {
+      "title": "CommandPayload",
+      "oneOf": [
+        { "$ref": "#/$defs/RegisterResearchProfile" },
+        { "$ref": "#/$defs/RegisterCohortPolicy" },
+        { "$ref": "#/$defs/RegisterBudget" },
+        { "$ref": "#/$defs/RegisterSeed" },
+        { "$ref": "#/$defs/CreateMission" },
+        { "$ref": "#/$defs/RunMissionNow" },
+        { "$ref": "#/$defs/CancelMission" }
+      ]
+    },
+    "RegisterResearchProfile": {
+      "title": "RegisterResearchProfile",
+      "description": "Steward. Registers a new research profile revision for future work.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "profile"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["register_research_profile"] },
+        "profile": { "$ref": "urn:openquant:schema:research-profile:1" }
+      }
+    },
+    "RegisterCohortPolicy": {
+      "title": "RegisterCohortPolicy",
+      "description": "Steward. Registers a new cohort policy revision before any trial uses it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "policy"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["register_cohort_policy"] },
+        "policy": { "$ref": "urn:openquant:schema:cohort-policy:1" }
+      }
+    },
+    "RegisterBudget": {
+      "title": "RegisterBudget",
+      "description": "Steward. Registers a spending cap for a declared period, across missions. Missions draw on it; new missions do not reset it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "budget"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["register_budget"] },
+        "budget": { "$ref": "#/$defs/BudgetCap" }
+      }
+    },
+    "BudgetCap": {
+      "title": "BudgetCap",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["budget_id", "revision", "period", "model_spend", "provider_requests"],
+      "properties": {
+        "budget_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "revision": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "period": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DateRange" },
+        "model_spend": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/MoneyAmount" },
+        "provider_requests": { "type": "integer", "minimum": 0, "maximum": 10000000 }
+      }
+    },
+    "RegisterSeed": {
+      "title": "RegisterSeed",
+      "description": "Researcher. Registers an operator-authored seed as version 1 of a new strategy, with its sources and every source-to-seed difference. It passes the same validation as any candidate.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "strategy", "origin", "sources", "source_differences"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["register_seed"] },
+        "strategy": { "$ref": "urn:openquant:schema:strategy-artefact:1" },
+        "origin": { "type": "string", "enum": ["operator_authored"] },
+        "sources": { "type": "array", "maxItems": 8, "items": { "$ref": "#/$defs/SeedSource" } },
+        "source_differences": {
+          "type": "array",
+          "maxItems": 64,
+          "items": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/SourceDifference" }
+        }
+      }
+    },
+    "SeedSource": {
+      "title": "SeedSource",
+      "description": "A source reference: untrusted reference text, identified by the SHA-256 of its exact bytes.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "content_digest", "description"],
+      "properties": {
+        "source_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "content_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "description": { "type": "string", "maxLength": 500 }
+      }
+    },
+    "CreateMission": {
+      "title": "CreateMission",
+      "description": "Researcher. Creates a mission. The API assigns the mission ID and returns it in the status.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "mission"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["create_mission"] },
+        "mission": { "$ref": "#/$defs/MissionSpec" }
+      }
+    },
+    "MissionSpec": {
+      "title": "MissionSpec",
+      "description": "One-instrument research mission. Each proposer configuration authors one controlled revision of the seed. The critic uses a separate profile and session.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["objective", "instrument", "profile", "cohort_policy", "budget", "seed_hash", "proposers", "critic"],
+      "properties": {
+        "objective": { "type": "string", "maxLength": 2000 },
+        "instrument": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/InstrumentMapping" },
+        "profile": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/RecordRef" },
+        "cohort_policy": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/RecordRef" },
+        "budget": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/RecordRef" },
+        "seed_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "proposers": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "$ref": "#/$defs/AgentConfiguration" } },
+        "critic": { "$ref": "#/$defs/AgentConfiguration" }
+      }
+    },
+    "AgentConfiguration": {
+      "title": "AgentConfiguration",
+      "description": "A proposer or critic configuration: executor profile plus behaviour-bundle hash, with the configured model's published knowledge cutoff (OQ-03 section 2).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["configuration_id", "executor_profile", "bundle_hash", "knowledge_cutoff"],
+      "properties": {
+        "configuration_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "executor_profile": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ExecutorProfile" },
+        "bundle_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "knowledge_cutoff": { "$ref": "#/$defs/KnowledgeCutoff" }
+      }
+    },
+    "KnowledgeCutoff": {
+      "title": "KnowledgeCutoff",
+      "oneOf": [{ "$ref": "#/$defs/PublishedKnowledgeCutoff" }, { "$ref": "#/$defs/UnpublishedKnowledgeCutoff" }]
+    },
+    "PublishedKnowledgeCutoff": {
+      "title": "PublishedKnowledgeCutoff",
+      "description": "The cutoff as the model provider publishes it (year and month, or a full date), the documentation it was read from and the date it was read.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "cutoff", "source", "read_on"],
+      "properties": {
+        "status": { "type": "string", "enum": ["published"] },
+        "cutoff": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}(?:-[0-9]{2})?$" },
+        "source": { "type": "string", "maxLength": 300 },
+        "read_on": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" }
+      }
+    },
+    "UnpublishedKnowledgeCutoff": {
+      "title": "UnpublishedKnowledgeCutoff",
+      "description": "The provider publishes no cutoff for this model. It is never inferred.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reason"],
+      "properties": {
+        "status": { "type": "string", "enum": ["unknown"] },
+        "reason": { "type": "string", "maxLength": 500 }
+      }
+    },
+    "RunMissionNow": {
+      "title": "RunMissionNow",
+      "description": "Researcher. Starts the mission's bounded work now.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "mission_id"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["run_mission_now"] },
+        "mission_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" }
+      }
+    },
+    "CancelMission": {
+      "title": "CancelMission",
+      "description": "Researcher. Cancels the mission's active work. It does not prove that a remote request stopped or cost nothing.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "mission_id", "reason"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["cancel_mission"] },
+        "mission_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "reason": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "CommandPending": {
+      "title": "CommandPending",
+      "description": "Accepted and durable, not yet applied.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "form", "command_id", "kind", "state", "received_at"],
+      "properties": {
+        "schema_version": { "type": "string", "enum": ["command/1"] },
+        "form": { "type": "string", "enum": ["status"] },
+        "command_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "kind": { "$ref": "#/$defs/CommandKind" },
+        "state": { "type": "string", "enum": ["PENDING"] },
+        "received_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" }
+      }
+    },
+    "CommandApplied": {
+      "title": "CommandApplied",
+      "description": "Committed. record names the record and the revision the command produced.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "form", "command_id", "kind", "state", "received_at", "applied_at", "record"],
+      "properties": {
+        "schema_version": { "type": "string", "enum": ["command/1"] },
+        "form": { "type": "string", "enum": ["status"] },
+        "command_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "kind": { "$ref": "#/$defs/CommandKind" },
+        "state": { "type": "string", "enum": ["APPLIED"] },
+        "received_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "applied_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "record": { "$ref": "#/$defs/CommandRecord" }
+      }
+    },
+    "CommandRecord": {
+      "title": "CommandRecord",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "revision"],
+      "properties": {
+        "id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "revision": { "type": "integer", "minimum": 1, "maximum": 1000000 }
+      }
+    },
+    "CommandRejected": {
+      "title": "CommandRejected",
+      "description": "Rejected. No state changed.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "form", "command_id", "kind", "state", "received_at", "rejected_at", "error"],
+      "properties": {
+        "schema_version": { "type": "string", "enum": ["command/1"] },
+        "form": { "type": "string", "enum": ["status"] },
+        "command_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "kind": { "$ref": "#/$defs/CommandKind" },
+        "state": { "type": "string", "enum": ["REJECTED"] },
+        "received_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "rejected_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "error": { "$ref": "#/$defs/CommandError" }
+      }
+    },
+    "CommandError": {
+      "title": "CommandError",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ApiErrorCode" },
+        "message": { "type": "string", "maxLength": 1000 }
+      }
+    }
+  }
+}

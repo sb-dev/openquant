@@ -1,0 +1,52 @@
+{
+  "schema_version": "agent-attempt-result/1",
+  "attempt": {
+    "attempt_id": "att-aapl-propose-b-1",
+    "ownership_revision": 1
+  },
+  "provenance": {
+    "session_id": "5c2e9b1a-7f3d-4e8c-a6b5-1d2e3f4a5b6c",
+    "input_hash": "sha256:0408c7de0691795d0ca9591110b1cecdaf409011efeffeaab6fefe95a0cc709c",
+    "bundle_hash": "sha256:3f61ba35f535d63131c5e907d6efe2fe5010a74ed670b739b9e4df76ea79e3ca",
+    "executor_version": {
+      "status": "reported",
+      "value": "2.1.325"
+    },
+    "model": {
+      "status": "unknown"
+    },
+    "effort": {
+      "status": "unknown"
+    },
+    "runner": {
+      "name": "agent-runner",
+      "version": "0.0.0",
+      "digest": "sha256:b0ffb22342c901c77a680bca58d98044774c9ab4895d3d557dced0ad24db4888"
+    }
+  },
+  "outcome": {
+    "outcome": "timeout",
+    "diagnostic": "Deadline of 900 seconds reached; the process group was terminated and no output was read."
+  },
+  "usage": {
+    "cost": {
+      "label": "unknown",
+      "amount": "0",
+      "currency": "USD"
+    },
+    "duration": {
+      "label": "observed",
+      "milliseconds": 900412
+    },
+    "input_tokens": {
+      "label": "unknown",
+      "reason": "No usage report before termination."
+    },
+    "output_tokens": {
+      "label": "unknown",
+      "reason": "No usage report before termination."
+    }
+  },
+  "started_at": "2026-11-14T11:10:02Z",
+  "finished_at": "2026-11-14T11:25:03Z"
+}

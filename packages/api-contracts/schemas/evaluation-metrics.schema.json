@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:evaluation-metrics:1",
+  "title": "EvaluationMetrics",
+  "description": "Per-run metrics that Rust derives from one COMPLETED evaluation-result/1 (OQ-02 section 3.6). Only scored sessions count. Each value is computed exactly and rounded once, half-even, to metric_scale; comparison tolerance is zero. The method identity defines each calculation. A RATIO is a plain fraction (0.05 is 5 percent) of the run's initial capital unless a description says otherwise. MONEY is in the policy currency.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "source", "method", "metric_scale", "window", "strategy", "benchmarks", "uncertainty"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["evaluation-metrics/1"] },
+    "run_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "source": { "$ref": "#/$defs/MetricSource" },
+    "method": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/MethodIdentity" },
+    "metric_scale": { "type": "integer", "minimum": 0, "maximum": 12 },
+    "window": { "$ref": "#/$defs/MetricWindow" },
+    "strategy": { "$ref": "#/$defs/StrategyMetrics" },
+    "benchmarks": { "$ref": "#/$defs/BenchmarkMetrics" },
+    "uncertainty": { "$ref": "#/$defs/UncertaintyStatement" }
+  },
+  "$defs": {
+    "MetricSource": {
+      "title": "MetricSource",
+      "description": "result_digest is the digest of the evaluation-result/1 the metrics derive from. The other digests repeat that result's identities.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result_digest", "input_hash", "strategy_hash", "engine_digest"],
+      "properties": {
+        "result_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "input_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "strategy_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "engine_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" }
+      }
+    },
+    "MetricWindow": {
+      "title": "MetricWindow",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "cost_scenario", "scored"],
+      "properties": {
+        "role": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/WindowRole" },
+        "cost_scenario": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/CostScenario" },
+        "scored": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DateRange" }
+      }
+    },
+    "RatioMetric": {
+      "title": "RatioMetric",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit", "value"],
+      "properties": {
+        "unit": { "type": "string", "enum": ["RATIO"] },
+        "value": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" }
+      }
+    },
+    "MoneyMetric": {
+      "title": "MoneyMetric",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit", "currency", "value"],
+      "properties": {
+        "unit": { "type": "string", "enum": ["MONEY"] },
+        "currency": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "value": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" }
+      }
+    },
+    "CountMetric": {
+      "title": "CountMetric",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit", "value"],
+      "properties": {
+        "unit": { "type": "string", "enum": ["COUNT"] },
+        "value": { "type": "integer", "minimum": 0, "maximum": 1000000 }
+      }
+    },
+    "StrategyMetrics": {
+      "title": "StrategyMetrics",
+      "description": "net_return: final equity over initial capital, minus one. max_drawdown: largest fall from a running equity peak, as a non-negative fraction of that peak. worst_session_return: lowest close-to-close equity return of one scored session. turnover: total filled notional over initial capital. trade_count: trades closed in the scored period; a position open at the end is not counted. scored_session_count: scored sessions. exposure: mean over scored sessions of positions value over equity at the close.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "net_return",
+        "max_drawdown",
+        "worst_session_return",
+        "turnover",
+        "trade_count",
+        "scored_session_count",
+        "execution_cost",
+        "exposure"
+      ],
+      "properties": {
+        "net_return": { "$ref": "#/$defs/RatioMetric" },
+        "max_drawdown": { "$ref": "#/$defs/RatioMetric" },
+        "worst_session_return": { "$ref": "#/$defs/RatioMetric" },
+        "turnover": { "$ref": "#/$defs/RatioMetric" },
+        "trade_count": { "$ref": "#/$defs/CountMetric" },
+        "scored_session_count": { "$ref": "#/$defs/CountMetric" },
+        "execution_cost": { "$ref": "#/$defs/ExecutionCostMetrics" },
+        "exposure": { "$ref": "#/$defs/RatioMetric" }
+      }
+    },
+    "ExecutionCostMetrics": {
+      "title": "ExecutionCostMetrics",
+      "description": "fees: fees charged on fills. gap_slippage: slippage reconstructed for gap-stop exits against the stop level. total: their sum.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fees", "gap_slippage", "total"],
+      "properties": {
+        "fees": { "$ref": "#/$defs/MoneyMetric" },
+        "gap_slippage": { "$ref": "#/$defs/MoneyMetric" },
+        "total": { "$ref": "#/$defs/MoneyMetric" }
+      }
+    },
+    "BenchmarkMetrics": {
+      "title": "BenchmarkMetrics",
+      "description": "Benchmarks on the same input, window and cost scenario. Buy-and-hold buys the largest whole-lot quantity whose notional plus the fee fits the initial capital at the first fillable open of the scored window, pays the run's cost model on that one fill, keeps the run's corporate-action handling, is marked at the final close and is never sold. Cash holds the initial capital.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["buy_and_hold", "cash"],
+      "properties": {
+        "buy_and_hold": { "$ref": "#/$defs/BuyAndHoldBenchmark" },
+        "cash": { "$ref": "#/$defs/CashBenchmark" }
+      }
+    },
+    "BuyAndHoldBenchmark": {
+      "title": "BuyAndHoldBenchmark",
+      "oneOf": [{ "$ref": "#/$defs/ComputedBuyAndHold" }, { "$ref": "#/$defs/UnavailableBuyAndHold" }]
+    },
+    "ComputedBuyAndHold": {
+      "title": "ComputedBuyAndHold",
+      "description": "excess_return is the strategy net_return minus the benchmark net_return.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "entry_session", "quantity", "net_return", "max_drawdown", "excess_return"],
+      "properties": {
+        "status": { "type": "string", "enum": ["COMPUTED"] },
+        "entry_session": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" },
+        "quantity": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "net_return": { "$ref": "#/$defs/RatioMetric" },
+        "max_drawdown": { "$ref": "#/$defs/RatioMetric" },
+        "excess_return": { "$ref": "#/$defs/RatioMetric" }
+      }
+    },
+    "UnavailableBuyAndHold": {
+      "title": "UnavailableBuyAndHold",
+      "description": "The benchmark has no value, for example when no whole lot is affordable at the first fillable open. Gates that depend on it are INSUFFICIENT.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reason"],
+      "properties": {
+        "status": { "type": "string", "enum": ["INSUFFICIENT"] },
+        "reason": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "CashBenchmark": {
+      "title": "CashBenchmark",
+      "description": "Cash earns nothing in S1, so net_return is zero by definition and excess_return equals the strategy net_return.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["net_return", "excess_return"],
+      "properties": {
+        "net_return": { "$ref": "#/$defs/RatioMetric" },
+        "excess_return": { "$ref": "#/$defs/RatioMetric" }
+      }
+    },
+    "UncertaintyStatement": {
+      "title": "UncertaintyStatement",
+      "description": "NOT_COMPUTED repeats the cohort policy limitation. No statistic stands in for it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "limitation"],
+      "properties": {
+        "status": { "type": "string", "enum": ["NOT_COMPUTED"] },
+        "limitation": { "type": "string", "maxLength": 1000 }
+      }
+    }
+  }
+}

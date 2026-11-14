@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:research-profile:1",
+  "title": "ResearchProfile",
+  "description": "One immutable Research Profile Version (OQ-02 section 1.1). It binds the provider and adapter, required capabilities, data semantics, market, calendar source, history range and cohort suite. Credentials are references only. Edits create a new revision for future work.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "profile_id", "revision", "market", "provider", "data", "history", "cohort_suite"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["research-profile/1"] },
+    "profile_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "revision": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+    "market": { "$ref": "#/$defs/MarketSpec" },
+    "provider": { "$ref": "#/$defs/ProviderBinding" },
+    "data": { "$ref": "#/$defs/DataSemantics" },
+    "history": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DateRange" },
+    "cohort_suite": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" }
+  },
+  "$defs": {
+    "MarketSpec": {
+      "title": "MarketSpec",
+      "description": "One market and currency, one declared session calendar (OQ-02 section 2.5). instrument_identity PROVIDER_ASSET_ID: the stable instrument ID comes from the provider asset ID with its effective date; the ticker is kept separately.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["market", "currency", "timezone", "calendar_source", "instrument_identity"],
+      "properties": {
+        "market": { "type": "string", "enum": ["US_EQUITIES"] },
+        "currency": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "timezone": { "type": "string", "enum": ["America/New_York"] },
+        "calendar_source": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ProviderCapabilityRef" },
+        "instrument_identity": { "type": "string", "enum": ["PROVIDER_ASSET_ID"] }
+      }
+    },
+    "ProviderBinding": {
+      "title": "ProviderBinding",
+      "description": "Provider adapter and the capabilities the profile requires. credential_ref names a secret held by the owning host; it is never the secret. A failed entitlement probe blocks the profile. No automatic fallback.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter", "credential_ref", "required_capabilities"],
+      "properties": {
+        "adapter": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ComponentVersion" },
+        "credential_ref": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "required_capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ProviderCapabilityRef" }
+        }
+      }
+    },
+    "DataSemantics": {
+      "title": "DataSemantics",
+      "description": "Financial data semantics. The profile declares them; provider defaults never choose them. A retrieval request repeats them and a dataset manifest records the semantics it applied. minimum_end_age_minutes: the end of a requested range is at least this old when requested.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "feed",
+        "timeframe",
+        "adjustment",
+        "session_basis",
+        "currency",
+        "minimum_end_age_minutes",
+        "bar_availability",
+        "split_availability",
+        "dividend_availability"
+      ],
+      "properties": {
+        "feed": { "type": "string", "enum": ["SIP", "IEX"] },
+        "timeframe": { "type": "string", "enum": ["1Day"] },
+        "adjustment": { "type": "string", "enum": ["RAW"] },
+        "session_basis": { "type": "string", "enum": ["REGULAR_HOURS"] },
+        "currency": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "minimum_end_age_minutes": { "type": "integer", "minimum": 0, "maximum": 10080 },
+        "bar_availability": { "$ref": "#/$defs/BarAvailabilityRule" },
+        "split_availability": { "$ref": "#/$defs/ActionAvailabilityRule" },
+        "dividend_availability": { "$ref": "#/$defs/ActionAvailabilityRule" }
+      }
+    },
+    "BarAvailabilityRule": {
+      "title": "BarAvailabilityRule",
+      "description": "SESSION_CLOSE_PLUS_DELAY: a daily bar is available at its calendar session close plus delay_minutes, the declared data-ready delay. On an early-close day the delay runs from the early close.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule", "delay_minutes"],
+      "properties": {
+        "rule": { "type": "string", "enum": ["SESSION_CLOSE_PLUS_DELAY"] },
+        "delay_minutes": { "type": "integer", "minimum": 0, "maximum": 1440 }
+      }
+    },
+    "ActionAvailabilityRule": {
+      "title": "ActionAvailabilityRule",
+      "description": "How a corporate action's availability time is set. provider_field names the provider field that evidences the announcement date. available_at EFFECTIVE_SESSION_OPEN: the action is available at the open of its effective (ex-date) session, never earlier. evidence DECLARED_BEFORE_EFFECTIVE_SESSION: that bound holds only when provider_field holds a date strictly before the effective session. when_unevidenced BLOCK_PROFILE: an action in a run without such evidence blocks the profile; no fixed offset, record date, process date or retrieval time replaces it. Unknown availability stays unknown. Actions are never excluded.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_field", "available_at", "evidence", "when_unevidenced"],
+      "properties": {
+        "provider_field": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "available_at": { "type": "string", "enum": ["EFFECTIVE_SESSION_OPEN"] },
+        "evidence": { "type": "string", "enum": ["DECLARED_BEFORE_EFFECTIVE_SESSION"] },
+        "when_unevidenced": { "type": "string", "enum": ["BLOCK_PROFILE"] }
+      }
+    }
+  }
+}

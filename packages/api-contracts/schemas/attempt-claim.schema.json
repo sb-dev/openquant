@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:attempt-claim:1",
+  "title": "AttemptClaim",
+  "description": "Claim of one batch job or agent attempt through the guarded API, before any work starts (OQ-05 section 4, OQ-03 section 5). The worker sends the claim form. The API answers with the grant form, or with api-error/1 when the attempt is stale, terminal or claimed by another worker. The lease and ownership revision are separate from any queue receipt.",
+  "oneOf": [{ "$ref": "#/$defs/AttemptClaimRequest" }, { "$ref": "#/$defs/AttemptClaimGrant" }],
+  "$defs": {
+    "AttemptClaimRequest": {
+      "title": "AttemptClaimRequest",
+      "description": "dispatch_digest is the digest of the job-dispatch/1 or agent-dispatch/1 the worker received. worker_id is recorded for diagnosis and grants no authority.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "form", "attempt", "dispatch_digest", "executable", "worker_id"],
+      "properties": {
+        "schema_version": { "type": "string", "enum": ["attempt-claim/1"] },
+        "form": { "type": "string", "enum": ["claim"] },
+        "attempt": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/AttemptBinding" },
+        "dispatch_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "executable": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ExecutableIdentity" },
+        "worker_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" }
+      }
+    },
+    "AttemptClaimGrant": {
+      "title": "AttemptClaimGrant",
+      "description": "The worker now owns the attempt until lease_expires_at. capability is an attempt-scoped credential for the input, artefact and result routes of this attempt only; it expires with the lease. Only the current owner can complete.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "form", "attempt", "granted_at", "lease_expires_at", "capability"],
+      "properties": {
+        "schema_version": { "type": "string", "enum": ["attempt-claim/1"] },
+        "form": { "type": "string", "enum": ["grant"] },
+        "attempt": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/AttemptBinding" },
+        "granted_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "lease_expires_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "capability": { "$ref": "#/$defs/AttemptCapability" }
+      }
+    },
+    "AttemptCapability": {
+      "title": "AttemptCapability",
+      "description": "Opaque bearer token. It is never logged or stored in evidence.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "expires_at"],
+      "properties": {
+        "token": { "type": "string", "pattern": "^[A-Za-z0-9._~-]{32,512}$" },
+        "expires_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" }
+      }
+    }
+  }
+}

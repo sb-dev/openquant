@@ -1,0 +1,19 @@
+{
+  "schema_version": "job-dispatch/1",
+  "environment": "STAGING",
+  "job_id": "job-aapl-retrieve-0001",
+  "attempt": {
+    "attempt_id": "att-aapl-retrieve-0001-1",
+    "ownership_revision": 1
+  },
+  "mission_id": "msn-aapl-0001",
+  "dispatched_at": "2026-11-14T10:00:00Z",
+  "inputs": {
+    "kind": "retrieve",
+    "request": {
+      "digest": "sha256:a7014091460cedf9e434aa6f5878dff5488ac40880dc38aca945e89c68dd4960",
+      "media_type": "application/json",
+      "size_bytes": 1435
+    }
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "schema_version": "retrieval-result/1",
+  "job_id": "job-aapl-retrieve-0001",
+  "attempt": {
+    "attempt_id": "att-aapl-retrieve-0001-2",
+    "ownership_revision": 2
+  },
+  "request_digest": "sha256:a7014091460cedf9e434aa6f5878dff5488ac40880dc38aca945e89c68dd4960",
+  "executable": {
+    "name": "engine-batch",
+    "version": "0.0.0",
+    "digest": "sha256:ad92f935e18aa56a512ccd4042258902fc3e51279ff52b21d7a7b1d9bea18adc"
+  },
+  "outcome": {
+    "status": "FAILED",
+    "error": "RATE_LIMITED",
+    "retryable": true,
+    "retry_after_seconds": 60,
+    "detail": "Provider returned 429 on daily bars after two retries; Retry-After 60 seconds."
+  },
+  "calls": [
+    {
+      "sequence": 1,
+      "operation": "provider:alpaca/calendar@1",
+      "started_at": "2026-11-14T10:01:00Z",
+      "result": "SUCCEEDED",
+      "http_status": 200
+    },
+    {
+      "sequence": 2,
+      "operation": "provider:alpaca/daily_bars@1",
+      "started_at": "2026-11-14T10:01:01Z",
+      "result": "FAILED",
+      "http_status": 429,
+      "error": "RATE_LIMITED"
+    },
+    {
+      "sequence": 3,
+      "operation": "provider:alpaca/daily_bars@1",
+      "started_at": "2026-11-14T10:01:03Z",
+      "result": "FAILED",
+      "http_status": 429,
+      "error": "RATE_LIMITED"
+    },
+    {
+      "sequence": 4,
+      "operation": "provider:alpaca/daily_bars@1",
+      "started_at": "2026-11-14T10:01:07Z",
+      "result": "FAILED",
+      "http_status": 429,
+      "error": "RATE_LIMITED"
+    }
+  ],
+  "usage": {
+    "provider_requests": {
+      "label": "observed",
+      "count": 4
+    },
+    "provider_credits": {
+      "label": "unknown",
+      "reason": "The provider reports no credit usage for market-data requests."
+    },
+    "duration": {
+      "label": "observed",
+      "milliseconds": 7600
+    }
+  },
+  "started_at": "2026-11-14T10:01:00Z",
+  "finished_at": "2026-11-14T10:01:08Z"
+}

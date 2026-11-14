@@ -1,0 +1,55 @@
+{
+  "schema_version": "evaluation-request/1",
+  "run_id": "run-s0-f0-replay",
+  "attempt": {
+    "attempt_id": "att-s0-f0-replay-1",
+    "ownership_revision": 1
+  },
+  "mission_id": "msn-s0-replay",
+  "mode": "REPLAY",
+  "environment": "DEVELOPMENT",
+  "engine": {
+    "engine_digest": "sha256:7ceafb5e32e05c234b2a4cd2915946d4c6273ea9455d7b4f98821712555bb36a",
+    "operator_set": "daily-long-only-seed@1"
+  },
+  "method": {
+    "name": "openquant-evidence-methods",
+    "version": "1",
+    "digest": "sha256:7d57cee1b569f319d5587d03c0d6797faf48347bfff33fa1c070cb2e83ee02f5"
+  },
+  "strategy": {
+    "strategy_id": "f0-smoke",
+    "version": 1,
+    "artefact": {
+      "digest": "sha256:b84efa02e42a910b23d333abea5b9febae560591a3c930bb0b86dfe007ffb2bb",
+      "media_type": "application/json",
+      "size_bytes": 2003
+    }
+  },
+  "conditions": {
+    "profile": {
+      "id": "s0-synthetic",
+      "revision": 1,
+      "digest": "sha256:55235275956dc595917347e02cc640b23087736aaf33803d4904c6b0f7f38cb6"
+    },
+    "cohort_policy": {
+      "id": "s0-replay",
+      "revision": 1,
+      "digest": "sha256:e65c823ab3798bc1b15514c2e93a76bd9d3ee4119566e07537cd7e630900092d"
+    },
+    "suite_id": "s0-replay",
+    "plan_digest": "sha256:d6a7640ef4be3ab7a8025d87663108d2c370294ef36aefa40e0a870bf4d60c9b",
+    "trial_id": "trial-s0-f0",
+    "window_role": "DEVELOPMENT",
+    "cost_scenario": "BASE"
+  },
+  "input": {
+    "source": "INPUT_REFERENCE",
+    "input": {
+      "digest": "sha256:f1618d597356d3384977a670eedacc86d2a28f600a97dcf583a0088607682cf4",
+      "media_type": "application/json",
+      "size_bytes": 3534
+    }
+  },
+  "holdout_exclusions": []
+}

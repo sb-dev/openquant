@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:dataset-manifest:1",
+  "title": "DatasetManifest",
+  "description": "A frozen, normalised snapshot of one instrument's provider data (OQ-02 section 1.1, OQ-05 section 7.1). The Rust normaliser writes it, including the availability time of every bar and corporate action. The evaluate job builds evaluation-input/1 from it. A correction is a new snapshot. Reusing a snapshot reproduces the input; it does not prove the provider's earlier version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "dataset", "instrument", "source", "semantics", "coverage", "retrieval", "content", "source_responses", "constraints"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["dataset-manifest/1"] },
+    "dataset": { "$ref": "urn:openquant:schema:evaluation-input:1#/$defs/DatasetRef" },
+    "instrument": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/InstrumentMapping" },
+    "source": { "$ref": "#/$defs/ManifestSource" },
+    "semantics": { "$ref": "urn:openquant:schema:research-profile:1#/$defs/DataSemantics" },
+    "coverage": { "$ref": "#/$defs/ManifestCoverage" },
+    "retrieval": { "$ref": "#/$defs/RetrievalProvenance" },
+    "content": { "$ref": "#/$defs/ManifestContent" },
+    "source_responses": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/SourceResponse" } },
+    "constraints": { "$ref": "#/$defs/UseConstraints" }
+  },
+  "$defs": {
+    "ManifestSource": {
+      "title": "ManifestSource",
+      "description": "Provider, feed, adapter and transformation identity, the executable that ran them and the profile revision that selected them.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "feed", "adapter", "transformation", "executable", "profile"],
+      "properties": {
+        "provider": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "feed": { "type": "string", "enum": ["SIP", "IEX"] },
+        "adapter": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ComponentVersion" },
+        "transformation": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/MethodIdentity" },
+        "executable": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ExecutableIdentity" },
+        "profile": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/RecordRef" }
+      }
+    },
+    "ManifestCoverage": {
+      "title": "ManifestCoverage",
+      "description": "Requested and returned coverage. NO_OBSERVATIONS has no returned range. PARTIAL lists the calendar sessions without a bar. An absent bar alone does not establish that no trades occurred.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requested", "completeness", "bar_count", "missing_sessions"],
+      "properties": {
+        "requested": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DateRange" },
+        "returned": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DateRange" },
+        "completeness": { "type": "string", "enum": ["COMPLETE", "PARTIAL", "NO_OBSERVATIONS"] },
+        "bar_count": { "type": "integer", "minimum": 0, "maximum": 2000 },
+        "missing_sessions": { "type": "array", "maxItems": 2000, "items": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" } }
+      }
+    },
+    "RetrievalProvenance": {
+      "title": "RetrievalProvenance",
+      "description": "The retrieval job attempt that produced the snapshot, the digest of its retrieval-request/1 and the time retrieval finished.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["job_id", "attempt_id", "request_digest", "retrieved_at"],
+      "properties": {
+        "job_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "attempt_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "request_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "retrieved_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" }
+      }
+    },
+    "ManifestContent": {
+      "title": "ManifestContent",
+      "description": "Normalised content. Bars are raw as traded, with event time and availability time from the bar rule. Each corporate action carries its availability time from the action rule; action_evidence records the provider value behind it. Actions are never excluded; an unsupported action stays and makes affected evidence INSUFFICIENT.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["calendar", "bars", "corporate_actions", "unplanned_events", "action_evidence"],
+      "properties": {
+        "calendar": {
+          "type": "array",
+          "maxItems": 2000,
+          "items": { "$ref": "urn:openquant:schema:evaluation-input:1#/$defs/CalendarSession" }
+        },
+        "bars": {
+          "type": "array",
+          "maxItems": 2000,
+          "items": { "$ref": "urn:openquant:schema:evaluation-input:1#/$defs/BarInput" }
+        },
+        "corporate_actions": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "urn:openquant:schema:evaluation-input:1#/$defs/CorporateAction" }
+        },
+        "unplanned_events": {
+          "type": "array",
+          "maxItems": 32,
+          "items": { "$ref": "urn:openquant:schema:evaluation-input:1#/$defs/UnplannedEvent" }
+        },
+        "action_evidence": { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/ActionEvidence" } }
+      }
+    },
+    "ActionEvidence": {
+      "title": "ActionEvidence",
+      "description": "Provider record and field value behind one action's availability time.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id", "provider_record_id", "provider_field", "provider_value"],
+      "properties": {
+        "action_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "provider_record_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "provider_field": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "provider_value": { "type": "string", "maxLength": 64 }
+      }
+    },
+    "SourceResponse": {
+      "title": "SourceResponse",
+      "description": "One provider response used to build the snapshot. content_digest is the SHA-256 of the response bytes. stored is present only when the use constraints permit retention.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "operation", "received_at", "content_digest"],
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "operation": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ProviderCapabilityRef" },
+        "received_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "content_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "stored": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ArtefactRef" }
+      }
+    },
+    "UseConstraints": {
+      "title": "UseConstraints",
+      "description": "Use and retention constraints from the provider terms recorded for the profile. The dataset licence text is in dataset.licence.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["redistribution", "raw_retention", "terms_ref"],
+      "properties": {
+        "redistribution": { "type": "string", "enum": ["NOT_PERMITTED", "PERMITTED"] },
+        "raw_retention": { "type": "string", "enum": ["RETAIN", "DO_NOT_RETAIN"] },
+        "terms_ref": { "type": "string", "maxLength": 200 }
+      }
+    }
+  }
+}

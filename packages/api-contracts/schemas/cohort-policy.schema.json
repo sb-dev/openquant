@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:cohort-policy:1",
+  "title": "CohortPolicy",
+  "description": "One immutable cohort policy revision (OQ-02 sections 3.1, 3.2 and 3.6). It fixes the comparable conditions, the gate suite, finding treatment, metric rounding, budgets and execution limits before any trial runs. Changing any of them needs a new revision and a separately registered comparison.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "policy_id", "revision", "profile", "conditions", "gates", "finding_treatment", "metrics", "budgets", "limits", "promotion"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["cohort-policy/1"] },
+    "policy_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "revision": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+    "profile": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/RecordRef" },
+    "conditions": { "$ref": "#/$defs/CohortConditions" },
+    "gates": { "type": "array", "minItems": 1, "maxItems": 32, "items": { "$ref": "#/$defs/GateRule" } },
+    "finding_treatment": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/FindingTreatmentRule" } },
+    "metrics": { "$ref": "#/$defs/MetricPolicy" },
+    "budgets": { "$ref": "#/$defs/MissionBudget" },
+    "limits": { "$ref": "#/$defs/ExecutionLimits" },
+    "promotion": { "$ref": "#/$defs/PromotionPolicy" }
+  },
+  "$defs": {
+    "CohortConditions": {
+      "title": "CohortConditions",
+      "description": "Conditions every candidate in the cohort shares: capital, execution and base cost policy, cost stress, benchmarks, window rules, permitted operators and the scope of a controlled revision. revision_scope ENTRY_OR_EXIT: a controlled revision changes entry rules or exit rules, not both.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["initial_capital", "execution_policy", "cost_stress", "benchmarks", "windows", "operators", "revision_scope"],
+      "properties": {
+        "initial_capital": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "execution_policy": { "$ref": "urn:openquant:schema:evaluation-input:1#/$defs/ExecutionPolicy" },
+        "cost_stress": { "$ref": "#/$defs/CostStress" },
+        "benchmarks": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": { "type": "string", "enum": ["BUY_AND_HOLD", "CASH"] }
+        },
+        "windows": { "$ref": "#/$defs/WindowRules" },
+        "operators": { "$ref": "#/$defs/OperatorPermissions" },
+        "revision_scope": { "type": "string", "enum": ["ENTRY_OR_EXIT"] }
+      }
+    },
+    "CostStress": {
+      "title": "CostStress",
+      "description": "The COST_STRESS scenario multiplies each named component of the base cost model by multiplier. Nothing else changes.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["multiplier", "components"],
+      "properties": {
+        "multiplier": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "components": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": { "type": "string", "enum": ["fixed_fee_per_fill", "fee_bps", "gap_exit_slippage_bps"] }
+        }
+      }
+    },
+    "WindowRules": {
+      "title": "WindowRules",
+      "description": "Windows are rules. They are resolved against the frozen retrieved calendar at mission start and recorded in the evaluation plan before any run. Each window is its own run with a fresh ledger. warmup_sessions precede each scored start. max_sessions bounds every run, warm-up and payment sessions included. cutoff_rule FINAL_BAR_AVAILABILITY: the information cutoff of a run is the availability time of its final scored bar.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["warmup_sessions", "max_sessions", "cutoff_rule", "windows"],
+      "properties": {
+        "warmup_sessions": { "type": "integer", "minimum": 1, "maximum": 400 },
+        "max_sessions": { "type": "integer", "minimum": 2, "maximum": 400 },
+        "cutoff_rule": { "type": "string", "enum": ["FINAL_BAR_AVAILABILITY"] },
+        "windows": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "$ref": "#/$defs/WindowRule" } }
+      }
+    },
+    "WindowRule": {
+      "title": "WindowRule",
+      "description": "One scored date range. label states what the window can claim, for example 'historical holdout within model training period'.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "scored", "label"],
+      "properties": {
+        "role": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/WindowRole" },
+        "scored": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DateRange" },
+        "label": { "type": "string", "maxLength": 200 }
+      }
+    },
+    "OperatorPermissions": {
+      "title": "OperatorPermissions",
+      "description": "Operators a candidate may use, with parameter bounds. The API checks bounds; the Rust core checks operators, types, units and lookback.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operator_set", "permitted"],
+      "properties": {
+        "operator_set": { "type": "string", "enum": ["daily-long-only-seed@1"] },
+        "permitted": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/OperatorPermission" } }
+      }
+    },
+    "OperatorPermission": {
+      "title": "OperatorPermission",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operator", "parameter_bounds"],
+      "properties": {
+        "operator": { "$ref": "urn:openquant:schema:common:1#/$defs/OperatorRef" },
+        "parameter_bounds": { "type": "array", "maxItems": 8, "items": { "$ref": "#/$defs/ParameterBound" } }
+      }
+    },
+    "ParameterBound": {
+      "title": "ParameterBound",
+      "description": "Inclusive bounds for one operator parameter.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parameter", "minimum", "maximum"],
+      "properties": {
+        "parameter": { "type": "string", "enum": ["window", "periods", "value"] },
+        "minimum": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "maximum": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" }
+      }
+    },
+    "GateRule": {
+      "title": "GateRule",
+      "description": "How the suite treats one gate. A required gate is evaluated. A gate the policy records as INSUFFICIENT or NOT_APPLICABLE carries the approved reason. Do not remove a required test to make a candidate pass.",
+      "oneOf": [
+        { "$ref": "#/$defs/RequiredGate" },
+        { "$ref": "#/$defs/RecordedInsufficientGate" },
+        { "$ref": "#/$defs/NotApplicableGate" }
+      ]
+    },
+    "RequiredGate": {
+      "title": "RequiredGate",
+      "description": "An evaluated gate. It passes only when every threshold holds in every listed window under its cost scenario; there is no averaging across windows. below_threshold is the result when a threshold does not hold: FAIL, or INSUFFICIENT for a sample-size gate such as the minimum trade count. A gate without thresholds is decided by its reviewed method.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirement", "gate", "category", "thresholds", "below_threshold"],
+      "properties": {
+        "requirement": { "type": "string", "enum": ["REQUIRED"] },
+        "gate": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/GateId" },
+        "category": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/EvidenceCategory" },
+        "thresholds": { "type": "array", "maxItems": 8, "items": { "$ref": "#/$defs/MetricThreshold" } },
+        "below_threshold": { "type": "string", "enum": ["FAIL", "INSUFFICIENT"] }
+      }
+    },
+    "RecordedInsufficientGate": {
+      "title": "RecordedInsufficientGate",
+      "description": "A required check that the suite cannot perform yet. Its result is INSUFFICIENT with this reason; it is never a pass.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirement", "gate", "category", "reason"],
+      "properties": {
+        "requirement": { "type": "string", "enum": ["RECORDED_INSUFFICIENT"] },
+        "gate": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/GateId" },
+        "category": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/EvidenceCategory" },
+        "reason": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "NotApplicableGate": {
+      "title": "NotApplicableGate",
+      "description": "A gate the policy approves as not applicable to this cohort, with the reason shown to readers.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirement", "gate", "category", "reason"],
+      "properties": {
+        "requirement": { "type": "string", "enum": ["NOT_APPLICABLE"] },
+        "gate": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/GateId" },
+        "category": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/EvidenceCategory" },
+        "reason": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "MetricThreshold": {
+      "title": "MetricThreshold",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "comparison", "value", "windows", "cost_scenario"],
+      "properties": {
+        "metric": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/MetricName" },
+        "comparison": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ThresholdComparison" },
+        "value": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "windows": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/WindowRole" }
+        },
+        "cost_scenario": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/CostScenario" }
+      }
+    },
+    "FindingTreatmentRule": {
+      "title": "FindingTreatmentRule",
+      "description": "Treatment of one finding category for one lifecycle transition. A finding is BLOCKING when treatment is BLOCKING, or when any escalate_when condition holds. Method notes and model-stated severity cannot change this mapping.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "transition", "treatment", "escalate_when"],
+      "properties": {
+        "category": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/FindingCategory" },
+        "transition": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/LifecycleTransition" },
+        "treatment": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/FindingTreatment" },
+        "escalate_when": {
+          "type": "array",
+          "maxItems": 2,
+          "items": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/FindingApplicability" }
+        }
+      }
+    },
+    "MetricPolicy": {
+      "title": "MetricPolicy",
+      "description": "metric_scale: every reported metric is computed exactly and rounded once, half-even, to this many fractional digits. Comparison tolerance is zero.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric_scale", "uncertainty"],
+      "properties": {
+        "metric_scale": { "type": "integer", "minimum": 0, "maximum": 12 },
+        "uncertainty": { "$ref": "#/$defs/UncertaintyPolicy" }
+      }
+    },
+    "UncertaintyPolicy": {
+      "title": "UncertaintyPolicy",
+      "description": "NOT_COMPUTED: the suite reports no uncertainty statistic. The limitation text is approved with the policy and shown with every comparison.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "limitation"],
+      "properties": {
+        "method": { "type": "string", "enum": ["NOT_COMPUTED"] },
+        "limitation": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "MissionBudget": {
+      "title": "MissionBudget",
+      "description": "Explicit per-mission budgets, equal for every proposer configuration in the cohort (OQ-03 sections 1 and 2). A runner cannot increase them. Exhaustion pauses further work. Retries and recovery attempts consume budget. revisions_per_proposer counts the proposals each proposer configuration may make. attempt_cap bounds the attempts of one logical run or job, the first included.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidates",
+        "experiments",
+        "revisions_per_proposer",
+        "new_families",
+        "model_spend",
+        "model_spend_per_attempt",
+        "provider_requests",
+        "batch_compute_seconds",
+        "agent_compute_seconds",
+        "attempt_cap"
+      ],
+      "properties": {
+        "candidates": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "experiments": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "revisions_per_proposer": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "new_families": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "model_spend": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/MoneyAmount" },
+        "model_spend_per_attempt": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/MoneyAmount" },
+        "provider_requests": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "batch_compute_seconds": { "type": "integer", "minimum": 0, "maximum": 100000000 },
+        "agent_compute_seconds": { "type": "integer", "minimum": 0, "maximum": 100000000 },
+        "attempt_cap": { "type": "integer", "minimum": 1, "maximum": 10 }
+      }
+    },
+    "ExecutionLimits": {
+      "title": "ExecutionLimits",
+      "description": "Host-enforced limits per attempt and concurrency per mission. An agent output above agent_output_limit_bytes is a malformed result. artefact_limit_bytes bounds each uploaded batch artefact.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agent_timeout_seconds", "agent_output_limit_bytes", "artefact_limit_bytes", "job_timeouts", "concurrent_batch_attempts", "concurrent_agent_attempts"],
+      "properties": {
+        "agent_timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 86400 },
+        "agent_output_limit_bytes": { "type": "integer", "minimum": 1, "maximum": 16777216 },
+        "artefact_limit_bytes": { "type": "integer", "minimum": 1, "maximum": 1073741824 },
+        "job_timeouts": { "$ref": "#/$defs/JobTimeouts" },
+        "concurrent_batch_attempts": { "type": "integer", "minimum": 1, "maximum": 64 },
+        "concurrent_agent_attempts": { "type": "integer", "minimum": 1, "maximum": 64 }
+      }
+    },
+    "JobTimeouts": {
+      "title": "JobTimeouts",
+      "description": "Timeout of one attempt of each batch job kind. The lease and queue visibility derive from it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["retrieve_seconds", "validate_seconds", "evaluate_seconds", "assess_seconds"],
+      "properties": {
+        "retrieve_seconds": { "type": "integer", "minimum": 1, "maximum": 86400 },
+        "validate_seconds": { "type": "integer", "minimum": 1, "maximum": 86400 },
+        "evaluate_seconds": { "type": "integer", "minimum": 1, "maximum": 86400 },
+        "assess_seconds": { "type": "integer", "minimum": 1, "maximum": 86400 }
+      }
+    },
+    "PromotionPolicy": {
+      "title": "PromotionPolicy",
+      "description": "automatic_paper_promotion is fixed to false until M2. No EVALUATING to PAPER Decision is recorded in S1; blocking findings and gates decide eligibility only.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["automatic_paper_promotion"],
+      "properties": {
+        "automatic_paper_promotion": { "type": "boolean", "enum": [false] }
+      }
+    }
+  }
+}

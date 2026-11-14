@@ -1,0 +1,95 @@
+{
+  "schema_version": "evaluation-request/1",
+  "run_id": "run-aapl-v-base-a",
+  "attempt": {
+    "attempt_id": "att-aapl-v-base-a-1",
+    "ownership_revision": 1
+  },
+  "mission_id": "msn-aapl-0001",
+  "mode": "BACKTEST",
+  "environment": "STAGING",
+  "engine": {
+    "engine_digest": "sha256:7ceafb5e32e05c234b2a4cd2915946d4c6273ea9455d7b4f98821712555bb36a",
+    "operator_set": "daily-long-only-seed@1"
+  },
+  "method": {
+    "name": "openquant-evidence-methods",
+    "version": "1",
+    "digest": "sha256:7d57cee1b569f319d5587d03c0d6797faf48347bfff33fa1c070cb2e83ee02f5"
+  },
+  "strategy": {
+    "strategy_id": "daily-swing-seed",
+    "version": 2,
+    "artefact": {
+      "digest": "sha256:3b2b013c84fb0f64657822298593f8bc24a520c76023b8f18c61ee0e00abb046",
+      "media_type": "application/json",
+      "size_bytes": 4979
+    }
+  },
+  "conditions": {
+    "profile": {
+      "id": "aapl-us-daily-sip",
+      "revision": 1,
+      "digest": "sha256:88d99561343c7c8f783fc9b932308f5d93d00e0898c779552756ab4d83e12cd8"
+    },
+    "cohort_policy": {
+      "id": "s1-aapl-daily-swing",
+      "revision": 1,
+      "digest": "sha256:d3420be2f8b4aee0922b98c23a49aa868a47338136e029e6fb909be51e923d22"
+    },
+    "suite_id": "s1-single-stock-suite",
+    "plan_digest": "sha256:4b07f654295e9c9faec773c375fb21f80312b113df1e82e2d6cc0571b7947888",
+    "trial_id": "trial-aapl-rev-a-validation",
+    "window_role": "VALIDATION",
+    "cost_scenario": "BASE"
+  },
+  "input": {
+    "source": "PROVIDER_MANIFEST",
+    "manifest": {
+      "digest": "sha256:70c2074b770a6f4507690389a37f1e26226b633fc26c60c8d06545071f73deca",
+      "media_type": "application/json",
+      "size_bytes": 412870
+    },
+    "windows": {
+      "warmup_start": "2023-10-05",
+      "scored_start": "2024-01-02",
+      "scored_end": "2024-12-31",
+      "information_cutoff": "2024-12-31T23:00:00Z"
+    },
+    "initial_capital": "100000.00",
+    "policy": {
+      "id": "daily-long-only-cash@1",
+      "currency": "USD",
+      "price_scale": 2,
+      "quantity_scale": 0,
+      "money_scale": 2,
+      "diagnostic_scale": 4,
+      "lot_size": "1",
+      "cost_model": {
+        "id": "fixed_plus_bps@1",
+        "fixed_fee_per_fill": "0.00",
+        "fee_bps": "5",
+        "gap_exit_slippage_bps": "10"
+      },
+      "corporate_actions": {
+        "id": "split_cash_dividend_ex_date@1",
+        "fractional": "INSUFFICIENT",
+        "withholding_bps": "0"
+      }
+    },
+    "seed": 0
+  },
+  "holdout_exclusions": [
+    {
+      "window": "HOLDOUT",
+      "range": {
+        "start": "2025-01-02",
+        "end": "2025-12-31"
+      },
+      "label": "historical holdout within model training period"
+    }
+  ],
+  "dataset": {
+    "bars": []
+  }
+}

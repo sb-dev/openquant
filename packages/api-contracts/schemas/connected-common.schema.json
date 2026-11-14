@@ -1,0 +1,398 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:connected-common:1",
+  "title": "OpenQuantConnectedDefinitions",
+  "description": "Shared definitions for the S1 connected envelopes (OQ-05 sections 3, 4 and 7). They are outside engine identity. Unknown values are explicit branches, never zero.",
+  "$defs": {
+    "DeploymentEnvironment": {
+      "title": "DeploymentEnvironment",
+      "description": "Application environment (OQ-06 section 3). Production hosting grants no trading authority.",
+      "type": "string",
+      "enum": ["DEVELOPMENT", "STAGING", "PRODUCTION"]
+    },
+    "EvaluationMode": {
+      "title": "EvaluationMode",
+      "description": "A historical run is REPLAY or BACKTEST, never live paper trading (OQ-02 section 3.4). REPLAY re-evaluates a frozen input. BACKTEST evaluates provider data over registered windows.",
+      "type": "string",
+      "enum": ["REPLAY", "BACKTEST"]
+    },
+    "JobKind": {
+      "title": "JobKind",
+      "description": "Typed batch job. Retrieve, validate and assess jobs are separate from evaluation runs and trial counts.",
+      "type": "string",
+      "enum": ["retrieve", "validate", "evaluate", "assess"]
+    },
+    "JobAttemptOutcome": {
+      "title": "JobAttemptOutcome",
+      "description": "How one batch job attempt ended. LEASE_EXPIRED: recovery fenced the attempt; a late completion from it is rejected and recorded. It is not a run status.",
+      "type": "string",
+      "enum": ["COMPLETED", "FAILED", "LEASE_EXPIRED", "CANCELLED"]
+    },
+    "RunStatus": {
+      "title": "RunStatus",
+      "description": "Run status (OQ-02 section 3.6). A completed run can contain failing gates.",
+      "type": "string",
+      "enum": ["QUEUED", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"]
+    },
+    "GateResult": {
+      "title": "GateResult",
+      "description": "Gate result (OQ-02 section 3.6). Missing evidence is INSUFFICIENT, not a pass. NOT_APPLICABLE needs a policy-approved reason.",
+      "type": "string",
+      "enum": ["PASS", "FAIL", "INSUFFICIENT", "NOT_APPLICABLE"]
+    },
+    "DecisionOutcome": {
+      "title": "DecisionOutcome",
+      "description": "Decision outcome (OQ-02 section 3.6).",
+      "type": "string",
+      "enum": ["APPROVED", "REJECTED", "DEFERRED"]
+    },
+    "MissionStatus": {
+      "title": "MissionStatus",
+      "description": "Research Mission status. It shares no value with run status or attention status.",
+      "type": "string",
+      "enum": ["ACTIVE", "BLOCKED", "WITHDRAWN", "CONCLUDED"]
+    },
+    "MissionOutcome": {
+      "title": "MissionOutcome",
+      "description": "Outcome of a CONCLUDED mission. NO_ELIGIBLE_CANDIDATE is a valid research result.",
+      "type": "string",
+      "enum": ["ELIGIBLE_FOUND", "NO_ELIGIBLE_CANDIDATE"]
+    },
+    "ApiErrorCode": {
+      "title": "ApiErrorCode",
+      "description": "Envelope-only error codes of the S1 API. The first three repeat the contract parse codes. STALE_OWNERSHIP: the attempt is not the current owner, or its ownership revision is not current. LEASE_EXPIRED: the attempt owned the work but its lease ended; the late completion is recorded and rejected. ATTEMPT_NOT_CLAIMABLE: the attempt is terminal or claimed by another worker. IDENTITY_MISMATCH: a submitted binding (input, strategy, engine, method, executable or dispatch digest) differs from the request. DIGEST_MISMATCH: uploaded bytes do not match the declared digest or size. COMMAND_ID_REUSED: a command ID returns with a different body.",
+      "type": "string",
+      "enum": [
+        "UNSUPPORTED_SCHEMA_VERSION",
+        "SCHEMA_VIOLATION",
+        "INVALID_DECIMAL",
+        "UNAUTHENTICATED",
+        "FORBIDDEN",
+        "NOT_FOUND",
+        "REVISION_CONFLICT",
+        "COMMAND_ID_REUSED",
+        "STALE_OWNERSHIP",
+        "LEASE_EXPIRED",
+        "ATTEMPT_NOT_CLAIMABLE",
+        "IDENTITY_MISMATCH",
+        "DIGEST_MISMATCH",
+        "POLICY_VIOLATION",
+        "BUDGET_EXHAUSTED",
+        "EXECUTION_DISABLED",
+        "LIMIT_EXCEEDED",
+        "RATE_LIMITED",
+        "UNAVAILABLE",
+        "INTERNAL"
+      ]
+    },
+    "AttemptBinding": {
+      "title": "AttemptBinding",
+      "description": "One attempt of a logical run or job and its fencing revision. The revision is fixed when the attempt is created. Only the attempt that holds the current revision can complete.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempt_id", "ownership_revision"],
+      "properties": {
+        "attempt_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "ownership_revision": { "type": "integer", "minimum": 1, "maximum": 1000000 }
+      }
+    },
+    "ArtefactRef": {
+      "title": "ArtefactRef",
+      "description": "Content-addressed artefact. digest is the SHA-256 of the stored bytes. A contract payload is stored as canonical JSON, so its digest equals the payload digest.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest", "media_type", "size_bytes"],
+      "properties": {
+        "digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "media_type": { "type": "string", "maxLength": 100, "pattern": "^[a-z]+/[a-z0-9.+-]+$" },
+        "size_bytes": { "type": "integer", "minimum": 0, "maximum": 1073741824 }
+      }
+    },
+    "MethodIdentity": {
+      "title": "MethodIdentity",
+      "description": "Identity of the reviewed method text for derived evidence: validation, metrics, benchmarks, gates and lineage. digest is the SHA-256 of that text. It is separate from engine identity.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "digest"],
+      "properties": {
+        "name": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "version": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" }
+      }
+    },
+    "ExecutableIdentity": {
+      "title": "ExecutableIdentity",
+      "description": "The executable that actually ran. digest is the SHA-256 of its binary or image, measured by the host.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "digest"],
+      "properties": {
+        "name": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "version": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" }
+      }
+    },
+    "ComponentVersion": {
+      "title": "ComponentVersion",
+      "description": "Name and version of a component inside an executable, such as a provider adapter or a transformation.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "version": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" }
+      }
+    },
+    "RecordRef": {
+      "title": "RecordRef",
+      "description": "An immutable revision of a registered record, such as a research profile or cohort policy. digest binds its content.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "revision", "digest"],
+      "properties": {
+        "id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "revision": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" }
+      }
+    },
+    "MoneyAmount": {
+      "title": "MoneyAmount",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["amount", "currency"],
+      "properties": {
+        "amount": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "currency": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" }
+      }
+    },
+    "DateRange": {
+      "title": "DateRange",
+      "description": "Inclusive range of session dates.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" },
+        "end": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" }
+      }
+    },
+    "WindowRole": {
+      "title": "WindowRole",
+      "description": "Role of a scored window in walk-forward evaluation: development (D), validation (V) or historical holdout (H).",
+      "type": "string",
+      "enum": ["DEVELOPMENT", "VALIDATION", "HOLDOUT"]
+    },
+    "CostScenario": {
+      "title": "CostScenario",
+      "description": "BASE uses the registered cost model. COST_STRESS multiplies its components as the cohort policy declares.",
+      "type": "string",
+      "enum": ["BASE", "COST_STRESS"]
+    },
+    "HoldoutExclusion": {
+      "title": "HoldoutExclusion",
+      "description": "A window withheld from an agent or an evaluation input. The label states the limit of the holdout, for example 'historical holdout within model training period'.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["window", "range", "label"],
+      "properties": {
+        "window": { "$ref": "#/$defs/WindowRole" },
+        "range": { "$ref": "#/$defs/DateRange" },
+        "label": { "type": "string", "maxLength": 200 }
+      }
+    },
+    "InstrumentMapping": {
+      "title": "InstrumentMapping",
+      "description": "Stable instrument identity and its provider mapping from an effective date (OQ-02 section 1.1). The ticker is a mapping, not the identity.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["instrument_id", "symbol", "provider", "provider_asset_id", "effective_from"],
+      "properties": {
+        "instrument_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "symbol": { "type": "string", "pattern": "^[A-Z][A-Z0-9.]{0,9}$" },
+        "provider": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "provider_asset_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "effective_from": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" }
+      }
+    },
+    "ProviderCapabilityRef": {
+      "title": "ProviderCapabilityRef",
+      "description": "provider:<adapter-id>/<operation>@<version> (OQ-03 section 4).",
+      "type": "string",
+      "maxLength": 100,
+      "pattern": "^provider:[a-z][a-z0-9_-]*/[a-z][a-z0-9_]*@[1-9][0-9]*$"
+    },
+    "ExecutorProfile": {
+      "title": "ExecutorProfile",
+      "description": "Execution profile the operator selects for the delegated executor: requested model and effort. The actual model is recorded separately when reported.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "effort"],
+      "properties": {
+        "model": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "effort": { "type": "string", "enum": ["low", "medium", "high", "xhigh", "max"] }
+      }
+    },
+    "FindingCategory": {
+      "title": "FindingCategory",
+      "description": "The eleven critic finding categories (OQ-03 section 4). An unknown category is an invalid result. method_advice covers optional preferences only.",
+      "type": "string",
+      "enum": [
+        "hypothesis_assumption",
+        "data_quality_alignment",
+        "causal_leakage",
+        "execution_accounting_assumption",
+        "search_overfitting",
+        "policy_mismatch",
+        "portfolio_fit",
+        "operational_risk",
+        "source_uncertainty",
+        "missing_evidence",
+        "method_advice"
+      ]
+    },
+    "FindingTreatment": {
+      "title": "FindingTreatment",
+      "description": "Treatment the registered policy assigns to a finding (OQ-02 section 3.6). The model never sets it.",
+      "type": "string",
+      "enum": ["BLOCKING", "ADVISORY"]
+    },
+    "FindingApplicability": {
+      "title": "FindingApplicability",
+      "description": "Applicability conditions that deterministic policy evaluation derives from validated finding fields. affects_executable_rule: affected_elements is not empty. required_evidence: an evidence reference is evidence the frozen policy requires.",
+      "type": "string",
+      "enum": ["affects_executable_rule", "required_evidence"]
+    },
+    "LifecycleTransition": {
+      "title": "LifecycleTransition",
+      "description": "Lifecycle transitions that finding treatment can block in S1 (OQ-02 section 4).",
+      "type": "string",
+      "enum": ["DRAFT_TO_EVALUATING", "EVALUATING_TO_PAPER"]
+    },
+    "EvidenceCategory": {
+      "title": "EvidenceCategory",
+      "description": "Required evidence categories (OQ-02 section 3.2).",
+      "type": "string",
+      "enum": ["CORRECTNESS", "HISTORICAL_VALIDITY", "ROBUSTNESS", "PROSPECTIVE", "PORTFOLIO_FIT", "OPERATING_READINESS"]
+    },
+    "GateId": {
+      "title": "GateId",
+      "description": "Gates of the S1 cohort suite. Each belongs to one evidence category.",
+      "type": "string",
+      "enum": [
+        "DEFINITION_VALIDATION",
+        "DETERMINISTIC_REPLAY",
+        "ACCOUNTING_RECONCILIATION",
+        "SIGNAL_TIMING",
+        "POINT_IN_TIME_DATA",
+        "BASE_COST_MODEL",
+        "EXCESS_OVER_BUY_AND_HOLD",
+        "WALK_FORWARD",
+        "MINIMUM_TRADE_COUNT",
+        "COST_STRESS",
+        "PARAMETER_SENSITIVITY",
+        "EXECUTION_DELAY",
+        "ADVERSE_REGIMES",
+        "RESAMPLING",
+        "PROSPECTIVE_EVIDENCE",
+        "PORTFOLIO_FIT",
+        "OPERATING_READINESS"
+      ]
+    },
+    "MetricName": {
+      "title": "MetricName",
+      "description": "Per-run metrics that a gate threshold can name. evaluation-metrics/1 defines each unit and the method identity defines each calculation.",
+      "type": "string",
+      "enum": [
+        "net_return",
+        "max_drawdown",
+        "worst_session_return",
+        "turnover",
+        "trade_count",
+        "scored_session_count",
+        "execution_cost",
+        "exposure",
+        "buy_and_hold_return",
+        "excess_return_over_buy_and_hold",
+        "excess_return_over_cash"
+      ]
+    },
+    "ThresholdComparison": {
+      "title": "ThresholdComparison",
+      "description": "How an observed metric compares with a threshold: observed > threshold, observed >= threshold, observed < threshold or observed <= threshold.",
+      "type": "string",
+      "enum": ["GREATER_THAN", "AT_LEAST", "LESS_THAN", "AT_MOST"]
+    },
+    "SourceDifference": {
+      "title": "SourceDifference",
+      "description": "One difference between a source and the draft or seed definition, such as warm-up, price basis, fills or tie-breaking.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["element", "source", "draft"],
+      "properties": {
+        "element": { "type": "string", "maxLength": 256 },
+        "source": { "type": "string", "maxLength": 1000 },
+        "draft": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "UsageLabel": {
+      "title": "UsageLabel",
+      "description": "observed: measured or reported by the system that incurred it. estimated: derived, for example a provider-reported cost estimate.",
+      "type": "string",
+      "enum": ["observed", "estimated"]
+    },
+    "ReportedCost": {
+      "title": "ReportedCost",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "amount", "currency"],
+      "properties": {
+        "label": { "$ref": "#/$defs/UsageLabel" },
+        "amount": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "currency": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" }
+      }
+    },
+    "ReportedDuration": {
+      "title": "ReportedDuration",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "milliseconds"],
+      "properties": {
+        "label": { "$ref": "#/$defs/UsageLabel" },
+        "milliseconds": { "type": "integer", "minimum": 0, "maximum": 604800000 }
+      }
+    },
+    "ReportedCount": {
+      "title": "ReportedCount",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "count"],
+      "properties": {
+        "label": { "$ref": "#/$defs/UsageLabel" },
+        "count": { "type": "integer", "minimum": 0, "maximum": 1000000000 }
+      }
+    },
+    "UnknownUsage": {
+      "title": "UnknownUsage",
+      "description": "Usage that nothing reported. It is never zero. Unknown cost keeps the full reservation until reconciled.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "reason"],
+      "properties": {
+        "label": { "type": "string", "enum": ["unknown"] },
+        "reason": { "type": "string", "maxLength": 500 }
+      }
+    },
+    "CostUsage": {
+      "title": "CostUsage",
+      "oneOf": [{ "$ref": "#/$defs/ReportedCost" }, { "$ref": "#/$defs/UnknownUsage" }]
+    },
+    "DurationUsage": {
+      "title": "DurationUsage",
+      "oneOf": [{ "$ref": "#/$defs/ReportedDuration" }, { "$ref": "#/$defs/UnknownUsage" }]
+    },
+    "CountUsage": {
+      "title": "CountUsage",
+      "oneOf": [{ "$ref": "#/$defs/ReportedCount" }, { "$ref": "#/$defs/UnknownUsage" }]
+    }
+  }
+}

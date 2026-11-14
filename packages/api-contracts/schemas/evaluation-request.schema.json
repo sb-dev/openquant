@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:evaluation-request:1",
+  "title": "EvaluationRequest",
+  "description": "Outer request for one evaluation run attempt (OQ-05 section 7). It binds the run, attempt and ownership revision, the registered conditions, the required engine and method identities, the strategy and the input. A replay passes a frozen evaluation-input/1 by reference. A backtest passes a dataset manifest with windows, capital and policy, and the Rust evaluate job builds evaluation-input/1 from them. The inner evaluation-input/1 is unchanged.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "attempt", "mission_id", "mode", "environment", "engine", "method", "strategy", "conditions", "input", "holdout_exclusions"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["evaluation-request/1"] },
+    "run_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "attempt": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/AttemptBinding" },
+    "mission_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "mode": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/EvaluationMode" },
+    "environment": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DeploymentEnvironment" },
+    "engine": { "$ref": "#/$defs/RequiredEngine" },
+    "method": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/MethodIdentity" },
+    "strategy": { "$ref": "#/$defs/StrategyRef" },
+    "conditions": { "$ref": "#/$defs/EvaluationConditions" },
+    "input": { "$ref": "#/$defs/EvaluationInputSource" },
+    "holdout_exclusions": {
+      "type": "array",
+      "maxItems": 3,
+      "items": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/HoldoutExclusion" }
+    }
+  },
+  "$defs": {
+    "RequiredEngine": {
+      "title": "RequiredEngine",
+      "description": "The engine identity the run requires. A worker whose running engine digest or operator set differs refuses the attempt.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine_digest", "operator_set"],
+      "properties": {
+        "engine_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "operator_set": { "type": "string", "enum": ["daily-long-only-seed@1"] }
+      }
+    },
+    "StrategyRef": {
+      "title": "StrategyRef",
+      "description": "The registered Strategy Version. artefact.digest is its strategy hash.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy_id", "version", "artefact"],
+      "properties": {
+        "strategy_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "version": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "artefact": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ArtefactRef" }
+      }
+    },
+    "EvaluationConditions": {
+      "title": "EvaluationConditions",
+      "description": "Registered conditions of the trial. plan_digest binds the evaluation plan recorded before any run. replay_of names the run whose result this run must reproduce for the deterministic replay check.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "cohort_policy", "suite_id", "plan_digest", "trial_id", "window_role", "cost_scenario"],
+      "properties": {
+        "profile": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/RecordRef" },
+        "cohort_policy": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/RecordRef" },
+        "suite_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "plan_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "trial_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "window_role": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/WindowRole" },
+        "cost_scenario": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/CostScenario" },
+        "replay_of": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" }
+      }
+    },
+    "EvaluationInputSource": {
+      "title": "EvaluationInputSource",
+      "oneOf": [{ "$ref": "#/$defs/FrozenInputSource" }, { "$ref": "#/$defs/ManifestInputSource" }]
+    },
+    "FrozenInputSource": {
+      "title": "FrozenInputSource",
+      "description": "A frozen evaluation-input/1, for a synthetic or S0 replay. input.digest is its input hash.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "input"],
+      "properties": {
+        "source": { "type": "string", "enum": ["INPUT_REFERENCE"] },
+        "input": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ArtefactRef" }
+      }
+    },
+    "ManifestInputSource": {
+      "title": "ManifestInputSource",
+      "description": "Everything the evaluate job needs to build evaluation-input/1 from a frozen dataset manifest: resolved windows and information cutoff from the evaluation plan, initial capital, the execution policy for this cost scenario and the seed. The job uploads the built input and reports its hash. The API checks that the built input repeats these values.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "manifest", "windows", "initial_capital", "policy", "seed"],
+      "properties": {
+        "source": { "type": "string", "enum": ["PROVIDER_MANIFEST"] },
+        "manifest": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ArtefactRef" },
+        "windows": { "$ref": "urn:openquant:schema:evaluation-input:1#/$defs/Windows" },
+        "initial_capital": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "policy": { "$ref": "urn:openquant:schema:evaluation-input:1#/$defs/ExecutionPolicy" },
+        "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 }
+      }
+    }
+  }
+}

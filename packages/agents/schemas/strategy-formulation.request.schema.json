@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:strategy-formulation.request:1",
+  "title": "StrategyFormulationRequest",
+  "description": "Frozen proposer request for the strategy-formulation role module (OQ-03 sections 3 and 4). It holds the inputs the model reads; the host-side agent-dispatch/1 carries identity, execution and the result route, and binds this request by its digest. Request assembly fills every field from trusted host context. The subject decides the proposal kind: a seed source, a registered parent or none.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "context", "subject", "evidence_refs", "supplied_methods"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["strategy-formulation.request/1"] },
+    "context": { "$ref": "urn:openquant:schema:role-common:1#/$defs/RoleContext" },
+    "subject": { "$ref": "#/$defs/FormulationSubject" },
+    "evidence_refs": { "type": "array", "maxItems": 64, "items": { "$ref": "urn:openquant:schema:role-common:1#/$defs/EvidenceItem" } },
+    "supplied_methods": { "type": "array", "maxItems": 256, "items": { "$ref": "urn:openquant:schema:role-common:1#/$defs/SuppliedMethod" } }
+  },
+  "$defs": {
+    "FormulationSubject": {
+      "title": "FormulationSubject",
+      "oneOf": [
+        { "$ref": "#/$defs/SeedTranslationSubject" },
+        { "$ref": "#/$defs/ControlledRevisionSubject" },
+        { "$ref": "#/$defs/NewFamilySubject" }
+      ]
+    },
+    "SeedTranslationSubject": {
+      "title": "SeedTranslationSubject",
+      "description": "Translate the source into a draft. Every source-to-draft difference and every unresolved assumption is declared.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proposal_kind", "source"],
+      "properties": {
+        "proposal_kind": { "type": "string", "enum": ["seed_translation"] },
+        "source": { "$ref": "urn:openquant:schema:role-common:1#/$defs/SourceText" }
+      }
+    },
+    "ControlledRevisionSubject": {
+      "title": "ControlledRevisionSubject",
+      "description": "Revise the registered parent. parent_hash is the application-owned hash of parent. claims are the source references, rationale, expected effect and requested tests recorded with the parent.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proposal_kind", "parent_hash", "parent"],
+      "properties": {
+        "proposal_kind": { "type": "string", "enum": ["controlled_revision"] },
+        "parent_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "parent": { "$ref": "urn:openquant:schema:strategy-artefact:1" },
+        "parent_claims": { "$ref": "urn:openquant:schema:strategy-formulation.result:1#/$defs/ProposalClaims" }
+      }
+    },
+    "NewFamilySubject": {
+      "title": "NewFamilySubject",
+      "description": "Assemble a new family from permitted operators. It has no parent and draws on the exploration budget.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proposal_kind"],
+      "properties": {
+        "proposal_kind": { "type": "string", "enum": ["new_family"] }
+      }
+    }
+  }
+}

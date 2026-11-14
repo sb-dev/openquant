@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:strategy-critique.request:1",
+  "title": "StrategyCritiqueRequest",
+  "description": "Frozen critic request for the strategy-critique role module (OQ-03 sections 3 and 4). It holds the inputs the model reads; the host-side agent-dispatch/1 carries identity, execution and the result route, and binds this request by its digest. The subject is a registered Strategy Version with its application-owned hash. An unregistered or malformed draft is never dispatched and gets no fabricated hash. Criticism follows registration and precedes evaluation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "context", "subject", "evidence_refs", "supplied_methods"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["strategy-critique.request/1"] },
+    "context": { "$ref": "urn:openquant:schema:role-common:1#/$defs/RoleContext" },
+    "subject": { "$ref": "#/$defs/CritiqueSubject" },
+    "evidence_refs": { "type": "array", "maxItems": 64, "items": { "$ref": "urn:openquant:schema:role-common:1#/$defs/EvidenceItem" } },
+    "supplied_methods": { "type": "array", "maxItems": 256, "items": { "$ref": "urn:openquant:schema:role-common:1#/$defs/SuppliedMethod" } }
+  },
+  "$defs": {
+    "CritiqueSubject": {
+      "title": "CritiqueSubject",
+      "description": "The registered Strategy Version. strategy_hash is the hash the application assigned. A revision carries its parent hash and rule changes in strategy.parent. source_refs and claims are what was recorded with the version, when present.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy_hash", "strategy", "source_refs"],
+      "properties": {
+        "strategy_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "strategy": { "$ref": "urn:openquant:schema:strategy-artefact:1" },
+        "source_refs": {
+          "type": "array",
+          "maxItems": 64,
+          "items": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" }
+        },
+        "claims": { "$ref": "urn:openquant:schema:strategy-formulation.result:1#/$defs/ProposalClaims" }
+      }
+    }
+  }
+}

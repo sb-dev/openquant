@@ -1,0 +1,63 @@
+{
+  "schema_version": "retrieval-request/1",
+  "job_id": "job-aapl-retrieve-0001",
+  "attempt": {
+    "attempt_id": "att-aapl-retrieve-0001-1",
+    "ownership_revision": 1
+  },
+  "environment": "STAGING",
+  "profile": {
+    "id": "aapl-us-daily-sip",
+    "revision": 1,
+    "digest": "sha256:88d99561343c7c8f783fc9b932308f5d93d00e0898c779552756ab4d83e12cd8"
+  },
+  "instrument": {
+    "instrument_id": "alpaca:11111111-2222-4333-8444-555555555555",
+    "symbol": "AAPL",
+    "provider": "alpaca",
+    "provider_asset_id": "11111111-2222-4333-8444-555555555555",
+    "effective_from": "2022-01-03"
+  },
+  "operations": [
+    "provider:alpaca/daily_bars@1",
+    "provider:alpaca/corporate_actions@1",
+    "provider:alpaca/calendar@1"
+  ],
+  "range": {
+    "start": "2025-02-03",
+    "end": "2025-02-14"
+  },
+  "information_cutoff": "2025-02-14T23:00:00Z",
+  "semantics": {
+    "feed": "SIP",
+    "timeframe": "1Day",
+    "adjustment": "RAW",
+    "session_basis": "REGULAR_HOURS",
+    "currency": "USD",
+    "minimum_end_age_minutes": 15,
+    "bar_availability": {
+      "rule": "SESSION_CLOSE_PLUS_DELAY",
+      "delay_minutes": 120
+    },
+    "split_availability": {
+      "provider_field": "declaration_date",
+      "available_at": "EFFECTIVE_SESSION_OPEN",
+      "evidence": "DECLARED_BEFORE_EFFECTIVE_SESSION",
+      "when_unevidenced": "BLOCK_PROFILE"
+    },
+    "dividend_availability": {
+      "provider_field": "declaration_date",
+      "available_at": "EFFECTIVE_SESSION_OPEN",
+      "evidence": "DECLARED_BEFORE_EFFECTIVE_SESSION",
+      "when_unevidenced": "BLOCK_PROFILE"
+    }
+  },
+  "limits": {
+    "max_requests": 20,
+    "max_retries": 2,
+    "request_timeout_seconds": 30,
+    "max_response_bytes": 1048576
+  },
+  "deadline": "2026-11-14T10:15:00Z",
+  "fallback_feed": "IEX"
+}

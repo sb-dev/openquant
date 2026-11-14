@@ -1,0 +1,62 @@
+{
+  "schema_version": "retrieval-result/1",
+  "job_id": "job-aapl-retrieve-0001",
+  "attempt": {
+    "attempt_id": "att-aapl-retrieve-0001-1",
+    "ownership_revision": 1
+  },
+  "request_digest": "sha256:a7014091460cedf9e434aa6f5878dff5488ac40880dc38aca945e89c68dd4960",
+  "executable": {
+    "name": "engine-batch",
+    "version": "0.0.0",
+    "digest": "sha256:ad92f935e18aa56a512ccd4042258902fc3e51279ff52b21d7a7b1d9bea18adc"
+  },
+  "outcome": {
+    "status": "COMPLETE",
+    "manifest": {
+      "digest": "sha256:ea53f409c4a3f82b1153cdaf011d92ebf5f97b072204342972ccaa84ba633ad1",
+      "media_type": "application/json",
+      "size_bytes": 6294
+    }
+  },
+  "calls": [
+    {
+      "sequence": 1,
+      "operation": "provider:alpaca/calendar@1",
+      "started_at": "2026-11-14T10:01:00Z",
+      "result": "SUCCEEDED",
+      "http_status": 200
+    },
+    {
+      "sequence": 2,
+      "operation": "provider:alpaca/daily_bars@1",
+      "started_at": "2026-11-14T10:01:01Z",
+      "result": "SUCCEEDED",
+      "http_status": 200
+    },
+    {
+      "sequence": 3,
+      "operation": "provider:alpaca/corporate_actions@1",
+      "started_at": "2026-11-14T10:01:02Z",
+      "result": "SUCCEEDED",
+      "http_status": 200
+    }
+  ],
+  "usage": {
+    "provider_requests": {
+      "label": "observed",
+      "count": 3
+    },
+    "provider_credits": {
+      "label": "unknown",
+      "reason": "The provider reports no credit usage for market-data requests."
+    },
+    "duration": {
+      "label": "observed",
+      "milliseconds": 4120
+    }
+  },
+  "started_at": "2026-11-14T10:01:00Z",
+  "finished_at": "2026-11-14T10:01:05Z",
+  "bars": []
+}

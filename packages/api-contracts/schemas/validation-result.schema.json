@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:validation-result:1",
+  "title": "ValidationResult",
+  "description": "Outcome of one Rust validate job attempt (OQ-02 section 4). It runs the shared strategy validator, checks that the longest lookback fits the cohort warm-up and recomputes the leaf difference from the parent. A draft that fails validation receives diagnostics, not critique, and no Strategy Version is registered from it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "job_id", "attempt", "executable", "engine_digest", "method", "strategy_hash", "outcome"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["validation-result/1"] },
+    "job_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "attempt": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/AttemptBinding" },
+    "executable": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ExecutableIdentity" },
+    "engine_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+    "method": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/MethodIdentity" },
+    "strategy_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+    "parent_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+    "outcome": { "$ref": "#/$defs/ValidationOutcome" }
+  },
+  "$defs": {
+    "ValidationOutcome": {
+      "title": "ValidationOutcome",
+      "oneOf": [{ "$ref": "#/$defs/ValidDefinition" }, { "$ref": "#/$defs/InvalidDefinition" }]
+    },
+    "ValidDefinition": {
+      "title": "ValidDefinition",
+      "description": "computed_changes is the leaf difference from the parent that Rust computed; it equals the declared changes. It is empty when the version has no parent.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "max_lookback_sessions", "warmup_sessions", "computed_changes"],
+      "properties": {
+        "status": { "type": "string", "enum": ["VALID"] },
+        "max_lookback_sessions": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "warmup_sessions": { "type": "integer", "minimum": 1, "maximum": 400 },
+        "computed_changes": {
+          "type": "array",
+          "maxItems": 32,
+          "items": { "$ref": "urn:openquant:schema:strategy-artefact:1#/$defs/StrategyChange" }
+        }
+      }
+    },
+    "InvalidDefinition": {
+      "title": "InvalidDefinition",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "diagnostics"],
+      "properties": {
+        "status": { "type": "string", "enum": ["INVALID"] },
+        "diagnostics": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/ValidationDiagnostic" } }
+      }
+    },
+    "ValidationDiagnostic": {
+      "title": "ValidationDiagnostic",
+      "description": "pointer is a JSON Pointer into the strategy artefact, or empty for the whole artefact.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "pointer", "detail"],
+      "properties": {
+        "code": { "$ref": "#/$defs/ValidationCode" },
+        "pointer": { "type": "string", "maxLength": 256 },
+        "detail": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "ValidationCode": {
+      "title": "ValidationCode",
+      "description": "Strategy failure codes of the shared validator, plus the derived checks. LOOKBACK_EXCEEDS_WARMUP: the longest lookback is longer than the warm-up. LINEAGE_MISMATCH: the declared changes differ from the computed leaf difference. IDENTITY_MISMATCH: a hash does not match its artefact.",
+      "type": "string",
+      "enum": [
+        "UNSUPPORTED_SCHEMA_VERSION",
+        "SCHEMA_VIOLATION",
+        "INVALID_DECIMAL",
+        "UNSUPPORTED_OPERATOR",
+        "OPERATOR_TYPE_MISMATCH",
+        "OPERATOR_UNIT_MISMATCH",
+        "INVALID_PARAMETER",
+        "IDENTITY_MISMATCH",
+        "LOOKBACK_EXCEEDS_WARMUP",
+        "LINEAGE_MISMATCH"
+      ]
+    }
+  }
+}

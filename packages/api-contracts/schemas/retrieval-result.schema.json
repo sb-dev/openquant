@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:retrieval-result:1",
+  "title": "RetrievalResult",
+  "description": "Outcome of one retrieve job attempt (OQ-05 section 7.1). It distinguishes a complete or partial snapshot, no observations and failure. Every provider request is recorded, billed or not. A retrieval result is never an official numerical result.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "job_id", "attempt", "request_digest", "executable", "outcome", "calls", "usage", "started_at", "finished_at"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["retrieval-result/1"] },
+    "job_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "attempt": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/AttemptBinding" },
+    "request_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+    "executable": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ExecutableIdentity" },
+    "outcome": { "$ref": "#/$defs/RetrievalOutcome" },
+    "calls": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/ProviderCall" } },
+    "usage": { "$ref": "#/$defs/RetrievalUsage" },
+    "started_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+    "finished_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" }
+  },
+  "$defs": {
+    "RetrievalOutcome": {
+      "title": "RetrievalOutcome",
+      "oneOf": [{ "$ref": "#/$defs/RetrievalSnapshot" }, { "$ref": "#/$defs/RetrievalFailure" }]
+    },
+    "RetrievalSnapshot": {
+      "title": "RetrievalSnapshot",
+      "description": "A frozen dataset-manifest/1 was uploaded. Its coverage repeats status; PARTIAL and NO_OBSERVATIONS are visible outcomes, not failures.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "manifest"],
+      "properties": {
+        "status": { "type": "string", "enum": ["COMPLETE", "PARTIAL", "NO_OBSERVATIONS"] },
+        "manifest": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ArtefactRef" }
+      }
+    },
+    "RetrievalFailure": {
+      "title": "RetrievalFailure",
+      "description": "No snapshot. Authentication, permission and unsupported-capability errors are never retried as transient. retry_after_seconds preserves a provider Retry-After value when present.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "error", "retryable", "detail"],
+      "properties": {
+        "status": { "type": "string", "enum": ["FAILED"] },
+        "error": { "$ref": "#/$defs/RetrievalErrorClass" },
+        "retryable": { "type": "boolean" },
+        "retry_after_seconds": { "type": "integer", "minimum": 0, "maximum": 86400 },
+        "detail": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "RetrievalErrorClass": {
+      "title": "RetrievalErrorClass",
+      "description": "Provider error classes (OQ-05 section 7.1). EGRESS_REFUSED: the egress allowlist refused a host, method, path or redirect.",
+      "type": "string",
+      "enum": [
+        "AUTHENTICATION",
+        "PERMISSION",
+        "RATE_LIMITED",
+        "TIMEOUT",
+        "UNAVAILABLE_DATA",
+        "UNSUPPORTED_CAPABILITY",
+        "MALFORMED_RESPONSE",
+        "CANCELLED",
+        "EGRESS_REFUSED"
+      ]
+    },
+    "ProviderCall": {
+      "title": "ProviderCall",
+      "description": "One provider request. http_status is absent when no response arrived. error is present when the call failed.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "operation", "started_at", "result"],
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "operation": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ProviderCapabilityRef" },
+        "started_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "result": { "type": "string", "enum": ["SUCCEEDED", "FAILED"] },
+        "http_status": { "type": "integer", "minimum": 100, "maximum": 599 },
+        "error": { "$ref": "#/$defs/RetrievalErrorClass" }
+      }
+    },
+    "RetrievalUsage": {
+      "title": "RetrievalUsage",
+      "description": "Provider requests and credits consumed, and the job duration. Unknown billed usage stays reserved.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_requests", "provider_credits", "duration"],
+      "properties": {
+        "provider_requests": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/CountUsage" },
+        "provider_credits": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/CountUsage" },
+        "duration": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DurationUsage" }
+      }
+    }
+  }
+}

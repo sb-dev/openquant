@@ -1,0 +1,11 @@
+{
+  "schema_version": "command/1",
+  "form": "request",
+  "command_id": "cmd-0a1b2c3d-0005",
+  "expected_revision": 1,
+  "issued_at": "2026-11-14T09:45:00Z",
+  "payload": {
+    "kind": "run_mission_now",
+    "mission_id": "msn-aapl-0001"
+  }
+}

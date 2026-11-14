@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:agent-attempt-result:1",
+  "title": "AgentAttemptResult",
+  "description": "Host-captured record of one agent attempt (OQ-03 sections 3 to 5). The runner records provenance, outcome and usage. The model writes only the role output; the runner parses it with the shared validator and uploads it as an immutable artefact before it posts this record, which carries it by digest. The model never sees or writes this envelope. A valid adverse finding is a completion.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "attempt", "provenance", "outcome", "usage", "started_at", "finished_at"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["agent-attempt-result/1"] },
+    "attempt": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/AttemptBinding" },
+    "provenance": { "$ref": "#/$defs/AgentProvenance" },
+    "outcome": { "$ref": "#/$defs/AgentOutcome" },
+    "usage": { "$ref": "#/$defs/AgentUsage" },
+    "started_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+    "finished_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" }
+  },
+  "$defs": {
+    "AgentProvenance": {
+      "title": "AgentProvenance",
+      "description": "session_id is the fresh executor session. input_hash and bundle_hash are the request and bundle actually used; each must match the dispatch. executor_version, model and effort are the actual values, or unknown when the executor does not report them. runner is the host executable.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session_id", "input_hash", "bundle_hash", "executor_version", "model", "effort", "runner"],
+      "properties": {
+        "session_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "input_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "bundle_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "executor_version": { "$ref": "#/$defs/ReportedName" },
+        "model": { "$ref": "#/$defs/ReportedName" },
+        "effort": { "$ref": "#/$defs/ReportedName" },
+        "runner": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ExecutableIdentity" }
+      }
+    },
+    "ReportedName": {
+      "title": "ReportedName",
+      "oneOf": [{ "$ref": "#/$defs/ReportedNameValue" }, { "$ref": "#/$defs/UnreportedName" }]
+    },
+    "ReportedNameValue": {
+      "title": "ReportedNameValue",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "value"],
+      "properties": {
+        "status": { "type": "string", "enum": ["reported"] },
+        "value": { "type": "string", "maxLength": 100, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/\\[\\]-]{0,99}$" }
+      }
+    },
+    "UnreportedName": {
+      "title": "UnreportedName",
+      "description": "Nothing reported the value. It is never inferred from the requested profile.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["unknown"] }
+      }
+    },
+    "AgentOutcome": {
+      "title": "AgentOutcome",
+      "description": "Exactly one of the seven attempt outcomes of OQ-03 section 4. Tool-call outcomes are not attempt outcomes. Only completion carries role output.",
+      "oneOf": [
+        { "$ref": "#/$defs/AgentCompletion" },
+        { "$ref": "#/$defs/AgentRefusal" },
+        { "$ref": "#/$defs/AgentMalformedResult" },
+        { "$ref": "#/$defs/AgentDeniedCapability" },
+        { "$ref": "#/$defs/AgentAuthenticationFailure" },
+        { "$ref": "#/$defs/AgentCancellation" },
+        { "$ref": "#/$defs/AgentTimeout" }
+      ]
+    },
+    "AgentCompletion": {
+      "title": "AgentCompletion",
+      "description": "The role output passed the shared validator. output is the uploaded role result; the API parses it again before any guarded write.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "output"],
+      "properties": {
+        "outcome": { "type": "string", "enum": ["completion"] },
+        "output": { "$ref": "#/$defs/RoleOutputRef" }
+      }
+    },
+    "RoleOutputRef": {
+      "title": "RoleOutputRef",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract", "artefact"],
+      "properties": {
+        "contract": { "type": "string", "enum": ["strategy-formulation.result/1", "strategy-critique.result/1"] },
+        "artefact": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ArtefactRef" }
+      }
+    },
+    "AgentRefusal": {
+      "title": "AgentRefusal",
+      "description": "The model declined the task.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "diagnostic"],
+      "properties": {
+        "outcome": { "type": "string", "enum": ["refusal"] },
+        "diagnostic": { "$ref": "#/$defs/AgentDiagnostic" }
+      }
+    },
+    "AgentMalformedResult": {
+      "title": "AgentMalformedResult",
+      "description": "Final output failed validation. SCHEMA_INVALID covers unknown fields, missing fields, unknown categories and wrong types. REFERENCE_INVALID covers a cited method, source, evidence or element absent from the request. IDENTITY_MISMATCH covers a session, input or bundle that differs from the dispatch.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "reason", "diagnostic"],
+      "properties": {
+        "outcome": { "type": "string", "enum": ["malformed_result"] },
+        "reason": { "type": "string", "enum": ["NOT_JSON", "SCHEMA_INVALID", "REFERENCE_INVALID", "RULE_CHANGES_MISMATCH", "IDENTITY_MISMATCH", "OUTPUT_LIMIT_EXCEEDED"] },
+        "diagnostic": { "$ref": "#/$defs/AgentDiagnostic" }
+      }
+    },
+    "AgentDeniedCapability": {
+      "title": "AgentDeniedCapability",
+      "description": "The host denied a capability, the executable is missing, execution is disabled or a required capability is unsupported. No model success is recorded.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "reason", "diagnostic"],
+      "properties": {
+        "outcome": { "type": "string", "enum": ["denied_capability"] },
+        "reason": { "type": "string", "enum": ["EXECUTION_DISABLED", "EXECUTABLE_MISSING", "CAPABILITY_UNSUPPORTED", "CAPABILITY_DENIED", "BUNDLE_MISMATCH"] },
+        "diagnostic": { "$ref": "#/$defs/AgentDiagnostic" }
+      }
+    },
+    "AgentAuthenticationFailure": {
+      "title": "AgentAuthenticationFailure",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "reason", "diagnostic"],
+      "properties": {
+        "outcome": { "type": "string", "enum": ["authentication_failure"] },
+        "reason": { "type": "string", "enum": ["CREDENTIAL_MISSING", "CREDENTIAL_REJECTED"] },
+        "diagnostic": { "$ref": "#/$defs/AgentDiagnostic" }
+      }
+    },
+    "AgentCancellation": {
+      "title": "AgentCancellation",
+      "description": "The host terminated the process tree on cancellation. It does not prove that a remote request stopped or cost nothing.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "diagnostic"],
+      "properties": {
+        "outcome": { "type": "string", "enum": ["cancellation"] },
+        "diagnostic": { "$ref": "#/$defs/AgentDiagnostic" }
+      }
+    },
+    "AgentTimeout": {
+      "title": "AgentTimeout",
+      "description": "The host terminated the process tree at the deadline.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "diagnostic"],
+      "properties": {
+        "outcome": { "type": "string", "enum": ["timeout"] },
+        "diagnostic": { "$ref": "#/$defs/AgentDiagnostic" }
+      }
+    },
+    "AgentDiagnostic": {
+      "title": "AgentDiagnostic",
+      "description": "Bounded diagnostic without credentials or full sensitive context.",
+      "type": "string",
+      "maxLength": 2000
+    },
+    "AgentUsage": {
+      "title": "AgentUsage",
+      "description": "Usage captured by the host. Claude Code cost is estimated. A missing report is unknown and keeps the full reservation.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cost", "duration", "input_tokens", "output_tokens"],
+      "properties": {
+        "cost": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/CostUsage" },
+        "duration": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DurationUsage" },
+        "input_tokens": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/CountUsage" },
+        "output_tokens": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/CountUsage" }
+      }
+    }
+  }
+}
