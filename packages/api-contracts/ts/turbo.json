@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../node_modules/turbo/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "typecheck": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/api-contracts/schemas/**"],
+      "outputs": ["dist/generated/**"]
+    },
+    "lint": {
+      "inputs": ["$TURBO_DEFAULT$"]
+    },
+    "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/api-contracts/schemas/**",
+        "$TURBO_ROOT$/packages/api-contracts/routes/**",
+        "$TURBO_ROOT$/packages/api-contracts/rust/src/**",
+        "$TURBO_ROOT$/fixtures/protocol/**",
+        "$TURBO_ROOT$/fixtures/s0/**",
+        "$TURBO_ROOT$/local-runs/contracts/report.json"
+      ],
+      "outputs": ["dist/generated/**"]
+    },
+    "build": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/api-contracts/schemas/**"],
+      "outputs": ["dist/generated/**"]
+    }
+  }
+}

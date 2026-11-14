@@ -9,4 +9,4 @@ Keep these four package boundaries. API-only modules remain in `apps/api`.
 | [agents](agents/README.md) | Versioned proposer/critic behaviour | M1 (pre-S0 draft assets; role modules S1) |
 | [quant-core](quant-core/README.md) | Shared Rust numerical library | M1/S0 |
 
-S0 added Rust code under `quant-core` and `api-contracts/rust` (the generated bindings crate); the other directories are reserved and their executable packages are not implemented. `packages/agents` holds non-executable draft assets checked by repository tooling.
+S0 added Rust code under `quant-core` and `api-contracts/rust` (the generated bindings crate). S1 adds the TypeScript package `api-contracts/ts`, the first entry of the pnpm workspace. The other directories are reserved and their executable packages are not implemented. `packages/agents` holds non-executable draft assets checked by repository tooling.
