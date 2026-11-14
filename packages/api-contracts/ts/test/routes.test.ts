@@ -4,7 +4,13 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { type ContractFailureCode, contracts, isContractName, MAX_PAYLOAD_BYTES } from '../src/index.ts';
+import {
+  type ContractFailureCode,
+  contracts,
+  isContractName,
+  MAX_PAYLOAD_BYTES,
+  workerBodyLimit,
+} from '../src/index.ts';
 import { repositoryRoot } from './support/manifest.ts';
 
 interface Body {
@@ -59,21 +65,31 @@ test('the contract-layer codes are 400 errors of every route manifest', () => {
   expect(Object.keys(contracts)).toContain('api-error');
 });
 
-test('a route whose request contract has no value bound limits its body', () => {
-  for (const route of manifest.routes) {
+test('every route with a request body limits it to the Worker byte limit of its contract', () => {
+  expect(manifest.error_status.LIMIT_EXCEEDED).toBe(413);
+  const withBody = manifest.routes.filter((route) => route.request.kind !== 'none');
+  expect(withBody.map((route) => route.request.kind).sort()).toContain('bytes');
+  for (const route of withBody) {
     const name = route.request.contract;
-    if (route.request.kind !== 'contract' || name === undefined || !isContractName(name)) continue;
-    if (contracts[name].maxValues !== null) continue;
-    // test/memory.test.ts parses a dense body of this size under a 128 MB heap.
-    expect(route.max_body_bytes, route.id).toBeLessThanOrEqual(1024 * 1024);
+    // test/memory.test.ts parses the densest bodies of each contract at its limit within 64 MiB.
+    // A bytes body is hashed and stored, not parsed.
+    const limit =
+      route.request.kind === 'bytes'
+        ? MAX_PAYLOAD_BYTES
+        : name !== undefined && isContractName(name)
+          ? workerBodyLimit(name)
+          : undefined;
+    expect(limit, `${route.id}: ${route.request.kind} ${name}`).toBeDefined();
+    expect(route.max_body_bytes, route.id).toBe(limit);
     expect(route.errors, route.id).toContain('LIMIT_EXCEEDED');
   }
   for (const route of manifest.routes) {
-    if (route.max_body_bytes === undefined) continue;
-    expect(route.max_body_bytes, route.id).toBeGreaterThan(0);
-    expect(route.max_body_bytes, route.id).toBeLessThanOrEqual(MAX_PAYLOAD_BYTES);
-    expect(manifest.error_status.LIMIT_EXCEEDED).toBe(413);
+    if (route.request.kind === 'none') expect(route.max_body_bytes, route.id).toBeUndefined();
   }
+  // The routes that accept command/1, which holds a recursive Expr tree, get the small limit.
+  const commandRoutes = withBody.filter((route) => route.request.contract === 'command');
+  expect(commandRoutes.length).toBeGreaterThan(0);
+  for (const route of commandRoutes) expect(route.max_body_bytes, route.id).toBe(512 * 1024);
 });
 
 // OQ-04 §5: the CLI shows each candidate's D, V and H runs with the base and cost-stress cases,

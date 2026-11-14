@@ -20,9 +20,12 @@
 // of heap, far more than a 128 MB Worker isolate. `scanStrictJson` therefore takes a value bound: the
 // parser builds at most that many values. Past the bound it still reads the whole text and applies
 // every rule above, so a strict-JSON error anywhere is still reported, but it keeps only the
-// top-level schema_version member, which the version check needs. Object keys past the bound are
-// held as a hash and a text offset, not as strings. The contract layer sets the bound from the
-// contract's schema so that only an invalid document can exceed it (validate.ts).
+// top-level schema_version member, which the version check needs; it keeps that member also when
+// its own value is the one that passes the bound. Object keys past the bound are held as a hash and
+// a text offset, not as strings. The contract layer sets the bound from the contract's schema so
+// that only an invalid document can exceed it (validate.ts). The values it does build are compact:
+// each array is copied off a shared stack at its exact length, and a string with escapes is decoded
+// in one piece. The Worker byte limit of each contract bounds the rest (validate.ts).
 
 import { utf8, utf8Length } from './platform.ts';
 
@@ -159,6 +162,8 @@ class Parser {
   private readonly bound: number;
   private readonly seed = (Math.random() * 0x100000000) | 0;
   private index = 0;
+  /** The items of the arrays being read, innermost last (see `parseArray`). */
+  private readonly stack: JsonValue[] = [];
   private depth = 0;
   private values = 0;
   /** False once more than `bound` values were read. Values are then checked, not built. */
@@ -232,17 +237,20 @@ class Parser {
 
   parseArray(): JsonValue[] {
     this.enter();
-    const items: JsonValue[] = [];
     this.skipWhitespace();
     if (this.text.charCodeAt(this.index) === 0x5d) {
       this.index += 1;
       this.depth -= 1;
-      return items;
+      return [];
     }
+    // Items collect on the shared stack. The array is then copied off it at its exact length:
+    // V8 gives an array that grows by push room for at least 16 items, so `[[[…[0]…]]]` would
+    // take about 100 bytes of heap for each byte of text instead of about 35.
+    const start = this.stack.length;
     for (;;) {
       this.skipWhitespace();
       const item = this.parseValue();
-      if (this.building) items.push(item);
+      if (this.building) this.stack.push(item);
       this.skipWhitespace();
       const code = this.text.charCodeAt(this.index);
       this.index += 1;
@@ -250,6 +258,8 @@ class Parser {
       if (code !== 0x2c) this.fail('json', 'expected , or ] in an array');
     }
     this.depth -= 1;
+    const items = this.stack.slice(start);
+    this.stack.length = start;
     return items;
   }
 
@@ -277,14 +287,16 @@ class Parser {
       if (this.text.charCodeAt(this.index) !== 0x3a) this.fail('json', 'expected : after a key');
       this.index += 1;
       this.skipWhitespace();
-      // The version check needs the top-level schema_version even past the bound. A string is
-      // kept as read; any other value stands for itself as a non-string.
-      const keep = root && key === 'schema_version' && !this.building;
+      // The version check needs the top-level schema_version wherever it is, also when its own
+      // value is the one that passes the bound. A string value is always read and stored; it
+      // counts as a value like any other. Another value past the bound is stored as null, a
+      // non-string.
+      const keep = root && key === 'schema_version';
       const value = keep && this.text.charCodeAt(this.index) === 0x22 ? this.keptString() : this.parseValue();
       if (this.building || keep) {
         // An own property even for __proto__, as JSON.parse does.
         Object.defineProperty(out, key, {
-          value: keep && typeof value !== 'string' ? null : value,
+          value: !this.building && typeof value !== 'string' ? null : value,
           enumerable: true,
           writable: true,
           configurable: true,
@@ -304,9 +316,10 @@ class Parser {
     return out;
   }
 
-  /** A string value that is kept although the bound was passed. It still counts as a value. */
+  /** A string value that is kept even when it passes the bound. It counts as a value. */
   keptString(): string {
     this.values += 1;
+    if (this.values > this.bound) this.building = false;
     return this.parseString(true);
   }
 
@@ -319,17 +332,13 @@ class Parser {
 
   /** Read a string. When `keep` is false it is checked and an empty string is returned. */
   parseString(keep: boolean): string {
+    const open = this.index;
     this.index += 1;
-    let out = '';
-    let start = this.index;
+    let escaped = false;
     for (;;) {
       const code = this.text.charCodeAt(this.index);
       if (Number.isNaN(code)) this.fail('json', 'end of text while parsing a string');
-      if (code === 0x22) {
-        if (keep) out += this.text.slice(start, this.index);
-        this.index += 1;
-        return out;
-      }
+      if (code === 0x22) break;
       if (code < 0x20) this.fail('json', 'control character in a string');
       if (isHigh(code)) {
         if (!isLow(this.text.charCodeAt(this.index + 1))) this.fail('json', 'lone surrogate in a string');
@@ -337,52 +346,48 @@ class Parser {
         continue;
       }
       if (isLow(code)) this.fail('json', 'lone surrogate in a string');
-      if (code !== 0x5c) {
-        this.index += 1;
-        continue;
-      }
-      if (keep) out += this.text.slice(start, this.index);
       this.index += 1;
-      const escaped = this.parseEscape();
-      if (keep) out += escaped;
-      start = this.index;
+      if (code === 0x5c) {
+        this.checkEscape();
+        escaped = true;
+      }
     }
+    this.index += 1;
+    if (!keep) return '';
+    if (!escaped) return this.text.slice(open + 1, this.index - 1);
+    // JSON.parse decodes the literal checked above into one flat string. Appending each decoded
+    // escape instead builds a chain of string parts: 16 MiB of escapes would take about 256 MB.
+    return JSON.parse(this.text.slice(open, this.index)) as string;
   }
 
-  parseEscape(): string {
+  /** Check one escape after its backslash. */
+  checkEscape(): void {
     const code = this.text.charCodeAt(this.index);
     this.index += 1;
     switch (code) {
       case 0x22:
-        return '"';
       case 0x5c:
-        return '\\';
       case 0x2f:
-        return '/';
       case 0x62:
-        return '\b';
       case 0x66:
-        return '\f';
       case 0x6e:
-        return '\n';
       case 0x72:
-        return '\r';
       case 0x74:
-        return '\t';
+        return;
       case 0x75: {
         const unit = this.hexEscape();
         if (isLow(unit)) this.fail('json', 'lone surrogate in a \\u escape');
-        if (!isHigh(unit)) return String.fromCharCode(unit);
+        if (!isHigh(unit)) return;
         if (this.text.charCodeAt(this.index) !== 0x5c || this.text.charCodeAt(this.index + 1) !== 0x75) {
           this.fail('json', 'unexpected end of a surrogate pair escape');
         }
         this.index += 2;
         const low = this.hexEscape();
         if (!isLow(low)) this.fail('json', 'lone surrogate in a \\u escape');
-        return String.fromCharCode(unit, low);
+        return;
       }
       default:
-        return this.fail('json', 'invalid escape');
+        this.fail('json', 'invalid escape');
     }
   }
 

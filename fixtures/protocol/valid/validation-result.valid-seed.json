@@ -20,9 +20,7 @@
   "outcome": {
     "status": "VALID",
     "max_lookback_sessions": 50,
-    "warmup_sessions": 60,
-    "computed_changes": [],
-    "change_scope": "NONE"
+    "warmup_sessions": 60
   },
   "duration": {
     "label": "observed",

@@ -124,6 +124,15 @@ describe('the scan past the bound', () => {
     expect(scan('[[1,2,3],{"schema_version":"x/1"}]').value).toEqual([]);
   });
 
+  test('keeps a top-level schema_version whose own value is the first past the bound', () => {
+    // The root, the array and its two items are the first four values; the version is the fifth.
+    const text = '{"a":[1,2],"schema_version":"x/1"}';
+    expect(scan(text, 5)).toEqual({ value: { a: [1, 2], schema_version: 'x/1' } });
+    expect(scan(text, 4)).toEqual({ value: { a: [1, 2], schema_version: 'x/1' }, exceededValueBound: 4 });
+    expect(scan('{"a":[1,2],"schema_version":7}', 4).value).toEqual({ a: [1, 2], schema_version: null });
+    expect(scan('{"a":[1,2],"schema_version":7}', 5).value).toEqual({ a: [1, 2], schema_version: 7 });
+  });
+
   test.each<[string, string, string]>([
     ['a duplicate key in a later object', '[0,0,0,{"a":1,"a":2}]', 'duplicate-key'],
     ['a duplicate key written with an escape', '[0,0,0,{"a":1,"\\u0061":2}]', 'duplicate-key'],

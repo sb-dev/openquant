@@ -57,7 +57,7 @@
   "$defs": {
     "CohortConditions": {
       "title": "CohortConditions",
-      "description": "Conditions every candidate in the cohort shares: capital, execution and base cost policy, cost stress, benchmarks, window rules, permitted operators and the scope of a controlled revision. revision_scope ENTRY_OR_EXIT: a controlled revision changes entry rules or exit rules, not both, classified by dependency as the change_scope of validation-result/1 (OQ-02 section 3.1); selection, sizing and execution changes are outside a controlled revision.",
+      "description": "Conditions every candidate in the cohort shares: capital, execution and base cost policy, cost stress, benchmarks, window rules, permitted operators and the scope of a controlled revision. revision_scope ENTRY_OR_EXIT: a controlled revision changes entry rules or exit rules, not both, classified by dependency as the change_scope of validation-result/1 (OQ-02 section 3.1); selection, sizing and execution changes, and changes to the operator set or the contract text, are outside a controlled revision, and validation rejects such a revision with REVISION_SCOPE.",
       "type": "object",
       "additionalProperties": false,
       "required": ["initial_capital", "execution_policy", "cost_stress", "benchmarks", "windows", "operators", "revision_scope"],
