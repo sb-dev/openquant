@@ -10,11 +10,20 @@ Package `@openquant/api-contracts`. It gives TypeScript code the shared contract
 
 `parseContract(contract, text)` takes JSON text or UTF-8 bytes. It applies the Rust checks in the Rust order:
 
-1. Strict JSON: at most 16 MiB, no duplicate key, no fraction or exponent, no `-0`, fewer than 128 nested arrays or objects.
+1. Strict JSON: at most 16 MiB of valid UTF-8, no duplicate key, no fraction or exponent, no `-0`, fewer than 128 nested arrays or objects.
 2. The version tag. A missing or non-string tag is `SCHEMA_VIOLATION`. Another tag is `UNSUPPORTED_SCHEMA_VERSION`.
 3. Integers above 2^53 − 1 in magnitude. TypeScript cannot hold them exactly, so they are `SCHEMA_VIOLATION`. Rust gives the same code, because no schema admits them.
-4. The schema. A failure of only the `Decimal` or `Exact` pattern is `INVALID_DECIMAL`. Any other failure is `SCHEMA_VIOLATION`. An `Exact` text longer than 80 characters fails `maxLength`, so it is `SCHEMA_VIOLATION`.
-5. An invalid document beyond the structural limits of `rust/src/limits.rs` is `SCHEMA_VIOLATION`.
+4. The value bound: a document with more values than the contract's bound is `SCHEMA_VIOLATION` (below).
+5. The schema. A failure of only the `Decimal` or `Exact` pattern is `INVALID_DECIMAL`. Any other failure is `SCHEMA_VIOLATION`. An `Exact` text longer than 80 characters fails `maxLength`, so it is `SCHEMA_VIOLATION`.
+6. An invalid document beyond the structural limits of `rust/src/limits.rs` is `SCHEMA_VIOLATION`.
+
+## Value bound
+
+A dense 16 MiB body, such as `[{},{},…]`, needs several hundred MB of heap when every value is built, and a Worker isolate has 128 MB. The parse therefore builds at most `valueBound(contract)` values: the larger of the contract's `maxValues`, the most values a schema-valid document can hold, and the 20,000-value structural limit. `tools/generate.ts` derives `maxValues` from the bundled schema; it is an over-approximation, so no valid document reaches the bound. Above the bound a document is invalid and has more than 20,000 values, so Rust rejects it with `SCHEMA_VIOLATION` as well.
+
+Past the bound the parser stops building values. It still reads the whole text with every strict-JSON rule, holds later object keys as a hash and a text offset, and keeps the top-level `schema_version`. A strict-JSON error or a wrong version tag anywhere therefore gets the same code as in Rust. `test/memory.test.ts` parses dense 16 MiB bodies in a child process limited to a 128 MB heap.
+
+`strategy-artefact` and `command` hold a recursive `Expr` tree, so their schemas give no bound (`maxValues` is `null`). The routes that accept `command/1` limit the request body to 1 MiB (`max_body_bytes` in `routes/v1.json`).
 
 `validateContract` checks a value built in code through its canonical text. `canonicalJson` and `digest` match `rust/src/canonical.rs` byte for byte. The digest uses WebCrypto and returns `sha256:<hex>`.
 

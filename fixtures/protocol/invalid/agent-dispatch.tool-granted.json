@@ -53,7 +53,7 @@
           "start": "2024-01-02",
           "end": "2024-12-31"
         },
-        "label": "validation window; agent context holds development results only"
+        "label": "historical window within model training period"
       },
       {
         "window": "HOLDOUT",
@@ -61,7 +61,7 @@
           "start": "2025-01-02",
           "end": "2025-12-31"
         },
-        "label": "historical holdout within model training period"
+        "label": "historical window within model training period"
       }
     ]
   },

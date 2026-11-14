@@ -40,6 +40,13 @@ pub use strict::parse_json;
 ///
 /// A panic, an index or a float operation in newly generated code still fails
 /// `cargo clippy -- -D warnings`.
+///
+/// The bindings accept at least every schema-valid payload, and sometimes more: typify ignores
+/// `not`, so the bindings do not enforce the non-negative amounts, the stress multiplier, the
+/// retryable classes or the once-per-gate rule. [`parse`] validates the schema before it binds, so
+/// those rules still hold. typify also skips an empty optional `Vec` when it serialises, so every
+/// optional array in the schemas has `minItems: 1` and [`payload_digest`] of a bound payload equals
+/// the digest of the parsed one (tests/registry.rs).
 #[allow(clippy::unwrap_used, clippy::large_enum_variant)]
 pub mod generated {
     include!(concat!(env!("OUT_DIR"), "/generated.rs"));

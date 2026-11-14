@@ -23,7 +23,7 @@
       "cohort_policy": {
         "id": "s1-aapl-daily-swing",
         "revision": 1,
-        "digest": "sha256:0e8ea5f12262374def68a65011850ff52e6867a8963f6dd4f95970436b1b5482"
+        "digest": "sha256:da04f3c489c7804cf5bcf73cdfe617148d4917ff321e0a481530fef1a134edd3"
       },
       "budget": {
         "candidates": 3,
@@ -31,16 +31,30 @@
         "revisions_per_proposer": 2,
         "new_families": 0,
         "model_spend": {
-          "amount": "50.00",
+          "amount": "105.00",
           "currency": "USD"
         },
         "model_spend_per_attempt": {
           "amount": "5.00",
           "currency": "USD"
         },
+        "proposer_allowance": {
+          "model_spend": {
+            "amount": "30.00",
+            "currency": "USD"
+          },
+          "agent_attempts": 6
+        },
+        "critic_allowance": {
+          "model_spend": {
+            "amount": "45.00",
+            "currency": "USD"
+          },
+          "agent_attempts": 9
+        },
         "provider_requests": 60,
         "batch_compute_seconds": 7200,
-        "agent_compute_seconds": 7200,
+        "agent_compute_seconds": 18900,
         "attempt_cap": 3
       },
       "seed_draft_digest": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",

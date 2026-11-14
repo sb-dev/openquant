@@ -6,7 +6,9 @@
 //
 // - bundle.json: the bundled schema;
 // - types.ts: TypeScript types (json-schema-to-typescript);
-// - contracts.ts: the contract table, the type map and the decimal grammar constants;
+// - contracts.ts: the contract table, the type map and the decimal grammar constants. Each contract
+//   carries maxValues, the most JSON values a document valid against it can hold (null when the
+//   schema gives no finite bound); the parser's value bound derives from it (src/validate.ts);
 // - validators-first.js and validators-all.js: Ajv standalone ESM validators that stop at the first
 //   error or report all errors, with their .d.ts files.
 //
@@ -34,6 +36,8 @@ export interface Contract {
   readonly schemaId: string;
   readonly versionTag: string;
   readonly typeName: string;
+  /** The most values of a valid document, or null when the schema gives no finite bound. */
+  readonly maxValues: number | null;
 }
 
 export interface Bundle {
@@ -163,9 +167,14 @@ export function bundleSchemas(sources: readonly SchemaSource[]): Bundle {
     if (tags.some((tag) => tag !== versionTag)) {
       fail(`${source.file}: every form must fix schema_version to ${JSON.stringify(versionTag)}`);
     }
-    contracts.push({ name: source.name, schemaId: source.id, versionTag, typeName: source.title });
+    contracts.push({ name: source.name, schemaId: source.id, versionTag, typeName: source.title, maxValues: null });
   }
   if (contracts.length === 0) fail('no contract roots found');
+  const definitions = Object.fromEntries(defs);
+  const bounded = contracts.map((c) => {
+    const values = maxValues(definitions, { $ref: `#/$defs/${c.typeName}` });
+    return { ...c, maxValues: Number.isFinite(values) ? values : null };
+  });
   const exactMaxLength = defs.get('Exact');
   const maxLength = isObject(exactMaxLength) ? exactMaxLength.maxLength : undefined;
   if (typeof maxLength !== 'number') fail('definition Exact needs maxLength');
@@ -176,17 +185,93 @@ export function bundleSchemas(sources: readonly SchemaSource[]): Bundle {
       title: 'OpenQuantContracts',
       $defs: Object.fromEntries(defs),
     },
-    contracts,
+    contracts: bounded,
     decimalPattern: stringField(defs, 'Decimal', 'pattern'),
     exactPattern: stringField(defs, 'Exact', 'pattern'),
     exactMaxLength: maxLength,
   };
 }
 
+// The JSON values of a literal: the value itself and every value inside it.
+function valuesOf(value: Json): number {
+  if (Array.isArray(value)) return 1 + value.reduce<number>((sum, item) => sum + valuesOf(item), 0);
+  if (isObject(value)) return 1 + Object.values(value).reduce<number>((sum, item) => sum + valuesOf(item), 0);
+  return 1;
+}
+
+/**
+ * The most JSON values (objects, arrays and scalars, the root included) that a document valid
+ * against `schema` can hold, or Infinity when the schema gives no finite bound. The bound is an
+ * over-approximation, never an under-approximation:
+ *
+ * - an object counts itself and every property, as if all were present, and is bounded only when
+ *   additionalProperties is false and there are no patternProperties;
+ * - an array counts itself and maxItems copies of its items, and is bounded only with maxItems and
+ *   items (and no prefixItems);
+ * - a scalar type counts 1, and enum and const count their largest literal;
+ * - a value must satisfy every keyword of a schema, so $ref, type, enum, const and each allOf part
+ *   each bound it and the smallest bound holds; oneOf and anyOf bound it by their largest branch;
+ * - not, if, then, else and contains only remove documents, so they are ignored;
+ * - a schema with none of these keywords, or a $ref back into a definition being bounded (a
+ *   recursive schema such as Expr), is unbounded.
+ */
+export function maxValues(defs: JsonObject, schema: Json, stack: readonly string[] = []): number {
+  if (schema === true) return Number.POSITIVE_INFINITY;
+  if (schema === false) return 0;
+  if (!isObject(schema)) fail(`a schema must be an object or a boolean: ${JSON.stringify(schema)}`);
+  let bound = Number.POSITIVE_INFINITY;
+  const ref = schema.$ref;
+  if (typeof ref === 'string') {
+    const name = DEF_REF.exec(ref)?.[1];
+    if (name === undefined || !Object.hasOwn(defs, name)) fail(`unresolved reference ${ref}`);
+    if (stack.includes(name)) return Number.POSITIVE_INFINITY;
+    bound = Math.min(bound, maxValues(defs, defs[name] ?? null, [...stack, name]));
+  }
+  if (Array.isArray(schema.enum)) bound = Math.min(bound, Math.max(...schema.enum.map(valuesOf)));
+  if (Object.hasOwn(schema, 'const')) bound = Math.min(bound, valuesOf(schema.const ?? null));
+  if (schema.type !== undefined) {
+    const types = Array.isArray(schema.type) ? schema.type : [schema.type];
+    let typed = 0;
+    for (const type of types) {
+      if (type === 'object') {
+        const closed = schema.additionalProperties === false && schema.patternProperties === undefined;
+        const properties = isObject(schema.properties) ? Object.values(schema.properties) : [];
+        typed = Math.max(
+          typed,
+          closed
+            ? 1 + properties.reduce<number>((sum, property) => sum + maxValues(defs, property, stack), 0)
+            : Number.POSITIVE_INFINITY,
+        );
+      } else if (type === 'array') {
+        const { maxItems, items } = schema;
+        const bounded = typeof maxItems === 'number' && items !== undefined && schema.prefixItems === undefined;
+        typed = Math.max(
+          typed,
+          bounded ? 1 + (maxItems === 0 ? 0 : maxItems * maxValues(defs, items, stack)) : Number.POSITIVE_INFINITY,
+        );
+      } else {
+        typed = Math.max(typed, 1);
+      }
+    }
+    bound = Math.min(bound, typed);
+  }
+  for (const key of ['oneOf', 'anyOf'] as const) {
+    const branches = schema[key];
+    if (Array.isArray(branches)) {
+      bound = Math.min(bound, Math.max(...branches.map((branch) => maxValues(defs, branch, stack))));
+    }
+  }
+  if (Array.isArray(schema.allOf)) {
+    for (const part of schema.allOf) bound = Math.min(bound, maxValues(defs, part, stack));
+  }
+  return bound;
+}
+
 const standaloneCode = standaloneModule.default;
 const CODE_POINT_LENGTH = /require\("ajv\/dist\/runtime\/ucs2length"\)\.default/g;
 const SCHEMA_MAPS = new Set(['properties', '$defs']);
-const SCHEMA_VALUED = new Set(['items', 'additionalProperties']);
+const SCHEMA_VALUED = new Set(['items', 'additionalProperties', 'not', 'contains']);
+const SCHEMA_LISTS = new Set(['oneOf', 'anyOf', 'allOf']);
 
 // The schema without title and description. Ajv embeds each schema as a constant, and these
 // annotations are most of the text. They never affect validation.
@@ -199,7 +284,7 @@ function withoutAnnotations(schema: Json): Json {
       out[key] = Object.fromEntries(Object.entries(value).map(([name, child]) => [name, withoutAnnotations(child)]));
     } else if (SCHEMA_VALUED.has(key)) {
       out[key] = withoutAnnotations(value);
-    } else if (key === 'oneOf' && Array.isArray(value)) {
+    } else if (SCHEMA_LISTS.has(key) && Array.isArray(value)) {
       out[key] = value.map(withoutAnnotations);
     } else {
       out[key] = value;
@@ -266,7 +351,7 @@ export function validatorDeclarations(bundle: Bundle): string {
 export function contractsModule(bundle: Bundle): string {
   const rows = bundle.contracts.map(
     (c) =>
-      `  ${JSON.stringify(c.name)}: { schemaId: ${JSON.stringify(c.schemaId)}, versionTag: ${JSON.stringify(c.versionTag)}, typeName: ${JSON.stringify(c.typeName)} },`,
+      `  ${JSON.stringify(c.name)}: { schemaId: ${JSON.stringify(c.schemaId)}, versionTag: ${JSON.stringify(c.versionTag)}, typeName: ${JSON.stringify(c.typeName)}, maxValues: ${JSON.stringify(c.maxValues)} },`,
   );
   const types = bundle.contracts.map((c) => `  ${JSON.stringify(c.name)}: Types.${c.typeName};`);
   return [

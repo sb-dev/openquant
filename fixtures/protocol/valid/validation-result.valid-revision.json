@@ -28,6 +28,11 @@
         "from": "5",
         "to": "4"
       }
-    ]
+    ],
+    "change_scope": "EXIT"
+  },
+  "duration": {
+    "label": "observed",
+    "milliseconds": 1840
   }
 }

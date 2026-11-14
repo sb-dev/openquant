@@ -52,7 +52,7 @@
             "start": "2023-01-01",
             "end": "2023-12-31"
           },
-          "label": "development"
+          "label": "historical window within model training period"
         },
         {
           "role": "VALIDATION",
@@ -60,7 +60,7 @@
             "start": "2024-01-01",
             "end": "2024-12-31"
           },
-          "label": "validation"
+          "label": "historical window within model training period"
         },
         {
           "role": "HOLDOUT",
@@ -68,7 +68,7 @@
             "start": "2025-01-01",
             "end": "2025-12-31"
           },
-          "label": "historical holdout within model training period"
+          "label": "historical window within model training period"
         }
       ]
     },
@@ -213,7 +213,8 @@
       "gate": "POINT_IN_TIME_DATA",
       "category": "HISTORICAL_VALIDITY",
       "thresholds": [],
-      "below_threshold": "FAIL"
+      "below_threshold": "FAIL",
+      "limitation": "PASS covers what the gate checks: every bar and corporate action has an availability time from the profile rules, and no run failed with FUTURE_DATA. Provider revision history is not evidenced: the snapshot is retrieved after the period it covers and can hold later provider corrections (OQ-02 section 1.1)."
     },
     {
       "requirement": "REQUIRED",
@@ -522,16 +523,30 @@
       "revisions_per_proposer": 2,
       "new_families": 0,
       "model_spend": {
-        "amount": "50.00",
+        "amount": "105.00",
         "currency": "USD"
       },
       "model_spend_per_attempt": {
         "amount": "5.00",
         "currency": "USD"
       },
+      "proposer_allowance": {
+        "model_spend": {
+          "amount": "30.00",
+          "currency": "USD"
+        },
+        "agent_attempts": 6
+      },
+      "critic_allowance": {
+        "model_spend": {
+          "amount": "45.00",
+          "currency": "USD"
+        },
+        "agent_attempts": 9
+      },
       "provider_requests": 60,
       "batch_compute_seconds": 7200,
-      "agent_compute_seconds": 7200,
+      "agent_compute_seconds": 18900,
       "attempt_cap": 3
     },
     "proposer_allocation": "EQUAL"

@@ -2,10 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:openquant:schema:validation-result:1",
   "title": "ValidationResult",
-  "description": "Outcome of one Rust validate job attempt on a draft (OQ-02 section 4). It runs the shared strategy validator, checks that the longest lookback fits the cohort warm-up and recomputes the leaf difference from the parent. draft_digest is the digest of the draft strategy-artefact/1 the job read; it is not a Strategy Version hash, because no version is registered before validation passes. An accepted VALID or INVALID result makes the job COMPLETED. A VALID result registers the Strategy Version in DRAFT. A draft that fails validation receives diagnostics, not critique; they go to the next proposer attempt, and no Strategy Version is registered from it.",
+  "description": "Outcome of one Rust validate job attempt on a draft (OQ-02 section 4). It runs the shared strategy validator, checks that the longest lookback fits the cohort warm-up and recomputes the leaf difference from the parent. draft_digest is the digest of the draft strategy-artefact/1 the job read; it is not a Strategy Version hash, because no version is registered before validation passes. An accepted VALID or INVALID result makes the job COMPLETED. A VALID result registers the Strategy Version in DRAFT. A draft that fails validation receives diagnostics, not critique; they go to the next proposer attempt, and no Strategy Version is registered from it. duration is the attempt duration that the batch host measured; the API settles the attempt's compute reservation from it (OQ-05 section 4).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "job_id", "attempt", "executable", "engine_digest", "method", "draft_digest", "outcome"],
+  "required": ["schema_version", "job_id", "attempt", "executable", "engine_digest", "method", "draft_digest", "outcome", "duration"],
   "properties": {
     "schema_version": { "type": "string", "enum": ["validation-result/1"] },
     "job_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
@@ -15,7 +15,8 @@
     "method": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/MethodIdentity" },
     "draft_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
     "parent_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
-    "outcome": { "$ref": "#/$defs/ValidationOutcome" }
+    "outcome": { "$ref": "#/$defs/ValidationOutcome" },
+    "duration": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DurationUsage" }
   },
   "$defs": {
     "ValidationOutcome": {
@@ -24,10 +25,10 @@
     },
     "ValidDefinition": {
       "title": "ValidDefinition",
-      "description": "computed_changes is the leaf difference from the parent that Rust computed; it equals the declared changes. It is empty when the version has no parent.",
+      "description": "computed_changes is the leaf difference from the parent that Rust computed; it equals the declared changes. It is empty when the version has no parent. change_scope classifies computed_changes by dependency (OQ-02 section 3.1).",
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "max_lookback_sessions", "warmup_sessions", "computed_changes"],
+      "required": ["status", "max_lookback_sessions", "warmup_sessions", "computed_changes", "change_scope"],
       "properties": {
         "status": { "type": "string", "enum": ["VALID"] },
         "max_lookback_sessions": { "type": "integer", "minimum": 0, "maximum": 1000 },
@@ -36,8 +37,15 @@
           "type": "array",
           "maxItems": 32,
           "items": { "$ref": "urn:openquant:schema:strategy-artefact:1#/$defs/StrategyChange" }
-        }
+        },
+        "change_scope": { "$ref": "#/$defs/ChangeScope" }
       }
+    },
+    "ChangeScope": {
+      "title": "ChangeScope",
+      "description": "Which rules computed_changes affects, by dependency (OQ-02 section 3.1). A change under /definition/entry affects the entry rule and a change under /definition/exits the exit rules. A changed indicator counts as a change to every rule that references it, directly or through other indicators. A change under /definition/selection, /definition/sizing or /definition/execution, or to an indicator that no entry or exit rule references, is outside a controlled revision. The first value that applies is the scope: NONE when there is no change, as for a version without a parent; OUTSIDE_SCOPE when any change is outside a controlled revision; BOTH when the changes affect the entry rule and the exit rules; otherwise ENTRY or EXIT. Under the cohort policy revision_scope ENTRY_OR_EXIT, only ENTRY or EXIT registers a revision; BOTH, OUTSIDE_SCOPE and NONE do not.",
+      "type": "string",
+      "enum": ["NONE", "ENTRY", "EXIT", "BOTH", "OUTSIDE_SCOPE"]
     },
     "InvalidDefinition": {
       "title": "InvalidDefinition",

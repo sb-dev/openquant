@@ -44,7 +44,8 @@ The agent role schemas live in `packages/agents/schemas`. They reference these s
 `routes/v1.json` lists the HTTP routes of the S1 API and the agent-runner dispatch endpoint. Each route names its host, method, path, accepted credentials, request and response bodies, success status and its own error codes.
 
 - Credentials: a person's long-lived credential (token route only), a person's 15-minute access token with the roles that may call the route, a service principal credential with the principals that may call it, or the attempt-scoped capability from a claim grant. Any one listed credential is enough.
-- Bodies: a contract body names a schema in `schemas` by its short name, with a form where a contract has two forms. A view body is an API-owned read model; it is not a cross-runtime contract, and `apps/api` owns its shape. A bytes body is a raw artefact addressed by its SHA-256 digest.
+- Bodies: a contract body names a schema in `schemas` by its short name, with a form where a contract has two forms. A view body is an API-owned read model; it is not a cross-runtime contract, and `apps/api` owns its shape. A bytes body is a raw artefact addressed by its SHA-256 digest. `max_body_bytes` bounds a request body; every route whose request contract has no value bound (`command/1`) declares it.
+- Official run values: `runs.metrics` and `runs.result` return a run's committed `evaluation-metrics/1` and `evaluation-result/1` unchanged. Clients show these values and never recompute them.
 - Errors: every error body is `api-error/1`. The common errors apply to every route, and the manifest maps each error code to its HTTP status.
 - The internal commands `record_evaluation_decision` and `freeze_candidates` have no route. Only the workflows service principal applies them.
 
@@ -63,6 +64,8 @@ The Rust crate has two contract sets (OQ-05 §7):
 cargo run --locked -p openquant-contracts --bin contracts-report -- --out <dir>
 ```
 
-It writes `<dir>/report.json` (`contracts-report/1`). Each entry has the verdict, the failure code of a rejected payload and the canonical digest of an accepted one. It never runs core semantics, so a `semantic_invalid` fixture is accepted.
+It writes `<dir>/report.json` (`contracts-report/1`). Each entry has the verdict, the failure code of a rejected payload and the canonical digest of an accepted one. It never runs core semantics, so a `semantic_invalid` fixture is accepted. It reads each fixture as bytes: bytes that are not UTF-8 are `SCHEMA_VIOLATION`.
+
+The bindings accept every schema-valid payload and sometimes more: typify ignores `not`, which several connected schemas use. The schema always runs before the binding. Every optional array has `minItems: 1`, because the bindings drop an empty optional array when they serialise, and the identity digest is computed from the binding.
 
 See [architecture](../../docs/specs/05-system-architecture-and-data-spec.md) and the [M1 guide](../../docs/guides/m1-watchlist-research.md).

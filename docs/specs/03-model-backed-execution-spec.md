@@ -40,7 +40,7 @@ An LLM may explain those outputs. Its explanation has no authority to replace th
 
 ### Budgets and accumulated learning
 
-Each mission has explicit candidate, experiment, compute, LLM-spend, and revision budgets. A runner cannot increase them. Exhaustion pauses further work and reports what was learned. In S1 the Researcher sets these budgets in the mission's create command, within the cohort policy's maxima and the period cap, and exhaustion makes the mission `BLOCKED` with that reason (OQ-02 §1).
+Each mission has explicit candidate, experiment, compute, LLM-spend, and revision budgets. A runner cannot increase them. Exhaustion pauses further work and reports what was learned. In S1 the Researcher sets these budgets in the mission's create command, within the cohort policy's maxima and the period cap, and exhaustion makes the mission `BLOCKED` with that reason (OQ-02 §1). Each proposer configuration has its own allowance of model spend and agent attempts, and so does the critic configuration. A configuration reserves only from its own allowance. The mission's model spend is the sum of these allowances, so no configuration can consume another's. Equal allocation gives every proposer configuration the same allowance, revision count and per-attempt reservation.
 
 Reserve each attempt's declared cap before dispatch. Label the cost that the Claude Code adapter (§3) reports as estimated. A missing usage report keeps the full reservation. Lease expiry releases nothing until termination of the attempt is confirmed.
 

@@ -1,6 +1,6 @@
 {
   "schema": "api-route-manifest/1",
-  "note": "HTTP routes of the S1 API (host api) and the agent runner dispatch endpoint (host agent-runner). auth lists the credentials a route accepts; any one of them is enough. A contract body names a schema in packages/api-contracts/schemas by its short name; form selects one form of a two-form contract. A view body is an API-owned JSON document, such as a read model: it is not a cross-runtime contract and apps/api owns its shape. bytes is a raw artefact body addressed by its SHA-256 digest. Every error body is the api-error contract. common_errors apply to every route in addition to its own errors. The internal commands record_evaluation_decision and freeze_candidates have no route.",
+  "note": "HTTP routes of the S1 API (host api) and the agent runner dispatch endpoint (host agent-runner). auth lists the credentials a route accepts; any one of them is enough. A contract body names a schema in packages/api-contracts/schemas by its short name; form selects one form of a two-form contract. A view body is an API-owned JSON document, such as a read model: it is not a cross-runtime contract and apps/api owns its shape. bytes is a raw artefact body addressed by its SHA-256 digest. max_body_bytes bounds a request body: the API refuses a larger one with LIMIT_EXCEEDED before it parses it. Every route whose request contract has no value bound (command/1, whose seed draft holds a recursive Expr tree) declares it, so its parse stays within a Worker isolate's memory (OQ-05 section 7). Every error body is the api-error contract. common_errors apply to every route in addition to its own errors. The internal commands record_evaluation_decision and freeze_candidates have no route. runs.metrics and runs.result return the committed official evaluation-metrics/1 and evaluation-result/1 of one run unchanged, with NOT_FOUND while none is committed: a FAILED or INSUFFICIENT run has no metrics, and a run that ended before the core prepared it has no result. Clients show these official values and never recompute them (OQ-04 section 5, OQ-05 section 7).",
   "version": "v1",
   "base_path": "/v1",
   "error_body": "api-error",
@@ -38,7 +38,7 @@
     "system-identity": "The current release identity, as recorded from release-manifest/1: source SHA, CLI version, engine digest, image and binary digests, bundle hash, method identity, protocol versions, migration level and deployment references. releases.record returns it after it records a manifest, so the delivery job reads back what was stored.",
     "mission": "Mission status and outcome with its reasons, scope, profile, cohort policy, evaluation plan digest, per-mission budget with reservations and usage, candidates by trial slot, typed jobs (retrieve, validate, evaluate and assess) with their attempts, and attention items.",
     "lineage": "Generated Strategy Graph of the mission: versions, parents, rule changes and linked runs, findings and decisions.",
-    "trials": "Planned run slots and registered trials, including failed and discarded ones, with run status, mode, environment and holdout consumption.",
+    "trials": "Planned run slots and registered trials, including failed and discarded ones, with run IDs, run status, mode, environment and holdout consumption. A run's official metrics and result are read from runs.metrics and runs.result; the view repeats none of their values.",
     "findings": "Critic findings with category, finding_source, applicability and policy treatment per lifecycle transition.",
     "gates": "Gate reports per candidate with eligibility.",
     "decisions": "Recorded Decisions with actor, outcome and evidence references. A policy-determined Decision also names the cohort policy digest, the Steward approval Decision and the Researcher who started the mission.",
@@ -88,9 +88,10 @@
       "path": "/v1/research-profiles",
       "auth": [{ "kind": "human", "roles": ["Steward"] }],
       "request": { "kind": "contract", "contract": "command", "form": "request", "command_kind": "register_research_profile" },
+      "max_body_bytes": 1048576,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "LIMIT_EXCEEDED"]
     },
     {
       "id": "cohort-policies.register",
@@ -99,9 +100,10 @@
       "path": "/v1/cohort-policies",
       "auth": [{ "kind": "human", "roles": ["Steward"] }],
       "request": { "kind": "contract", "contract": "command", "form": "request", "command_kind": "register_cohort_policy" },
+      "max_body_bytes": 1048576,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "LIMIT_EXCEEDED"]
     },
     {
       "id": "budgets.register",
@@ -110,9 +112,10 @@
       "path": "/v1/budgets",
       "auth": [{ "kind": "human", "roles": ["Steward"] }],
       "request": { "kind": "contract", "contract": "command", "form": "request", "command_kind": "register_budget" },
+      "max_body_bytes": 1048576,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "LIMIT_EXCEEDED"]
     },
     {
       "id": "seeds.register",
@@ -121,9 +124,10 @@
       "path": "/v1/strategies/seeds",
       "auth": [{ "kind": "human", "roles": ["Researcher"] }],
       "request": { "kind": "contract", "contract": "command", "form": "request", "command_kind": "register_seed" },
+      "max_body_bytes": 1048576,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "LIMIT_EXCEEDED"]
     },
     {
       "id": "missions.create",
@@ -132,9 +136,10 @@
       "path": "/v1/missions",
       "auth": [{ "kind": "human", "roles": ["Researcher"] }],
       "request": { "kind": "contract", "contract": "command", "form": "request", "command_kind": "create_mission" },
+      "max_body_bytes": 1048576,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "BUDGET_EXHAUSTED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "BUDGET_EXHAUSTED", "LIMIT_EXCEEDED"]
     },
     {
       "id": "missions.run-now",
@@ -143,9 +148,10 @@
       "path": "/v1/missions/{mission_id}/run-now",
       "auth": [{ "kind": "human", "roles": ["Researcher"] }],
       "request": { "kind": "contract", "contract": "command", "form": "request", "command_kind": "run_mission_now" },
+      "max_body_bytes": 1048576,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "BUDGET_EXHAUSTED", "EXECUTION_DISABLED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "BUDGET_EXHAUSTED", "EXECUTION_DISABLED", "LIMIT_EXCEEDED"]
     },
     {
       "id": "missions.cancel",
@@ -154,9 +160,10 @@
       "path": "/v1/missions/{mission_id}/cancel",
       "auth": [{ "kind": "human", "roles": ["Researcher"] }],
       "request": { "kind": "contract", "contract": "command", "form": "request", "command_kind": "cancel_mission" },
+      "max_body_bytes": 1048576,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "REVISION_CONFLICT", "COMMAND_ID_REUSED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "LIMIT_EXCEEDED"]
     },
     {
       "id": "missions.show",
@@ -243,6 +250,28 @@
       "auth": [{ "kind": "human", "roles": ["Viewer", "Researcher", "Steward", "Administrator"] }],
       "request": { "kind": "none" },
       "response": { "kind": "contract", "contract": "command", "form": "status" },
+      "success_status": 200,
+      "errors": ["NOT_FOUND"]
+    },
+    {
+      "id": "runs.metrics",
+      "host": "api",
+      "method": "GET",
+      "path": "/v1/runs/{run_id}/metrics",
+      "auth": [{ "kind": "human", "roles": ["Viewer", "Researcher", "Steward", "Administrator"] }],
+      "request": { "kind": "none" },
+      "response": { "kind": "contract", "contract": "evaluation-metrics" },
+      "success_status": 200,
+      "errors": ["NOT_FOUND"]
+    },
+    {
+      "id": "runs.result",
+      "host": "api",
+      "method": "GET",
+      "path": "/v1/runs/{run_id}/result",
+      "auth": [{ "kind": "human", "roles": ["Viewer", "Researcher", "Steward", "Administrator"] }],
+      "request": { "kind": "none" },
+      "response": { "kind": "contract", "contract": "evaluation-result" },
       "success_status": 200,
       "errors": ["NOT_FOUND"]
     },

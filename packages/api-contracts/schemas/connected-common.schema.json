@@ -42,7 +42,7 @@
     },
     "ReservationStatus": {
       "title": "ReservationStatus",
-      "description": "Budget reservation of one attempt (OQ-03 section 1). RESERVED: the per-attempt cap is held, from before dispatch. SETTLED: reported usage replaced the reservation and the remainder returned to the budget. UNRECONCILED: the attempt ended without a usage report; the full reservation counts as spent until it is reconciled. RELEASED: termination is confirmed and nothing was consumed, for example an attempt cancelled before its claim. Lease expiry releases nothing until termination is confirmed.",
+      "description": "Budget reservation of one attempt (OQ-03 section 1 and OQ-05 section 4). RESERVED: the per-attempt cap is held, from before dispatch. SETTLED: reported usage replaced the reservation and the remainder, if any, returned to the budget. Settlement never returns more than the reservation: reported usage is never negative, and usage above the reservation is recorded as an overrun against the mission budget, which blocks further reservations until a Steward acts. UNRECONCILED: the attempt ended without a usage report; the full reservation counts as spent until it is reconciled. RELEASED: termination is confirmed and nothing was consumed, for example an attempt cancelled before its claim. Lease expiry releases nothing until termination is confirmed.",
       "type": "string",
       "enum": ["RESERVED", "SETTLED", "UNRECONCILED", "RELEASED"]
     },
@@ -179,13 +179,20 @@
         "digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" }
       }
     },
+    "NonNegativeDecimal": {
+      "title": "NonNegativeDecimal",
+      "description": "A Decimal that is zero or positive. A malformed decimal is INVALID_DECIMAL; a well-formed negative one is SCHEMA_VIOLATION. Every amount of money spent, reserved or allowed uses it, so no reported usage or budget value can be negative.",
+      "type": "string",
+      "allOf": [{ "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" }, { "not": { "pattern": "^-" } }]
+    },
     "MoneyAmount": {
       "title": "MoneyAmount",
+      "description": "An amount of money in a budget, an allowance or a reservation. It is never negative.",
       "type": "object",
       "additionalProperties": false,
       "required": ["amount", "currency"],
       "properties": {
-        "amount": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "amount": { "$ref": "#/$defs/NonNegativeDecimal" },
         "currency": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" }
       }
     },
@@ -219,7 +226,7 @@
     },
     "MissionBudget": {
       "title": "MissionBudget",
-      "description": "Per-mission budget (OQ-03 section 1). The Researcher sets it in create_mission. It must lie within the cohort policy maxima, follow its equal-per-proposer rule and fit the period cap that the profile names. A runner or service principal cannot enlarge it; service principals reserve within it. Retries and recovery attempts consume it. Exhaustion makes the mission BLOCKED with the reason (OQ-02 section 1). candidates counts registered Strategy Versions, the seed included. experiments counts evaluation runs. revisions_per_proposer counts the proposals each proposer configuration may make. new_families counts proposals without a parent. model_spend_per_attempt is the reservation of one agent attempt. attempt_cap bounds the attempts of one logical run or job, the first included. Timeouts, output limits and concurrency are not budget values: the cohort policy fixes them as execution limits.",
+      "description": "Per-mission budget (OQ-03 section 1). The Researcher sets it in create_mission. It must lie within the cohort policy maxima, follow its equal-per-proposer rule and fit the period cap that the profile names. A runner or service principal cannot enlarge it; service principals reserve within it. Retries and recovery attempts consume it. Exhaustion makes the mission BLOCKED with the reason (OQ-02 section 1). candidates counts registered Strategy Versions, the seed included. experiments counts evaluation runs. revisions_per_proposer counts the proposals each proposer configuration may make. new_families counts proposals without a parent. model_spend is the whole agent spend of the mission. model_spend_per_attempt is the reservation of one agent attempt. proposer_allowance is the allowance of each proposer configuration and critic_allowance that of the critic configuration: each configuration reserves only from its own allowance, so no configuration can consume another's. Semantic rules that the API checks, because the schema cannot compare values: model_spend equals the number of proposer configurations times proposer_allowance.model_spend plus critic_allowance.model_spend; the model_spend of each allowance equals its agent_attempts times model_spend_per_attempt, because an attempt without a usage report keeps its full reservation; and agent_compute_seconds is at least the agent attempts of all allowances times the policy agent timeout. In the cohort policy maxima, each value is the largest the policy accepts, and the sums are checked against the mission. attempt_cap bounds the attempts of one logical run or job, the first included. Timeouts, output limits and concurrency are not budget values: the cohort policy fixes them as execution limits.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -229,6 +236,8 @@
         "new_families",
         "model_spend",
         "model_spend_per_attempt",
+        "proposer_allowance",
+        "critic_allowance",
         "provider_requests",
         "batch_compute_seconds",
         "agent_compute_seconds",
@@ -241,10 +250,23 @@
         "new_families": { "type": "integer", "minimum": 0, "maximum": 1000 },
         "model_spend": { "$ref": "#/$defs/MoneyAmount" },
         "model_spend_per_attempt": { "$ref": "#/$defs/MoneyAmount" },
+        "proposer_allowance": { "$ref": "#/$defs/AgentAllowance" },
+        "critic_allowance": { "$ref": "#/$defs/AgentAllowance" },
         "provider_requests": { "type": "integer", "minimum": 0, "maximum": 1000000 },
         "batch_compute_seconds": { "type": "integer", "minimum": 0, "maximum": 100000000 },
         "agent_compute_seconds": { "type": "integer", "minimum": 0, "maximum": 100000000 },
         "attempt_cap": { "type": "integer", "minimum": 1, "maximum": 10 }
+      }
+    },
+    "AgentAllowance": {
+      "title": "AgentAllowance",
+      "description": "The allowance of one agent configuration in a mission (OQ-03 section 1): the model spend it may reserve and the agent attempts it may start, retries and recovery attempts included. The configuration reserves only from this allowance. When the allowance cannot cover the next attempt, that configuration's work stops with the reason and the mission becomes BLOCKED; another configuration's allowance is never used.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_spend", "agent_attempts"],
+      "properties": {
+        "model_spend": { "$ref": "#/$defs/MoneyAmount" },
+        "agent_attempts": { "type": "integer", "minimum": 0, "maximum": 1000 }
       }
     },
     "WindowRole": {
@@ -261,7 +283,7 @@
     },
     "HoldoutExclusion": {
       "title": "HoldoutExclusion",
-      "description": "A window withheld from an agent request or an evaluation input. range is the window's resolved scored sessions from the evaluation plan. The label states the limit of the holdout, for example 'historical holdout within model training period'. In S1 every agent request, proposer and critic, carries holdout exclusions that name V and H.",
+      "description": "A window withheld from an agent request or an evaluation input. range is the window's resolved scored sessions from the evaluation plan. The label repeats the window's label from the cohort policy, which states what the window can claim: a window that ends on or before the latest knowledge cutoff of the mission's configured models, or for which a model's cutoff is unknown, is labelled 'historical window within model training period' (OQ-02 section 3.3). In S1 every agent request, proposer and critic, carries holdout exclusions that name V and H.",
       "type": "object",
       "additionalProperties": false,
       "required": ["window", "range", "label"],
@@ -417,7 +439,7 @@
       "required": ["label", "amount", "currency"],
       "properties": {
         "label": { "$ref": "#/$defs/UsageLabel" },
-        "amount": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" },
+        "amount": { "$ref": "#/$defs/NonNegativeDecimal" },
         "currency": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" }
       }
     },
