@@ -587,6 +587,769 @@
       "code": "ARITHMETIC_OVERFLOW",
       "with_strategy": "s0/cases/F0-smoke/strategy.json",
       "with_input": "protocol/valid/input.exact-fractions.json"
+    },
+    {
+      "path": "protocol/valid/input.provider-source.json",
+      "contract": "evaluation-input",
+      "expect": "valid",
+      "with_strategy": "s0/cases/F0-smoke/strategy.json"
+    },
+    {
+      "path": "protocol/valid/research-profile.aapl-sip-daily.json",
+      "contract": "research-profile",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/cohort-policy.s1-pilot.json",
+      "contract": "cohort-policy",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/dataset-manifest.dividend-window.json",
+      "contract": "dataset-manifest",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/retrieval-request.aapl-february.json",
+      "contract": "retrieval-request",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/retrieval-result.complete.json",
+      "contract": "retrieval-result",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/retrieval-result.rate-limited.json",
+      "contract": "retrieval-result",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/evaluation-request.backtest.json",
+      "contract": "evaluation-request",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/evaluation-request.replay.json",
+      "contract": "evaluation-request",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/evaluation-request.deterministic-repeat.json",
+      "contract": "evaluation-request",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/evaluation-plan.aapl-mission.json",
+      "contract": "evaluation-plan",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/release-manifest.staging.json",
+      "contract": "release-manifest",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/evaluation-submission.completed-replay.json",
+      "contract": "evaluation-submission",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/evaluation-submission.not-prepared.json",
+      "contract": "evaluation-submission",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/evaluation-metrics.validation-base.json",
+      "contract": "evaluation-metrics",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/validation-result.valid-revision.json",
+      "contract": "validation-result",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/validation-result.invalid-draft.json",
+      "contract": "validation-result",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/gate-report.no-eligible-candidate.json",
+      "contract": "gate-report",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/job-dispatch.retrieve.json",
+      "contract": "job-dispatch",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/job-dispatch.validate.json",
+      "contract": "job-dispatch",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/job-dispatch.evaluate.json",
+      "contract": "job-dispatch",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/job-dispatch.evaluate-replay.json",
+      "contract": "job-dispatch",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/job-dispatch.assess.json",
+      "contract": "job-dispatch",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/attempt-claim.claim.json",
+      "contract": "attempt-claim",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/attempt-claim.grant.json",
+      "contract": "attempt-claim",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/command.register-research-profile.json",
+      "contract": "command",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/command.register-cohort-policy.json",
+      "contract": "command",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/command.register-budget.json",
+      "contract": "command",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/command.register-seed.json",
+      "contract": "command",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/command.create-mission.json",
+      "contract": "command",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/command.run-mission-now.json",
+      "contract": "command",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/command.cancel-mission.json",
+      "contract": "command",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/command.record-evaluation-decision.json",
+      "contract": "command",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/command.record-evaluation-decision-deferred.json",
+      "contract": "command",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/command.freeze-candidates.json",
+      "contract": "command",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/command.status-pending.json",
+      "contract": "command",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/command.status-applied.json",
+      "contract": "command",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/command.status-rejected.json",
+      "contract": "command",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/agent-dispatch.proposer.json",
+      "contract": "agent-dispatch",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/agent-attempt-result.completion.json",
+      "contract": "agent-attempt-result",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/agent-attempt-result.timeout.json",
+      "contract": "agent-attempt-result",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/api-error.stale-ownership.json",
+      "contract": "api-error",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/invalid/research-profile.version-2.json",
+      "contract": "research-profile",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/research-profile.unknown-field.json",
+      "contract": "research-profile",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/research-profile.adjusted-bars.json",
+      "contract": "research-profile",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/research-profile.capability-malformed.json",
+      "contract": "research-profile",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/cohort-policy.version-2.json",
+      "contract": "cohort-policy",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/cohort-policy.unknown-field.json",
+      "contract": "cohort-policy",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/cohort-policy.automatic-paper-promotion.json",
+      "contract": "cohort-policy",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/cohort-policy.fee-decimal-exponent.json",
+      "contract": "cohort-policy",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL"
+    },
+    {
+      "path": "protocol/invalid/cohort-policy.not-applicable-without-reason.json",
+      "contract": "cohort-policy",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/cohort-policy.unknown-finding-category.json",
+      "contract": "cohort-policy",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/dataset-manifest.version-2.json",
+      "contract": "dataset-manifest",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/dataset-manifest.unknown-nested-field.json",
+      "contract": "dataset-manifest",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/dataset-manifest.bar-decimal-leading-zero.json",
+      "contract": "dataset-manifest",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL"
+    },
+    {
+      "path": "protocol/invalid/dataset-manifest.request-digest-malformed.json",
+      "contract": "dataset-manifest",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/retrieval-request.version-2.json",
+      "contract": "retrieval-request",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/retrieval-request.unknown-field.json",
+      "contract": "retrieval-request",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/retrieval-request.cutoff-malformed.json",
+      "contract": "retrieval-request",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/retrieval-result.version-2.json",
+      "contract": "retrieval-result",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/retrieval-result.unknown-field.json",
+      "contract": "retrieval-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/retrieval-result.manifest-digest-malformed.json",
+      "contract": "retrieval-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/retrieval-result.failure-with-manifest.json",
+      "contract": "retrieval-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-request.version-2.json",
+      "contract": "evaluation-request",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-request.unknown-field.json",
+      "contract": "evaluation-request",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-request.strategy-digest-malformed.json",
+      "contract": "evaluation-request",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-request.mode-paper.json",
+      "contract": "evaluation-request",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-submission.version-2.json",
+      "contract": "evaluation-submission",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-submission.unknown-field.json",
+      "contract": "evaluation-submission",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-submission.executable-digest-malformed.json",
+      "contract": "evaluation-submission",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-submission.metrics-on-failed.json",
+      "contract": "evaluation-submission",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-metrics.version-2.json",
+      "contract": "evaluation-metrics",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-metrics.unknown-field.json",
+      "contract": "evaluation-metrics",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-metrics.net-return-exponent.json",
+      "contract": "evaluation-metrics",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL"
+    },
+    {
+      "path": "protocol/invalid/evaluation-metrics.missing-turnover.json",
+      "contract": "evaluation-metrics",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/validation-result.version-2.json",
+      "contract": "validation-result",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/validation-result.unknown-field.json",
+      "contract": "validation-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/validation-result.draft-digest-malformed.json",
+      "contract": "validation-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/validation-result.unknown-code.json",
+      "contract": "validation-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/gate-report.version-2.json",
+      "contract": "gate-report",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/gate-report.unknown-field.json",
+      "contract": "gate-report",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/gate-report.observed-decimal-exponent.json",
+      "contract": "gate-report",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/gate-report.not-applicable-without-reason.json",
+      "contract": "gate-report",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/job-dispatch.version-2.json",
+      "contract": "job-dispatch",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/job-dispatch.unknown-field.json",
+      "contract": "job-dispatch",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/job-dispatch.inline-dataset.json",
+      "contract": "job-dispatch",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/job-dispatch.request-digest-malformed.json",
+      "contract": "job-dispatch",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/job-dispatch.unknown-kind.json",
+      "contract": "job-dispatch",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/attempt-claim.version-2.json",
+      "contract": "attempt-claim",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/attempt-claim.unknown-field.json",
+      "contract": "attempt-claim",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/attempt-claim.dispatch-digest-malformed.json",
+      "contract": "attempt-claim",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/attempt-claim.grant-without-capability.json",
+      "contract": "attempt-claim",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/command.version-2.json",
+      "contract": "command",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/command.unknown-field.json",
+      "contract": "command",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/command.unknown-kind.json",
+      "contract": "command",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/command.budget-decimal-exponent.json",
+      "contract": "command",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/command.applied-without-record.json",
+      "contract": "command",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/agent-dispatch.version-2.json",
+      "contract": "agent-dispatch",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/agent-dispatch.unknown-field.json",
+      "contract": "agent-dispatch",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/agent-dispatch.bundle-hash-malformed.json",
+      "contract": "agent-dispatch",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/agent-dispatch.cost-reservation-exponent.json",
+      "contract": "agent-dispatch",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL"
+    },
+    {
+      "path": "protocol/invalid/agent-dispatch.tool-granted.json",
+      "contract": "agent-dispatch",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/agent-attempt-result.version-2.json",
+      "contract": "agent-attempt-result",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/agent-attempt-result.unknown-field.json",
+      "contract": "agent-attempt-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/agent-attempt-result.input-hash-malformed.json",
+      "contract": "agent-attempt-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/agent-attempt-result.unknown-outcome.json",
+      "contract": "agent-attempt-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/agent-attempt-result.output-on-timeout.json",
+      "contract": "agent-attempt-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/agent-attempt-result.unknown-cost-as-zero-label.json",
+      "contract": "agent-attempt-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-plan.version-2.json",
+      "contract": "evaluation-plan",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-plan.unknown-field.json",
+      "contract": "evaluation-plan",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-plan.resolved-date-malformed.json",
+      "contract": "evaluation-plan",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-plan.revision-slot-with-version.json",
+      "contract": "evaluation-plan",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-plan.unknown-writing-step.json",
+      "contract": "evaluation-plan",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-plan.multiplier-exponent.json",
+      "contract": "evaluation-plan",
+      "expect": "schema_invalid",
+      "code": "INVALID_DECIMAL"
+    },
+    {
+      "path": "protocol/invalid/release-manifest.version-2.json",
+      "contract": "release-manifest",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/release-manifest.unknown-field.json",
+      "contract": "release-manifest",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/release-manifest.image-digest-malformed.json",
+      "contract": "release-manifest",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/release-manifest.source-commit-short.json",
+      "contract": "release-manifest",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-request.replay-with-manifest.json",
+      "contract": "evaluation-request",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-request.backtest-with-input-reference.json",
+      "contract": "evaluation-request",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-request.replay-with-plan-conditions.json",
+      "contract": "evaluation-request",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/evaluation-request.capital-exponent.json",
+      "contract": "evaluation-request",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/attempt-claim.capability-own-expiry.json",
+      "contract": "attempt-claim",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/agent-attempt-result.missing-provider.json",
+      "contract": "agent-attempt-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/cohort-policy.unequal-allocation.json",
+      "contract": "cohort-policy",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/research-profile.payment-next-session.json",
+      "contract": "research-profile",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/gate-report.old-signal-timing-name.json",
+      "contract": "gate-report",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/job-dispatch.assess-without-plan.json",
+      "contract": "job-dispatch",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/command.create-mission-period-ref.json",
+      "contract": "command",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/command.freeze-unknown-slot-status.json",
+      "contract": "command",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/command.deferred-with-result.json",
+      "contract": "command",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.version-2.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/api-error.unknown-field.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.unknown-code.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
     }
   ]
 }

@@ -1,0 +1,13 @@
+{
+  "schema_version": "attempt-claim/1",
+  "form": "grant",
+  "attempt": {
+    "attempt_id": "att-aapl-v-base-a-1",
+    "ownership_revision": 1
+  },
+  "granted_at": "2026-11-14T11:02:03Z",
+  "lease_expires_at": "2026-11-14T11:07:03Z",
+  "capability": {
+    "token": "oqcap.fixture-not-a-secret.0000000000000000"
+  }
+}

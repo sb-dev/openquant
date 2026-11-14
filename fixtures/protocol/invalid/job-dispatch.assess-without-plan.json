@@ -1,0 +1,120 @@
+{
+  "schema_version": "job-dispatch/1",
+  "environment": "STAGING",
+  "job_id": "job-aapl-assess-rev-a",
+  "attempt": {
+    "attempt_id": "att-aapl-assess-rev-a-1",
+    "ownership_revision": 1
+  },
+  "mission_id": "msn-aapl-0001",
+  "dispatched_at": "2026-11-14T11:40:00Z",
+  "inputs": {
+    "kind": "assess",
+    "strategy_hash": "sha256:3b2b013c84fb0f64657822298593f8bc24a520c76023b8f18c61ee0e00abb046",
+    "trial_slot": "rev-a",
+    "cohort_policy": {
+      "digest": "sha256:0e8ea5f12262374def68a65011850ff52e6867a8963f6dd4f95970436b1b5482",
+      "media_type": "application/json",
+      "size_bytes": 9417
+    },
+    "validation": {
+      "digest": "sha256:bb671b1db84bd52e931a9fba86a1d14f1dd11da7e13d0f6a43b30fe5d1f682fa",
+      "media_type": "application/json",
+      "size_bytes": 879
+    },
+    "runs": [
+      {
+        "run_id": "run-aapl-d-base-a",
+        "run_slot": "rev-a.d.base",
+        "status": "COMPLETED",
+        "window_role": "DEVELOPMENT",
+        "cost_scenario": "BASE",
+        "submission": {
+          "digest": "sha256:6478b58376a9e0539afb560275377b1af9d2470ec0281c76e76df2d8ca430370",
+          "media_type": "application/json",
+          "size_bytes": 1180
+        }
+      },
+      {
+        "run_id": "run-aapl-d-stress-a",
+        "run_slot": "rev-a.d.stress",
+        "status": "COMPLETED",
+        "window_role": "DEVELOPMENT",
+        "cost_scenario": "COST_STRESS",
+        "submission": {
+          "digest": "sha256:e337a4d71074c056fefb83715e9e670e64b0df7ce14a170e5e3d37e8ea0a525f",
+          "media_type": "application/json",
+          "size_bytes": 1180
+        }
+      },
+      {
+        "run_id": "run-aapl-v-base-a",
+        "run_slot": "rev-a.v.base",
+        "status": "COMPLETED",
+        "window_role": "VALIDATION",
+        "cost_scenario": "BASE",
+        "submission": {
+          "digest": "sha256:bccccfb1aed44f49c3468f6ab32391d25607d97fd560a42266f1fc776eece2fd",
+          "media_type": "application/json",
+          "size_bytes": 1180
+        }
+      },
+      {
+        "run_id": "run-aapl-v-stress-a",
+        "run_slot": "rev-a.v.stress",
+        "status": "COMPLETED",
+        "window_role": "VALIDATION",
+        "cost_scenario": "COST_STRESS",
+        "submission": {
+          "digest": "sha256:2c4b51be744befe561bb15d0994512de3927bf8bd607a2c3560dbf5b2db48a69",
+          "media_type": "application/json",
+          "size_bytes": 1180
+        }
+      },
+      {
+        "run_id": "run-aapl-h-base-a",
+        "run_slot": "rev-a.h.base",
+        "status": "COMPLETED",
+        "window_role": "HOLDOUT",
+        "cost_scenario": "BASE",
+        "submission": {
+          "digest": "sha256:fb133dda66ee57833360c9473f8dd8923b44b0abb03b6252f678fe4136b8293c",
+          "media_type": "application/json",
+          "size_bytes": 1180
+        }
+      },
+      {
+        "run_id": "run-aapl-h-stress-a",
+        "run_slot": "rev-a.h.stress",
+        "status": "COMPLETED",
+        "window_role": "HOLDOUT",
+        "cost_scenario": "COST_STRESS",
+        "submission": {
+          "digest": "sha256:8e95a4e67f5b16499b813c897a3f4a26348ce39af8167f9b23e99a642438123d",
+          "media_type": "application/json",
+          "size_bytes": 1180
+        }
+      },
+      {
+        "run_id": "run-aapl-d-base-a-replay",
+        "run_slot": "rev-a.d.base.repeat",
+        "status": "COMPLETED",
+        "window_role": "DEVELOPMENT",
+        "cost_scenario": "BASE",
+        "replay_of": "run-aapl-d-base-a",
+        "submission": {
+          "digest": "sha256:ac7c0c00daf7afa0a319a5752692e3c6c427ff5408d293b20d62d60aaa417eb8",
+          "media_type": "application/json",
+          "size_bytes": 1180
+        }
+      }
+    ],
+    "manifests": [
+      {
+        "digest": "sha256:4952d1fdfc25a1df8918684bc16c5a8ff74c9a7498910ae8e930de3c3b82ab72",
+        "media_type": "application/json",
+        "size_bytes": 1206533
+      }
+    ]
+  }
+}

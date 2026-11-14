@@ -1,0 +1,304 @@
+{
+  "schema_version": "dataset-manifest/1",
+  "dataset": {
+    "id": "aapl-us-daily-sip-20250203-20250214",
+    "version": "1",
+    "source": "PROVIDER",
+    "licence": "Synthetic fixture shaped like provider daily bars; not provider data. Apache-2.0, generated for this repository."
+  },
+  "instrument": {
+    "instrument_id": "alpaca:11111111-2222-4333-8444-555555555555",
+    "symbol": "AAPL",
+    "provider": "alpaca",
+    "provider_asset_id": "11111111-2222-4333-8444-555555555555",
+    "effective_from": "2022-01-03"
+  },
+  "source": {
+    "provider": "alpaca",
+    "feed": "SIP",
+    "adapter": {
+      "name": "alpaca",
+      "version": "1"
+    },
+    "transformation": {
+      "name": "alpaca-daily-normaliser",
+      "version": "1",
+      "digest": "sha256:2c7c4778debfae41a07dd1d21d9cfe2643205e42b10f4eb062e56411f0acc6ac"
+    },
+    "executable": {
+      "name": "engine-batch",
+      "version": "0.0.0",
+      "digest": "sha256:ad92f935e18aa56a512ccd4042258902fc3e51279ff52b21d7a7b1d9bea18adc"
+    },
+    "profile": {
+      "id": "aapl-us-daily-sip",
+      "revision": 1,
+      "digest": "sha256:e6d324910b0d6081a8064fdc9afbb37a1f9c366f3d7c4b43b9a07a2c69d93f3e"
+    }
+  },
+  "semantics": {
+    "feed": "SIP",
+    "timeframe": "1Day",
+    "adjustment": "RAW",
+    "session_basis": "REGULAR_HOURS",
+    "currency": "USD",
+    "minimum_end_age_minutes": 15,
+    "bar_availability": {
+      "rule": "SESSION_CLOSE_PLUS_DELAY",
+      "delay_minutes": 120
+    },
+    "split_availability": {
+      "provider_field": "declaration_date",
+      "available_at": "EFFECTIVE_SESSION_OPEN",
+      "evidence": "DECLARED_BEFORE_EFFECTIVE_SESSION",
+      "when_unevidenced": "BLOCK_PROFILE"
+    },
+    "dividend_availability": {
+      "provider_field": "declaration_date",
+      "available_at": "EFFECTIVE_SESSION_OPEN",
+      "evidence": "DECLARED_BEFORE_EFFECTIVE_SESSION",
+      "when_unevidenced": "BLOCK_PROFILE"
+    },
+    "dividend_payment": {
+      "provider_field": "payable_date",
+      "payment_session": "PAYABLE_DATE",
+      "payment_phase": "AFTER_CLOSE",
+      "when_unmatched": "BLOCK_PROFILE"
+    }
+  },
+  "coverage": {
+    "requested": {
+      "start": "2025-02-01",
+      "end": "2025-02-14"
+    },
+    "returned": {
+      "start": "2025-02-03",
+      "end": "2025-02-14"
+    },
+    "completeness": "COMPLETE",
+    "bar_count": 10,
+    "missing_sessions": []
+  },
+  "retrieval": {
+    "job_id": "job-aapl-retrieve-0001",
+    "attempt_id": "att-aapl-retrieve-0001-1",
+    "request_digest": "sha256:fbd237b7ffc0f3c20d8f1394da2e96611ee0906baf6dc9a9511c9b27cba170a5",
+    "retrieved_at": "2026-11-14T10:01:04Z"
+  },
+  "content": {
+    "calendar": [
+      {
+        "session": "2025-02-03",
+        "open_at": "2025-02-03T14:30:00Z",
+        "close_at": "2025-02-03T21:00:00Z"
+      },
+      {
+        "session": "2025-02-04",
+        "open_at": "2025-02-04T14:30:00Z",
+        "close_at": "2025-02-04T21:00:00Z"
+      },
+      {
+        "session": "2025-02-05",
+        "open_at": "2025-02-05T14:30:00Z",
+        "close_at": "2025-02-05T21:00:00Z"
+      },
+      {
+        "session": "2025-02-06",
+        "open_at": "2025-02-06T14:30:00Z",
+        "close_at": "2025-02-06T21:00:00Z"
+      },
+      {
+        "session": "2025-02-07",
+        "open_at": "2025-02-07T14:30:00Z",
+        "close_at": "2025-02-07T21:00:00Z"
+      },
+      {
+        "session": "2025-02-10",
+        "open_at": "2025-02-10T14:30:00Z",
+        "close_at": "2025-02-10T21:00:00Z"
+      },
+      {
+        "session": "2025-02-11",
+        "open_at": "2025-02-11T14:30:00Z",
+        "close_at": "2025-02-11T21:00:00Z"
+      },
+      {
+        "session": "2025-02-12",
+        "open_at": "2025-02-12T14:30:00Z",
+        "close_at": "2025-02-12T21:00:00Z"
+      },
+      {
+        "session": "2025-02-13",
+        "open_at": "2025-02-13T14:30:00Z",
+        "close_at": "2025-02-13T21:00:00Z"
+      },
+      {
+        "session": "2025-02-14",
+        "open_at": "2025-02-14T14:30:00Z",
+        "close_at": "2025-02-14T21:00:00Z"
+      }
+    ],
+    "bars": [
+      {
+        "session": "2025-02-03",
+        "open": "229.99",
+        "high": "231.83",
+        "low": "225.70",
+        "close": "228.01",
+        "volume": "73063301",
+        "event_time": "2025-02-03T21:00:00Z",
+        "available_at": "2025-02-03T23:00:00Z"
+      },
+      {
+        "session": "2025-02-04",
+        "open": "227.25",
+        "high": "233.13",
+        "low": "226.65",
+        "close": "232.80",
+        "volume": "45067301",
+        "event_time": "2025-02-04T21:00:00Z",
+        "available_at": "2025-02-04T23:00:00Z"
+      },
+      {
+        "session": "2025-02-05",
+        "open": "228.53",
+        "high": "232.67",
+        "low": "228.27",
+        "close": "232.47",
+        "volume": "39620300",
+        "event_time": "2025-02-05T21:00:00Z",
+        "available_at": "2025-02-05T23:00:00Z"
+      },
+      {
+        "session": "2025-02-06",
+        "open": "231.29",
+        "high": "233.80",
+        "low": "230.43",
+        "close": "233.22",
+        "volume": "29925300",
+        "event_time": "2025-02-06T21:00:00Z",
+        "available_at": "2025-02-06T23:00:00Z"
+      },
+      {
+        "session": "2025-02-07",
+        "open": "232.60",
+        "high": "234.00",
+        "low": "227.26",
+        "close": "227.63",
+        "volume": "39707200",
+        "event_time": "2025-02-07T21:00:00Z",
+        "available_at": "2025-02-07T23:00:00Z"
+      },
+      {
+        "session": "2025-02-10",
+        "open": "229.57",
+        "high": "230.59",
+        "low": "227.20",
+        "close": "227.65",
+        "volume": "33115600",
+        "event_time": "2025-02-10T21:00:00Z",
+        "available_at": "2025-02-10T23:00:00Z"
+      },
+      {
+        "session": "2025-02-11",
+        "open": "228.20",
+        "high": "235.23",
+        "low": "228.13",
+        "close": "232.62",
+        "volume": "53718400",
+        "event_time": "2025-02-11T21:00:00Z",
+        "available_at": "2025-02-11T23:00:00Z"
+      },
+      {
+        "session": "2025-02-12",
+        "open": "231.20",
+        "high": "236.96",
+        "low": "230.68",
+        "close": "236.87",
+        "volume": "45243300",
+        "event_time": "2025-02-12T21:00:00Z",
+        "available_at": "2025-02-12T23:00:00Z"
+      },
+      {
+        "session": "2025-02-13",
+        "open": "236.91",
+        "high": "242.34",
+        "low": "235.57",
+        "close": "241.53",
+        "volume": "60608100",
+        "event_time": "2025-02-13T21:00:00Z",
+        "available_at": "2025-02-13T23:00:00Z"
+      },
+      {
+        "session": "2025-02-14",
+        "open": "241.25",
+        "high": "245.55",
+        "low": "240.99",
+        "close": "244.60",
+        "volume": "40896200",
+        "event_time": "2025-02-14T21:00:00Z",
+        "available_at": "2025-02-14T23:00:00Z"
+      }
+    ],
+    "corporate_actions": [
+      {
+        "kind": "CASH_DIVIDEND",
+        "action_id": "div-aapl-2025-02-10",
+        "effective_session": "2025-02-10",
+        "available_at": "2025-02-10T14:30:00Z",
+        "amount_per_share": "0.25",
+        "payment_session": "2025-02-13",
+        "payment_phase": "AFTER_CLOSE"
+      }
+    ],
+    "unplanned_events": [],
+    "action_evidence": [
+      {
+        "action_id": "div-aapl-2025-02-10",
+        "provider_record_id": "ca-0000000001",
+        "provider_field": "declaration_date",
+        "provider_value": "2025-01-30"
+      }
+    ]
+  },
+  "source_responses": [
+    {
+      "sequence": 1,
+      "operation": "provider:alpaca/calendar@1",
+      "received_at": "2026-11-14T10:01:01Z",
+      "content_digest": "sha256:7e2d85e18fdadb178cd79de757bbe806d316dec10918e436687a03bd62658c42",
+      "stored": {
+        "digest": "sha256:7e2d85e18fdadb178cd79de757bbe806d316dec10918e436687a03bd62658c42",
+        "media_type": "application/json",
+        "size_bytes": 1610
+      }
+    },
+    {
+      "sequence": 2,
+      "operation": "provider:alpaca/daily_bars@1",
+      "received_at": "2026-11-14T10:01:02Z",
+      "content_digest": "sha256:2673f3c4c6e4cb0ceea641f26755145d0de959444d2bf8e13de86ad2da80beee",
+      "stored": {
+        "digest": "sha256:2673f3c4c6e4cb0ceea641f26755145d0de959444d2bf8e13de86ad2da80beee",
+        "media_type": "application/json",
+        "size_bytes": 2380
+      }
+    },
+    {
+      "sequence": 3,
+      "operation": "provider:alpaca/corporate_actions@1",
+      "received_at": "2026-11-14T10:01:03Z",
+      "content_digest": "sha256:76e36ba43814e4d4963d9483047ac4e73b9e0c915e1b90b440f72bc2e30253d7",
+      "stored": {
+        "digest": "sha256:76e36ba43814e4d4963d9483047ac4e73b9e0c915e1b90b440f72bc2e30253d7",
+        "media_type": "application/json",
+        "size_bytes": 742
+      }
+    }
+  ],
+  "constraints": {
+    "redistribution": "NOT_PERMITTED",
+    "raw_retention": "RETAIN",
+    "terms_ref": "docs/reference/service-providers.md#alpaca"
+  }
+}

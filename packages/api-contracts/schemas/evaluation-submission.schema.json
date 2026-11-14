@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:evaluation-submission:1",
+  "title": "EvaluationSubmission",
+  "description": "Completion of one evaluate job attempt (OQ-05 sections 4 and 7). The worker uploads the immutable artefacts first, then submits their references with the actual executable, engine and method identities. The API commits an official result only from the current owner and only when every binding matches the request. A redelivered submission cannot create a second official result.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "attempt", "request_digest", "mode", "environment", "executable", "engine_digest", "method", "evaluation", "duration"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["evaluation-submission/1"] },
+    "run_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "attempt": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/AttemptBinding" },
+    "request_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+    "mode": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/EvaluationMode" },
+    "environment": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DeploymentEnvironment" },
+    "executable": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ExecutableIdentity" },
+    "engine_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+    "method": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/MethodIdentity" },
+    "evaluation": { "$ref": "#/$defs/EvaluationArtefacts" },
+    "duration": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DurationUsage" }
+  },
+  "$defs": {
+    "EvaluationArtefacts": {
+      "title": "EvaluationArtefacts",
+      "description": "status repeats the outcome status of the evaluation-result/1. Metrics exist only for COMPLETED outcomes. NOT_PREPARED: the run could not start, so no result exists.",
+      "oneOf": [
+        { "$ref": "#/$defs/CompletedEvaluation" },
+        { "$ref": "#/$defs/UnscoredEvaluation" },
+        { "$ref": "#/$defs/UnpreparedEvaluation" }
+      ]
+    },
+    "CompletedEvaluation": {
+      "title": "CompletedEvaluation",
+      "description": "input is the evaluation-input/1 the run used; its digest is the input hash. result is the evaluation-result/1; its digest is the result digest. metrics is the evaluation-metrics/1 derived from that result.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "input", "result", "metrics"],
+      "properties": {
+        "status": { "type": "string", "enum": ["COMPLETED"] },
+        "input": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ArtefactRef" },
+        "result": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ArtefactRef" },
+        "metrics": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ArtefactRef" }
+      }
+    },
+    "UnscoredEvaluation": {
+      "title": "UnscoredEvaluation",
+      "description": "The run produced a FAILED or INSUFFICIENT result. code repeats the result's failure code. No metrics exist.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "code", "input", "result"],
+      "properties": {
+        "status": { "type": "string", "enum": ["FAILED", "INSUFFICIENT"] },
+        "code": { "$ref": "urn:openquant:schema:common:1#/$defs/FailureCode" },
+        "input": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ArtefactRef" },
+        "result": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ArtefactRef" }
+      }
+    },
+    "UnpreparedEvaluation": {
+      "title": "UnpreparedEvaluation",
+      "description": "Building or preparing the input failed before the first event, for example a manifest hash or policy that does not match the request. No result exists. The run is mapped by code as a FAILED result is (OQ-02 section 3.6). input is present when an input was built.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "code", "detail"],
+      "properties": {
+        "status": { "type": "string", "enum": ["NOT_PREPARED"] },
+        "code": { "$ref": "urn:openquant:schema:common:1#/$defs/FailureCode" },
+        "detail": { "type": "string", "maxLength": 1000 },
+        "input": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ArtefactRef" }
+      }
+    }
+  }
+}

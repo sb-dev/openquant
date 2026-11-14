@@ -1,0 +1,8 @@
+{
+  "schema_version": "command/1",
+  "form": "status",
+  "command_id": "cmd-7d2f0c5e-4a1b-4c3d-9e8f-001122334455",
+  "kind": "register_seed",
+  "state": "PENDING",
+  "received_at": "2026-11-14T09:30:01Z"
+}

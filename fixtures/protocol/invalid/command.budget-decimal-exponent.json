@@ -1,0 +1,23 @@
+{
+  "schema_version": "command/1",
+  "form": "request",
+  "command_id": "cmd-0a1b2c3d-0003",
+  "expected_revision": 0,
+  "issued_at": "2026-11-14T09:10:00Z",
+  "payload": {
+    "kind": "register_budget",
+    "budget": {
+      "budget_id": "staging-period-cap",
+      "revision": 1,
+      "period": {
+        "start": "2026-11-01",
+        "end": "2026-11-30"
+      },
+      "model_spend": {
+        "amount": "2e2",
+        "currency": "USD"
+      },
+      "provider_requests": 120
+    }
+  }
+}

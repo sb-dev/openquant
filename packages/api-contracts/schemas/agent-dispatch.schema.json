@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:agent-dispatch:1",
+  "title": "AgentDispatch",
+  "description": "Host-side envelope that ResearchWorkflow sends to the agent runner for one existing attempt (OQ-03 sections 3 to 5, OQ-05 section 4). It carries the request groups of OQ-03 section 4: identity, execution, inputs and outcome destination. The inputs that the model reads are the frozen role request, carried by digest; its holdout exclusions are repeated here so the host can check them. The runner claims the attempt with the digest of this envelope before it starts the executor. The model never receives this envelope.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "environment", "identity", "execution", "inputs", "result_route"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["agent-dispatch/1"] },
+    "environment": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DeploymentEnvironment" },
+    "identity": { "$ref": "#/$defs/DispatchIdentity" },
+    "execution": { "$ref": "#/$defs/DispatchExecution" },
+    "inputs": { "$ref": "#/$defs/DispatchInputs" },
+    "result_route": {
+      "type": "string",
+      "maxLength": 200,
+      "pattern": "^/v1/attempts/[A-Za-z0-9][A-Za-z0-9._:-]{0,63}/agent-result$"
+    }
+  },
+  "$defs": {
+    "DispatchIdentity": {
+      "title": "DispatchIdentity",
+      "description": "Mission, logical agent run, attempt with its ownership revision, fresh session, role, role module and behaviour-bundle hash. The bundle hash binds the module and the allowed method revisions. Agent work is non-trial work: an agent run is not an evaluation run and does not count as an experiment.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mission_id", "run_id", "attempt", "session_id", "role", "skill", "bundle_hash"],
+      "properties": {
+        "mission_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "run_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "attempt": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/AttemptBinding" },
+        "session_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "role": { "type": "string", "enum": ["proposer", "critic"] },
+        "skill": { "$ref": "#/$defs/SkillRef" },
+        "bundle_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" }
+      }
+    },
+    "SkillRef": {
+      "title": "SkillRef",
+      "description": "Role module from the static registry. strategy-formulation serves the proposer and strategy-critique the critic.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": { "type": "string", "enum": ["strategy-formulation", "strategy-critique"] },
+        "version": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" }
+      }
+    },
+    "DispatchExecution": {
+      "title": "DispatchExecution",
+      "description": "Pinned executor, selected profile and the bounds the host enforces and the runner cannot raise. tools is empty for both pilot modules until the first S3 evidence tool, and never lists role assembly or parsing. required_capabilities are copied from the registry entry and never enlarged.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executor", "bounds", "tools", "required_capabilities"],
+      "properties": {
+        "executor": { "$ref": "#/$defs/ExecutorSelection" },
+        "bounds": { "$ref": "#/$defs/AgentBounds" },
+        "tools": {
+          "type": "array",
+          "maxItems": 0,
+          "items": { "type": "string", "pattern": "^tool:[a-z][a-z0-9_-]*@[1-9][0-9]*$" }
+        },
+        "required_capabilities": {
+          "type": "array",
+          "maxItems": 16,
+          "items": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ProviderCapabilityRef" }
+        }
+      }
+    },
+    "ExecutorSelection": {
+      "title": "ExecutorSelection",
+      "description": "Pinned executor version and the selected execution profile.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "profile"],
+      "properties": {
+        "version": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "profile": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ExecutorProfile" }
+      }
+    },
+    "AgentBounds": {
+      "title": "AgentBounds",
+      "description": "cost_reservation was reserved before dispatch. An output above output_limit_bytes is a malformed result.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timeout_seconds", "output_limit_bytes", "cost_reservation"],
+      "properties": {
+        "timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 86400 },
+        "output_limit_bytes": { "type": "integer", "minimum": 1, "maximum": 16777216 },
+        "cost_reservation": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/MoneyAmount" }
+      }
+    },
+    "DispatchInputs": {
+      "title": "DispatchInputs",
+      "description": "request is the frozen role request; its digest is the input hash that the attempt result repeats. holdout_exclusions must equal the exclusions in that request. In S1 a revision request names the V and H windows.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["request", "holdout_exclusions"],
+      "properties": {
+        "request": { "$ref": "#/$defs/RoleRequestRef" },
+        "holdout_exclusions": {
+          "type": "array",
+          "maxItems": 3,
+          "items": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/HoldoutExclusion" }
+        }
+      }
+    },
+    "RoleRequestRef": {
+      "title": "RoleRequestRef",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract", "artefact"],
+      "properties": {
+        "contract": { "type": "string", "enum": ["strategy-formulation.request/1", "strategy-critique.request/1"] },
+        "artefact": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ArtefactRef" }
+      }
+    }
+  }
+}

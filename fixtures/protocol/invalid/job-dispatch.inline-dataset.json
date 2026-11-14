@@ -1,0 +1,31 @@
+{
+  "schema_version": "job-dispatch/1",
+  "environment": "STAGING",
+  "job_id": "job-aapl-retrieve-0001",
+  "attempt": {
+    "attempt_id": "att-aapl-retrieve-0001-1",
+    "ownership_revision": 1
+  },
+  "mission_id": "msn-aapl-0001",
+  "dispatched_at": "2026-11-14T10:00:00Z",
+  "inputs": {
+    "kind": "retrieve",
+    "request": {
+      "digest": "sha256:fbd237b7ffc0f3c20d8f1394da2e96611ee0906baf6dc9a9511c9b27cba170a5",
+      "media_type": "application/json",
+      "size_bytes": 1584
+    },
+    "bars": [
+      {
+        "session": "2025-02-03",
+        "open": "229.99",
+        "high": "231.83",
+        "low": "225.70",
+        "close": "228.01",
+        "volume": "73063301",
+        "event_time": "2025-02-03T21:00:00Z",
+        "available_at": "2025-02-03T23:00:00Z"
+      }
+    ]
+  }
+}

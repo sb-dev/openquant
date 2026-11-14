@@ -1,0 +1,12 @@
+{
+  "schema_version": "command/1",
+  "form": "request",
+  "command_id": "cmd-0a1b2c3d-0006",
+  "expected_revision": 2,
+  "issued_at": "2026-11-14T12:00:00Z",
+  "payload": {
+    "kind": "cancel_mission",
+    "mission_id": "msn-aapl-0001",
+    "reason": "The Researcher stopped the pilot after the provider probe failed."
+  }
+}

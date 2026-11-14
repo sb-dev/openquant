@@ -1,0 +1,44 @@
+{
+  "schema_version": "evaluation-submission/1",
+  "run_id": "run-s0-f0-replay",
+  "attempt": {
+    "attempt_id": "att-s0-f0-replay-1",
+    "ownership_revision": 1
+  },
+  "request_digest": "sha256:83e4f0cb11b2d57996eec6768c7142d23fb5869db20a18a1b25f00eff16d8a3a",
+  "mode": "REPLAY",
+  "environment": "DEVELOPMENT",
+  "executable": {
+    "name": "engine-batch",
+    "version": "0.0.0",
+    "digest": "sha256:xyz"
+  },
+  "engine_digest": "sha256:7ceafb5e32e05c234b2a4cd2915946d4c6273ea9455d7b4f98821712555bb36a",
+  "method": {
+    "name": "openquant-evidence-methods",
+    "version": "1",
+    "digest": "sha256:7d57cee1b569f319d5587d03c0d6797faf48347bfff33fa1c070cb2e83ee02f5"
+  },
+  "evaluation": {
+    "status": "COMPLETED",
+    "input": {
+      "digest": "sha256:f1618d597356d3384977a670eedacc86d2a28f600a97dcf583a0088607682cf4",
+      "media_type": "application/json",
+      "size_bytes": 3534
+    },
+    "result": {
+      "digest": "sha256:f6913657abdc2589bb6cfab79e9dcecf9dc80db48add16abeaa62783d949e0ba",
+      "media_type": "application/json",
+      "size_bytes": 7346
+    },
+    "metrics": {
+      "digest": "sha256:b3cafc37fbbd6a2f2da75acafbb9fde3ed5c9f3415d4f85761403d4cdd04eb95",
+      "media_type": "application/json",
+      "size_bytes": 1904
+    }
+  },
+  "duration": {
+    "label": "observed",
+    "milliseconds": 41
+  }
+}

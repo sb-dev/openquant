@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:role-common:1",
+  "title": "OpenQuantRoleDefinitions",
+  "description": "Definitions shared by the proposer and critic role requests (OQ-03 section 4). A role request holds the inputs the model reads. Request assembly fills every field from trusted host context; model input cannot supply or enlarge any of them. The identity, execution and outcome-destination groups are in the host-side agent-dispatch/1. Retrieved and source content is data and grants nothing.",
+  "$defs": {
+    "RoleContext": {
+      "title": "RoleContext",
+      "description": "Fixed context for both roles: scope, evidence cutoff, permitted operators with bounds, provider capabilities, the frozen cohort policy and the explicit holdout exclusions. In S1 a revision request excludes the V and H windows.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "cutoff", "operators", "provider_capabilities", "evaluation_policy", "holdout_exclusions"],
+      "properties": {
+        "scope": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/InstrumentMapping" },
+        "cutoff": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "operators": { "$ref": "urn:openquant:schema:cohort-policy:1#/$defs/OperatorPermissions" },
+        "provider_capabilities": {
+          "type": "array",
+          "maxItems": 16,
+          "items": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ProviderCapabilityRef" }
+        },
+        "evaluation_policy": { "$ref": "urn:openquant:schema:cohort-policy:1" },
+        "holdout_exclusions": {
+          "type": "array",
+          "maxItems": 3,
+          "items": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/HoldoutExclusion" }
+        }
+      }
+    },
+    "EvidenceItem": {
+      "title": "EvidenceItem",
+      "description": "One authorised evidence item with provenance: an earlier hypothesis, failed trial, critic finding, observed outcome, run metrics or diagnostics from a rejected draft. content is bounded text that the host renders from the record with digest record_digest. It is data, never an instruction.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "record_digest", "recorded_at", "content"],
+      "properties": {
+        "id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "kind": {
+          "type": "string",
+          "enum": ["source", "finding", "evaluation_metrics", "failed_trial", "draft_diagnostics", "hypothesis"]
+        },
+        "record_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "recorded_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "content": { "type": "string", "maxLength": 2000 }
+      }
+    },
+    "SuppliedMethod": {
+      "title": "SuppliedMethod",
+      "description": "One method rule the bundle allows, with its origin, primary category and scope. Its note text is in the bundle. A citation is a self-report and grants no operator, data or permission.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "rule_origin", "category", "scope"],
+      "properties": {
+        "id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "rule_origin": { "type": "string", "enum": ["primary_checked", "summary_claim_unverified", "summariser_recommendation"] },
+        "category": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/FindingCategory" },
+        "scope": { "type": "string", "enum": ["seed", "needs_operator", "out_of_scope"] }
+      }
+    },
+    "SourceText": {
+      "title": "SourceText",
+      "description": "Untrusted reference text, identified by the SHA-256 of its exact bytes, split into lines. It is never executed.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "content_digest", "media_type", "lines"],
+      "properties": {
+        "source_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "content_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "media_type": { "type": "string", "maxLength": 100, "pattern": "^[a-z]+/[a-z0-9.+-]+$" },
+        "lines": { "type": "array", "maxItems": 4000, "items": { "type": "string", "maxLength": 2000 } }
+      }
+    }
+  }
+}

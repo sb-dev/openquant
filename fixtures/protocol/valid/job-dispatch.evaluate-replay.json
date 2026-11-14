@@ -1,0 +1,18 @@
+{
+  "schema_version": "job-dispatch/1",
+  "environment": "DEVELOPMENT",
+  "job_id": "run-s0-f0-replay",
+  "attempt": {
+    "attempt_id": "att-s0-f0-replay-1",
+    "ownership_revision": 1
+  },
+  "dispatched_at": "2026-11-14T09:20:00Z",
+  "inputs": {
+    "kind": "evaluate",
+    "request": {
+      "digest": "sha256:83e4f0cb11b2d57996eec6768c7142d23fb5869db20a18a1b25f00eff16d8a3a",
+      "media_type": "application/json",
+      "size_bytes": 898
+    }
+  }
+}

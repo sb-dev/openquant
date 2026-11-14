@@ -1,0 +1,29 @@
+{
+  "schema_version": "command/1",
+  "form": "request",
+  "command_id": "cmd-wf-msn-aapl-0001-freeze",
+  "expected_revision": 5,
+  "issued_at": "2026-11-14T11:35:00Z",
+  "payload": {
+    "kind": "freeze_candidates",
+    "mission_id": "msn-aapl-0001",
+    "plan_digest": "sha256:398d54b3f7d6a9e69be5e832283406f03e168b459e7e8ebd4035a85cbe8fcfa7",
+    "slots": [
+      {
+        "trial_slot": "seed",
+        "status": "EVALUATING",
+        "strategy_hash": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78"
+      },
+      {
+        "trial_slot": "rev-a",
+        "status": "EVALUATING",
+        "strategy_hash": "sha256:3b2b013c84fb0f64657822298593f8bc24a520c76023b8f18c61ee0e00abb046"
+      },
+      {
+        "trial_slot": "rev-b",
+        "status": "NOT_EVALUATED",
+        "reason": "DECISION_DEFERRED"
+      }
+    ]
+  }
+}

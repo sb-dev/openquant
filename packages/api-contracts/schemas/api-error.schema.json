@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:api-error:1",
+  "title": "ApiError",
+  "description": "Error body of every S1 API route (OQ-04 section 12). It states what failed, whether state changed, whether a retry is safe and a diagnostic reference. state_changed NONE is used only when the API has authoritative evidence that nothing changed. It never carries credentials, stack traces or full payloads.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "code", "message", "state_changed", "retry_safe", "diagnostic_ref"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["api-error/1"] },
+    "code": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ApiErrorCode" },
+    "message": { "type": "string", "maxLength": 1000 },
+    "state_changed": { "type": "string", "enum": ["NONE", "UNKNOWN"] },
+    "retry_safe": { "type": "boolean" },
+    "diagnostic_ref": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "current_revision": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+    "violations": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/ApiViolation" } }
+  },
+  "$defs": {
+    "ApiViolation": {
+      "title": "ApiViolation",
+      "description": "One contract violation: a JSON Pointer into the request body and a bounded message.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pointer", "message"],
+      "properties": {
+        "pointer": { "type": "string", "maxLength": 256 },
+        "message": { "type": "string", "maxLength": 1000 }
+      }
+    }
+  }
+}
