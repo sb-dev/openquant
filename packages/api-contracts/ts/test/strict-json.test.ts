@@ -41,6 +41,8 @@ describe('the strict parser accepts what strict.rs accepts', () => {
     ['"a\u007fb"', 'a\u007fb'],
     ['[true,false,null,"",[],{}]', [true, false, null, '', [], {}]],
     ['{"a":{"b":[1,{"c":"d"}]}}', { a: { b: [1, { c: 'd' }] } }],
+    ['"a\\nb\\u0041c\\u00e9 é"', 'a\nbAcé é'],
+    ['{"\\u0061b":[[1,[2,3]],[],[4]],"c":[]}', { ab: [[1, [2, 3]], [], [4]], c: [] }],
   ])('%s', (text, value) => {
     expect(parseStrictJson(text)).toEqual(value);
   });

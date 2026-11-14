@@ -1,6 +1,6 @@
 {
   "schema": "api-route-manifest/1",
-  "note": "HTTP routes of the S1 API (host api) and the agent runner dispatch endpoint (host agent-runner). auth lists the credentials a route accepts; any one of them is enough. A contract body names a schema in packages/api-contracts/schemas by its short name; form selects one form of a two-form contract. A view body is an API-owned JSON document, such as a read model: it is not a cross-runtime contract and apps/api owns its shape. bytes is a raw artefact body addressed by its SHA-256 digest. max_body_bytes bounds a request body: the API refuses a larger one with LIMIT_EXCEEDED before it parses it. Every route whose request contract has no value bound (command/1, whose seed draft holds a recursive Expr tree) declares it, so its parse stays within a Worker isolate's memory (OQ-05 section 7). Every error body is the api-error contract. common_errors apply to every route in addition to its own errors. The internal commands record_evaluation_decision and freeze_candidates have no route. runs.metrics and runs.result return the committed official evaluation-metrics/1 and evaluation-result/1 of one run unchanged, with NOT_FOUND while none is committed: a FAILED or INSUFFICIENT run has no metrics, and a run that ended before the core prepared it has no result. Clients show these official values and never recompute them (OQ-04 section 5, OQ-05 section 7).",
+  "note": "HTTP routes of the S1 API (host api) and the agent runner dispatch endpoint (host agent-runner). auth lists the credentials a route accepts; any one of them is enough. A contract body names a schema in packages/api-contracts/schemas by its short name; form selects one form of a two-form contract. A view body is an API-owned JSON document, such as a read model: it is not a cross-runtime contract and apps/api owns its shape. bytes is a raw artefact body addressed by its SHA-256 digest. max_body_bytes bounds a request body: the API refuses a larger one with LIMIT_EXCEEDED before it parses it. Every route with a request body declares it. For a contract body it is the contract's Worker byte limit (workerBodyLimit in packages/api-contracts/ts), at which a parse stays within half of a Worker isolate's memory (OQ-05 section 7). A bytes body may reach the 16 MiB strict-JSON limit; the API hashes and stores it without parsing it. Every error body is the api-error contract. common_errors apply to every route in addition to its own errors. The internal commands record_evaluation_decision and freeze_candidates have no route. runs.metrics and runs.result return the committed official evaluation-metrics/1 and evaluation-result/1 of one run unchanged, served from storage by content hash without parsing, with NOT_FOUND while none is committed: a FAILED or INSUFFICIENT run has no metrics, and a run that ended before the core prepared it has no result. Clients show these official values and never recompute them (OQ-04 section 5, OQ-05 section 7).",
   "version": "v1",
   "base_path": "/v1",
   "error_body": "api-error",
@@ -77,9 +77,10 @@
       "path": "/v1/releases",
       "auth": [{ "kind": "human", "roles": ["Administrator"] }, { "kind": "service", "principals": ["deploy"] }],
       "request": { "kind": "contract", "contract": "release-manifest" },
+      "max_body_bytes": 4194304,
       "response": { "kind": "view", "view": "system-identity" },
       "success_status": 200,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "IDENTITY_MISMATCH", "REVISION_CONFLICT"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "IDENTITY_MISMATCH", "REVISION_CONFLICT", "LIMIT_EXCEEDED"]
     },
     {
       "id": "research-profiles.register",
@@ -88,7 +89,7 @@
       "path": "/v1/research-profiles",
       "auth": [{ "kind": "human", "roles": ["Steward"] }],
       "request": { "kind": "contract", "contract": "command", "form": "request", "command_kind": "register_research_profile" },
-      "max_body_bytes": 1048576,
+      "max_body_bytes": 524288,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
       "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "LIMIT_EXCEEDED"]
@@ -100,7 +101,7 @@
       "path": "/v1/cohort-policies",
       "auth": [{ "kind": "human", "roles": ["Steward"] }],
       "request": { "kind": "contract", "contract": "command", "form": "request", "command_kind": "register_cohort_policy" },
-      "max_body_bytes": 1048576,
+      "max_body_bytes": 524288,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
       "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "LIMIT_EXCEEDED"]
@@ -112,7 +113,7 @@
       "path": "/v1/budgets",
       "auth": [{ "kind": "human", "roles": ["Steward"] }],
       "request": { "kind": "contract", "contract": "command", "form": "request", "command_kind": "register_budget" },
-      "max_body_bytes": 1048576,
+      "max_body_bytes": 524288,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
       "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "LIMIT_EXCEEDED"]
@@ -124,7 +125,7 @@
       "path": "/v1/strategies/seeds",
       "auth": [{ "kind": "human", "roles": ["Researcher"] }],
       "request": { "kind": "contract", "contract": "command", "form": "request", "command_kind": "register_seed" },
-      "max_body_bytes": 1048576,
+      "max_body_bytes": 524288,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
       "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "LIMIT_EXCEEDED"]
@@ -136,7 +137,7 @@
       "path": "/v1/missions",
       "auth": [{ "kind": "human", "roles": ["Researcher"] }],
       "request": { "kind": "contract", "contract": "command", "form": "request", "command_kind": "create_mission" },
-      "max_body_bytes": 1048576,
+      "max_body_bytes": 524288,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
       "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "BUDGET_EXHAUSTED", "LIMIT_EXCEEDED"]
@@ -148,7 +149,7 @@
       "path": "/v1/missions/{mission_id}/run-now",
       "auth": [{ "kind": "human", "roles": ["Researcher"] }],
       "request": { "kind": "contract", "contract": "command", "form": "request", "command_kind": "run_mission_now" },
-      "max_body_bytes": 1048576,
+      "max_body_bytes": 524288,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
       "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "BUDGET_EXHAUSTED", "EXECUTION_DISABLED", "LIMIT_EXCEEDED"]
@@ -160,7 +161,7 @@
       "path": "/v1/missions/{mission_id}/cancel",
       "auth": [{ "kind": "human", "roles": ["Researcher"] }],
       "request": { "kind": "contract", "contract": "command", "form": "request", "command_kind": "cancel_mission" },
-      "max_body_bytes": 1048576,
+      "max_body_bytes": 524288,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
       "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "LIMIT_EXCEEDED"]
@@ -293,9 +294,10 @@
       "path": "/v1/attempts/{attempt_id}/claim",
       "auth": [{ "kind": "service", "principals": ["batch", "runner"] }],
       "request": { "kind": "contract", "contract": "attempt-claim", "form": "claim" },
+      "max_body_bytes": 4194304,
       "response": { "kind": "contract", "contract": "attempt-claim", "form": "grant" },
       "success_status": 200,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "STALE_OWNERSHIP", "ATTEMPT_NOT_CLAIMABLE", "IDENTITY_MISMATCH", "EXECUTION_DISABLED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "STALE_OWNERSHIP", "ATTEMPT_NOT_CLAIMABLE", "IDENTITY_MISMATCH", "EXECUTION_DISABLED", "LIMIT_EXCEEDED"]
     },
     {
       "id": "attempts.input",
@@ -315,6 +317,7 @@
       "path": "/v1/attempts/{attempt_id}/artefacts/{digest}",
       "auth": [{ "kind": "attempt", "principals": ["batch", "runner"] }],
       "request": { "kind": "bytes" },
+      "max_body_bytes": 16777216,
       "response": { "kind": "none" },
       "success_status": 204,
       "errors": ["DIGEST_MISMATCH", "LIMIT_EXCEEDED", "STALE_OWNERSHIP", "LEASE_EXPIRED"]
@@ -326,9 +329,10 @@
       "path": "/v1/attempts/{attempt_id}/retrieval-result",
       "auth": [{ "kind": "attempt", "principals": ["batch"] }],
       "request": { "kind": "contract", "contract": "retrieval-result" },
+      "max_body_bytes": 4194304,
       "response": { "kind": "none" },
       "success_status": 204,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
     },
     {
       "id": "attempts.validation-result",
@@ -337,9 +341,10 @@
       "path": "/v1/attempts/{attempt_id}/validation-result",
       "auth": [{ "kind": "attempt", "principals": ["batch"] }],
       "request": { "kind": "contract", "contract": "validation-result" },
+      "max_body_bytes": 4194304,
       "response": { "kind": "none" },
       "success_status": 204,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
     },
     {
       "id": "attempts.evaluation-submission",
@@ -348,9 +353,10 @@
       "path": "/v1/attempts/{attempt_id}/evaluation-submission",
       "auth": [{ "kind": "attempt", "principals": ["batch"] }],
       "request": { "kind": "contract", "contract": "evaluation-submission" },
+      "max_body_bytes": 4194304,
       "response": { "kind": "none" },
       "success_status": 204,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
     },
     {
       "id": "attempts.gate-report",
@@ -359,9 +365,10 @@
       "path": "/v1/attempts/{attempt_id}/gate-report",
       "auth": [{ "kind": "attempt", "principals": ["batch"] }],
       "request": { "kind": "contract", "contract": "gate-report" },
+      "max_body_bytes": 4194304,
       "response": { "kind": "none" },
       "success_status": 204,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
     },
     {
       "id": "attempts.agent-result",
@@ -370,9 +377,10 @@
       "path": "/v1/attempts/{attempt_id}/agent-result",
       "auth": [{ "kind": "attempt", "principals": ["runner"] }],
       "request": { "kind": "contract", "contract": "agent-attempt-result" },
+      "max_body_bytes": 4194304,
       "response": { "kind": "none" },
       "success_status": 204,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
     },
     {
       "id": "runner.dispatch",
@@ -381,9 +389,10 @@
       "path": "/v1/agent-attempts",
       "auth": [{ "kind": "service", "principals": ["workflows"] }],
       "request": { "kind": "contract", "contract": "agent-dispatch" },
+      "max_body_bytes": 4194304,
       "response": { "kind": "none" },
       "success_status": 202,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "STALE_OWNERSHIP", "ATTEMPT_NOT_CLAIMABLE", "IDENTITY_MISMATCH", "EXECUTION_DISABLED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "STALE_OWNERSHIP", "ATTEMPT_NOT_CLAIMABLE", "IDENTITY_MISMATCH", "EXECUTION_DISABLED", "LIMIT_EXCEEDED"]
     }
   ]
 }

@@ -5,7 +5,8 @@
 // these limits goes on to the pass that lists every violation. A valid document returns before this
 // check, so the limits never reject one, although a valid result or checkpoint can hold more than
 // MAX_NODES values. They are not a memory bound: the parse builds the document before validation
-// runs. The parse is bounded by the contract's value bound instead (validate.ts, strict-json.ts).
+// runs. The parse is bounded by the contract's value bound and Worker byte limit instead
+// (validate.ts, strict-json.ts).
 // The walk visits values in the order Rust does: arrays by index, object keys in byte order (the
 // serde_json map is sorted), and stops at the first excess.
 
