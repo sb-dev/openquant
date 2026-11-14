@@ -1,0 +1,11 @@
+# Workspace packages, listed one by one (OQ-06 §1). Add a package here only with working code and checks.
+packages:
+  - packages/api-contracts/ts
+
+# Dependency install scripts. pnpm refuses to install while a script has no decision.
+# Allow a script only when the package cannot work without it, and record why here.
+allowBuilds:
+  # Not needed: the postinstall only checks the platform binary and may swap the bin shim for it.
+  # pnpm installs @esbuild/<platform> as an optional dependency, and the JavaScript API that the
+  # bundle check uses loads it directly.
+  esbuild: false

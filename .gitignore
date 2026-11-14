@@ -1,8 +1,10 @@
 node_modules/
 target/
+# Build output, including the generated TypeScript contract bindings (packages/api-contracts/ts/dist/generated).
 dist/
 coverage/
 .turbo/
+*.tsbuildinfo
 .cache/
 .wrangler/
 .DS_Store
