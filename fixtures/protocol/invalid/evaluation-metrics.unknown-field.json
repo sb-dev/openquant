@@ -1,0 +1,108 @@
+{
+  "schema_version": "evaluation-metrics/1",
+  "run_id": "run-aapl-v-base-a",
+  "source": {
+    "result_digest": "sha256:c96823fc8c86f962979f663461782925c0768c3f14e7b3c41f04aa002397dd55",
+    "input_hash": "sha256:1036fce4cfecda48bded6f6bc55559fe8fba9c6dca2b622f84968c20a7e9f3b2",
+    "strategy_hash": "sha256:3b2b013c84fb0f64657822298593f8bc24a520c76023b8f18c61ee0e00abb046",
+    "engine_digest": "sha256:7ceafb5e32e05c234b2a4cd2915946d4c6273ea9455d7b4f98821712555bb36a"
+  },
+  "method": {
+    "name": "openquant-evidence-methods",
+    "version": "1",
+    "digest": "sha256:7d57cee1b569f319d5587d03c0d6797faf48347bfff33fa1c070cb2e83ee02f5"
+  },
+  "metric_scale": 6,
+  "window": {
+    "role": "VALIDATION",
+    "cost_scenario": "BASE",
+    "scored": {
+      "start": "2024-01-02",
+      "end": "2024-12-31"
+    }
+  },
+  "strategy": {
+    "net_return": {
+      "unit": "RATIO",
+      "value": "0.041873"
+    },
+    "max_drawdown": {
+      "unit": "RATIO",
+      "value": "0.062154"
+    },
+    "worst_session_return": {
+      "unit": "RATIO",
+      "value": "-0.024901"
+    },
+    "turnover": {
+      "unit": "RATIO",
+      "value": "3.812406"
+    },
+    "trade_count": {
+      "unit": "COUNT",
+      "value": 9
+    },
+    "scored_session_count": {
+      "unit": "COUNT",
+      "value": 252
+    },
+    "execution_cost": {
+      "fees": {
+        "unit": "MONEY",
+        "currency": "USD",
+        "value": "190.62"
+      },
+      "gap_slippage": {
+        "unit": "MONEY",
+        "currency": "USD",
+        "value": "38.17"
+      },
+      "total": {
+        "unit": "MONEY",
+        "currency": "USD",
+        "value": "228.79"
+      }
+    },
+    "exposure": {
+      "unit": "RATIO",
+      "value": "0.318650"
+    },
+    "sharpe": {
+      "unit": "RATIO",
+      "value": "1.2"
+    }
+  },
+  "benchmarks": {
+    "buy_and_hold": {
+      "status": "COMPUTED",
+      "entry_session": "2024-01-02",
+      "quantity": "534",
+      "net_return": {
+        "unit": "RATIO",
+        "value": "0.335961"
+      },
+      "max_drawdown": {
+        "unit": "RATIO",
+        "value": "0.155018"
+      },
+      "excess_return": {
+        "unit": "RATIO",
+        "value": "-0.294088"
+      }
+    },
+    "cash": {
+      "net_return": {
+        "unit": "RATIO",
+        "value": "0"
+      },
+      "excess_return": {
+        "unit": "RATIO",
+        "value": "0.041873"
+      }
+    }
+  },
+  "uncertainty": {
+    "status": "NOT_COMPUTED",
+    "limitation": "S1 reports no uncertainty statistic: OQ-02 section 3.6 gives no method for one stock. Development, validation and holdout returns are shown side by side instead."
+  }
+}

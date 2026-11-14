@@ -1,0 +1,68 @@
+{
+  "schema_version": "research-profile/1",
+  "profile_id": "aapl-us-daily-sip",
+  "revision": 1,
+  "market": {
+    "market": "US_EQUITIES",
+    "currency": "USD",
+    "timezone": "America/New_York",
+    "calendar_source": "provider:alpaca/calendar@1",
+    "instrument_identity": "PROVIDER_ASSET_ID"
+  },
+  "provider": {
+    "adapter": {
+      "name": "alpaca",
+      "version": "1"
+    },
+    "credential_ref": "alpaca-paper-market-data",
+    "required_capabilities": [
+      "provider:alpaca/daily_bars@1",
+      "provider:alpaca/minute_bars@1",
+      "provider:alpaca/corporate_actions@1",
+      "provider:alpaca/calendar@1",
+      "provider:alpaca/asset@1"
+    ]
+  },
+  "data": {
+    "feed": "SIP",
+    "timeframe": "1Day",
+    "adjustment": "RAW",
+    "session_basis": "REGULAR_HOURS",
+    "currency": "USD",
+    "minimum_end_age_minutes": 15,
+    "bar_availability": {
+      "rule": "SESSION_CLOSE_PLUS_DELAY",
+      "delay_minutes": 120
+    },
+    "split_availability": {
+      "provider_field": "declaration_date",
+      "available_at": "EFFECTIVE_SESSION_OPEN",
+      "evidence": "DECLARED_BEFORE_EFFECTIVE_SESSION",
+      "when_unevidenced": "BLOCK_PROFILE"
+    },
+    "dividend_availability": {
+      "provider_field": "declaration_date",
+      "available_at": "EFFECTIVE_SESSION_OPEN",
+      "evidence": "DECLARED_BEFORE_EFFECTIVE_SESSION",
+      "when_unevidenced": "BLOCK_PROFILE"
+    },
+    "dividend_payment": {
+      "provider_field": "payable_date",
+      "payment_session": "PAYABLE_DATE",
+      "payment_phase": "AFTER_CLOSE",
+      "when_unmatched": "BLOCK_PROFILE"
+    }
+  },
+  "history": {
+    "start": "2022-01-01",
+    "end": "2025-12-31"
+  },
+  "information_cutoff": {
+    "rule": "FINAL_SCORED_BAR_AVAILABILITY"
+  },
+  "freshness": {
+    "snapshot": "PER_MISSION"
+  },
+  "period_budget": "staging-period-cap",
+  "cohort_suite": "s1-single-stock-suite"
+}

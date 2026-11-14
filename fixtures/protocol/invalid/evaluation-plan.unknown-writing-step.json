@@ -1,0 +1,257 @@
+{
+  "schema_version": "evaluation-plan/1",
+  "plan_id": "plan-msn-aapl-0001",
+  "mission_id": "msn-aapl-0001",
+  "profile": {
+    "id": "aapl-us-daily-sip",
+    "revision": 1,
+    "digest": "sha256:e6d324910b0d6081a8064fdc9afbb37a1f9c366f3d7c4b43b9a07a2c69d93f3e"
+  },
+  "cohort_policy": {
+    "id": "s1-aapl-daily-swing",
+    "revision": 1,
+    "digest": "sha256:0e8ea5f12262374def68a65011850ff52e6867a8963f6dd4f95970436b1b5482"
+  },
+  "suite_id": "s1-single-stock-suite",
+  "calendar": {
+    "digest": "sha256:4952d1fdfc25a1df8918684bc16c5a8ff74c9a7498910ae8e930de3c3b82ab72",
+    "media_type": "application/json",
+    "size_bytes": 1206533
+  },
+  "windows": [
+    {
+      "role": "DEVELOPMENT",
+      "rule": {
+        "start": "2023-01-01",
+        "end": "2023-12-31"
+      },
+      "label": "development",
+      "resolved": {
+        "warmup_start": "2022-10-06",
+        "scored_start": "2023-01-03",
+        "scored_end": "2023-12-29",
+        "information_cutoff": "2023-12-29T23:00:00Z"
+      },
+      "run_sessions": 310
+    },
+    {
+      "role": "VALIDATION",
+      "rule": {
+        "start": "2024-01-01",
+        "end": "2024-12-31"
+      },
+      "label": "validation",
+      "resolved": {
+        "warmup_start": "2023-10-05",
+        "scored_start": "2024-01-02",
+        "scored_end": "2024-12-31",
+        "information_cutoff": "2024-12-31T23:00:00Z"
+      },
+      "run_sessions": 312
+    },
+    {
+      "role": "HOLDOUT",
+      "rule": {
+        "start": "2025-01-01",
+        "end": "2025-12-31"
+      },
+      "label": "historical holdout within model training period",
+      "resolved": {
+        "warmup_start": "2024-10-07",
+        "scored_start": "2025-01-02",
+        "scored_end": "2025-12-31",
+        "information_cutoff": "2025-12-31T23:00:00Z"
+      },
+      "run_sessions": 310
+    }
+  ],
+  "trial_slots": [
+    {
+      "slot_id": "seed",
+      "kind": "seed",
+      "strategy_id": "daily-swing-seed",
+      "version": 1,
+      "strategy_hash": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78"
+    },
+    {
+      "slot_id": "rev-a",
+      "kind": "revision",
+      "configuration_id": "proposer-a",
+      "parent_slot": "seed"
+    },
+    {
+      "slot_id": "rev-b",
+      "kind": "revision",
+      "configuration_id": "proposer-b",
+      "parent_slot": "seed"
+    }
+  ],
+  "scenarios": {
+    "cost_cases": [
+      {
+        "cost_scenario": "BASE",
+        "multiplier": "1"
+      },
+      {
+        "cost_scenario": "COST_STRESS",
+        "multiplier": "2"
+      }
+    ],
+    "deterministic_repeat": {
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "BASE"
+    }
+  },
+  "run_slots": [
+    {
+      "run_slot_id": "seed.d.base",
+      "trial_slot": "seed",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION"
+    },
+    {
+      "run_slot_id": "seed.d.stress",
+      "trial_slot": "seed",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "EVALUATING_DECISION"
+    },
+    {
+      "run_slot_id": "seed.d.base.repeat",
+      "trial_slot": "seed",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": "seed.d.base"
+    },
+    {
+      "run_slot_id": "seed.v.base",
+      "trial_slot": "seed",
+      "window_role": "VALIDATION",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION"
+    },
+    {
+      "run_slot_id": "seed.v.stress",
+      "trial_slot": "seed",
+      "window_role": "VALIDATION",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "EVALUATING_DECISION"
+    },
+    {
+      "run_slot_id": "seed.h.base",
+      "trial_slot": "seed",
+      "window_role": "HOLDOUT",
+      "cost_scenario": "BASE",
+      "written_by": "PROPOSAL"
+    },
+    {
+      "run_slot_id": "seed.h.stress",
+      "trial_slot": "seed",
+      "window_role": "HOLDOUT",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "FREEZE_CANDIDATES"
+    },
+    {
+      "run_slot_id": "rev-a.d.base",
+      "trial_slot": "rev-a",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION"
+    },
+    {
+      "run_slot_id": "rev-a.d.stress",
+      "trial_slot": "rev-a",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "EVALUATING_DECISION"
+    },
+    {
+      "run_slot_id": "rev-a.d.base.repeat",
+      "trial_slot": "rev-a",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": "rev-a.d.base"
+    },
+    {
+      "run_slot_id": "rev-a.v.base",
+      "trial_slot": "rev-a",
+      "window_role": "VALIDATION",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION"
+    },
+    {
+      "run_slot_id": "rev-a.v.stress",
+      "trial_slot": "rev-a",
+      "window_role": "VALIDATION",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "EVALUATING_DECISION"
+    },
+    {
+      "run_slot_id": "rev-a.h.base",
+      "trial_slot": "rev-a",
+      "window_role": "HOLDOUT",
+      "cost_scenario": "BASE",
+      "written_by": "FREEZE_CANDIDATES"
+    },
+    {
+      "run_slot_id": "rev-a.h.stress",
+      "trial_slot": "rev-a",
+      "window_role": "HOLDOUT",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "FREEZE_CANDIDATES"
+    },
+    {
+      "run_slot_id": "rev-b.d.base",
+      "trial_slot": "rev-b",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION"
+    },
+    {
+      "run_slot_id": "rev-b.d.stress",
+      "trial_slot": "rev-b",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "EVALUATING_DECISION"
+    },
+    {
+      "run_slot_id": "rev-b.d.base.repeat",
+      "trial_slot": "rev-b",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": "rev-b.d.base"
+    },
+    {
+      "run_slot_id": "rev-b.v.base",
+      "trial_slot": "rev-b",
+      "window_role": "VALIDATION",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION"
+    },
+    {
+      "run_slot_id": "rev-b.v.stress",
+      "trial_slot": "rev-b",
+      "window_role": "VALIDATION",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "EVALUATING_DECISION"
+    },
+    {
+      "run_slot_id": "rev-b.h.base",
+      "trial_slot": "rev-b",
+      "window_role": "HOLDOUT",
+      "cost_scenario": "BASE",
+      "written_by": "FREEZE_CANDIDATES"
+    },
+    {
+      "run_slot_id": "rev-b.h.stress",
+      "trial_slot": "rev-b",
+      "window_role": "HOLDOUT",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "FREEZE_CANDIDATES"
+    }
+  ]
+}

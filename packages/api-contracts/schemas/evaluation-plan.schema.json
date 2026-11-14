@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:evaluation-plan:1",
+  "title": "EvaluationPlan",
+  "description": "The registered comparison of one mission (OQ-02 sections 3.1 and 3.3). The API writes it when the mission starts, after retrieval and before any run, and never changes it. plan_digest in an evaluation request is its digest, and the assess job receives it by reference. It lists the trial slots, the windows with the sessions they resolved to, the scenarios and every planned run. calendar is the frozen dataset-manifest/1 whose calendar resolved the windows. A planned run is not an attempt: it has no reservation and no outbox entry. An APPROVED DRAFT to EVALUATING Decision writes a candidate's development and validation runs, their reservations and outbox entries in one transaction. The freeze_candidates command writes every holdout run, its reservation and outbox entry in one transaction once every candidate is terminal. Revealing a holdout result writes a holdout-consumption record. Gates, thresholds and finding treatment are those of the referenced cohort policy revision; the plan does not copy them.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "plan_id", "mission_id", "profile", "cohort_policy", "suite_id", "calendar", "windows", "trial_slots", "scenarios", "run_slots"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["evaluation-plan/1"] },
+    "plan_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "mission_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "profile": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/RecordRef" },
+    "cohort_policy": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/RecordRef" },
+    "suite_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "calendar": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ArtefactRef" },
+    "windows": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "$ref": "#/$defs/ResolvedWindow" } },
+    "trial_slots": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "$ref": "#/$defs/TrialSlot" } },
+    "scenarios": { "$ref": "#/$defs/ScenarioPlan" },
+    "run_slots": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/RunSlot" } }
+  },
+  "$defs": {
+    "ResolvedWindow": {
+      "title": "ResolvedWindow",
+      "description": "One window rule of the cohort policy and the sessions it resolved to. rule and label repeat the policy. resolved holds the warm-up start, the first and last scored sessions and the information cutoff that the profile's rule gives; an evaluation request repeats them. run_sessions counts the run's sessions: warm-up, scored and any dividend payment session after the scored end. It is at most the cohort's max_sessions.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "rule", "label", "resolved", "run_sessions"],
+      "properties": {
+        "role": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/WindowRole" },
+        "rule": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/CalendarDateRange" },
+        "label": { "type": "string", "maxLength": 200 },
+        "resolved": { "$ref": "urn:openquant:schema:evaluation-input:1#/$defs/Windows" },
+        "run_sessions": { "type": "integer", "minimum": 2, "maximum": 400 }
+      }
+    },
+    "TrialSlot": {
+      "title": "TrialSlot",
+      "description": "One candidate place in the comparison: the seed, or the one controlled revision of a proposer configuration.",
+      "oneOf": [{ "$ref": "#/$defs/SeedSlot" }, { "$ref": "#/$defs/RevisionSlot" }]
+    },
+    "SeedSlot": {
+      "title": "SeedSlot",
+      "description": "The registered seed. Its Strategy Version exists before the mission starts.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slot_id", "kind", "strategy_id", "version", "strategy_hash"],
+      "properties": {
+        "slot_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "kind": { "type": "string", "enum": ["seed"] },
+        "strategy_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "version": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "strategy_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" }
+      }
+    },
+    "RevisionSlot": {
+      "title": "RevisionSlot",
+      "description": "A placeholder for the controlled revision that one proposer configuration may author from the parent slot. It names no version. The API registers the revision later, and the DRAFT to EVALUATING Decision binds that version to this slot. A slot that ends without an evaluated version stays in the plan; freeze_candidates records why.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slot_id", "kind", "configuration_id", "parent_slot"],
+      "properties": {
+        "slot_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "kind": { "type": "string", "enum": ["revision"] },
+        "configuration_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "parent_slot": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" }
+      }
+    },
+    "ScenarioPlan": {
+      "title": "ScenarioPlan",
+      "description": "Scenarios every candidate runs. cost_cases are the cost cases of each window. deterministic_repeat names the window and cost case whose run is evaluated a second time from the same input for the deterministic replay gate.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cost_cases", "deterministic_repeat"],
+      "properties": {
+        "cost_cases": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "$ref": "#/$defs/PlannedCostCase" } },
+        "deterministic_repeat": { "$ref": "#/$defs/PlannedRepeat" }
+      }
+    },
+    "PlannedCostCase": {
+      "title": "PlannedCostCase",
+      "description": "BASE uses the cohort's cost model with multiplier 1. COST_STRESS multiplies the components that the cohort names; multiplier repeats the cohort's cost stress.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cost_scenario", "multiplier"],
+      "properties": {
+        "cost_scenario": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/CostScenario" },
+        "multiplier": { "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" }
+      }
+    },
+    "PlannedRepeat": {
+      "title": "PlannedRepeat",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["window_role", "cost_scenario"],
+      "properties": {
+        "window_role": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/WindowRole" },
+        "cost_scenario": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/CostScenario" }
+      }
+    },
+    "RunSlot": {
+      "title": "RunSlot",
+      "description": "One planned run of one trial slot. written_by names the step that writes its run, reservation and outbox entry: EVALUATING_DECISION for development and validation runs, the repeat included; FREEZE_CANDIDATES for holdout runs. replay_of names the run slot that this run repeats.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_slot_id", "trial_slot", "window_role", "cost_scenario", "written_by"],
+      "properties": {
+        "run_slot_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "trial_slot": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "window_role": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/WindowRole" },
+        "cost_scenario": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/CostScenario" },
+        "written_by": { "type": "string", "enum": ["EVALUATING_DECISION", "FREEZE_CANDIDATES"] },
+        "replay_of": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" }
+      }
+    }
+  }
+}

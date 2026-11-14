@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:release-manifest:1",
+  "title": "ReleaseManifest",
+  "description": "Release identity of one deployment to one environment (OQ-05 section 11, OQ-06 section 3). deploy.yml builds it from the built artefacts and the identities it reads back from the deployed services. An Administrator records it through the releases route, and the system identity route shows the current one. source_commit is the Git commit SHA. executables lists the image and binary digests. bundle_hash is the behaviour-bundle hash. It grants no trading authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "environment",
+    "source_commit",
+    "cli_version",
+    "engine",
+    "method",
+    "bundle_hash",
+    "executables",
+    "protocol",
+    "migration_level",
+    "deployments",
+    "built_at"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["release-manifest/1"] },
+    "environment": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DeploymentEnvironment" },
+    "source_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "cli_version": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "engine": { "$ref": "#/$defs/ReleaseEngine" },
+    "method": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/MethodIdentity" },
+    "bundle_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+    "executables": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ExecutableIdentity" }
+    },
+    "protocol": { "$ref": "#/$defs/ProtocolVersions" },
+    "migration_level": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "deployments": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "$ref": "#/$defs/DeploymentRef" } },
+    "built_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" }
+  },
+  "$defs": {
+    "ReleaseEngine": {
+      "title": "ReleaseEngine",
+      "description": "Engine identity of the released Rust core: the engine digest and its operator set.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine_digest", "operator_set"],
+      "properties": {
+        "engine_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "operator_set": { "type": "string", "enum": ["daily-long-only-seed@1"] }
+      }
+    },
+    "ProtocolVersions": {
+      "title": "ProtocolVersions",
+      "description": "contracts lists every contract tag the release accepts, such as evaluation-request/1. route_manifest is the route manifest version.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contracts", "route_manifest"],
+      "properties": {
+        "contracts": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": { "type": "string", "maxLength": 64, "pattern": "^[a-z][a-z0-9.-]*/[1-9][0-9]*$" }
+        },
+        "route_manifest": { "type": "string", "enum": ["v1"] }
+      }
+    },
+    "DeploymentRef": {
+      "title": "DeploymentRef",
+      "description": "One deployed service as the platform reports it on read-back: the platform, the service name and the deployment or version identifier.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "service", "reference"],
+      "properties": {
+        "platform": { "type": "string", "enum": ["CLOUDFLARE", "FLY"] },
+        "service": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "reference": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" }
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "schema_version": "evaluation-request/1",
+  "run_id": "run-s0-f0-replay",
+  "attempt": {
+    "attempt_id": "att-s0-f0-replay-1",
+    "ownership_revision": 1
+  },
+  "mode": "REPLAY",
+  "environment": "DEVELOPMENT",
+  "engine": {
+    "engine_digest": "sha256:7ceafb5e32e05c234b2a4cd2915946d4c6273ea9455d7b4f98821712555bb36a",
+    "operator_set": "daily-long-only-seed@1"
+  },
+  "method": {
+    "name": "openquant-evidence-methods",
+    "version": "1",
+    "digest": "sha256:7d57cee1b569f319d5587d03c0d6797faf48347bfff33fa1c070cb2e83ee02f5"
+  },
+  "strategy": {
+    "strategy_id": "f0-smoke",
+    "version": 1,
+    "artefact": {
+      "digest": "sha256:b84efa02e42a910b23d333abea5b9febae560591a3c930bb0b86dfe007ffb2bb",
+      "media_type": "application/json",
+      "size_bytes": 2003
+    }
+  },
+  "conditions": {
+    "fixture_set": "s0",
+    "case_id": "F0-smoke"
+  },
+  "input": {
+    "source": "INPUT_REFERENCE",
+    "input": {
+      "digest": "sha256:f1618d597356d3384977a670eedacc86d2a28f600a97dcf583a0088607682cf4",
+      "media_type": "application/json",
+      "size_bytes": 3534
+    }
+  }
+}

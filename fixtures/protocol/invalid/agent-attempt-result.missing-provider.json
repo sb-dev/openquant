@@ -1,0 +1,60 @@
+{
+  "schema_version": "agent-attempt-result/1",
+  "attempt": {
+    "attempt_id": "att-aapl-propose-a-1",
+    "ownership_revision": 1
+  },
+  "provenance": {
+    "session_id": "3f6b2c1e-8d4a-4b7f-9e21-0a5c7d9e1f42",
+    "input_hash": "sha256:f0f46ffb859f173bdcb8f6442e1e16058bdccf711817dd9a74b5df8e807f1d32",
+    "bundle_hash": "sha256:3f61ba35f535d63131c5e907d6efe2fe5010a74ed670b739b9e4df76ea79e3ca",
+    "executor_version": {
+      "status": "reported",
+      "value": "2.1.325"
+    },
+    "model": {
+      "status": "reported",
+      "value": "claude-opus-5-5"
+    },
+    "effort": {
+      "status": "unknown"
+    },
+    "runner": {
+      "name": "agent-runner",
+      "version": "0.0.0",
+      "digest": "sha256:b0ffb22342c901c77a680bca58d98044774c9ab4895d3d557dced0ad24db4888"
+    }
+  },
+  "outcome": {
+    "outcome": "completion",
+    "output": {
+      "contract": "strategy-formulation.result/1",
+      "artefact": {
+        "digest": "sha256:71b37c8a4044d47b0aee0ede8dbb9160d1b42764dfa536fce0d88ac30356b9f5",
+        "media_type": "application/json",
+        "size_bytes": 5559
+      }
+    }
+  },
+  "usage": {
+    "cost": {
+      "label": "estimated",
+      "amount": "1.8342",
+      "currency": "USD"
+    },
+    "duration": {
+      "label": "observed",
+      "milliseconds": 184233
+    },
+    "input_tokens": {
+      "label": "observed",
+      "count": 61204
+    },
+    "output_tokens": {
+      "label": "observed",
+      "count": 7311
+    }
+  },
+  "started_at": "2026-11-14T11:10:02Z",
+  "finished_at": "2026-11-14T11:13:07Z"
+}

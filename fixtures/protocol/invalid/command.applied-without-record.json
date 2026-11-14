@@ -1,0 +1,9 @@
+{
+  "schema_version": "command/1",
+  "form": "status",
+  "command_id": "cmd-0a1b2c3d-0004",
+  "kind": "create_mission",
+  "state": "APPLIED",
+  "received_at": "2026-11-14T09:40:01Z",
+  "applied_at": "2026-11-14T09:40:01Z"
+}

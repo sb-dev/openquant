@@ -1,0 +1,78 @@
+{
+  "schema_version": "command/1",
+  "form": "request",
+  "command_id": "cmd-0a1b2c3d-0004",
+  "expected_revision": 0,
+  "issued_at": "2026-11-14T09:40:00Z",
+  "payload": {
+    "kind": "create_mission",
+    "mission": {
+      "objective": "Compare two controlled revisions of the daily swing seed on AAPL under the registered S1 cohort policy.",
+      "instrument": {
+        "instrument_id": "alpaca:11111111-2222-4333-8444-555555555555",
+        "symbol": "AAPL",
+        "provider": "alpaca",
+        "provider_asset_id": "11111111-2222-4333-8444-555555555555",
+        "effective_from": "2022-01-03"
+      },
+      "profile": {
+        "id": "aapl-us-daily-sip",
+        "revision": 1,
+        "digest": "sha256:e6d324910b0d6081a8064fdc9afbb37a1f9c366f3d7c4b43b9a07a2c69d93f3e"
+      },
+      "cohort_policy": {
+        "id": "s1-aapl-daily-swing",
+        "revision": 1,
+        "digest": "sha256:0e8ea5f12262374def68a65011850ff52e6867a8963f6dd4f95970436b1b5482"
+      },
+      "budget": {
+        "id": "staging-period-cap",
+        "revision": 1,
+        "digest": "sha256:4437ea5474f3cee898365d8669b3316ce8768df1265b11e0508d27e0d6b5ed1a"
+      },
+      "seed_hash": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
+      "proposers": [
+        {
+          "configuration_id": "proposer-a",
+          "executor_profile": {
+            "model": "claude-opus-5-5",
+            "effort": "executor_default"
+          },
+          "bundle_hash": "sha256:3f61ba35f535d63131c5e907d6efe2fe5010a74ed670b739b9e4df76ea79e3ca",
+          "knowledge_cutoff": {
+            "status": "published",
+            "cutoff": "2026-06",
+            "source": "Anthropic Claude API reference shipped with Claude Code 2.1.325, shared/model-migration.md.",
+            "read_on": "2026-11-14"
+          }
+        },
+        {
+          "configuration_id": "proposer-b",
+          "executor_profile": {
+            "model": "claude-sonnet-5-5",
+            "effort": "executor_default"
+          },
+          "bundle_hash": "sha256:3f61ba35f535d63131c5e907d6efe2fe5010a74ed670b739b9e4df76ea79e3ca",
+          "knowledge_cutoff": {
+            "status": "unknown",
+            "reason": "Not stated in the Claude API reference shipped with Claude Code 2.1.325 (shared/model-migration.md). To be confirmed from provider documentation at approval."
+          }
+        }
+      ],
+      "critic": {
+        "configuration_id": "critic",
+        "executor_profile": {
+          "model": "claude-opus-5-5",
+          "effort": "executor_default"
+        },
+        "bundle_hash": "sha256:3f61ba35f535d63131c5e907d6efe2fe5010a74ed670b739b9e4df76ea79e3ca",
+        "knowledge_cutoff": {
+          "status": "published",
+          "cutoff": "2026-06",
+          "source": "Anthropic Claude API reference shipped with Claude Code 2.1.325, shared/model-migration.md.",
+          "read_on": "2026-11-14"
+        }
+      }
+    }
+  }
+}

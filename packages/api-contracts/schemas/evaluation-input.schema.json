@@ -21,13 +21,14 @@
   "$defs": {
     "DatasetRef": {
       "title": "DatasetRef",
+      "description": "Dataset identity. SYNTHETIC marks data generated for this repository. PROVIDER marks data built from a frozen dataset-manifest/1 snapshot of a registered provider. The evaluator does not read source, so the value changes no numerical result (A18).",
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "version", "source", "licence"],
       "properties": {
         "id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
         "version": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
-        "source": { "type": "string", "enum": ["SYNTHETIC"] },
+        "source": { "type": "string", "enum": ["SYNTHETIC", "PROVIDER"] },
         "licence": { "type": "string", "maxLength": 200 }
       }
     },

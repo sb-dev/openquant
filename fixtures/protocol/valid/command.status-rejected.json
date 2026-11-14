@@ -1,0 +1,13 @@
+{
+  "schema_version": "command/1",
+  "form": "status",
+  "command_id": "cmd-0a1b2c3d-0005",
+  "kind": "run_mission_now",
+  "state": "REJECTED",
+  "received_at": "2026-11-14T09:45:01Z",
+  "rejected_at": "2026-11-14T09:45:01Z",
+  "error": {
+    "code": "EXECUTION_DISABLED",
+    "message": "Research execution is disabled in this environment."
+  }
+}

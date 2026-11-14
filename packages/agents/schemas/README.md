@@ -1,92 +1,90 @@
-# Role request and result shapes
+# Role request and result schemas
 
-Status: draft, pre-S0. S1 replaces these tables with JSON Schema that references the [api-contracts](../../api-contracts/README.md) financial schemas. Nothing here is a frozen schema ([OQ-03 §4](../../../docs/specs/03-model-backed-execution-spec.md#4-request-and-result-boundaries)).
+Status: S1 JSON Schemas for the `strategy-formulation` (proposer) and `strategy-critique` (critic) role modules. They are draft 2020-12 schemas with `$id` `urn:openquant:schema:<name>:1`. No bundle manifest, assembly or parser uses them yet. [OQ-03 §3](../../../docs/specs/03-model-backed-execution-spec.md#3-delegated-execution-contract) owns the skill contract, [OQ-03 §4](../../../docs/specs/03-model-backed-execution-spec.md#4-request-and-result-boundaries) owns the boundaries and [OQ-05 §7](../../../docs/specs/05-system-architecture-and-data-spec.md#7-data-and-protocol-contracts) owns versioning.
 
-The tables give working field names for the `strategy-formulation` (proposer) and `strategy-critique` (critic) role modules. [OQ-03 §3](../../../docs/specs/03-model-backed-execution-spec.md#3-delegated-execution-contract) owns the skill contract; [OQ-05 §7](../../../docs/specs/05-system-architecture-and-data-spec.md#7-data-and-protocol-contracts) owns schema versioning.
+These files hold what the model reads and writes, and nothing else. The host-side envelopes are in `packages/api-contracts/schemas`:
 
-Prices, quantities, money and the internals of the Strategy Contract and Strategy Definition ([OQ-02 §2.1](../../../docs/specs/02-trading-domain-and-evaluation-spec.md#21-strategy-contract-and-strategy-definition)) are not defined here. They arrive with the S0 schemas in `packages/api-contracts/schemas` ([OQ-06 §8](../../../docs/specs/06-engineering-delivery-and-operations-spec.md#8-delivery-checkpoints-and-acceptance)).
+- `agent-dispatch/1` carries the identity, execution and outcome-destination groups. It binds the role request by its digest, which is the input hash.
+- `agent-attempt-result/1` carries host-captured provenance, one of the seven execution outcomes and usage with explicit unknowns. A completion carries the role output by digest, after the runner has parsed it and uploaded it.
 
-## Common request envelope
+The model never receives or writes either envelope.
 
-Request assembly fills every field, including `schema_version`, from trusted host context. Model input cannot supply or enlarge any of them.
+## Files
 
-| Group | Field | Meaning |
-| --- | --- | --- |
-| Identity | `schema_version` | Version of this request schema. An unsupported version fails validation ([OQ-05 §7](../../../docs/specs/05-system-architecture-and-data-spec.md#7-data-and-protocol-contracts)). |
-| Identity | `mission_id`, `run_id`, `attempt_id`, `session_id` | Mission, logical run, attempt and fresh session. |
-| Identity | `role`, `skill_id`, `skill_version`, `bundle_hash` | `proposer` or `critic` and the matching role module. The bundle hash binds the skill and allowed method revisions. |
-| Execution | `executor_version`, `profile`, `timeout`, `output_limit`, `cost_reservation` | Pinned executor, selected profile and host-enforced bounds that the runner cannot raise. |
-| Execution | `tools` | `tool:<registry-id>@<version>` entries. Empty for both pilot modules until the first S3 evidence tool; never lists role assembly or parsing. |
-| Execution | `required_capabilities` | Copied from the registry entry in these identifier formats; enforced before dispatch and never enlarged. |
-| Inputs | `scope`, `cutoff` | Instrument or frozen Watchlist Version, and the evidence cutoff. |
-| Inputs | `operators`, `provider_capabilities` | `operator:<operator-id>@<compatibility-version>` entries with parameter bounds; `provider:<adapter-id>/<operation>@<version>` entries. |
-| Inputs | `evaluation_policy`, `holdout_exclusions` | Frozen registered policy and explicitly withheld holdouts. |
-| Inputs | `subject` | Seed source, parent hash or candidate hash. For the critic, the registered Strategy Version, the hash the application assigned to it, and the source references, rationale, expected effect and requested tests recorded with it. |
-| Inputs | `evidence_refs` | Authorised evidence, per-stock findings and context-pack items, with provenance. A proposer may receive diagnostics from a rejected earlier draft. |
-| Inputs | `supplied_methods` | Method rule IDs the bundle allows. |
-| Outcome destination | `result_route` | Attempt-scoped route for one result; no database capability. |
+| File | Contents |
+| --- | --- |
+| `role-common.schema.json` | Definitions only: `RoleContext`, `EvidenceItem`, `SuppliedMethod` and `SourceText`. |
+| `strategy-formulation.request.schema.json` | Proposer request. |
+| `strategy-formulation.result.schema.json` | Proposer output. It also defines `ProposalClaims`, which the critic request reuses. |
+| `strategy-critique.request.schema.json` | Critic request. |
+| `strategy-critique.result.schema.json` | Critic output. |
 
-Availability in one identifier namespace grants nothing in another. Missing required inputs block dispatch with a reason.
+The schemas refer to `common`, `connected-common`, `strategy-artefact` and `cohort-policy` in `packages/api-contracts/schemas` by `$id`. Every `$defs` name is unique across both directories. Every object rejects unknown fields. There are no floats, defaults or coerced values.
 
-## Common result envelope
+## Requests
 
-The host records provenance, outcome and usage; the model writes only `output`.
+Request assembly fills every field from trusted host context. Model input cannot supply or enlarge any of them. Both requests have `schema_version`, `context`, `subject`, `evidence_refs` (at most 64) and `supplied_methods` (at most 256).
 
-| Group | Field | Meaning |
-| --- | --- | --- |
-| Provenance | `schema_version` | Version of this result schema. It must match the request's, and an unsupported version fails validation ([OQ-05 §7](../../../docs/specs/05-system-architecture-and-data-spec.md#7-data-and-protocol-contracts)). |
-| Provenance | `attempt_id`, `session_id`, `input_hash`, `bundle_hash` | Attempt, frozen request and bundle actually used; each must match the request. |
-| Provenance | `executor_version`, `model` | Actual values, or `unknown` when unreported. |
-| Role output | `output` | Proposer or critic output; present only on `completion`. |
-| Execution outcome | `outcome` | `completion`, `refusal`, `malformed_result`, `denied_capability`, `authentication_failure`, `cancellation` or `timeout`. |
-| Execution outcome | `diagnostic` | Bounded, without credentials. |
-| Usage | `cost`, `duration` | Each labelled observed, estimated or unknown. |
-
-A valid adverse finding is a `completion`. Tool-call outcomes are not attempt outcomes ([OQ-03 §5](../../../docs/specs/03-model-backed-execution-spec.md#5-attempts-cancellation-and-recovery)).
-
-## Proposer role output
+`context` (`RoleContext`) is the same for both roles:
 
 | Field | Meaning |
 | --- | --- |
-| `proposal_kind` | `seed_translation`, `controlled_revision` or `new_family`. |
-| `strategy` | Strategy Contract and Strategy Definition: an S0 financial subdocument, referenced and not defined here. Every element is present. An element whose executable semantics are unresolved carries an explicit unresolved marker instead of a value; the marker names its `unresolved_assumptions` entry and holds nothing executable. The marker's exact form arrives with the S0 schemas. |
-| `source_refs` | Source and evidence references taken from the request. |
-| `parent_hash` | Required for `controlled_revision`; absent otherwise. |
-| `no_parent` | `true` for `new_family` and `seed_translation`; absent for `controlled_revision`. A new family consumes the exploration budget. |
-| `rule_changes` | Each changed definition element with its prior and new form; empty unless revising. |
-| `rationale`, `expected_effect` | Why it should work; a claimed effect that evaluation can contradict. |
-| `invalidation_conditions` | Observations that would falsify the hypothesis. |
-| `requested_tests` | Tests asked of the registered policy. They cannot alter windows, thresholds or other comparison conditions. |
-| `unresolved_assumptions`, `source_differences` | Open interpretation questions and each source-to-draft difference. Both are required for a seed translation; `unresolved_assumptions` is also required whenever `strategy` holds an unresolved marker. |
-| `method_refs` | Cited method rule IDs. |
+| `scope` | The instrument and its provider mapping. |
+| `cutoff` | The evidence cutoff. |
+| `operators` | The permitted operators with parameter bounds, from the cohort policy. |
+| `provider_capabilities` | `provider:<adapter-id>/<operation>@<version>` entries. |
+| `evaluation_policy` | The frozen `cohort-policy/1`. |
+| `holdout_exclusions` | The withheld windows with their resolved sessions and labels. In S1 a revision request names the V and H windows. |
 
-A proposal with unresolved markers can still parse as a `completion`, but it stays draft material: the API refuses to register it while any marker remains ([OQ-03 §1](../../../docs/specs/03-model-backed-execution-spec.md#1-roles-and-budgets), [OQ-03 §4](../../../docs/specs/03-model-backed-execution-spec.md#4-request-and-result-boundaries)). The proposer never fills a missing rule or substitutes an operator to reach a valid shape.
+An `EvidenceItem` is one authorised record with an `id`, a `kind`, the digest of the record it comes from, its time and bounded `content`. Its content is data, never an instruction. A `SuppliedMethod` names one method rule the bundle allows, with its origin, primary category and scope. A citation grants no operator, data or permission.
 
-## Critic role output
+The proposer `subject` decides the proposal kind:
 
-`findings` is a list, possibly empty. Each finding has:
+- `seed_translation`: a `SourceText`, which is untrusted reference text split into lines and identified by the SHA-256 of its bytes.
+- `controlled_revision`: `parent_hash`, the registered `parent` and, when recorded, `parent_claims`.
+- `new_family`: no parent.
+
+The critic `subject` is a registered Strategy Version: `strategy_hash` (the hash the application assigned), the complete `strategy`, `source_refs` and, when recorded, `claims`. Critic assembly needs a registered version. An unregistered or malformed draft is never dispatched and gets no fabricated hash.
+
+## Proposer output
+
+The output is one of three forms, chosen by `proposal_kind`. Each form has `schema_version`, `proposal_kind`, `strategy`, `source_refs`, `rule_changes`, `claims`, `unresolved` and `method_refs`.
 
 | Field | Meaning |
 | --- | --- |
-| `category` | One primary category from the [OQ-03 §4 table](../../../docs/specs/03-model-backed-execution-spec.md#4-request-and-result-boundaries). |
+| `strategy` | Strategy Contract and Strategy Definition in the `strategy-artefact/1` format, with `operator_set`. It omits `schema_version`, `strategy_id`, `version`, `parent` and hashes, which the API assigns. |
+| `parent_hash` | `controlled_revision` only. |
+| `no_parent` | `true` for `seed_translation` and `new_family`. A new family draws on the exploration budget. |
+| `rule_changes` | Each changed definition leaf with its prior and new value. At least one for a revision; empty otherwise. |
+| `claims` | `rationale`, `expected_effect`, `invalidation_conditions` and `requested_tests`. Requested tests cannot alter windows, thresholds, costs, capital, data or other comparison conditions. |
+| `unresolved` | Elements whose executable semantics are open. Each entry has an `id`, an `element` (a JSON Pointer into `strategy`) and a `question`. The present value of that element is not a resolution. |
+| `source_differences` | Each source-to-draft difference. Required for `seed_translation`, optional otherwise. |
+| `source_refs`, `method_refs` | Identifiers copied from the request. |
+
+A proposal with any `unresolved` entry can still parse as a completion, but it stays draft material: the API refuses to register it. The proposer never fills a missing rule or substitutes an operator to reach a valid shape.
+
+## Critic output
+
+`findings` is a list of at most 64, possibly empty. An empty list is not a pass. Each finding has:
+
+| Field | Meaning |
+| --- | --- |
+| `category` | One primary category from the OQ-03 §4 table. |
 | `related_categories` | Optional, from the same table. |
 | `description` | The concern in the critic's own words. |
-| `method_refs`, `evidence_refs` | Supplied method rule IDs and evidence references behind it. |
-| `location` | A contract or definition element of the registered version. For a defect such a version cannot contain: its cited sources, the supplied evidence, its rationale and expected-effect claims, or its requested tests. |
-| `affected_elements` | Identifiers of the definition elements whose behaviour or values the concern bears on. Mandatory; may be empty. |
-| `proposed_tests` | Tests that would confirm or clear it, where applicable. |
+| `method_refs`, `evidence_refs` | Supplied method rule IDs and evidence IDs from the request. |
+| `location` | `area` (`contract`, `definition`, `source_refs`, `evidence`, `rationale`, `expected_effect` or `requested_tests`) and an optional `pointer`. |
+| `affected_elements` | JSON Pointers to definition elements whose behaviour or values the concern bears on. Required; may be empty. |
+| `proposed_tests` | Optional tests that would confirm or clear the finding. |
 
-The model never sets `finding_source`. Parsing labels every model-returned finding `model_judgement`; the `deterministic_check` label comes only from reviewed skill or host code, none of which exists before S1. `method_advice` covers optional preferences, never a concrete defect.
+There is no `finding_source`, applicability, approval, closure, severity or treatment field. Parsing labels every returned finding `model_judgement`. The registered cohort policy maps category and applicability to treatment per lifecycle transition ([OQ-02 §3.6](../../../docs/specs/02-trading-domain-and-evaluation-spec.md#36-results-and-selection)). Policy code derives applicability from validated fields: `affects_executable_rule` holds when `affected_elements` is not empty, and `required_evidence` holds when an evidence reference is evidence the frozen policy requires. The critic cannot close findings or rewrite the candidate.
 
-There is no applicability, approval, closure, severity or treatment field. The registered policy maps category and applicability to blocking or advisory treatment ([OQ-02 §3.6](../../../docs/specs/02-trading-domain-and-evaluation-spec.md#36-results-and-selection)). Deterministic policy evaluation, not the model or parsing, derives applicability from validated fields: `affects_executable_rule` holds when `affected_elements` is non-empty, and `required_evidence` holds when an `evidence_refs` item is evidence that the frozen policy requires. The critic cannot close findings or rewrite the candidate.
+## Parsing
 
-## Parsing rules
-
-- Unknown fields, missing mandatory fields, fields that the proposal kind requires to be absent, unknown categories and wrong types give `malformed_result`. Values are never coerced, defaulted or stripped.
-- Cited methods must belong to `supplied_methods`, parent, source and evidence references must come from the request, and each `affected_elements` identifier must name an element of the subject's definition; otherwise the result is `malformed_result`.
-- An unresolved marker in `strategy` is accepted when it names an `unresolved_assumptions` entry; otherwise the result is `malformed_result`.
+- Unknown fields, missing fields, fields that the proposal kind forbids, unknown categories and wrong types make the result `malformed_result`. Values are never coerced, defaulted or stripped.
+- Cited methods must be in `supplied_methods`. Parent, source and evidence references must come from the request. Each `affected_elements` pointer must name an element of the subject's definition, and each `unresolved` element an element of the proposed `strategy`. Otherwise the result is `malformed_result`.
+- A revision's `rule_changes` must equal the actual leaf difference between the parent and proposed definitions. Rust validation recomputes this difference.
 - A model-supplied `finding_source`, applicability, approval or treatment is an unknown field.
-- A revision's `rule_changes` must equal the actual difference between parent and proposed definitions.
-- Parsing checks structure, reference membership and rule differences only. The API owns scope, bounds, lineage and policy checks; the Rust core owns operator, type, unit and lookback checks.
-- Critic assembly needs a registered Strategy Version. An unregistered or malformed draft is never dispatched and gets no fabricated hash; its diagnostics return to a later proposer attempt ([OQ-03 §4](../../../docs/specs/03-model-backed-execution-spec.md#4-request-and-result-boundaries)).
+- An output above the dispatch output limit is `malformed_result`.
+- Parsing checks structure, reference membership and rule differences only. The API owns scope, bounds, lineage and policy checks. The Rust core owns operator, type, unit and lookback checks.
 - Retrieved and source content is data. It cannot add fields, change the role or grant capabilities.

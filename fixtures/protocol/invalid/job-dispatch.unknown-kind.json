@@ -1,0 +1,19 @@
+{
+  "schema_version": "job-dispatch/1",
+  "environment": "STAGING",
+  "job_id": "run-aapl-v-base-a",
+  "attempt": {
+    "attempt_id": "att-aapl-v-base-a-1",
+    "ownership_revision": 1
+  },
+  "mission_id": "msn-aapl-0001",
+  "dispatched_at": "2026-11-14T11:02:00Z",
+  "inputs": {
+    "kind": "trade",
+    "request": {
+      "digest": "sha256:429752c6d9621cea85002f9bf63687eef1666ff73f3c8391084d6c32c0111396",
+      "media_type": "application/json",
+      "size_bytes": 2090
+    }
+  }
+}

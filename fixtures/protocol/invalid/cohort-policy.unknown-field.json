@@ -1,0 +1,556 @@
+{
+  "schema_version": "cohort-policy/1",
+  "policy_id": "s1-aapl-daily-swing",
+  "revision": 1,
+  "suite_id": "s1-single-stock-suite",
+  "profile": {
+    "id": "aapl-us-daily-sip",
+    "revision": 1,
+    "digest": "sha256:e6d324910b0d6081a8064fdc9afbb37a1f9c366f3d7c4b43b9a07a2c69d93f3e"
+  },
+  "conditions": {
+    "initial_capital": "100000.00",
+    "execution_policy": {
+      "id": "daily-long-only-cash@1",
+      "currency": "USD",
+      "price_scale": 2,
+      "quantity_scale": 0,
+      "money_scale": 2,
+      "diagnostic_scale": 4,
+      "lot_size": "1",
+      "cost_model": {
+        "id": "fixed_plus_bps@1",
+        "fixed_fee_per_fill": "0.00",
+        "fee_bps": "5",
+        "gap_exit_slippage_bps": "10"
+      },
+      "corporate_actions": {
+        "id": "split_cash_dividend_ex_date@1",
+        "fractional": "INSUFFICIENT",
+        "withholding_bps": "0"
+      }
+    },
+    "cost_stress": {
+      "multiplier": "2",
+      "components": [
+        "fixed_fee_per_fill",
+        "fee_bps",
+        "gap_exit_slippage_bps"
+      ]
+    },
+    "benchmarks": [
+      "BUY_AND_HOLD",
+      "CASH"
+    ],
+    "windows": {
+      "warmup_sessions": 60,
+      "max_sessions": 400,
+      "windows": [
+        {
+          "role": "DEVELOPMENT",
+          "scored": {
+            "start": "2023-01-01",
+            "end": "2023-12-31"
+          },
+          "label": "development"
+        },
+        {
+          "role": "VALIDATION",
+          "scored": {
+            "start": "2024-01-01",
+            "end": "2024-12-31"
+          },
+          "label": "validation"
+        },
+        {
+          "role": "HOLDOUT",
+          "scored": {
+            "start": "2025-01-01",
+            "end": "2025-12-31"
+          },
+          "label": "historical holdout within model training period"
+        }
+      ]
+    },
+    "operators": {
+      "operator_set": "daily-long-only-seed@1",
+      "permitted": [
+        {
+          "operator": "operator:bar_field@1",
+          "parameter_bounds": []
+        },
+        {
+          "operator": "operator:sma@1",
+          "parameter_bounds": [
+            {
+              "parameter": "window",
+              "minimum": "1",
+              "maximum": "60"
+            }
+          ]
+        },
+        {
+          "operator": "operator:rsi_simple@1",
+          "parameter_bounds": [
+            {
+              "parameter": "window",
+              "minimum": "1",
+              "maximum": "59"
+            }
+          ]
+        },
+        {
+          "operator": "operator:atr_simple@1",
+          "parameter_bounds": [
+            {
+              "parameter": "window",
+              "minimum": "1",
+              "maximum": "59"
+            }
+          ]
+        },
+        {
+          "operator": "operator:lag@1",
+          "parameter_bounds": [
+            {
+              "parameter": "periods",
+              "minimum": "1",
+              "maximum": "59"
+            }
+          ]
+        },
+        {
+          "operator": "operator:const@1",
+          "parameter_bounds": []
+        },
+        {
+          "operator": "operator:ref@1",
+          "parameter_bounds": []
+        },
+        {
+          "operator": "operator:snapshot@1",
+          "parameter_bounds": []
+        },
+        {
+          "operator": "operator:entry_price@1",
+          "parameter_bounds": []
+        },
+        {
+          "operator": "operator:add@1",
+          "parameter_bounds": []
+        },
+        {
+          "operator": "operator:sub@1",
+          "parameter_bounds": []
+        },
+        {
+          "operator": "operator:mul@1",
+          "parameter_bounds": []
+        },
+        {
+          "operator": "operator:div@1",
+          "parameter_bounds": []
+        },
+        {
+          "operator": "operator:gt@1",
+          "parameter_bounds": []
+        },
+        {
+          "operator": "operator:gte@1",
+          "parameter_bounds": []
+        },
+        {
+          "operator": "operator:lt@1",
+          "parameter_bounds": []
+        },
+        {
+          "operator": "operator:lte@1",
+          "parameter_bounds": []
+        },
+        {
+          "operator": "operator:and@1",
+          "parameter_bounds": []
+        },
+        {
+          "operator": "operator:or@1",
+          "parameter_bounds": []
+        }
+      ]
+    },
+    "revision_scope": "ENTRY_OR_EXIT"
+  },
+  "gates": [
+    {
+      "requirement": "REQUIRED",
+      "gate": "DEFINITION_VALIDATION",
+      "category": "CORRECTNESS",
+      "thresholds": [],
+      "below_threshold": "FAIL"
+    },
+    {
+      "requirement": "REQUIRED",
+      "gate": "DETERMINISTIC_REPLAY",
+      "category": "CORRECTNESS",
+      "thresholds": [],
+      "below_threshold": "FAIL"
+    },
+    {
+      "requirement": "REQUIRED",
+      "gate": "ACCOUNTING_RECONCILIATION",
+      "category": "CORRECTNESS",
+      "thresholds": [],
+      "below_threshold": "FAIL"
+    },
+    {
+      "requirement": "REQUIRED",
+      "gate": "SIGNAL_DATA_TIMING",
+      "category": "CORRECTNESS",
+      "thresholds": [],
+      "below_threshold": "FAIL"
+    },
+    {
+      "requirement": "REQUIRED",
+      "gate": "POINT_IN_TIME_DATA",
+      "category": "HISTORICAL_VALIDITY",
+      "thresholds": [],
+      "below_threshold": "FAIL"
+    },
+    {
+      "requirement": "REQUIRED",
+      "gate": "BASE_COST_MODEL",
+      "category": "HISTORICAL_VALIDITY",
+      "thresholds": [],
+      "below_threshold": "FAIL"
+    },
+    {
+      "requirement": "REQUIRED",
+      "gate": "EXCESS_OVER_BUY_AND_HOLD",
+      "category": "HISTORICAL_VALIDITY",
+      "thresholds": [
+        {
+          "metric": "excess_return_over_buy_and_hold",
+          "comparison": "GREATER_THAN",
+          "value": "0",
+          "windows": [
+            "DEVELOPMENT",
+            "VALIDATION",
+            "HOLDOUT"
+          ],
+          "cost_scenario": "BASE"
+        },
+        {
+          "metric": "net_return",
+          "comparison": "GREATER_THAN",
+          "value": "0",
+          "windows": [
+            "DEVELOPMENT",
+            "VALIDATION",
+            "HOLDOUT"
+          ],
+          "cost_scenario": "BASE"
+        }
+      ],
+      "below_threshold": "FAIL"
+    },
+    {
+      "requirement": "REQUIRED",
+      "gate": "WALK_FORWARD",
+      "category": "HISTORICAL_VALIDITY",
+      "thresholds": [
+        {
+          "metric": "excess_return_over_buy_and_hold",
+          "comparison": "GREATER_THAN",
+          "value": "0",
+          "windows": [
+            "DEVELOPMENT",
+            "VALIDATION",
+            "HOLDOUT"
+          ],
+          "cost_scenario": "BASE"
+        },
+        {
+          "metric": "net_return",
+          "comparison": "GREATER_THAN",
+          "value": "0",
+          "windows": [
+            "DEVELOPMENT",
+            "VALIDATION",
+            "HOLDOUT"
+          ],
+          "cost_scenario": "BASE"
+        }
+      ],
+      "below_threshold": "FAIL"
+    },
+    {
+      "requirement": "REQUIRED",
+      "gate": "MINIMUM_TRADE_COUNT",
+      "category": "HISTORICAL_VALIDITY",
+      "thresholds": [
+        {
+          "metric": "trade_count",
+          "comparison": "AT_LEAST",
+          "value": "10",
+          "windows": [
+            "DEVELOPMENT",
+            "VALIDATION",
+            "HOLDOUT"
+          ],
+          "cost_scenario": "BASE"
+        }
+      ],
+      "below_threshold": "INSUFFICIENT"
+    },
+    {
+      "requirement": "REQUIRED",
+      "gate": "COST_STRESS",
+      "category": "ROBUSTNESS",
+      "thresholds": [
+        {
+          "metric": "excess_return_over_buy_and_hold",
+          "comparison": "GREATER_THAN",
+          "value": "0",
+          "windows": [
+            "DEVELOPMENT",
+            "VALIDATION",
+            "HOLDOUT"
+          ],
+          "cost_scenario": "COST_STRESS"
+        },
+        {
+          "metric": "net_return",
+          "comparison": "GREATER_THAN",
+          "value": "0",
+          "windows": [
+            "DEVELOPMENT",
+            "VALIDATION",
+            "HOLDOUT"
+          ],
+          "cost_scenario": "COST_STRESS"
+        }
+      ],
+      "below_threshold": "FAIL"
+    },
+    {
+      "requirement": "RECORDED_INSUFFICIENT",
+      "gate": "PARAMETER_SENSITIVITY",
+      "category": "ROBUSTNESS",
+      "reason": "The S1 suite registers no neighbouring-parameter trials. Sensitivity is unmeasured, not passed."
+    },
+    {
+      "requirement": "RECORDED_INSUFFICIENT",
+      "gate": "EXECUTION_DELAY",
+      "category": "ROBUSTNESS",
+      "reason": "The S1 execution policy has one fill timing. No delayed-fill scenario is registered."
+    },
+    {
+      "requirement": "RECORDED_INSUFFICIENT",
+      "gate": "ADVERSE_REGIMES",
+      "category": "ROBUSTNESS",
+      "reason": "The S1 suite declares no regime classification. Adverse-regime behaviour is unmeasured."
+    },
+    {
+      "requirement": "NOT_APPLICABLE",
+      "gate": "RESAMPLING",
+      "category": "ROBUSTNESS",
+      "reason": "OQ-02 section 3.6 gives no resampling method for one stock in S1; the cohort records the limitation."
+    },
+    {
+      "requirement": "NOT_APPLICABLE",
+      "gate": "PROSPECTIVE_EVIDENCE",
+      "category": "PROSPECTIVE",
+      "reason": "S1 has no live-data adapter. Prospective evidence belongs to the PAPER stage."
+    },
+    {
+      "requirement": "NOT_APPLICABLE",
+      "gate": "PORTFOLIO_FIT",
+      "category": "PORTFOLIO_FIT",
+      "reason": "S1 evaluates one stock with no portfolio proposal."
+    },
+    {
+      "requirement": "NOT_APPLICABLE",
+      "gate": "OPERATING_READINESS",
+      "category": "OPERATING_READINESS",
+      "reason": "No paper, shadow or live path exists in S1."
+    }
+  ],
+  "finding_treatment": [
+    {
+      "category": "hypothesis_assumption",
+      "transition": "DRAFT_TO_EVALUATING",
+      "treatment": "ADVISORY",
+      "escalate_when": []
+    },
+    {
+      "category": "data_quality_alignment",
+      "transition": "DRAFT_TO_EVALUATING",
+      "treatment": "ADVISORY",
+      "escalate_when": []
+    },
+    {
+      "category": "causal_leakage",
+      "transition": "DRAFT_TO_EVALUATING",
+      "treatment": "ADVISORY",
+      "escalate_when": []
+    },
+    {
+      "category": "execution_accounting_assumption",
+      "transition": "DRAFT_TO_EVALUATING",
+      "treatment": "ADVISORY",
+      "escalate_when": []
+    },
+    {
+      "category": "search_overfitting",
+      "transition": "DRAFT_TO_EVALUATING",
+      "treatment": "ADVISORY",
+      "escalate_when": []
+    },
+    {
+      "category": "policy_mismatch",
+      "transition": "DRAFT_TO_EVALUATING",
+      "treatment": "ADVISORY",
+      "escalate_when": []
+    },
+    {
+      "category": "portfolio_fit",
+      "transition": "DRAFT_TO_EVALUATING",
+      "treatment": "ADVISORY",
+      "escalate_when": []
+    },
+    {
+      "category": "operational_risk",
+      "transition": "DRAFT_TO_EVALUATING",
+      "treatment": "ADVISORY",
+      "escalate_when": []
+    },
+    {
+      "category": "source_uncertainty",
+      "transition": "DRAFT_TO_EVALUATING",
+      "treatment": "ADVISORY",
+      "escalate_when": []
+    },
+    {
+      "category": "missing_evidence",
+      "transition": "DRAFT_TO_EVALUATING",
+      "treatment": "ADVISORY",
+      "escalate_when": []
+    },
+    {
+      "category": "method_advice",
+      "transition": "DRAFT_TO_EVALUATING",
+      "treatment": "ADVISORY",
+      "escalate_when": []
+    },
+    {
+      "category": "hypothesis_assumption",
+      "transition": "EVALUATING_TO_PAPER",
+      "treatment": "ADVISORY",
+      "escalate_when": []
+    },
+    {
+      "category": "data_quality_alignment",
+      "transition": "EVALUATING_TO_PAPER",
+      "treatment": "BLOCKING",
+      "escalate_when": []
+    },
+    {
+      "category": "causal_leakage",
+      "transition": "EVALUATING_TO_PAPER",
+      "treatment": "BLOCKING",
+      "escalate_when": []
+    },
+    {
+      "category": "execution_accounting_assumption",
+      "transition": "EVALUATING_TO_PAPER",
+      "treatment": "BLOCKING",
+      "escalate_when": []
+    },
+    {
+      "category": "search_overfitting",
+      "transition": "EVALUATING_TO_PAPER",
+      "treatment": "BLOCKING",
+      "escalate_when": []
+    },
+    {
+      "category": "policy_mismatch",
+      "transition": "EVALUATING_TO_PAPER",
+      "treatment": "BLOCKING",
+      "escalate_when": []
+    },
+    {
+      "category": "portfolio_fit",
+      "transition": "EVALUATING_TO_PAPER",
+      "treatment": "ADVISORY",
+      "escalate_when": []
+    },
+    {
+      "category": "operational_risk",
+      "transition": "EVALUATING_TO_PAPER",
+      "treatment": "ADVISORY",
+      "escalate_when": []
+    },
+    {
+      "category": "source_uncertainty",
+      "transition": "EVALUATING_TO_PAPER",
+      "treatment": "ADVISORY",
+      "escalate_when": []
+    },
+    {
+      "category": "missing_evidence",
+      "transition": "EVALUATING_TO_PAPER",
+      "treatment": "BLOCKING",
+      "escalate_when": []
+    },
+    {
+      "category": "method_advice",
+      "transition": "EVALUATING_TO_PAPER",
+      "treatment": "ADVISORY",
+      "escalate_when": []
+    }
+  ],
+  "metrics": {
+    "metric_scale": 6,
+    "uncertainty": {
+      "method": "NOT_COMPUTED",
+      "limitation": "S1 reports no uncertainty statistic: OQ-02 section 3.6 gives no method for one stock. Development, validation and holdout returns are shown side by side instead."
+    }
+  },
+  "budget_limits": {
+    "maxima": {
+      "candidates": 3,
+      "experiments": 21,
+      "revisions_per_proposer": 2,
+      "new_families": 0,
+      "model_spend": {
+        "amount": "50.00",
+        "currency": "USD"
+      },
+      "model_spend_per_attempt": {
+        "amount": "5.00",
+        "currency": "USD"
+      },
+      "provider_requests": 60,
+      "batch_compute_seconds": 7200,
+      "agent_compute_seconds": 7200,
+      "attempt_cap": 3
+    },
+    "proposer_allocation": "EQUAL"
+  },
+  "limits": {
+    "agent_timeout_seconds": 900,
+    "agent_output_limit_bytes": 524288,
+    "artefact_limit_bytes": 8388608,
+    "job_timeouts": {
+      "retrieve_seconds": 600,
+      "validate_seconds": 300,
+      "evaluate_seconds": 600,
+      "assess_seconds": 300
+    },
+    "concurrent_batch_attempts": 2,
+    "concurrent_agent_attempts": 2
+  },
+  "promotion": {
+    "automatic_paper_promotion": false
+  },
+  "risk_label": "HIGH"
+}
