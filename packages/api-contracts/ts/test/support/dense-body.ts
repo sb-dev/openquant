@@ -18,6 +18,8 @@
 // escapes     {"schema_version":"<tag>","violations":"\n\n…"}: one string of escapes
 // wide        {"schema_version":"<tag>","violations":"\naa…a一"}: one escape and one character
 //             outside Latin-1, so the text and the decoded string take two bytes a character
+// long-key    {"schema_version":"<tag>","\naa…a一":0}: one key of the same form that fills the body
+// nested-key  {"schema_version":"<tag>","violations":{"\naa…a一":0}}: the same key one level down
 //
 // errors      the document of the contract whose violation listing creates the most Ajv errors
 //             (support/error-shape.ts), with MAX_NODES values, so the listing runs
@@ -110,6 +112,16 @@ if (shape === 'errors' || shape === 'errors-wide') {
     at += 3;
   }
   write('"}');
+} else if (shape === 'long-key' || shape === 'nested-key') {
+  const nested = shape === 'nested-key';
+  write(`{"schema_version":"${tag}",${nested ? '"violations":{' : ''}"\\n`);
+  // The `a` run is written in place, so the setup leaves no long string behind.
+  const end = bytes.length - (nested ? 8 : 7);
+  bytes.fill(0x61, at, end);
+  at = end;
+  bytes.set([0xe4, 0xb8, 0x80], at);
+  at += 3;
+  write(nested ? '":0}}' : '":0}');
 } else if (shape === 'nested') {
   const chain = `${'['.repeat(100)}0${']'.repeat(100)}`;
   write(`{"schema_version":"${tag}","violations":[0`);

@@ -180,3 +180,73 @@ fn a_non_decimal_error_beyond_the_reporting_cap_is_not_reported_as_invalid_decim
     assert!(!marker.decimal_grammar, "{marker:?}");
     assert!(marker.message.contains("further"), "{marker:?}");
 }
+
+/// The number of JSON values in a document, the root included, as the structural limits count them.
+fn values_in(value: &Value) -> usize {
+    match value {
+        Value::Array(items) => 1 + items.iter().map(values_in).sum::<usize>(),
+        Value::Object(entries) => 1 + entries.values().map(values_in).sum::<usize>(),
+        _ => 1,
+    }
+}
+
+/// The F0 input with 400 bars, three decimal-grammar violations in the first bar, `sessions` copies
+/// of its first session and `events` unplanned events. Every other value is valid.
+fn input_with_decimal_errors(sessions: usize, events: usize) -> Value {
+    let mut doc = smoke_input();
+    let bar = doc["instruments"][0]["bars"][0].clone();
+    let mut bad = bar.clone();
+    bad["open"] = json!("01");
+    bad["high"] = json!("1e5");
+    bad["low"] = json!("-0");
+    let mut bars = vec![bad];
+    bars.extend(std::iter::repeat_n(bar, 399));
+    doc["instruments"][0]["bars"] = Value::Array(bars);
+    let session = doc["calendar"]["sessions"][0].clone();
+    let halts = (1..=events)
+        .map(|index| {
+            json!({
+                "event_id": format!("HALT-{index}"),
+                "kind": "CONFIRMED_HALT",
+                "effective_session": session["session"],
+                "available_at": session["open_at"],
+            })
+        })
+        .collect();
+    doc["calendar"]["sessions"] = Value::Array(vec![session; sessions]);
+    doc["instruments"][0]["unplanned_events"] = Value::Array(halts);
+    doc
+}
+
+/// S1 P1 lowered the value limit of the listing from 20,000 to 4,096. An invalid engine input of
+/// 4,097 to 20,000 values whose only violations are decimal-grammar ones therefore reports
+/// `SCHEMA_VIOLATION` with its first violation, not `INVALID_DECIMAL`. The S1 pilot log records the
+/// change, and the `evaluation-input.*-decimals-at-409*` protocol fixtures pin the same boundary in
+/// both runtimes.
+#[test]
+fn decimal_errors_are_classified_up_to_4096_values_and_not_past_them() {
+    let at_limit = input_with_decimal_errors(110, 3);
+    assert_eq!(values_in(&at_limit), 4_096);
+    let error = validate(Contract::EvaluationInput, &at_limit).unwrap_err();
+    assert_eq!(error.failure_code(), FailureCode::InvalidDecimal);
+    let violations = violations_of(error);
+    assert_eq!(violations.len(), 3, "{violations:?}");
+    assert!(
+        violations.iter().all(|v| v.decimal_grammar),
+        "{violations:?}"
+    );
+
+    let past_limit = input_with_decimal_errors(109, 4);
+    assert_eq!(values_in(&past_limit), 4_097);
+    let error = validate(Contract::EvaluationInput, &past_limit).unwrap_err();
+    assert_eq!(error.failure_code(), FailureCode::SchemaViolation);
+    let violations = violations_of(error);
+    // The limit, then the first violation, which is a decimal-grammar one.
+    assert_eq!(violations.len(), 2, "{violations:?}");
+    assert!(!violations[0].decimal_grammar, "{violations:?}");
+    assert!(
+        violations[0].message.contains("4096 values"),
+        "{violations:?}"
+    );
+    assert!(violations[1].decimal_grammar, "{violations:?}");
+}

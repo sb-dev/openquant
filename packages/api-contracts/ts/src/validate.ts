@@ -8,13 +8,17 @@
 // 3. an integer whose magnitude is above 2^53 - 1: SCHEMA_VIOLATION. Rust reaches the schema with it
 //    and the schema rejects it, because every schema integer has a maximum below 2^31 and every
 //    object is closed;
-// 4. more values than the contract's value bound: SCHEMA_VIOLATION (see below);
-// 5. the schema, with the first-error validator, which decides validity at any size. A valid
+// 4. an object key whose text is longer than MAX_KEY_BYTES (limits.ts): SCHEMA_VIOLATION, and the
+//    listing stopped. The parse never decodes such a key, and builds no value after it. Rust reaches
+//    the schema with it, and the schema rejects it: every object is closed and no declared name is
+//    that long (test/keys.test.ts);
+// 5. more values than the contract's value bound: SCHEMA_VIOLATION (see below);
+// 6. the schema, with the first-error validator, which decides validity at any size. A valid
 //    document stops here;
-// 6. an invalid document beyond the structural limits (limits.ts), such as one with more than
+// 7. an invalid document beyond the structural limits (limits.ts), such as one with more than
 //    MAX_NODES (4,096) values, is not listed: it reports the limit, then its first violation, marks
 //    the listing as stopped (ContractError.listingStopped) and is SCHEMA_VIOLATION;
-// 7. otherwise the all-errors validator lists the violations, 20 and a counted rest, at a cost
+// 8. otherwise the all-errors validator lists the violations, 20 and a counted rest, at a cost
 //    bounded by MAX_NODES (limits.ts). The code is INVALID_DECIMAL when every violation is a failure
 //    of the Decimal or Exact pattern (an Exact text longer than 80 characters fails maxLength, which
 //    is SCHEMA_VIOLATION), and SCHEMA_VIOLATION otherwise (error.rs).
@@ -45,8 +49,8 @@ import { byContract as allErrorValidators } from '../dist/generated/validators-a
 import { byContract as firstErrorValidators, type ValidatorError } from '../dist/generated/validators-first.js';
 import { CanonicalError, canonicalJson } from './canonical.ts';
 import { ContractError, type ContractErrorKind, type SchemaViolation } from './errors.ts';
-import { firstExcess, MAX_NODES } from './limits.ts';
-import { type JsonValue, StrictJsonError, scanStrictJson } from './strict-json.ts';
+import { firstExcess, MAX_KEY_BYTES, MAX_NODES } from './limits.ts';
+import { type JsonValue, StrictJsonError, type StrictScan, scanStrictJson } from './strict-json.ts';
 
 /** Violations listed one by one. Later ones are counted in one marker entry. */
 export const MAX_REPORTED_VIOLATIONS = 20;
@@ -137,16 +141,23 @@ export function workerBodyLimit(contract: ContractName): number {
   return valueBound(contract) <= SMALL_VALUE_BOUND ? 4 * 1024 * 1024 : 512 * 1024;
 }
 
+/** A rejection whose listing stopped: one violation without a pointer that states why. */
+function stopped(kind: ContractErrorKind, message: string) {
+  return reject(kind, message, [{ pointer: '', message, decimalGrammar: false }], true);
+}
+
+/** A strict-JSON error as a rejection. A structural limit stops the listing. */
+export function rejectStrictJson(error: StrictJsonError) {
+  return error.kind === 'structural-limit' ? stopped(error.kind, error.message) : reject(error.kind, error.message);
+}
+
 /**
- * The checks after strict JSON: the version, an unsafe integer, the value bound and the schema, with
- * the violation listing within the structural limits. scanEvaluationResult (result.ts) shares them.
+ * The checks after strict JSON: the version, an unsafe integer, a key past the key limit, the value
+ * and text bounds and the schema, with the violation listing within the structural limits.
+ * scanEvaluationResult (result.ts) shares them.
  */
-export function checkScanned<C extends ContractName>(
-  contract: C,
-  value: JsonValue,
-  unsafeInteger: string | undefined,
-  exceededValueBound: number | undefined,
-): ContractResult<ContractTypes[C]> {
+export function checkScanned<C extends ContractName>(contract: C, scan: StrictScan): ContractResult<ContractTypes[C]> {
+  const { value, unsafeInteger, longKey, exceededValueBound, exceededTextBound } = scan;
   const expected = contracts[contract].versionTag;
   const found = schemaVersion(value);
   if (typeof found !== 'string') return reject('missing-version', 'missing or non-string schema_version');
@@ -159,9 +170,23 @@ export function checkScanned<C extends ContractName>(
   if (unsafeInteger !== undefined) {
     return reject('unsafe-integer', `integer ${unsafeInteger} is outside the exact range of 2^53 - 1`);
   }
+  if (longKey !== undefined) {
+    return stopped(
+      'structural-limit',
+      `object key of ${longKey.bytes} bytes at offset ${longKey.offset} is longer than ${longKey.limit}; the document is not examined further`,
+    );
+  }
   if (exceededValueBound !== undefined) {
-    const message = `document has more than ${exceededValueBound} values; the document is not examined further`;
-    return reject('value-bound', message, [{ pointer: '', message, decimalGrammar: false }], true);
+    return stopped(
+      'value-bound',
+      `document has more than ${exceededValueBound} values; the document is not examined further`,
+    );
+  }
+  if (exceededTextBound !== undefined) {
+    return stopped(
+      'value-bound',
+      `document has more than ${exceededTextBound} bytes of strings and keys; the document is not examined further`,
+    );
   }
   // Validity is decided here, at any size.
   const quick = firstErrorValidators[contract];
@@ -187,10 +212,12 @@ export function parseContract<C extends ContractName>(
   input: string | Uint8Array,
 ): ContractResult<ContractTypes[C]> {
   try {
-    const { value, unsafeInteger, exceededValueBound } = scanStrictJson(input, { valueBound: valueBound(contract) });
-    return checkScanned(contract, value, unsafeInteger, exceededValueBound);
+    return checkScanned(
+      contract,
+      scanStrictJson(input, { valueBound: valueBound(contract), maxKeyBytes: MAX_KEY_BYTES }),
+    );
   } catch (error) {
-    if (error instanceof StrictJsonError) return reject(error.kind, error.message);
+    if (error instanceof StrictJsonError) return rejectStrictJson(error);
     throw error;
   }
 }

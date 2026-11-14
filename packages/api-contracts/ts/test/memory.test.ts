@@ -4,9 +4,11 @@
 // reports the peak of its heap plus its external memory, which holds the body bytes, typed arrays
 // and, in Node, the decoded text. Its own baseline of about 20 MiB is included.
 //
-// Two kinds of body are measured. The dense shapes build the most values, or the most heap per
+// Three kinds of body are measured. The dense shapes build the most values, or the most heap per
 // byte, that the parse can be made to build; they never reach the violation listing, because each
-// exceeds the value bound or a structural limit. The errors shapes are invalid documents of exactly
+// exceeds the value bound or a structural limit. The key shapes hold one key, escaped and two bytes a
+// character, that fills the body at the top level or one level down: the parse refuses it unread,
+// after the version check. The errors shapes are invalid documents of exactly
 // MAX_NODES values whose listing creates the most Ajv errors the contract allows
 // (support/error-shape.ts), padded to the byte limit with spaces or with long two-byte strings: the
 // listing runs, and its errors are counted against the bound of test/errors.test.ts.
@@ -33,6 +35,7 @@ const WORKER_HEAP = '--max-old-space-size=128';
 /** 64 MB, in MiB as the child reports it. */
 const BUDGET_MIB = (64 * 1000 * 1000) / 2 ** 20;
 const SHAPES = ['zeros', 'arrays', 'objects', 'singletons', 'nested', 'keys', 'shapes', 'escapes', 'wide'] as const;
+const KEY_SHAPES = ['long-key', 'nested-key'] as const;
 const ERROR_SHAPES = ['errors', 'errors-wide'] as const;
 
 interface Child {
@@ -95,6 +98,22 @@ describe('the densest bodies at each Worker byte limit parse within 64 MB', () =
   });
 });
 
+describe('a key that fills the body at each Worker byte limit is refused unread within 64 MB', () => {
+  const cases = names.flatMap((name) => KEY_SHAPES.map((shape) => [name, shape] as [ContractName, string]));
+  test.concurrent.each(cases)('%s %s', async (name, shape) => {
+    const limit = workerBodyLimit(name);
+    const result = await outcome(shape, name, String(limit));
+    expect(result).toMatchObject({
+      verdict: 'rejected',
+      code: 'SCHEMA_VIOLATION',
+      kind: 'structural-limit',
+      listingStopped: true,
+      bytes: limit,
+    });
+    expect(result.peakTotalMiB, JSON.stringify(result)).toBeLessThanOrEqual(BUDGET_MIB);
+  });
+});
+
 describe('the violation listing of the error-maximising body at each Worker byte limit stays within 64 MB', () => {
   const defs = bundleDefs();
   const cases = names.flatMap((name) => ERROR_SHAPES.map((shape) => [name, shape] as [ContractName, string]));
@@ -110,16 +129,36 @@ describe('the violation listing of the error-maximising body at each Worker byte
 });
 
 describe('the scan of a submitted result at RESULT_SCAN_LIMIT stays within 64 MB', () => {
-  // The journal is read but not built: memory is the bytes, the decoded text and the head.
+  // The journal is read but not built: memory is the bytes, the decoded text and the head, which
+  // the value bound and the text bound limit (src/result.ts).
   test.concurrent.each(['zeros', 'objects', 'keys', 'nested', 'escapes', 'wide'])('%s journal', async (shape) => {
     const result = await outcomeOf(resultScript, shape, String(RESULT_SCAN_LIMIT));
     expect(result).toMatchObject({ verdict: 'accepted', bytes: RESULT_SCAN_LIMIT });
     expect(result.peakTotalMiB, JSON.stringify(result)).toBeLessThanOrEqual(BUDGET_MIB);
   });
 
-  test('an extra top-level member is built only up to the value bound', async () => {
-    const result = await outcomeOf(resultScript, 'head', String(RESULT_SCAN_LIMIT));
+  test.concurrent.each<[string, string]>([
+    ['an extra top-level member is built only up to the value bound', 'head'],
+    ['escaped two-byte strings in the head are built only up to the text bound', 'head-strings'],
+  ])('%s', async (_label, shape) => {
+    const result = await outcomeOf(resultScript, shape, String(RESULT_SCAN_LIMIT));
     expect(result).toMatchObject({ verdict: 'rejected', kind: 'value-bound', bytes: RESULT_SCAN_LIMIT });
+    expect(result.peakTotalMiB, JSON.stringify(result)).toBeLessThanOrEqual(BUDGET_MIB);
+  });
+
+  test.concurrent.each<[string, string]>([
+    ['at the top level', 'root-key'],
+    ['inside journal', 'journal-key'],
+  ])('an escaped two-byte key that fills the body %s is refused unread', async (_label, shape) => {
+    const result = await outcomeOf(resultScript, shape, String(RESULT_SCAN_LIMIT));
+    expect(result).toMatchObject({
+      verdict: 'rejected',
+      code: 'SCHEMA_VIOLATION',
+      kind: 'structural-limit',
+      listingStopped: true,
+      bytes: RESULT_SCAN_LIMIT,
+      written: RESULT_SCAN_LIMIT,
+    });
     expect(result.peakTotalMiB, JSON.stringify(result)).toBeLessThanOrEqual(BUDGET_MIB);
   });
 });

@@ -24,6 +24,17 @@
 //! 36,000). Such a document is accepted when it is valid. When it is invalid, it reports
 //! `SCHEMA_VIOLATION` with the first violation.
 //!
+//! Object keys have no limit here. The TypeScript layer refuses a key whose text is longer than
+//! 256 bytes before it decodes it, after the version check, to keep a Worker's parse within memory
+//! (`MAX_KEY_BYTES` in `packages/api-contracts/ts/src/limits.ts`). Rust gives every such document
+//! the same verdict and code without a limit: every schema closes every object, and no declared
+//! property name takes more than 150 bytes of text even with every character escaped, so the
+//! document is invalid, and its violations include an unknown or mistyped property, never only
+//! decimal-grammar ones, so the code is `SCHEMA_VIOLATION`. A strict-JSON error or another version
+//! tag comes first in both runtimes. The TypeScript key test derives these facts from the schemas,
+//! and protocol fixtures pin a long key at the top level, nested, before another version tag and
+//! repeated.
+//!
 //! The depth limit does not protect the first-error pass. That pass recurses over the depth of a
 //! recursive schema such as an expression. A [`serde_json::Value`] built by hand and nested
 //! about 2,000 levels deep can overflow the stack there. The strict text parser refuses depth

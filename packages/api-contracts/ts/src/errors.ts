@@ -15,7 +15,9 @@ export interface SchemaViolation {
 
 /**
  * value-bound: the document holds more values than any document valid against its contract can
- * hold (validate.ts). It is reported after the version check, as SCHEMA_VIOLATION.
+ * hold (validate.ts), or a scanned result head holds more text than a valid head (result.ts).
+ * structural-limit: an object key longer than the key limit, reported after the version check, or,
+ * in the result scan, an array, object or string past its limit. Both are SCHEMA_VIOLATION.
  */
 export type ContractErrorKind =
   | StrictJsonErrorKind
@@ -48,8 +50,10 @@ export class ContractError extends Error {
   readonly violations: readonly SchemaViolation[];
   /**
    * True when the document was not listed in full: it holds more values than its value bound
-   * (kind value-bound), or, invalid, it exceeds a structural limit such as more than MAX_NODES
-   * values (limits.ts). Only the first violation was then found, and the code is SCHEMA_VIOLATION.
+   * (kind value-bound), it holds a key longer than the key limit or, in the result scan, another
+   * structural excess (kind structural-limit), or, invalid, it exceeds a structural limit such as
+   * more than MAX_NODES values (limits.ts). At most the first violation was then found, and the
+   * code is SCHEMA_VIOLATION.
    */
   readonly listingStopped: boolean;
 

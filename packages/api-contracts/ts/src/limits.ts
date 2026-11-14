@@ -34,6 +34,18 @@ export const MAX_ARRAY_LEN = 8_192;
 export const MAX_OBJECT_KEYS = 64;
 /** Bytes in one string. */
 export const MAX_STRING_BYTES = 16_384;
+/**
+ * Bytes in the text of one object key, between its quotes, before its escapes are decoded. The
+ * parse of a contract never decodes a longer key (strict-json.ts) and refuses its document with
+ * SCHEMA_VIOLATION after the version check (validate.ts). Every schema closes every object, so a
+ * valid document holds only declared property names. The longest is 25 bytes, and an escape writes
+ * one byte as at most six, so a declared name takes at most 150 bytes of text: the limit never
+ * refuses a valid document. test/keys.test.ts derives both numbers from the schemas.
+ *
+ * Rust has no such limit and gives the same code: its parser keeps every key, and its schema then
+ * rejects the unknown property, which is never a decimal-grammar violation.
+ */
+export const MAX_KEY_BYTES = 256;
 
 type Segment = number | string;
 type Child = readonly [Segment, JsonValue];
