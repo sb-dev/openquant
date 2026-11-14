@@ -1,0 +1,24 @@
+{
+  "schema_version": "job-dispatch/1",
+  "environment": "STAGING",
+  "job_id": "job-aapl-validate-0001",
+  "attempt": {
+    "attempt_id": "att-aapl-validate-0001-1",
+    "ownership_revision": 1
+  },
+  "mission_id": "msn-aapl-0001",
+  "dispatched_at": "2026-11-14T10:05:00Z",
+  "inputs": {
+    "kind": "validate",
+    "draft": {
+      "digest": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
+      "media_type": "application/json",
+      "size_bytes": 4792
+    },
+    "cohort_policy": {
+      "digest": "sha256:0e8ea5f12262374def68a65011850ff52e6867a8963f6dd4f95970436b1b5482",
+      "media_type": "application/json",
+      "size_bytes": 9417
+    }
+  }
+}

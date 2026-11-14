@@ -106,7 +106,7 @@ Treat live secret rotation as a controlled rollout. Fly documents that ordinary 
 
 Disable competing automatic deploy routes, including Workers Builds for the same target. GHA is the single release controller. GitHub-hosted scheduled scans are acceptable; they are not runtime scheduling.
 
-Release identity records the source SHA, CLI version, engine digest, image and binary digests, agent-bundle hash, method identity, protocol versions, migration level, and deployment references. In S1, `deploy.yml` writes this as a `release-manifest/1` document, reads the deployed state back and records the manifest through an Administrator-only route. Components can deploy independently without independent version systems for every folder.
+Release identity records the source SHA, CLI version, engine digest, image and binary digests, agent-bundle hash, method identity, protocol versions, migration level, and deployment references. In S1, `deploy.yml` writes this as a `release-manifest/1` document, reads the deployed state back and records the manifest through the release route. That route accepts an Administrator or the `deploy` service principal. The `deploy` credential is scoped to that single route and is held only in the protected delivery job (OQ-05 §9). The route returns the recorded identity, so the job reads back what was stored. Components can deploy independently without independent version systems for every folder.
 
 Serialize deployments per component and environment. Cancel superseded validation work, but do not cancel an in-progress migration or live rollout simply because a newer push arrived. Use expand/contract database migrations, and verify backup/restore and rollback procedures before production use.
 

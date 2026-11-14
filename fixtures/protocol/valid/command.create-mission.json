@@ -43,7 +43,7 @@
         "agent_compute_seconds": 7200,
         "attempt_cap": 3
       },
-      "seed_hash": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
+      "seed_draft_digest": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
       "proposers": [
         {
           "configuration_id": "proposer-a",

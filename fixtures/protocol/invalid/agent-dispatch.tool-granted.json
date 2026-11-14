@@ -41,9 +41,9 @@
     "request": {
       "contract": "strategy-formulation.request/1",
       "artefact": {
-        "digest": "sha256:f0f46ffb859f173bdcb8f6442e1e16058bdccf711817dd9a74b5df8e807f1d32",
+        "digest": "sha256:5f5ca52c92bee9ef17291c7f9b159a9efadfc9b00be27243bb0725e71c97fe7a",
         "media_type": "application/json",
-        "size_bytes": 17381
+        "size_bytes": 17377
       }
     },
     "holdout_exclusions": [
@@ -53,7 +53,7 @@
           "start": "2024-01-02",
           "end": "2024-12-31"
         },
-        "label": "validation window; revision context holds development results only"
+        "label": "validation window; agent context holds development results only"
       },
       {
         "window": "HOLDOUT",

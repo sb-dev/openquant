@@ -18,10 +18,10 @@ Each decision is stated in its owning section in the same change as this log. Th
 | D2 | Engine identity is unchanged; connected envelopes are outside it. Derived evidence carries a separate method identity, pinned by a golden test and bound into payloads, submission and release identity. Engine-scope schemas are pinned by SHA-256. The workspace package version is not changed. | OQ-02 §7, OQ-05 §§7, 11 |
 | D3 | Connected envelopes form a separate contract set with shared connected-common codes and state values, one additive fixture manifest and a route manifest. The set includes `evaluation-plan/1`, `api-error/1` and `release-manifest/1`. One transition table covers jobs, runs, attempts, leases, reservations and outbox entries. | OQ-05 §§3, 4, 7; OQ-03 §4 |
 | D4 | The Rust core computes the S1 metrics with exact arithmetic, one half-even rounding and zero tolerance; benchmarks are cash and same-stock buy-and-hold; uncertainty is a recorded limitation; a Rust `assess` job writes the gate report. | OQ-02 §§3.1, 3.6; OQ-03 §1; OQ-05 §3; OQ-04 §5 |
-| D5 | Each numerical outcome maps to a run status and gate treatment; worker death and lease expiry fence a new attempt up to an attempt cap. | OQ-02 §3.6, OQ-05 §4 |
+| D5 | Each numerical outcome maps to a run status and gate treatment; worker death and lease expiry fence a new attempt up to an attempt cap. Validation, retrieval, assessment and agent outcomes map to job status; an agent's logical run uses the job status values. | OQ-02 §3.6, OQ-05 §4 |
 | D6 | Runner failures map to the seven execution outcomes; a crash fences a new attempt; a late completion is rejected and recorded. | OQ-03 §§4, 5 |
 | D7 | A proposer configuration is an executor profile plus a bundle hash; two proposer models, one critic profile, one zero-method baseline bundle; each model's published knowledge cutoff is recorded. | OQ-03 §2, OQ-02 §1 |
-| D8 | Proposal path: TypeScript parse, API checks, Rust validation of the draft digest, `DRAFT`, one critique, treatment, `DRAFT` to `EVALUATING` Decision. An `APPROVED` Decision writes the version's D and V runs (base, cost stress and the repeat of the D base run) with their reservations and outbox entries in one transaction. `DEFERRED` arises only when the critique has no valid result after the attempt cap; the candidate is then not evaluated, and a deferred seed concludes the mission `NO_ELIGIBLE_CANDIDATE`. No paper promotion before M2. | OQ-02 §§3.3, 4; OQ-03 §3 |
+| D8 | Proposal path: TypeScript parse, API checks, Rust validation of the draft digest, `DRAFT`, one critique, treatment, `DRAFT` to `EVALUATING` Decision. An `APPROVED` Decision writes the version's D and V runs (base, cost stress and the repeat of the D base run) with their reservations and outbox entries in one transaction. `DEFERRED` arises only when the critique has no valid result: at once after an outcome that is not retried, or when the attempt cap is exhausted after retried failures. The candidate is then not evaluated, and a seed that is not evaluated concludes the mission `NO_ELIGIBLE_CANDIDATE`. No paper promotion before M2. | OQ-02 §§3.3, 4; OQ-03 §3 |
 | D9 | The proposed strategy is the full `strategy-artefact/1` content minus API-assigned identity, version and hashes; an unresolved list blocks registration; rule differences are checked in TypeScript and recomputed in Rust. | OQ-03 §§3, 4 |
 | D10 | TypeScript validation mirrors the Rust contract layer step by step; semantic codes stay in Rust and the deferred count is asserted. | OQ-05 §7 |
 | D11 | pnpm workspace, Turborepo without cached results in verification, strict TypeScript, Biome, Vitest with no empty suites, schemas bundled and bindings generated at build. | OQ-06 §1 |
@@ -32,11 +32,11 @@ Each decision is stated in its owning section in the same change as this log. Th
 | D16 | One egress module in the batch binary with an HTTPS host, method and path allowlist and no redirects; probe evidence of refusals; the authority probe reads the live account host once and places no order. | OQ-05 §5 |
 | D17 | Staging may use real read-only market data through a paper key and bounded real-model runs, labelled with mode and `STAGING`. | OQ-06 §3 |
 | D18 | S1 cohort gates and the expected outcome `NO_ELIGIBLE_CANDIDATE`. | OQ-02 §§3.1, 3.2, 3.6 |
-| D19 | The Researcher registers the daily swing seed; each proposer configuration authors one controlled revision. | OQ-03 §1 |
-| D20 | The comparison is an `evaluation-plan/1` registered when the mission starts, after retrieval: trial slots, window rules with their resolved sessions, scenarios, H slots and gates by reference. Planned slots are not runs. Once every trial slot is terminal, the internal guarded command `freeze_candidates` writes the H runs of every candidate in `EVALUATING` with their reservations and outbox entries in one transaction. H consumption is recorded; H is labelled "historical holdout within model training period"; requests carry holdout exclusions; the assess job receives the plan by reference. | OQ-02 §§3.1, 3.3, 4; OQ-03 §§1, 4 |
-| D21 | Mission status `IN_PROGRESS`, `BLOCKED`, `WITHDRAWN`, `CONCLUDED` with outcome `ELIGIBLE_FOUND` or `NO_ELIGIBLE_CANDIDATE`. Budget exhaustion gives `BLOCKED` with a reason. Cancellation gives `WITHDRAWN`, cancels open runs and open agent attempts. Agent attempts and the retrieve, validate and assess jobs are non-trial work. | OQ-02 §1, OQ-04 §4, OQ-05 §4 |
+| D19 | The Researcher registers the daily swing seed as a draft, by its draft digest, with its source-interpretation record. The mission's first `validate` job validates the draft; only then is Strategy Version 1 registered. Each proposer configuration authors one controlled revision. | OQ-03 §1, OQ-02 §4 |
+| D20 | The comparison is an `evaluation-plan/1` registered when the mission starts, after retrieval: trial slots, window rules with their resolved sessions, scenarios, H slots and gates by reference. Planned slots are not runs. Once every trial slot is terminal, the internal guarded command `freeze_candidates` writes the H runs of every candidate in `EVALUATING` with their reservations and outbox entries in one transaction. It also runs when the seed was not evaluated; it then writes no H runs. H consumption is recorded; H is labelled "historical holdout within model training period"; every agent request, proposer and critic, carries holdout exclusions that name V and H; the assess job receives the plan by reference. | OQ-02 §§3.1, 3.3, 4; OQ-03 §§1, 4 |
+| D21 | Mission status `CREATED` (created, not started), `IN_PROGRESS`, `BLOCKED`, `WITHDRAWN`, `CONCLUDED` with outcome `ELIGIBLE_FOUND` or `NO_ELIGIBLE_CANDIDATE`. Budget exhaustion gives `BLOCKED` with a reason. Cancellation gives `WITHDRAWN`, cancels open runs and open agent attempts. Agent attempts and the retrieve, validate and assess jobs are non-trial work. | OQ-02 §1, OQ-04 §4, OQ-05 §4 |
 | D22 | The per-attempt cap is reserved before dispatch; executor cost is estimated; a missing report keeps the reservation; lease expiry releases nothing until termination is confirmed. | OQ-03 §§1, 5 |
-| D23 | `deploy.yml` writes, reads back and records a `release-manifest/1` document through an Administrator-only route; the owner creates the Neon project and roles, verified by read-back. | OQ-06 §3; OQ-05 §§7, 11 |
+| D23 | `deploy.yml` writes, reads back and records a `release-manifest/1` document through the release route. The route accepts an Administrator or the `deploy` service principal, whose credential is scoped to that single route and held only in the protected delivery job. The owner creates the Neon project and roles, verified by read-back. | OQ-06 §3; OQ-05 §§7, 9, 11 |
 | D24 | S1 finding treatment: no category blocks `DRAFT` to `EVALUATING`; six categories block `EVALUATING` to `PAPER` eligibility and five are advisory (table below). | OQ-02 §4 |
 | D25 | The `DRAFT` to `EVALUATING` Decision is policy-determined. The workflows service principal records it through the internal command `record_evaluation_decision`, under the Steward-approved cohort policy, and names the policy digest, the Steward's approval Decision and the Researcher who started the mission. Service principals cannot approve policies, create or enlarge budgets, or change limits; they may reserve within existing budgets. | OQ-02 §§1, 4; OQ-05 §9 |
 | D26 | The per-mission budget is set in the mission's create command, within the cohort policy's maxima and the period cap. The cohort policy keeps the maxima and the equal-per-proposer rule. | OQ-02 §1, OQ-03 §1 |
@@ -66,8 +66,9 @@ The rule needs a named provider field and an evidenced bound no later than the e
 - Field: the declaration (announcement) date of each cash dividend and split, as the provider reports it. The market-data corporate-actions response is the first candidate. Its field name is not yet verified. The provider probe must confirm the field from a real response. If only the Trading API announcements endpoint returns it, its read must be added to the D16 allowlist, which is an owner decision.
 - Bound: `available_at` = the open of the ex-date session. This is the latest instant the core accepts for an action that takes effect before that open, so the simulation never knows the action earlier than the ex-date. The bound is valid for an action only when its evidenced declaration date is strictly before the ex-date.
 - Block rule: if any cash dividend or split whose ex-date lies in a run lacks the field, or its declaration date is not before the ex-date, the profile is blocked. Do not substitute a fixed offset, the record or process date, or the retrieval time. Unknown availability stays unknown (OQ-02 section 1.1).
-- Payment: `payment_session` = the provider's payable date when it is a calendar session inside the run. `payment_phase` = `AFTER_CLOSE` (proposed, not a default). Withholding = 0 bps (proposed, not a default). The profile states this rule in its data semantics, and the evaluation plan extends a run to include the payment session. If the payable date is not such a session, the profile is blocked; no other session replaces it. The core also refuses a payment session outside the run's calendar.
-- A run's calendar includes the payment session of every dividend whose ex-date lies in the run, also after the scored end. These sessions count towards the 400-session limit.
+- Payment: `payment_session` = the provider's payable date. It must be a session of the frozen calendar. `payment_phase` = `AFTER_CLOSE` (proposed, not a default). Withholding = 0 bps (proposed, not a default). The profile states this rule in its data semantics. If the payable date is not a calendar session, the profile is blocked; no other session replaces it. The core also refuses a payment session outside the run's calendar.
+- A payment session after the scored end: the run's calendar extends to include it, because the core requires it in the calendar. The core does not process events after the scored end. The payment is therefore not applied in that run, and the receivable stays in equity at the final mark.
+- These calendar sessions count towards the 400-session limit.
 
 ### Windows
 
@@ -95,7 +96,7 @@ The windows are rules with calendar-date bounds. They are resolved against the f
 | Cost model | `fixed_plus_bps@1`. `fixed_fee_per_fill` 0 USD. `fee_bps` 5, a declared allowance for half-spread, opening-auction deviation and regulatory sale fees. `gap_exit_slippage_bps` 10. |
 | Cost stress | Multiplier 2 on every cost parameter: `fee_bps` 10, `gap_exit_slippage_bps` 20, fixed fee 0. |
 | Corporate actions | `split_cash_dividend_ex_date@1`, as in S0. |
-| Metric scale | `metric_scale` 6 for every non-integer metric. Counts are integers. |
+| Metric scale | Ratio metrics (returns, drawdown, worst session return, turnover, exposure, excess returns) use `metric_scale` 6. Money metrics (fees, gap slippage, total execution cost) use `money_scale`. Counts are integers. |
 | Permitted operators | All 19 operators of `daily-long-only-seed@1`, including `gte` and `lt`. Parameter bounds: any indicator window, lag or constant that the S0 validator accepts, with a maximum lookback of at most 60 sessions. A controlled revision changes entry rules or exit rules, not both. |
 
 ### Benchmarks and gate thresholds
@@ -138,42 +139,56 @@ The cohort policy assigns this treatment (OQ-02 section 4). No finding category 
 | `data_quality_alignment`, `causal_leakage`, `execution_accounting_assumption`, `search_overfitting`, `policy_mismatch`, `missing_evidence` | Blocking |
 | `hypothesis_assumption`, `portfolio_fit`, `operational_risk`, `source_uncertainty`, `method_advice` | Advisory |
 
-- `DEFERRED` arises only when the critique ends without a valid result after the attempt cap: refusal, malformed result, timeout, cancellation, denied capability or authentication failure. The candidate is then not evaluated.
-- If the seed is `DEFERRED`, no revision can run, because the revisions need the seed's D results. The mission concludes `NO_ELIGIBLE_CANDIDATE` with that reason.
+- `DEFERRED` arises only when the critique ends without a valid result. A refusal, denied capability, authentication failure or cancellation is not retried, so it gives `DEFERRED` at once. A timeout, malformed result, lease expiry or runner crash is retried; it gives `DEFERRED` when the attempt cap is exhausted. The candidate is then not evaluated.
+- If the seed is not evaluated, for example because it is `DEFERRED`, no revision can run, because the revisions need the seed's D results. Each revision slot ends with the reason `SEED_NOT_EVALUATED`. `freeze_candidates` still runs, writes no H runs, and the mission concludes `NO_ELIGIBLE_CANDIDATE` with that reason.
 
 ### Mission sequence
 
 1. A Steward registers the research profile, the cohort policy and the period cap. The policy approval is a Steward Decision.
-2. The Researcher registers the seed and creates the mission with its budget.
-3. The `retrieve` job freezes the dataset. The API records `evaluation-plan/1` with the resolved sessions.
-4. The seed goes through validation, critique and the policy-determined `DRAFT` to `EVALUATING` Decision, recorded by the workflows service principal. An `APPROVED` Decision writes its D and V runs.
-5. Each proposer configuration revises the seed with D results and findings only. Each revision follows step 4.
-6. Once every trial slot is terminal, `freeze_candidates` writes the H runs. Revealing H results writes the holdout-consumption record.
-7. The `assess` job reads the plan by reference and writes each candidate's gate report. Eligibility and the mission outcome follow.
+2. The Researcher registers the seed with `register_seed`. The API stores it as a draft, by its draft digest, with its source-interpretation record. It is not yet a Strategy Version.
+3. The Researcher creates the mission with its budget. The mission names the seed's draft digest. Its status is `CREATED`.
+4. The Researcher starts the mission with `run_mission_now`. The mission becomes `IN_PROGRESS`.
+5. The `retrieve` job freezes the dataset. The API records `evaluation-plan/1` with the resolved sessions. Its seed slot names the draft digest.
+6. The mission's first `validate` job validates the seed draft. Only then is Strategy Version 1 registered as `DRAFT`. The seed then goes through critique and the policy-determined `DRAFT` to `EVALUATING` Decision, recorded by the workflows service principal. An `APPROVED` Decision writes its D and V runs.
+7. Each proposer configuration revises the seed with D results and findings only. Each revision follows the order of OQ-02 section 4: parsing, API checks, its own `validate` job, registration, critique and the Decision.
+8. Once every trial slot is terminal, `freeze_candidates` writes the H runs. Revealing H results writes the holdout-consumption record.
+9. The `assess` job reads the plan by reference and writes each candidate's gate report. Eligibility and the mission outcome follow.
 
 ### Budgets and limits
 
-All values are proposed, not defaults. Retries and recovery attempts consume budget. The cohort policy holds the per-mission values as maxima and requires equal allowances for each proposer configuration. The Researcher sets the mission's budget in its create command, at or below these maxima and within the period cap. The pilot mission uses the maxima.
+All values are proposed, not defaults. Retries and recovery attempts consume budget.
 
-| Item | Per mission |
+The Researcher sets the mission budget below in the mission's create command. The cohort policy holds these values as maxima and requires equal allowances for each proposer configuration. The mission budget must be at or below the maxima and within the period cap. The pilot mission uses the maxima.
+
+| Mission budget item | Per mission |
 | --- | --- |
 | Candidates (registered Strategy Versions) | 3: the seed and one revision per proposer configuration. |
 | Revisions (proposals) | 2 per proposer configuration. A second proposal is made only after the first fails validation. |
+| New families (proposals without a parent) | 0. Every proposal revises the seed. The seed is the Researcher's draft, registered by its own command; it is not a proposal. |
 | Experiments (evaluation runs) | 21: 3 candidates x 3 windows x 2 cost cases, plus one deterministic-replay repeat per candidate. A repeat uses the same input, so it is not a new trial. The `DRAFT` to `EVALUATING` Decision writes 5 runs per candidate (D and V, base and stress, and the repeat); `freeze_candidates` writes 2 (H, base and stress). |
-| Model spend | 50 USD, estimated. Each agent attempt reserves 5 USD before dispatch. |
+| Model spend | 50 USD, estimated. |
+| Model spend per agent attempt | 5 USD, reserved before dispatch. |
 | Provider requests | 60, including pagination and retries. The provider probe has its own bound in P6. |
-| Compute | 120 Machine-minutes for batch jobs and 120 for the agent runner. |
+| Compute | 120 Machine-minutes (7,200 seconds) for batch jobs and 120 for the agent runner. |
 | Attempt cap | 3 attempts per logical run or job (the first and 2 recovery attempts). |
+
+The cohort policy fixes the execution limits below. The Researcher does not set them. A change needs a new policy revision.
+
+| Execution limit | Value |
+| --- | --- |
 | Per-attempt timeout | Agent attempt 15 minutes. Batch `retrieve` and `evaluate` 10 minutes; `validate` and `assess` 5 minutes. P3 replaces the batch values with the measured worst-case 400-session time plus a margin, and derives the lease and queue visibility from it. |
-| Output limit | Agent standard output 512 KiB; a longer output is a malformed result. Bounded diagnostic text 2000 characters. Each uploaded batch artefact 8 MiB. |
+| Output limit | Agent standard output 512 KiB; a longer output is a malformed result. Each uploaded batch artefact 8 MiB. |
 | Concurrency | At most 2 batch attempts and 2 agent attempts at a time. |
-| Period cap (staging) | 100 USD model spend and 120 provider requests per calendar month across missions. The period has calendar-date bounds. |
+
+The `agent-attempt-result/1` contract bounds diagnostic text to 2000 characters.
+
+A Steward registers the staging period cap, and the profile names it: 100 USD model spend and 120 provider requests per calendar month across missions. The period has calendar-date bounds.
 
 Agent attempts and the `retrieve`, `validate` and `assess` jobs are not experiments. They consume model spend, provider requests and compute.
 
 ## Expected S1 outcome
 
-Under D18, parameter sensitivity, execution delay and adverse regimes stay `INSUFFICIENT`. These are required robustness checks, so no candidate can become eligible. The expected outcome is a valid mission with status `CONCLUDED` and outcome `NO_ELIGIBLE_CANDIDATE`. A valid outcome still needs every planned run completed or explained, the findings and their treatment recorded, H consumption recorded, and budgets reconciled. A deferred seed also gives `NO_ELIGIBLE_CANDIDATE`, with that reason and without H runs. Offline fixtures under a separate test policy cover the `PASS` path.
+Under D18, parameter sensitivity, execution delay and adverse regimes stay `INSUFFICIENT`. These are required robustness checks, so no candidate can become eligible. The expected outcome is a valid mission with status `CONCLUDED` and outcome `NO_ELIGIBLE_CANDIDATE`. A valid outcome still needs every planned run completed or explained, the findings and their treatment recorded, H consumption recorded, and budgets reconciled. A seed that is not evaluated, for example because it is deferred, also gives `NO_ELIGIBLE_CANDIDATE`, with that reason and without H runs: the revision slots end with `SEED_NOT_EVALUATED`, and `freeze_candidates` writes no H runs. Offline fixtures under a separate test policy cover the `PASS` path.
 
 Two properties of the pilot also make eligibility unlikely, independently of the gates:
 
@@ -211,12 +226,12 @@ The owner must approve, or change, each item before P2 to P4 start:
 3. The data rules: SIP raw daily bars, the 120-minute data-ready delay, the information cutoff rule, the freshness policy and the budget reference.
 4. The dividend and split availability rule, the payment rule and phase, zero withholding and the block rule; and whether a Trading API announcements read may join the allowlist if the market-data response lacks the declaration date.
 5. The D, V and H window rules with calendar-date bounds, and the 60-session warm-up.
-6. The execution policy: capital, lots, the `price_scale` rule, `money_scale`, costs, the cost-stress multiplier, `metric_scale` and the 19 permitted operators.
+6. The execution policy: capital, lots, the `price_scale` rule, `money_scale` (also used by money metrics), costs, the cost-stress multiplier, `metric_scale` for ratio metrics and the 19 permitted operators.
 7. The cohort policy D18 and its thresholds: the benchmarks, the excess and cash thresholds, the walk-forward rule, the minimum trade count, and the expected outcome `NO_ELIGIBLE_CANDIDATE`.
-8. The finding treatment table (D24) and the `DEFERRED` rule, including a deferred seed.
-9. The policy-determined `DRAFT` to `EVALUATING` Decision recorded by the workflows service principal (D25), and the `freeze_candidates` step (D20).
+8. The finding treatment table (D24) and the `DEFERRED` rule, including a seed that is not evaluated.
+9. The seed draft and its validation inside the mission (D19), the policy-determined `DRAFT` to `EVALUATING` Decision recorded by the workflows service principal (D25), and the `freeze_candidates` step (D20).
 10. The agent configurations: the two proposer models, the critic model, the executor default effort, and the knowledge cutoffs as recorded.
-11. The per-mission budget maxima, the equal-per-proposer rule, the attempt cap, the timeouts, the output limits, the concurrency and the staging period cap (D26).
+11. The per-mission budget maxima, including zero new families, the equal-per-proposer rule and the attempt cap; the policy-fixed execution limits: timeouts, output limits and concurrency; and the staging period cap (D26).
 
 ## Verification
 

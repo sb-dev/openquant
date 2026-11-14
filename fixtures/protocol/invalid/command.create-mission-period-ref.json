@@ -30,7 +30,7 @@
         "revision": 1,
         "digest": "sha256:4437ea5474f3cee898365d8669b3316ce8768df1265b11e0508d27e0d6b5ed1a"
       },
-      "seed_hash": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
+      "seed_draft_digest": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
       "proposers": [
         {
           "configuration_id": "proposer-a",

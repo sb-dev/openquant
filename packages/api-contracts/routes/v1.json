@@ -30,12 +30,12 @@
   "auth_kinds": {
     "human_credential": "A person's long-lived credential. Accepted only by the token route.",
     "human": "A 15-minute access token of a person. roles lists the roles that may call the route.",
-    "service": "An environment- and operation-scoped service principal credential. principals lists the principals that may call the route. A service principal has no trading authority. It cannot approve policies, create or enlarge budgets or change limits; it may reserve within existing budgets. workflows records policy-determined Decisions only under an approved cohort policy.",
+    "service": "An environment- and operation-scoped service principal credential. principals lists the principals that may call the route. A service principal has no trading authority. It cannot approve policies, create or enlarge budgets or change limits; it may reserve within existing budgets. workflows records policy-determined Decisions only under an approved cohort policy. The deploy credential is scoped to the single route releases.record and is held only in the protected delivery job.",
     "attempt": "The attempt-scoped capability from an attempt-claim grant. It is valid only for the attempt in the path and expires with the lease."
   },
   "views": {
     "access-token": "Access token, its expiry, the principal and its roles.",
-    "system-identity": "The current release identity, as recorded from release-manifest/1: source SHA, CLI version, engine digest, image and binary digests, bundle hash, method identity, protocol versions, migration level and deployment references.",
+    "system-identity": "The current release identity, as recorded from release-manifest/1: source SHA, CLI version, engine digest, image and binary digests, bundle hash, method identity, protocol versions, migration level and deployment references. releases.record returns it after it records a manifest, so the delivery job reads back what was stored.",
     "mission": "Mission status and outcome with its reasons, scope, profile, cohort policy, evaluation plan digest, per-mission budget with reservations and usage, candidates by trial slot, typed jobs (retrieve, validate, evaluate and assess) with their attempts, and attention items.",
     "lineage": "Generated Strategy Graph of the mission: versions, parents, rule changes and linked runs, findings and decisions.",
     "trials": "Planned run slots and registered trials, including failed and discarded ones, with run status, mode, environment and holdout consumption.",
@@ -63,7 +63,7 @@
       "path": "/v1/system/identity",
       "auth": [
         { "kind": "human", "roles": ["Viewer", "Researcher", "Steward", "Administrator"] },
-        { "kind": "service", "principals": ["workflows", "deploy"] }
+        { "kind": "service", "principals": ["workflows"] }
       ],
       "request": { "kind": "none" },
       "response": { "kind": "view", "view": "system-identity" },
@@ -75,10 +75,10 @@
       "host": "api",
       "method": "POST",
       "path": "/v1/releases",
-      "auth": [{ "kind": "human", "roles": ["Administrator"] }],
+      "auth": [{ "kind": "human", "roles": ["Administrator"] }, { "kind": "service", "principals": ["deploy"] }],
       "request": { "kind": "contract", "contract": "release-manifest" },
-      "response": { "kind": "none" },
-      "success_status": 204,
+      "response": { "kind": "view", "view": "system-identity" },
+      "success_status": 200,
       "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "IDENTITY_MISMATCH", "REVISION_CONFLICT"]
     },
     {

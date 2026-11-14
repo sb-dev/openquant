@@ -1,22 +1,22 @@
 {
   "schema_version": "retrieval-request/1",
-  "job_id": "job-aapl-retrieve-0001",
+  "job_id": "job-synthetic-retrieve-0001",
   "attempt": {
-    "attempt_id": "att-aapl-retrieve-0001-1",
+    "attempt_id": "att-synthetic-retrieve-0001-1",
     "ownership_revision": 1
   },
-  "environment": "STAGING",
+  "environment": "DEVELOPMENT",
   "profile": {
     "id": "aapl-us-daily-sip",
     "revision": 1,
     "digest": "sha256:e6d324910b0d6081a8064fdc9afbb37a1f9c366f3d7c4b43b9a07a2c69d93f3e"
   },
   "instrument": {
-    "instrument_id": "alpaca:11111111-2222-4333-8444-555555555555",
-    "symbol": "AAPL",
+    "instrument_id": "alpaca:00000000-0000-4000-8000-000000000001",
+    "symbol": "SYNTHETIC",
     "provider": "alpaca",
-    "provider_asset_id": "11111111-2222-4333-8444-555555555555",
-    "effective_from": "2022-01-03"
+    "provider_asset_id": "00000000-0000-4000-8000-000000000001",
+    "effective_from": "2025-01-02"
   },
   "operations": [
     "provider:alpaca/daily_bars@1",

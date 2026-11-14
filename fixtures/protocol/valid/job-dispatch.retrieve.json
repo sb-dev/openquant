@@ -11,7 +11,7 @@
   "inputs": {
     "kind": "retrieve",
     "request": {
-      "digest": "sha256:fbd237b7ffc0f3c20d8f1394da2e96611ee0906baf6dc9a9511c9b27cba170a5",
+      "digest": "sha256:0a0d3ccdd741cac71e8b2056b3795c4cad1c7b84589b4410a5be2f9b8f4ad24a",
       "media_type": "application/json",
       "size_bytes": 1584
     }

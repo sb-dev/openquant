@@ -761,8 +761,10 @@ fixtures/protocol/valid/checkpoint.pending-entry.json
 fixtures/protocol/valid/cohort-policy.s1-pilot.json
 fixtures/protocol/valid/command.cancel-mission.json
 fixtures/protocol/valid/command.create-mission.json
+fixtures/protocol/valid/command.freeze-candidates-seed-not-evaluated.json
 fixtures/protocol/valid/command.freeze-candidates.json
 fixtures/protocol/valid/command.record-evaluation-decision-deferred.json
+fixtures/protocol/valid/command.record-evaluation-decision-seed-deferred.json
 fixtures/protocol/valid/command.record-evaluation-decision.json
 fixtures/protocol/valid/command.register-budget.json
 fixtures/protocol/valid/command.register-cohort-policy.json
@@ -788,10 +790,12 @@ fixtures/protocol/valid/job-dispatch.assess.json
 fixtures/protocol/valid/job-dispatch.evaluate-replay.json
 fixtures/protocol/valid/job-dispatch.evaluate.json
 fixtures/protocol/valid/job-dispatch.retrieve.json
+fixtures/protocol/valid/job-dispatch.validate-seed.json
 fixtures/protocol/valid/job-dispatch.validate.json
 fixtures/protocol/valid/release-manifest.staging.json
 fixtures/protocol/valid/research-profile.aapl-sip-daily.json
-fixtures/protocol/valid/retrieval-request.aapl-february.json
+fixtures/protocol/valid/retrieval-request.aapl-mission.json
+fixtures/protocol/valid/retrieval-request.synthetic-dividend-window.json
 fixtures/protocol/valid/retrieval-result.complete.json
 fixtures/protocol/valid/retrieval-result.rate-limited.json
 fixtures/protocol/valid/validation-result.invalid-draft.json

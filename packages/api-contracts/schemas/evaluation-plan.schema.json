@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:openquant:schema:evaluation-plan:1",
   "title": "EvaluationPlan",
-  "description": "The registered comparison of one mission (OQ-02 sections 3.1 and 3.3). The API writes it when the mission starts, after retrieval and before any run, and never changes it. plan_digest in an evaluation request is its digest, and the assess job receives it by reference. It lists the trial slots, the windows with the sessions they resolved to, the scenarios and every planned run. calendar is the frozen dataset-manifest/1 whose calendar resolved the windows. A planned run is not an attempt: it has no reservation and no outbox entry. An APPROVED DRAFT to EVALUATING Decision writes a candidate's development and validation runs, their reservations and outbox entries in one transaction. The freeze_candidates command writes every holdout run, its reservation and outbox entry in one transaction once every candidate is terminal. Revealing a holdout result writes a holdout-consumption record. Gates, thresholds and finding treatment are those of the referenced cohort policy revision; the plan does not copy them.",
+  "description": "The registered comparison of one mission (OQ-02 sections 3.1 and 3.3). The API records it when the mission starts, after retrieval and before any validation or run, and never changes it. plan_digest in an evaluation request is its digest, and the assess job receives it by reference. It lists the trial slots, the windows with the sessions they resolved to, the scenarios and every planned run. calendar is the frozen dataset-manifest/1 whose calendar resolved the windows. A planned run is not an attempt: it has no reservation and no outbox entry. An APPROVED DRAFT to EVALUATING Decision writes a candidate's development and validation runs, their reservations and outbox entries in one transaction. The freeze_candidates command writes every holdout run, its reservation and outbox entry in one transaction once every slot is terminal. Revealing a holdout result writes a holdout-consumption record. Gates, thresholds and finding treatment are those of the referenced cohort policy revision; the plan does not copy them.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "plan_id", "mission_id", "profile", "cohort_policy", "suite_id", "calendar", "windows", "trial_slots", "scenarios", "run_slots"],
@@ -22,7 +22,7 @@
   "$defs": {
     "ResolvedWindow": {
       "title": "ResolvedWindow",
-      "description": "One window rule of the cohort policy and the sessions it resolved to. rule and label repeat the policy. resolved holds the warm-up start, the first and last scored sessions and the information cutoff that the profile's rule gives; an evaluation request repeats them. run_sessions counts the run's sessions: warm-up, scored and any dividend payment session after the scored end. It is at most the cohort's max_sessions.",
+      "description": "One window rule of the cohort policy and the sessions it resolved to. rule and label repeat the policy. resolved holds the warm-up start, the first and last scored sessions and the information cutoff that the profile's rule gives; an evaluation request repeats them. run_sessions counts the calendar sessions of the run: warm-up, scored and any dividend payment session after the scored end. Such a payment session extends the run's calendar only; the core processes no event after the scored end, so the receivable stays in equity. run_sessions is at most the cohort's max_sessions.",
       "type": "object",
       "additionalProperties": false,
       "required": ["role", "rule", "label", "resolved", "run_sessions"],
@@ -41,16 +41,15 @@
     },
     "SeedSlot": {
       "title": "SeedSlot",
-      "description": "The registered seed. Its Strategy Version exists before the mission starts.",
+      "description": "The seed slot names the mission's seed draft by its draft digest. The plan is recorded before the seed is validated, so no Strategy Version exists yet. The mission's first validate job validates the draft; only a VALID result registers it as version 1 of strategy_id, and the DRAFT to EVALUATING Decision binds that version to this slot. A seed draft that fails validation leaves the slot without a registered version; freeze_candidates records why.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["slot_id", "kind", "strategy_id", "version", "strategy_hash"],
+      "required": ["slot_id", "kind", "strategy_id", "draft_digest"],
       "properties": {
         "slot_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
         "kind": { "type": "string", "enum": ["seed"] },
         "strategy_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
-        "version": { "type": "integer", "minimum": 1, "maximum": 1000000 },
-        "strategy_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" }
+        "draft_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" }
       }
     },
     "RevisionSlot": {

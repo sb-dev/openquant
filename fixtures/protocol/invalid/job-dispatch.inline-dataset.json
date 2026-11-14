@@ -11,18 +11,18 @@
   "inputs": {
     "kind": "retrieve",
     "request": {
-      "digest": "sha256:fbd237b7ffc0f3c20d8f1394da2e96611ee0906baf6dc9a9511c9b27cba170a5",
+      "digest": "sha256:0a0d3ccdd741cac71e8b2056b3795c4cad1c7b84589b4410a5be2f9b8f4ad24a",
       "media_type": "application/json",
       "size_bytes": 1584
     },
     "bars": [
       {
         "session": "2025-02-03",
-        "open": "229.99",
-        "high": "231.83",
-        "low": "225.70",
-        "close": "228.01",
-        "volume": "73063301",
+        "open": "100.00",
+        "high": "102.00",
+        "low": "99.00",
+        "close": "101.00",
+        "volume": "1000000",
         "event_time": "2025-02-03T21:00:00Z",
         "available_at": "2025-02-03T23:00:00Z"
       }

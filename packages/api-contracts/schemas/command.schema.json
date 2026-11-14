@@ -102,13 +102,13 @@
     },
     "RegisterSeed": {
       "title": "RegisterSeed",
-      "description": "Researcher. Registers a seed that the Researcher authored as version 1 of a new strategy, with its sources and every source-to-seed difference. It passes the same validation and critique as any candidate.",
+      "description": "Researcher. Stores a seed draft that the Researcher authored, with its source-interpretation record: sources and every source-to-seed difference. draft is the strategy-artefact/1 for version 1 of a new strategy; its canonical digest is the draft digest. The draft is not yet a Strategy Version. A mission names it by that digest. The mission's first validate job validates it, and only a VALID result registers it as Strategy Version 1 in DRAFT. It then passes the same critique as any candidate.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "strategy", "origin", "sources", "source_differences"],
+      "required": ["kind", "draft", "origin", "sources", "source_differences"],
       "properties": {
         "kind": { "type": "string", "enum": ["register_seed"] },
-        "strategy": { "$ref": "urn:openquant:schema:strategy-artefact:1" },
+        "draft": { "$ref": "urn:openquant:schema:strategy-artefact:1" },
         "origin": { "type": "string", "enum": ["researcher_authored"] },
         "sources": { "type": "array", "maxItems": 8, "items": { "$ref": "#/$defs/SeedSource" } },
         "source_differences": {
@@ -132,7 +132,7 @@
     },
     "CreateMission": {
       "title": "CreateMission",
-      "description": "Researcher. Creates a mission. The API assigns the mission ID and returns it in the status.",
+      "description": "Researcher. Creates a mission in status CREATED. The API assigns the mission ID and returns it in the status. run_mission_now starts it.",
       "type": "object",
       "additionalProperties": false,
       "required": ["kind", "mission"],
@@ -143,17 +143,17 @@
     },
     "MissionSpec": {
       "title": "MissionSpec",
-      "description": "One-instrument research mission. budget is the per-mission budget. The API rejects it when it exceeds the cohort policy maxima, breaks the equal-per-proposer rule or does not fit the remaining period cap that the profile names. Each proposer configuration authors one controlled revision of the seed. The critic uses a separate profile and session.",
+      "description": "One-instrument research mission. budget is the per-mission budget. The API rejects it when it exceeds the cohort policy maxima, breaks the equal-per-proposer rule or does not fit the remaining period cap that the profile names. seed_draft_digest names the seed draft that register_seed stored. The mission's first validate job validates it; only then is Strategy Version 1 registered. Each proposer configuration authors one controlled revision of the seed. The critic uses a separate profile and session.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["objective", "instrument", "profile", "cohort_policy", "budget", "seed_hash", "proposers", "critic"],
+      "required": ["objective", "instrument", "profile", "cohort_policy", "budget", "seed_draft_digest", "proposers", "critic"],
       "properties": {
         "objective": { "type": "string", "maxLength": 2000 },
         "instrument": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/InstrumentMapping" },
         "profile": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/RecordRef" },
         "cohort_policy": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/RecordRef" },
         "budget": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/MissionBudget" },
-        "seed_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "seed_draft_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
         "proposers": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "$ref": "#/$defs/AgentConfiguration" } },
         "critic": { "$ref": "#/$defs/AgentConfiguration" }
       }
@@ -201,7 +201,7 @@
     },
     "RunMissionNow": {
       "title": "RunMissionNow",
-      "description": "Researcher. Starts the mission's bounded work now. Policy-determined Decisions of the mission name the Researcher who applied it.",
+      "description": "Researcher. Starts a CREATED mission: it becomes IN_PROGRESS and its bounded work starts. The evaluation plan is recorded at start, from the mission's frozen retrieved calendar, before any run. Policy-determined Decisions of the mission name the Researcher who applied this command.",
       "type": "object",
       "additionalProperties": false,
       "required": ["kind", "mission_id"],
@@ -224,7 +224,7 @@
     },
     "RecordEvaluationDecision": {
       "title": "RecordEvaluationDecision",
-      "description": "Internal: the workflows service principal only. Records the policy-determined DRAFT to EVALUATING Decision for the candidate in one trial slot (OQ-02 section 4). outcome follows from critique and the policy: APPROVED when the critique gave a valid result and no finding blocks this transition, REJECTED when one does, DEFERRED when the critique ended without a valid result after the attempt cap. In S1 no finding category blocks this transition. Applying an APPROVED Decision writes the candidate's development and validation runs, their reservations and outbox entries in one transaction. A DEFERRED candidate is not evaluated.",
+      "description": "Internal: the workflows service principal only. Records the policy-determined DRAFT to EVALUATING Decision for the candidate in one trial slot (OQ-02 section 4). outcome follows from critique and the policy: APPROVED when the critique gave a valid result and no finding blocks this transition, REJECTED when one does, DEFERRED when the critique ended without a valid result. That happens at once after an outcome that is not retried, or when the attempt cap is exhausted after retried failures. In S1 no finding category blocks this transition. Applying an APPROVED Decision writes the candidate's development and validation runs, their reservations and outbox entries in one transaction. A DEFERRED candidate is not evaluated.",
       "type": "object",
       "additionalProperties": false,
       "required": ["kind", "mission_id", "plan_digest", "trial_slot", "strategy_hash", "critique", "outcome", "authority"],
@@ -257,7 +257,7 @@
     },
     "MissingCritique": {
       "title": "MissingCritique",
-      "description": "The critique ended without a valid result after the attempt cap. outcome is the last attempt's outcome. attempts counts the attempts made.",
+      "description": "The critique ended without a valid result. outcome says how the last attempt ended. refusal, denied_capability, authentication_failure and cancellation are not retried, so they end the critique at once. timeout, malformed_result and lease_expired are retried within the attempt cap; they end the critique when the cap is exhausted. lease_expired: the attempt's lease expired without a result, for example after a runner crash; it is not an execution outcome. attempts counts the attempts made.",
       "type": "object",
       "additionalProperties": false,
       "required": ["status", "outcome", "attempts"],
@@ -265,7 +265,7 @@
         "status": { "type": "string", "enum": ["NO_VALID_RESULT"] },
         "outcome": {
           "type": "string",
-          "enum": ["refusal", "malformed_result", "denied_capability", "authentication_failure", "cancellation", "timeout"]
+          "enum": ["refusal", "malformed_result", "denied_capability", "authentication_failure", "cancellation", "timeout", "lease_expired"]
         },
         "attempts": { "type": "integer", "minimum": 1, "maximum": 10 }
       }
@@ -284,7 +284,7 @@
     },
     "FreezeCandidates": {
       "title": "FreezeCandidates",
-      "description": "Internal: the workflows service principal only, under the approved policy. Freezes the candidate set once every trial slot is terminal (OQ-02 sections 3.3 and 4). slots lists every trial slot of the plan. Applying it writes the holdout runs of every EVALUATING slot, their reservations and outbox entries in one transaction. If no slot is EVALUATING, it writes no run and the mission concludes NO_ELIGIBLE_CANDIDATE with the recorded reasons.",
+      "description": "Internal: the workflows service principal only, under the approved policy. Freezes the candidate set once every slot is terminal (OQ-02 sections 3.3 and 4). slots lists every trial slot of the plan. Applying it writes the holdout runs of every EVALUATING slot, their reservations and outbox entries in one transaction. It also runs when the revision slots are terminal because the seed was not evaluated. If no slot is EVALUATING, it writes no run and the mission concludes NO_ELIGIBLE_CANDIDATE with the recorded reasons.",
       "type": "object",
       "additionalProperties": false,
       "required": ["kind", "mission_id", "plan_digest", "slots"],
@@ -313,7 +313,7 @@
     },
     "UnevaluatedSlot": {
       "title": "UnevaluatedSlot",
-      "description": "A slot that gets no runs. DECISION_DEFERRED: the critique gave no valid result. NO_REGISTERED_VERSION: no proposal passed validation within the revision budget. SEED_NOT_EVALUATED: the seed was not evaluated, so no revision could run, because revision context needs the seed's development results.",
+      "description": "A slot that gets no runs. DECISION_DEFERRED: the critique gave no valid result. NO_REGISTERED_VERSION: no draft passed validation for the slot: the seed draft failed validation, or no proposal passed within the revision budget. SEED_NOT_EVALUATED: a revision slot whose seed was not evaluated. No revision could run, because revision context needs the seed's development results.",
       "type": "object",
       "additionalProperties": false,
       "required": ["trial_slot", "status", "reason"],

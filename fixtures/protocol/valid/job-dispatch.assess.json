@@ -12,9 +12,9 @@
     "kind": "assess",
     "strategy_hash": "sha256:3b2b013c84fb0f64657822298593f8bc24a520c76023b8f18c61ee0e00abb046",
     "plan": {
-      "digest": "sha256:398d54b3f7d6a9e69be5e832283406f03e168b459e7e8ebd4035a85cbe8fcfa7",
+      "digest": "sha256:dde8a9d48ef9772f51a87c4b4b8480b976f1f234c9a1225cbf57f57f02117428",
       "media_type": "application/json",
-      "size_bytes": 4954
+      "size_bytes": 4941
     },
     "trial_slot": "rev-a",
     "cohort_policy": {
@@ -116,7 +116,7 @@
     ],
     "manifests": [
       {
-        "digest": "sha256:4952d1fdfc25a1df8918684bc16c5a8ff74c9a7498910ae8e930de3c3b82ab72",
+        "digest": "sha256:1d4233481fb69a963ddcb137ea172912841341b840b522ba4c5c82bbe1ad9f19",
         "media_type": "application/json",
         "size_bytes": 1206533
       }

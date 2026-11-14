@@ -5,7 +5,7 @@
     "attempt_id": "att-aapl-v-base-a-1",
     "ownership_revision": 1
   },
-  "request_digest": "sha256:429752c6d9621cea85002f9bf63687eef1666ff73f3c8391084d6c32c0111396",
+  "request_digest": "sha256:584eb7f2175cb29bca43634e74609b2f330a98efa7247ff2df2bf8c42810ffae",
   "mode": "BACKTEST",
   "environment": "STAGING",
   "executable": {

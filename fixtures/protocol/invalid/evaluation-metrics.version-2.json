@@ -50,17 +50,17 @@
       "fees": {
         "unit": "MONEY",
         "currency": "USD",
-        "value": "190.62"
+        "value": "150.00"
       },
       "gap_slippage": {
         "unit": "MONEY",
         "currency": "USD",
-        "value": "38.17"
+        "value": "30.00"
       },
       "total": {
         "unit": "MONEY",
         "currency": "USD",
-        "value": "228.79"
+        "value": "180.00"
       }
     },
     "exposure": {
@@ -72,24 +72,24 @@
     "buy_and_hold": {
       "status": "COMPUTED",
       "entry_session": "2024-01-02",
-      "quantity": "534",
+      "quantity": "500",
       "net_return": {
         "unit": "RATIO",
-        "value": "0.335961"
+        "value": "0.300000"
       },
       "max_drawdown": {
         "unit": "RATIO",
-        "value": "0.155018"
+        "value": "0.150000"
       },
       "excess_return": {
         "unit": "RATIO",
-        "value": "-0.294088"
+        "value": "-0.258127"
       }
     },
     "cash": {
       "net_return": {
         "unit": "RATIO",
-        "value": "0"
+        "value": "0.000000"
       },
       "excess_return": {
         "unit": "RATIO",

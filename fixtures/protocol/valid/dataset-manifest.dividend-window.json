@@ -1,17 +1,17 @@
 {
   "schema_version": "dataset-manifest/1",
   "dataset": {
-    "id": "aapl-us-daily-sip-20250203-20250214",
+    "id": "synthetic-daily-20250203-20250214",
     "version": "1",
     "source": "PROVIDER",
-    "licence": "Synthetic fixture shaped like provider daily bars; not provider data. Apache-2.0, generated for this repository."
+    "licence": "Synthetic values on a synthetic instrument, shaped like a provider snapshot; not provider data. Apache-2.0, generated for this repository."
   },
   "instrument": {
-    "instrument_id": "alpaca:11111111-2222-4333-8444-555555555555",
-    "symbol": "AAPL",
+    "instrument_id": "alpaca:00000000-0000-4000-8000-000000000001",
+    "symbol": "SYNTHETIC",
     "provider": "alpaca",
-    "provider_asset_id": "11111111-2222-4333-8444-555555555555",
-    "effective_from": "2022-01-03"
+    "provider_asset_id": "00000000-0000-4000-8000-000000000001",
+    "effective_from": "2025-01-02"
   },
   "source": {
     "provider": "alpaca",
@@ -80,9 +80,9 @@
     "missing_sessions": []
   },
   "retrieval": {
-    "job_id": "job-aapl-retrieve-0001",
-    "attempt_id": "att-aapl-retrieve-0001-1",
-    "request_digest": "sha256:fbd237b7ffc0f3c20d8f1394da2e96611ee0906baf6dc9a9511c9b27cba170a5",
+    "job_id": "job-synthetic-retrieve-0001",
+    "attempt_id": "att-synthetic-retrieve-0001-1",
+    "request_digest": "sha256:c0cd789e320c0b91fb0562b3b33426b21aeb9c146649a0e106e3d16f76a7416b",
     "retrieved_at": "2026-11-14T10:01:04Z"
   },
   "content": {
@@ -141,101 +141,101 @@
     "bars": [
       {
         "session": "2025-02-03",
-        "open": "229.99",
-        "high": "231.83",
-        "low": "225.70",
-        "close": "228.01",
-        "volume": "73063301",
+        "open": "100.00",
+        "high": "102.00",
+        "low": "99.00",
+        "close": "101.00",
+        "volume": "1000000",
         "event_time": "2025-02-03T21:00:00Z",
         "available_at": "2025-02-03T23:00:00Z"
       },
       {
         "session": "2025-02-04",
-        "open": "227.25",
-        "high": "233.13",
-        "low": "226.65",
-        "close": "232.80",
-        "volume": "45067301",
+        "open": "101.00",
+        "high": "103.00",
+        "low": "100.00",
+        "close": "102.00",
+        "volume": "1100000",
         "event_time": "2025-02-04T21:00:00Z",
         "available_at": "2025-02-04T23:00:00Z"
       },
       {
         "session": "2025-02-05",
-        "open": "228.53",
-        "high": "232.67",
-        "low": "228.27",
-        "close": "232.47",
-        "volume": "39620300",
+        "open": "102.00",
+        "high": "104.00",
+        "low": "101.00",
+        "close": "103.00",
+        "volume": "1200000",
         "event_time": "2025-02-05T21:00:00Z",
         "available_at": "2025-02-05T23:00:00Z"
       },
       {
         "session": "2025-02-06",
-        "open": "231.29",
-        "high": "233.80",
-        "low": "230.43",
-        "close": "233.22",
-        "volume": "29925300",
+        "open": "103.00",
+        "high": "105.00",
+        "low": "102.00",
+        "close": "104.00",
+        "volume": "1300000",
         "event_time": "2025-02-06T21:00:00Z",
         "available_at": "2025-02-06T23:00:00Z"
       },
       {
         "session": "2025-02-07",
-        "open": "232.60",
-        "high": "234.00",
-        "low": "227.26",
-        "close": "227.63",
-        "volume": "39707200",
+        "open": "104.00",
+        "high": "106.00",
+        "low": "103.00",
+        "close": "105.00",
+        "volume": "1400000",
         "event_time": "2025-02-07T21:00:00Z",
         "available_at": "2025-02-07T23:00:00Z"
       },
       {
         "session": "2025-02-10",
-        "open": "229.57",
-        "high": "230.59",
-        "low": "227.20",
-        "close": "227.65",
-        "volume": "33115600",
+        "open": "105.00",
+        "high": "107.00",
+        "low": "104.00",
+        "close": "106.00",
+        "volume": "1500000",
         "event_time": "2025-02-10T21:00:00Z",
         "available_at": "2025-02-10T23:00:00Z"
       },
       {
         "session": "2025-02-11",
-        "open": "228.20",
-        "high": "235.23",
-        "low": "228.13",
-        "close": "232.62",
-        "volume": "53718400",
+        "open": "105.50",
+        "high": "106.50",
+        "low": "104.50",
+        "close": "105.50",
+        "volume": "1600000",
         "event_time": "2025-02-11T21:00:00Z",
         "available_at": "2025-02-11T23:00:00Z"
       },
       {
         "session": "2025-02-12",
-        "open": "231.20",
-        "high": "236.96",
-        "low": "230.68",
-        "close": "236.87",
-        "volume": "45243300",
+        "open": "105.50",
+        "high": "107.50",
+        "low": "104.50",
+        "close": "106.50",
+        "volume": "1700000",
         "event_time": "2025-02-12T21:00:00Z",
         "available_at": "2025-02-12T23:00:00Z"
       },
       {
         "session": "2025-02-13",
-        "open": "236.91",
-        "high": "242.34",
-        "low": "235.57",
-        "close": "241.53",
-        "volume": "60608100",
+        "open": "106.50",
+        "high": "108.50",
+        "low": "105.50",
+        "close": "107.50",
+        "volume": "1800000",
         "event_time": "2025-02-13T21:00:00Z",
         "available_at": "2025-02-13T23:00:00Z"
       },
       {
         "session": "2025-02-14",
-        "open": "241.25",
-        "high": "245.55",
-        "low": "240.99",
-        "close": "244.60",
-        "volume": "40896200",
+        "open": "107.50",
+        "high": "109.50",
+        "low": "106.50",
+        "close": "108.50",
+        "volume": "1900000",
         "event_time": "2025-02-14T21:00:00Z",
         "available_at": "2025-02-14T23:00:00Z"
       }
@@ -243,10 +243,10 @@
     "corporate_actions": [
       {
         "kind": "CASH_DIVIDEND",
-        "action_id": "div-aapl-2025-02-10",
-        "effective_session": "2025-02-10",
-        "available_at": "2025-02-10T14:30:00Z",
-        "amount_per_share": "0.25",
+        "action_id": "div-synthetic-2025-02-11",
+        "effective_session": "2025-02-11",
+        "available_at": "2025-02-11T14:30:00Z",
+        "amount_per_share": "0.50",
         "payment_session": "2025-02-13",
         "payment_phase": "AFTER_CLOSE"
       }
@@ -254,10 +254,10 @@
     "unplanned_events": [],
     "action_evidence": [
       {
-        "action_id": "div-aapl-2025-02-10",
-        "provider_record_id": "ca-0000000001",
+        "action_id": "div-synthetic-2025-02-11",
+        "provider_record_id": "ca-synthetic-0001",
         "provider_field": "declaration_date",
-        "provider_value": "2025-01-30"
+        "provider_value": "2025-02-04"
       }
     ]
   },
@@ -266,9 +266,9 @@
       "sequence": 1,
       "operation": "provider:alpaca/calendar@1",
       "received_at": "2026-11-14T10:01:01Z",
-      "content_digest": "sha256:7e2d85e18fdadb178cd79de757bbe806d316dec10918e436687a03bd62658c42",
+      "content_digest": "sha256:827b88901234865ff835859a2042dddd5246f1531262953d05367089ad625639",
       "stored": {
-        "digest": "sha256:7e2d85e18fdadb178cd79de757bbe806d316dec10918e436687a03bd62658c42",
+        "digest": "sha256:827b88901234865ff835859a2042dddd5246f1531262953d05367089ad625639",
         "media_type": "application/json",
         "size_bytes": 1610
       }
@@ -277,9 +277,9 @@
       "sequence": 2,
       "operation": "provider:alpaca/daily_bars@1",
       "received_at": "2026-11-14T10:01:02Z",
-      "content_digest": "sha256:2673f3c4c6e4cb0ceea641f26755145d0de959444d2bf8e13de86ad2da80beee",
+      "content_digest": "sha256:5a93836b0e940417952b74eaf8947b03c2eb3bbe7e4f1cc1d20acb0aa8209b84",
       "stored": {
-        "digest": "sha256:2673f3c4c6e4cb0ceea641f26755145d0de959444d2bf8e13de86ad2da80beee",
+        "digest": "sha256:5a93836b0e940417952b74eaf8947b03c2eb3bbe7e4f1cc1d20acb0aa8209b84",
         "media_type": "application/json",
         "size_bytes": 2380
       }
@@ -288,9 +288,9 @@
       "sequence": 3,
       "operation": "provider:alpaca/corporate_actions@1",
       "received_at": "2026-11-14T10:01:03Z",
-      "content_digest": "sha256:76e36ba43814e4d4963d9483047ac4e73b9e0c915e1b90b440f72bc2e30253d7",
+      "content_digest": "sha256:36639de12e6bc182a3ee0471506e57773b0b1683d07175e5314e6e60bcf90f74",
       "stored": {
-        "digest": "sha256:76e36ba43814e4d4963d9483047ac4e73b9e0c915e1b90b440f72bc2e30253d7",
+        "digest": "sha256:36639de12e6bc182a3ee0471506e57773b0b1683d07175e5314e6e60bcf90f74",
         "media_type": "application/json",
         "size_bytes": 742
       }

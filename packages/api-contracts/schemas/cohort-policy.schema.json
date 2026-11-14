@@ -201,7 +201,7 @@
     },
     "MetricPolicy": {
       "title": "MetricPolicy",
-      "description": "metric_scale: every reported metric is computed exactly and rounded once, half-even, to this many fractional digits. Comparison tolerance is zero.",
+      "description": "metric_scale: every RATIO metric is computed exactly and rounded once, half-even, to this many fractional digits. MONEY metrics round the same way to the run's money_scale. Counts are integers. Comparison tolerance is zero.",
       "type": "object",
       "additionalProperties": false,
       "required": ["metric_scale", "uncertainty"],
@@ -223,7 +223,7 @@
     },
     "MissionBudgetLimits": {
       "title": "MissionBudgetLimits",
-      "description": "Bounds on the per-mission budget that create_mission sets. Each value of a mission budget is at most the matching value in maxima. proposer_allocation EQUAL: every proposer configuration in a mission gets the same revision count, per-attempt reservation, timeout and output limit; the API rejects a mission that favours one configuration.",
+      "description": "Bounds on the per-mission budget that the Researcher sets in create_mission. Each value of a mission budget is at most the matching value in maxima. proposer_allocation EQUAL: every proposer configuration in a mission gets the same revision count and per-attempt reservation; the API rejects a mission that favours one configuration.",
       "type": "object",
       "additionalProperties": false,
       "required": ["maxima", "proposer_allocation"],
@@ -234,7 +234,7 @@
     },
     "ExecutionLimits": {
       "title": "ExecutionLimits",
-      "description": "Host-enforced limits per attempt and concurrency per mission. An agent output above agent_output_limit_bytes is a malformed result. artefact_limit_bytes bounds each uploaded batch artefact.",
+      "description": "Limits that the policy fixes. They are not budget values, and a mission cannot change them. Host-enforced limits per attempt and concurrency per mission. Every proposer configuration gets the same timeout and output limit. An agent output above agent_output_limit_bytes is a malformed result. artefact_limit_bytes bounds each uploaded batch artefact.",
       "type": "object",
       "additionalProperties": false,
       "required": ["agent_timeout_seconds", "agent_output_limit_bytes", "artefact_limit_bytes", "job_timeouts", "concurrent_batch_attempts", "concurrent_agent_attempts"],

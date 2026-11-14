@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:openquant:schema:validation-result:1",
   "title": "ValidationResult",
-  "description": "Outcome of one Rust validate job attempt on a draft (OQ-02 section 4). It runs the shared strategy validator, checks that the longest lookback fits the cohort warm-up and recomputes the leaf difference from the parent. draft_digest is the digest of the draft strategy-artefact/1 the job read; it is not a Strategy Version hash, because no version is registered before validation passes. A draft that fails validation receives diagnostics, not critique, and no Strategy Version is registered from it.",
+  "description": "Outcome of one Rust validate job attempt on a draft (OQ-02 section 4). It runs the shared strategy validator, checks that the longest lookback fits the cohort warm-up and recomputes the leaf difference from the parent. draft_digest is the digest of the draft strategy-artefact/1 the job read; it is not a Strategy Version hash, because no version is registered before validation passes. An accepted VALID or INVALID result makes the job COMPLETED. A VALID result registers the Strategy Version in DRAFT. A draft that fails validation receives diagnostics, not critique; they go to the next proposer attempt, and no Strategy Version is registered from it.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "job_id", "attempt", "executable", "engine_digest", "method", "draft_digest", "outcome"],

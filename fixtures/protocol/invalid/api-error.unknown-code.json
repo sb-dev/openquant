@@ -1,7 +1,7 @@
 {
   "schema_version": "api-error/1",
   "code": "CONFLICT",
-  "message": "Attempt att-aapl-v-base-a-1 holds ownership revision 1; the run is at revision 2. The submission was recorded and rejected.",
+  "message": "Attempt att-aapl-v-base-a-1 holds ownership revision 1, but a newer attempt of run run-aapl-v-base-a holds revision 2. The submission was rejected and no run state changed.",
   "state_changed": "NONE",
   "retry_safe": false,
   "diagnostic_ref": "diag-01JF3K9W5E7Q",

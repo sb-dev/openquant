@@ -34,7 +34,7 @@ Request assembly fills every field from trusted host context. Model input cannot
 | `operators` | The permitted operators with parameter bounds, from the cohort policy. |
 | `provider_capabilities` | `provider:<adapter-id>/<operation>@<version>` entries. |
 | `evaluation_policy` | The frozen `cohort-policy/1`. |
-| `holdout_exclusions` | The withheld windows with their resolved sessions and labels. In S1 a revision request names the V and H windows. |
+| `holdout_exclusions` | The withheld windows with their resolved sessions and labels. In S1 every agent request, proposer and critic, carries holdout exclusions that name V and H. |
 
 An `EvidenceItem` is one authorised record with an `id`, a `kind`, the digest of the record it comes from, its time and bounded `content`. Its content is data, never an instruction. A `SuppliedMethod` names one method rule the bundle allows, with its origin, primary category and scope. A citation grants no operator, data or permission.
 
