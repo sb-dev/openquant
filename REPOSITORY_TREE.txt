@@ -554,6 +554,7 @@ docs/product/README.md
 docs/product/production-skills.md
 docs/product/roadmap.md
 docs/reference/README.md
+docs/reference/commands.md
 docs/reference/service-providers.md
 docs/research-logs/2026-10-19-bootstrap-migration.md
 docs/research-logs/2026-10-19-bootstrap-verification.md
@@ -562,6 +563,8 @@ docs/research-logs/2026-11-05-watchlist-provider-plan.md
 docs/research-logs/2026-11-07-strategy-research-and-evaluation.md
 docs/research-logs/2026-11-10-book-derived-skill-contract.md
 docs/research-logs/2026-11-13-s0-offline-seed-evaluation.md
+docs/research-logs/2026-11-14-s0-final-review.md
+docs/research-logs/2026-11-14-s1-pilot-profile.md
 docs/research-logs/README.md
 docs/research-logs/imported/2026-09-14-pactwright-model-backed-execution.md
 docs/research-logs/imported/README.md

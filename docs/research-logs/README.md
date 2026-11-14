@@ -1,5 +1,7 @@
 # Research logs
 
+- [S1 pilot profile and contract decisions](2026-11-14-s1-pilot-profile.md): decisions D1 to D26, proposed pilot values, finding treatment, budgets, the expected S1 outcome and the owner approval list; proposed, awaiting owner approval.
+- [S0 final review](2026-11-14-s0-final-review.md): separate-session model review of the merged S0 commit `a5b7f3b`, requirement verdicts, defects and their S1 treatment; PASS WITH LIMITS.
 - [S0 offline seed evaluation](2026-11-13-s0-offline-seed-evaluation.md): policy values, interpretations, information cutoff, independence of the fixtures, limits and review outcomes.
 - [Book-derived skill contract](2026-11-10-book-derived-skill-contract.md): ten-summary review, executable skill modules, typed contracts, scripts, evaluations and adoption options; adopted 2026-11-11.
 - [Strategy research and evaluation](2026-11-07-strategy-research-and-evaluation.md): per-stock research, joint strategy evaluation, controlled experiments and a focused technical/fundamental reading list.

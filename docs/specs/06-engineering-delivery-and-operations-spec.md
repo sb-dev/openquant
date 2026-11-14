@@ -1,9 +1,9 @@
 ---
 id: OQ-06
 title: OpenQuant — Engineering, Delivery and Operations
-version: 1.3.1
+version: 1.4.0
 status: canonical
-updated: 2026-11-13
+updated: 2026-11-14
 owns: verification, automation, releases, deployments, recovery, R01–R10
 ---
 
@@ -16,16 +16,11 @@ See the [specification index](README.md) for ownership and the current bootstrap
 
 The repository contains canonical specifications, directory ownership guides, root policies, GitHub templates, working repository checks, and the S0 offline seed evaluation: a Cargo workspace with a pinned toolchain, shared schemas with generated Rust bindings, the shared Rust core and a local replay harness. It contains no application, connected executor, or deployment implementation. M1 is not complete.
 
-Implemented commands:
+The [command reference](../reference/commands.md) lists the implemented commands and their behaviour. Each change that implements a command adds its row there (§7).
 
-| Command | Behaviour |
-| --- | --- |
-| `pnpm verify` | Run repository checks and their regression tests, then Rust format, clippy, tests and the S0 offline replay. |
-| `cargo run --locked -p openquant-engine --bin s0-replay` | Replay the S0 fixture cases and write `local-runs/s0/report.md`. |
-| `pnpm generate:spec-index` | Generate the ownership/version index from the seven front-matter blocks. |
-| `pnpm generate:tree` | Generate the file map from the Git index, or files in an extracted archive. |
+Before S1, Node runs the repository checks directly and no dependency install is needed. Native type stripping is execution, not TypeScript type checking. S0 added the Rust build toolchain (pinned in `rust-toolchain.toml`) and schema checks; the Rust steps fetch the crates locked in `Cargo.lock`. S1 adds the TypeScript build toolchain, strict type checks and cross-runtime validation. From S1, verification needs pnpm and the dependencies installed from the committed lockfile. The verify command checks the installed dependencies against the lockfile and fails with the install command; it never installs silently.
 
-Node can run the TypeScript tooling directly. No dependency install is needed for the Node checks. Native type stripping is execution, not TypeScript type checking. S0 added the Rust build toolchain (pinned in `rust-toolchain.toml`) and schema checks; the Rust steps fetch the crates locked in `Cargo.lock`. S1 adds the TypeScript build toolchain, strict type checks and cross-runtime validation.
+The S1 toolchain is an explicit pnpm workspace list, Turborepo tasks, strict TypeScript, Biome for format and lint, and Vitest. Verification and CI run Turborepo without cached task results, and a test task with no tests fails. Build tooling bundles the shared JSON Schemas into one document and generates TypeScript types and standalone validators from it at build time. Generated files are not committed.
 
 The root command must grow with the implemented checkpoint. A passing bootstrap check does not satisfy application acceptance. Do not add placeholder commands that print success for absent implementation.
 
@@ -87,7 +82,7 @@ Cloudflare Workflows coordinate research and evaluation. Fly hosts perform deleg
 
 Use development, staging, and production application environments. Keep fixture/demo mode separate from real-money mode. Production hosting does not imply live trading permission.
 
-Local development uses the same source with Wrangler, native Cargo/Node processes, and Docker where needed to test Fly images. The offline engine demo is smaller and needs no local production replica. Staging uses synthetic data, test market feeds, or a broker sandbox with clearly labelled semantics.
+Local development uses the same source with Wrangler, native Cargo/Node processes, and Docker where needed to test Fly images. The offline engine demo is smaller and needs no local production replica. Staging uses synthetic data, test market feeds, or a broker sandbox with clearly labelled semantics. Staging may also use real read-only market data through a paper-account key without live authority (OQ-05 §5), and bounded real-model runs. Their results carry their mode and the environment `STAGING`.
 
 Each environment profile declares required bindings and capabilities. Missing bindings fail validation. No placeholder identifier may reach a deployed configuration. Profiles contain names and non-secret settings, not credentials.
 
@@ -100,6 +95,7 @@ Assign one writer per managed resource:
 | Wrangler through GHA | Cloudflare Worker code, Workflow and notification Durable Object exports/bindings, public site assets |
 | Pinned flyctl through GHA | Fly deployment profiles, immutable images, Machine counts/resources, and controlled secret updates |
 | Versioned SQL migration job | application schema |
+| The owner, outside automation; verified by read-back | Neon project and its migration and application roles |
 | Runtime commands | missions, evidence, approvals, active account mandates and product decisions |
 
 Use generated binding metadata where Terraform outputs feed Wrangler. Keep Fly profiles under `infra/fly` and non-secret app/environment mappings under `infra/environments`. Do not let Terraform and flyctl both manage the same Fly resources. This plan does not depend on the dated Fly Terraform example in the AICaaS attachment. Protect Terraform state and saved plans; inject secrets through the approved secret path, not checked-in `.tfvars`.
@@ -110,7 +106,7 @@ Treat live secret rotation as a controlled rollout. Fly documents that ordinary 
 
 Disable competing automatic deploy routes, including Workers Builds for the same target. GHA is the single release controller. GitHub-hosted scheduled scans are acceptable; they are not runtime scheduling.
 
-Release identity records the source SHA, CLI version, engine digest, agent-bundle hash, protocol versions, migration level, and deployment references. Components can deploy independently without independent version systems for every folder.
+Release identity records the source SHA, CLI version, engine digest, image and binary digests, agent-bundle hash, method identity, protocol versions, migration level, and deployment references. In S1, `deploy.yml` writes this as a `release-manifest/1` document, reads the deployed state back and records the manifest through an Administrator-only route. Components can deploy independently without independent version systems for every folder.
 
 Serialize deployments per component and environment. Cancel superseded validation work, but do not cancel an in-progress migration or live rollout simply because a newer push arrived. Use expand/contract database migrations, and verify backup/restore and rollback procedures before production use.
 
@@ -187,7 +183,7 @@ The reference archive preserves source bytes and hashes. It is non-canonical. A 
 
 ## 7. Application command contract
 
-Add each command with its implementation and tests. The following commands are not available in the bootstrap.
+Add each command with its implementation and tests, and add its row to the [command reference](../reference/commands.md) in the same change. The following commands are required. The command reference shows which of them are implemented.
 
 | Command | Required behaviour |
 | --- | --- |

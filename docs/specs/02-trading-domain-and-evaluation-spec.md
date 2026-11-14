@@ -1,9 +1,9 @@
 ---
 id: OQ-02
 title: OpenQuant — Trading Domain and Evaluation
-version: 1.3.1
+version: 1.4.0
 status: canonical
-updated: 2026-11-13
+updated: 2026-11-14
 owns: strategy semantics, evaluation, lifecycle, portfolio, risk, A01–A18
 ---
 
@@ -26,6 +26,10 @@ Use these records to describe the product. They are not a requirement to force a
 | **Portfolio Account** | Cash, positions, orders, fills, reservations, costs, reconciliation state | Assigned execution engine |
 
 Supporting records include dataset manifests, cohort policies, findings, agent forecasts, and audit events. Store these beside the owning domain. Do not build a generic knowledge platform to manage them.
+
+A Research Mission has its own status: `IN_PROGRESS`, `BLOCKED`, `WITHDRAWN` or `CONCLUDED`. `BLOCKED` means work cannot continue, for example because a budget is exhausted; the reason is shown and outcomes are kept. `WITHDRAWN` means a Researcher cancelled the mission: its open runs become `CANCELLED` and its open agent attempts are cancelled. A concluded mission records one outcome, `ELIGIBLE_FOUND` or `NO_ELIGIBLE_CANDIDATE`, with its reason. These values do not overlap with run status, gate results, Decision outcomes, attention status or the activation states in §4. The Researcher sets the mission's budgets when creating it, within the cohort policy's maxima and the period cap. Each agent configuration is an executor profile plus a behaviour-bundle hash (OQ-03 §2). Agent attempts and the typed retrieval, validation and assessment jobs are non-trial work. They are not evaluation runs and do not count as trials (§3.1).
+
+An authorised command records each Decision. A policy-determined Decision applies an approved policy instead of a new human judgement. In S1 the workflows service principal records the `DRAFT` → `EVALUATING` Decision this way (§4). That Decision names the cohort policy digest, the Steward's Decision that approved the policy, and the Researcher who started the mission. A service principal may record a policy-determined Decision only under an approved policy. It may reserve within an existing budget. It cannot approve a policy, create or enlarge a budget, or change a limit.
 
 An **Evidence Bundle** is a manifest of the exact runs, findings, and policy used for a decision. It is not another copy of their contents.
 
@@ -167,6 +171,16 @@ A cohort policy fixes the market profile, data splits, benchmarks, costs, eviden
 
 Every trial is registered before execution. Attempts reference one logical run. Operational retries do not count as new independent discoveries. Changed parameters, features, data selection, or strategy behaviour do count as new search trials.
 
+In S1 the registered comparison is an evaluation plan. The API records it when the mission starts, after retrieval and before any run, and never changes it. The cohort policy declares three non-overlapping scored windows: D (development), V (validation) and H (holdout). Window rules use calendar-date bounds. They resolve against the frozen retrieved calendar, and the plan records the resolved sessions. Each window is a separate run with a fresh ledger and the same fixed warm-up. The plan holds:
+
+- trial slots: one for the seed and one for the revision of each proposer configuration; a revision slot is a placeholder until its candidate is registered;
+- the window rules and their resolved sessions;
+- the scenarios: base costs, cost stress at twice the base costs, and a deterministic repeat of the D base run;
+- the H slots of each trial slot;
+- the gates, by reference to the cohort policy (§3.2). The policy also declares the benchmarks and metric scale (§3.6).
+
+A planned slot is not a run. Runs, budget reservations and dispatch entries are written later (§4). The repeat checks determinism; it is not a new trial. The plan freezes these conditions. A controlled revision changes entry rules or exit rules, not both.
+
 Retain the complete history of experiments performed within OpenQuant. Imported results disclose any unknown external search history. Do not infer a precise independent-trial count from raw job count.
 
 Repeated selection can inflate apparent performance. The Deflated Sharpe Ratio literature explicitly addresses selection bias from multiple testing and non-normal returns. Where suitable, include an adjustment such as DSR or a probability-of-backtest-overfitting analysis, with its assumptions. No statistic alone proves an edge.
@@ -186,6 +200,17 @@ Do not remove a required test to make a candidate pass. A skipped or inapplicabl
 
 A cheap integrity failure can stop an invalid run. Required tests for an otherwise valid candidate remain required. Avoid an indiscriminate Cartesian product of every possible stress dimension; use the declared suite and explicit combined stress cases.
 
+The S1 cohort policy assigns these checks to `EVALUATING` → `PAPER` eligibility:
+
+| Category | S1 treatment |
+|---|---|
+| Correctness | Gates: definition validation, deterministic replay (two evaluations of one input give equal result digests), accounting reconciliation, and signal and data timing. |
+| Historical validity | Gates: point-in-time data, the base cost model, excess return over buy-and-hold, walk-forward over D, V and H (§3.1), and a minimum trade count. |
+| Robustness | Gate: cost stress at twice the base costs. Parameter sensitivity, execution delay and adverse regimes are `INSUFFICIENT` with a reason. Resampling is `NOT_APPLICABLE` with the policy reason. |
+| Prospective evidence, portfolio fit, operating readiness | `NOT_APPLICABLE` to this transition, with the policy reason. |
+
+Required robustness checks stay `INSUFFICIENT` in S1, so no S1 candidate can become eligible. The expected S1 mission outcome is therefore a valid `NO_ELIGIBLE_CANDIDATE`. Offline fixtures under a separate test policy cover the `PASS` path. Thresholds belong to the registered policy, not to this specification.
+
 ### 3.3 Data and holdout discipline
 
 Store event time and availability time. Preserve instrument identity, calendars, corporate actions, delistings, and data revisions where relevant. Transformations must use only information available at the simulated decision time.
@@ -195,6 +220,8 @@ Define warm-up, missing-data handling, executable prices, spread, latency, liqui
 An agent cannot inspect a final holdout before submitting its version. Once feedback is revealed, record that the holdout was consumed. Tuning on it cannot produce a fresh out-of-sample claim.
 
 Historical data may already be represented in an LLM's training. A historical holdout is therefore not a complete defence against model contamination. Keep prospective paper evidence and record model provenance.
+
+In S1 the evaluation plan holds the H slots from the start (§3.1). Only the freeze step writes H runs, once every trial slot is terminal (§4). Agent requests carry explicit holdout exclusions. Revision context holds D results and findings only. Revealing an H result writes a holdout-consumption record. Label H "historical holdout within model training period". Record each configured model's published knowledge cutoff, or record that the checked source does not state it (OQ-03 §2).
 
 ### 3.4 Live paper competition
 
@@ -224,9 +251,24 @@ Decision outcome: APPROVED / REJECTED / DEFERRED
 
 A completed run can contain failing gates. A gate pass does not grant capital.
 
+Map each numerical outcome of the Rust core, and each submission that ends before the core prepares a run, to run status and gates as follows:
+
+| Numerical outcome | Run status | Gates and follow-up |
+|---|---|---|
+| `COMPLETED` | `COMPLETED` | Assess gates from the run's metrics. |
+| `FAILED` with `INVALID_LEVEL` or an operator code (`UNSUPPORTED_OPERATOR`, `OPERATOR_TYPE_MISMATCH`, `OPERATOR_UNIT_MISMATCH`, `INVALID_PARAMETER`) | `FAILED` | Correctness `FAIL`. The defect belongs to the candidate. |
+| `FAILED` with `FUTURE_DATA`, `EVENT_OUT_OF_ORDER`, or an input, schema, identity, policy or checkpoint code | `FAILED` | Dependent gates `INSUFFICIENT`. The defect belongs to the platform; open an attention item. |
+| `FAILED` with `ARITHMETIC_OVERFLOW` | `FAILED` | Outside the engine domain. Dependent gates `INSUFFICIENT`. |
+| `INSUFFICIENT` with any code | `COMPLETED` | Dependent gates `INSUFFICIENT`. No metrics. |
+| `NOT_PREPARED`: the job ended before the core prepared a run, with a failure code | `FAILED` | Mapped by its failure code, as the `FAILED` rows above. No metrics. |
+
+Worker death or lease expiry does not decide a run. Recovery fences a new attempt of the same run up to a declared attempt cap (OQ-05 §4). The run is `FAILED` only when the cap is exhausted or the failure is not retryable. Cancellation gives `CANCELLED`.
+
 Critic findings use the typed categories in [OQ-03 §4](03-model-backed-execution-spec.md#4-request-and-result-boundaries). The registered policy maps each category and its applicability conditions, including the lifecycle transitions it affects, to blocking or advisory treatment. Method notes, source summaries and model-stated severity cannot set or change that mapping. An unknown category is an invalid result, not an advisory finding. A finding based only on summary-only capital caps, parameter-count preferences or reward/risk thresholds (see `rule_origin`, OQ-03 §3) has the primary category `method_advice` unless the registered policy explicitly adopts that rule. Finding treatment is separate from run status, gate results and decision outcomes. A valid adverse finding is a completed research result, not a failed run or an approval.
 
 Rank within comparable cohorts. Show net return, drawdown, tail risk, turnover, execution cost, exposure, sample size, search history, and uncertainty. Define each metric's unit, window, and method. Do not use unexplained “robustness: HIGH” or “portfolio contribution: +0.31” as approval inputs.
+
+In S1 the Rust core computes these metrics for each run: net return, maximum drawdown, worst session return, turnover, trade and session counts, execution cost (fees plus the slippage reconstructed for gap-through-stop exits), exposure, the buy-and-hold return and the excess return over it. Metrics use scored sessions and `COMPLETED` numerical outcomes only. They use exact arithmetic and one half-even rounding to the policy's declared metric scale; the tolerance is zero. The reviewed method text bound by method identity (§7) defines each unit, window and formula. The benchmarks are cash and same-stock buy-and-hold: whole lots bought at the first fillable open of the scored window, with the run's corporate-action handling. S1 does not compute uncertainty, because this section gives no method. The cohort policy records this as an approved limitation, and the D, V and H results are shown side by side. A Rust assessment job writes the gate report from the official results and the registered policy. The API only applies finding treatment and combines the gate results. Expected metric and gate values come from independent calculations (A04).
 
 ### 3.7 Controlled seed comparison
 
@@ -247,6 +289,28 @@ Preserve the original checks, but do not build a service for each stage.
 | `LIVE`, tier `MICRO` | Actual fills, costs, reconciliation, and risk behaviour support a larger allocation | `LIVE`, mandate tier `PRODUCTION` |
 
 Independent critique applies to a validated, registered `DRAFT` version and its hash. A draft that fails validation receives diagnostics, not critique. A transition waits while an applicable finding that the registered policy treats as blocking for that transition remains unresolved (§3.6). Advisory findings remain visible in the evidence bundle.
+
+In S1 a proposal follows this order:
+
+1. Result parsing checks its structure, references and declared rule differences (OQ-03 §3).
+2. The API checks scope, bounds and lineage.
+3. Rust validation checks the draft by its draft digest, which is not a Strategy Version hash. It returns a validation result, recomputes the rule differences and requires the maximum lookback to fit the warm-up.
+4. Only then is the version registered as `DRAFT` with its Strategy Version hash.
+5. The candidate receives one critique, and the registered policy assigns treatment to its findings (table below).
+6. The workflows service principal records the policy-determined `DRAFT` → `EVALUATING` Decision through the internal guarded command `record_evaluation_decision` (§1). An `APPROVED` Decision writes that version's D and V runs (base, cost stress, and the repeat of the D base run), their budget reservations and their dispatch-outbox entries, in one transaction.
+
+The Decision is `DEFERRED` only when the critique ends without a valid result after the attempt cap: refusal, malformed result, timeout, cancellation, denied capability or authentication failure. A `DEFERRED` Decision writes no run, reservation or outbox entry, and shows its reason. The candidate is not evaluated. The seed goes first. Revisions need the seed's D results, so if the seed is `DEFERRED` no revision can run, and the mission concludes `NO_ELIGIBLE_CANDIDATE` with that reason. Otherwise each controlled revision follows the same path to its own D and V runs.
+
+A trial slot of the evaluation plan (§3.1) is terminal when its candidate's D and V runs have ended, its Decision is `DEFERRED`, or no candidate was registered within the revision budget. Once every slot is terminal, the workflows principal runs the internal guarded command `freeze_candidates` under the approved policy. It freezes the candidate set and writes the H runs of every candidate in `EVALUATING`, with their reservations and outbox entries, in one transaction (§3.3). If no candidate is in `EVALUATING`, it writes no run and the mission concludes `NO_ELIGIBLE_CANDIDATE` with the recorded reasons. The assessment job receives the evaluation plan by reference. Assessment, eligibility and the mission outcome close the mission.
+
+In S1 no finding category blocks `DRAFT` → `EVALUATING`. The cohort policy treats the categories for `EVALUATING` → `PAPER` eligibility as follows:
+
+| Finding category | S1 treatment for `EVALUATING` → `PAPER` eligibility |
+|---|---|
+| `data_quality_alignment`, `causal_leakage`, `execution_accounting_assumption`, `search_overfitting`, `policy_mismatch`, `missing_evidence` | Blocking |
+| `hypothesis_assumption`, `portfolio_fit`, `operational_risk`, `source_uncertainty`, `method_advice` | Advisory |
+
+S1 records no `EVALUATING` → `PAPER` Decision; automatic paper promotion stays disabled until M2.
 
 `PAUSED` suspends authority without erasing evidence or positions. `RETIRED` ends new deployment eligibility. Existing obligations remain visible until closed or transferred through an explicit process.
 
@@ -348,6 +412,8 @@ Exact ledger results require exact reproducibility. Statistical outputs use decl
 Reuse cached output only when all behaviour-affecting inputs match. Record reuse in the new run. Reused output is not new independent evidence.
 
 An engine change must invalidate affected evidence or produce an explicit compatibility decision. Do not overwrite earlier results or silently accept changed numbers.
+
+Engine identity covers the numerical evaluation contracts: the engine version, the operator set and the versions of the engine-scope contracts. Connected envelopes are outside it (OQ-05 §7); adding them does not change engine identity. Derived evidence (validation, metrics, benchmarks, gates and lineage) carries a separate method identity: the digest of a reviewed method text, pinned by a golden test. Bind method identity into each derived payload, the evaluation submission and the release identity. A change to that text changes method identity and needs the same explicit compatibility decision as an engine change. A content change to an engine-scope schema needs a new version tag or an explicit A18 compatibility decision. S1 keeps `evaluation-input/1` and carries the other run bindings in an outer evaluation request (OQ-05 §7). It adds a provider source value to the dataset reference of `evaluation-input/1` under one such decision: the core does not read the dataset source, so no number changes.
 
 ## 8. Durable ownership
 

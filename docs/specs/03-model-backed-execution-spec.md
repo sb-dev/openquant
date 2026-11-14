@@ -1,9 +1,9 @@
 ---
 id: OQ-03
 title: OpenQuant — Model-Backed Execution
-version: 1.3.0
+version: 1.4.0
 status: canonical
-updated: 2026-11-11
+updated: 2026-11-14
 owns: proposer and critic behaviour, delegation, permissions, budgets, results
 ---
 
@@ -22,6 +22,8 @@ A mission can cover one instrument or a frozen watchlist under OQ-02 §1.1. Per-
 
 Support a user-authored seed, translation of supplied source text into a draft, a controlled revision, and a new family assembled from reviewed operators. Treat source code as untrusted reference text, not an executable plugin. Record source identity, extracted rules, unresolved assumptions and every interpretation change. Unresolved executable semantics block registration as an evaluable Strategy Version.
 
+In the S1 pilot the Researcher registers the daily swing seed (OQ-02 §2.6) for the pilot stock as a user-authored version, with its recorded source-to-seed differences. Each proposer configuration authors one controlled revision of that seed. The evaluation plan, including its holdout slots, is registered before evaluation. Holdout runs are written only when the candidate set is frozen (OQ-02 §§3.1, 3.3, 4).
+
 ### Critic
 
 A critic challenges the hypothesis, data, assumptions, tests, portfolio fit, and operational risks. It returns structured findings with evidence references and proposed tests.
@@ -32,15 +34,17 @@ Separate role identities and access. The proposing agent cannot close its own cr
 
 ### Software, not additional AI roles
 
-The Rust engine produces official results. A deterministic policy evaluator decides whether gates are satisfied. Portfolio software calculates proposed weights and risk. The trading core checks every order.
+The Rust engine produces official results. A deterministic policy evaluator decides whether gates are satisfied. Portfolio software calculates proposed weights and risk. The trading core checks every order. In S1 the policy evaluator is a Rust assessment job that writes the gate report (OQ-02 §3.6).
 
 An LLM may explain those outputs. Its explanation has no authority to replace them.
 
 ### Budgets and accumulated learning
 
-Each mission has explicit candidate, experiment, compute, LLM-spend, and revision budgets. A runner cannot increase them. Exhaustion pauses further work and reports what was learned.
+Each mission has explicit candidate, experiment, compute, LLM-spend, and revision budgets. A runner cannot increase them. Exhaustion pauses further work and reports what was learned. In S1 the Researcher sets these budgets in the mission's create command, within the cohort policy's maxima and the period cap, and exhaustion makes the mission `BLOCKED` with that reason (OQ-02 §1).
 
-Subsequent proposals receive a bounded context pack: relevant past hypotheses, failed trials, critic findings, and observed outcomes. Retrieve this from existing records. Do not add a memory service or vector database without a demonstrated retrieval need.
+Reserve each attempt's declared cap before dispatch. Label the cost that the Claude Code adapter (§3) reports as estimated. A missing usage report keeps the full reservation. Lease expiry releases nothing until termination of the attempt is confirmed.
+
+Subsequent proposals receive a bounded context pack: relevant past hypotheses, failed trials, critic findings, and observed outcomes. Retrieve this from existing records. Do not add a memory service or vector database without a demonstrated retrieval need. In S1 the revision context holds development-window (D) results and findings only.
 
 Record unsuccessful model calls and revised outputs. A transport retry must not silently replace an earlier candidate with whichever model response looks best.
 
@@ -59,6 +63,8 @@ Subsequent cycles may use bounded prior failures and critic findings from author
 The mechanism uses different roles and shared evaluation rules. It does not require agents to trade tokens, negotiate capital, or vote on their own evidence.
 
 Generate hypotheses from source methods, seed rules, component-removal tests and permitted prior failures. Register the intended comparison before evaluation. For revisions, change a bounded declared set of rules; compare entry and exit changes separately before interpreting their combination. Use OQ-02 §3.7 for the first seed experiment. Novel operators require reviewed engineering work, not model-generated executable code. New families consume the declared exploration budget.
+
+A proposer configuration is an executor profile (model identifier and effort setting) plus a behaviour-bundle hash. The S1 pilot uses two proposer configurations with different models and one critic configuration with its own profile and sessions. All three use one baseline bundle that adopts no method notes. The pilot decision record names the models. Record each configured model's published knowledge cutoff with the configuration, or record that the checked source does not state it (OQ-02 §3.3).
 
 | Mechanism | Rule |
 |---|---|
@@ -103,6 +109,8 @@ The third-party executor is an external dependency. Document its authentication,
 
 A product skill is a complete module in `packages/agents`. Its registration, request assembly and result parsing, schemas, instructions, method notes, development scripts and evaluations describe the same behaviour. Use one reviewed static registry. Each entry declares the skill ID and version, description, supported task and roles, entry kind (role assembly/parsing or agent-callable tool), input/output schema references, required capabilities in the §4 identifier formats, declared resource limits, source/method references and entry point. Request assembly copies the required capabilities into the frozen request. The host enforces them before dispatch, and they cannot be enlarged. A model supplies task arguments, never a module path, client or executable name. The host derives trusted context from the existing envelope: mission, run, attempt and call identities, role, bundle and skill versions, scope, cutoff, frozen policy, deadline and reserved allowances. Model input cannot supply or enlarge that context. Skill code checks structure, reference membership and exact rule differences only. It does not repeat the API's scope, bounds, lineage or policy validation, or the Rust core's operator, type, unit and lookback validation. It makes no unrecorded nested model calls.
 
+For a revision, result parsing compares the declared rule differences with the parent at the level of the changed definition leaves. Rust validation recomputes these differences independently, and shared fixtures show that both agree. OQ-02 §4 gives the order of checks before registration.
+
 The behaviour bundle is an exact allowlist of paths and content hashes, never a recursive directory copy. Build tooling verifies that manifest and inlines the allowlisted procedure text and method notes into a generated module. Request assembly selects text from that module, binds the manifest hash and reads no filesystem. The runner verifies the matching bundle identity before dispatch and cannot substitute local text. Evaluation files, expected answers, development scripts and private source snapshots never enter the bundle or the delegated filesystem.
 
 The first pilot registers two role modules: `strategy-formulation` for the proposer and `strategy-critique` for the critic. Each has pure request assembly and result parsing, and neither exposes agent-callable tools. Agent-callable tools, their host bridge, call identities and records, and local tool schemas arrive together with the first S3 evidence tool. A tool handler runs in the trusted runner host, not in the delegated executor or a process it starts. It receives narrow attempt-scoped clients and a cancellation signal, validates input and permissions before external work, and validates output before returning a bounded result. It cannot call an API-owned provider adapter in process, and no numerical client is injected. A tool result contains schema-valid task output, source/method and evidence references, coverage, assumptions, warnings and limitations. Host records bind it to the call identity and capture observed usage and duration, keeping unknowns. A tool result is not an official result or a registered trial. Development scripts are not runtime entry points. Never pass model text to a shell.
@@ -127,9 +135,11 @@ The first pilot registers two role modules: `strategy-formulation` for the propo
 
 These are contract requirements, not a frozen JSON schema. M1 supplies versioned schemas and shared valid/invalid fixtures. Unsupported mandatory fields or semantics fail validation.
 
+S1 carries these groups in two host-side envelopes in `packages/api-contracts` (OQ-05 §7). `agent-dispatch/1` carries the request groups; its holdout exclusions name the V and H windows (OQ-02 §3.3). `agent-attempt-result/1` carries the provenance that the host captures, a digest reference to the validated role output, one of the seven execution outcomes and usage with explicit unknowns. The host validates the role output and stores it before it submits the result. The model never receives this envelope and never writes its provenance, outcome or usage. The role result schemas in `packages/agents/schemas` hold the role output only. The host maps its own failures to the outcomes. A missing executable, an unsupported capability, or a bundle mismatch found before the executor starts is a denied capability. An identity mismatch found after the run, output over the limit or a schema failure is a malformed result. §5 covers runner crashes and late completions.
+
 The identifier formats reference their owning registries. Availability in one namespace grants no authority in another. Before dispatch, the host checks source-adoption evidence, schema compatibility, and the task's requirements against mission permissions and available capabilities. Missing required inputs block the task with a reason; optional failures remain visible. Never fabricate data, substitute an operator, expand scope or choose a new provider. Record supplied methods and result-cited methods. Citations are model self-reports, and every cited method must belong to the supplied reviewed set.
 
-Each proposal includes the complete contract/definition, source references, parent hash for a revision, exact rule changes, rationale, expected effect, invalidation conditions and requested tests. A fresh family has no parent and declares that fact. A seed translation also carries unresolved assumptions and source-to-draft differences. The API checks scope, bounds, lineage and execution-policy compatibility before accepting the immutable version. An experiment request references that version and the frozen evaluation policy; changing the measurement conditions requires a separately registered comparison.
+Each proposal includes the complete contract/definition, source references, parent hash for a revision, exact rule changes, rationale, expected effect, invalidation conditions and requested tests. A fresh family has no parent and declares that fact. A seed translation also carries unresolved assumptions and source-to-draft differences. The proposed strategy is the `strategy-artefact/1` content without its schema version, strategy identity, version, parent and hashes. The API assigns these; it builds the parent reference from the proposal's parent hash and rule changes. Unresolved executable semantics go in a separate unresolved list of the proposal; any entry blocks registration. The API checks scope, bounds, lineage and execution-policy compatibility before accepting the immutable version. An experiment request references that version and the frozen evaluation policy; changing the measurement conditions requires a separately registered comparison.
 
 A sizing result is a controlled revision within the strategy's assigned budget, or a critique of sizing assumptions. It never calculates an authoritative account allocation, grants capital or submits orders. Unresolved executable semantics remain draft material or findings. Never fill missing rules merely to obtain schema-valid output.
 
@@ -160,6 +170,8 @@ The host strips service credentials from the child environment. It provides no w
 ResearchWorkflow creates the attempt and reserves its budget before dispatch. The runner claims that attempt through an authenticated endpoint before starting the external tool. An ambiguous dispatch is resolved under the same attempt ID before another process starts.
 
 The host returns acceptance promptly. Cloudflare observes durable status through bounded polling. A fresh retry consumes a recorded attempt and its budget. Only the current claim can complete.
+
+A runner crash or lease expiry is not an execution outcome. Recovery fences a new attempt of the same logical run or job up to the declared attempt cap, and each attempt reserves its own budget (OQ-05 §4). The expired attempt keeps its reservation until its termination is confirmed (§1). A completion from an expired attempt is rejected and recorded; it does not change the accepted result.
 
 Cancellation terminates the child process tree and records the outcome. A timeout must not leave an unbounded subprocess. Store a bounded diagnostic record without credentials or full sensitive context.
 
