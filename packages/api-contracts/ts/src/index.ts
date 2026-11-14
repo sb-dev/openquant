@@ -14,6 +14,7 @@ export {
   failureCode,
   type SchemaViolation,
 } from './errors.ts';
+export { type EvaluationResultHead, RESULT_SCAN_LIMIT, scanEvaluationResult } from './result.ts';
 export {
   type JsonObject,
   type JsonValue,

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:openquant:schema:evaluation-submission:1",
   "title": "EvaluationSubmission",
-  "description": "Completion of one evaluate job attempt (OQ-05 sections 4 and 7). The worker uploads the immutable artefacts first, then submits their references with the actual executable, engine and method identities. The API commits an official result only from the current owner and only when every binding matches the request. A redelivered submission cannot create a second official result.",
+  "description": "Completion of one evaluate job attempt (OQ-05 sections 4 and 7). The worker uploads the immutable artefacts first, then submits their references with the actual executable, engine and method identities. The API commits an official result only from the current owner and only when every binding matches the request: it scans the cited evaluation-result/1 and binds its schema_version, strategy_hash, input_hash, engine_digest and outcome status and code to the request and this submission (OQ-05 section 7). A redelivered submission cannot create a second official result.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "run_id", "attempt", "request_digest", "mode", "environment", "executable", "engine_digest", "method", "evaluation", "duration"],

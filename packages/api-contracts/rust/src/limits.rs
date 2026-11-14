@@ -5,20 +5,24 @@
 //! misses ten required properties, however few bytes that object takes on the wire. A payload
 //! under the byte limit can hold millions of such objects.
 //!
-//! [`crate::validate`] therefore asks the validator for one error first, which is cheap at any
-//! size, and only a document that stays under these limits goes on to the full pass. The worst
-//! such document, 20,000 empty records that each miss their required properties, peaked at 79 MB
-//! in a release build.
+//! [`crate::validate`] therefore asks the validator for one error first, which decides validity
+//! at any size, and only a document that stays under these limits goes on to the full pass. A
+//! document beyond a limit reports that limit, then its first violation: the listing stopped, and
+//! the code is `SCHEMA_VIOLATION`, even when that violation is a decimal-grammar one.
 //!
-//! The limits come from the schema maxima with generous headroom: the largest `maxItems` is
-//! 4,000, the widest object has 12 properties and the longest `maxLength` is 2,000 characters,
-//! or 8,000 bytes. They never limit a valid document, because a valid document leaves
-//! `validate` before this check.
+//! [`MAX_NODES`] is the limit that bounds the full pass. The TypeScript layer applies the same
+//! limit, so both runtimes give the same code (`packages/api-contracts/ts/src/limits.ts`). There
+//! one value can carry up to 34 errors, and 4,096 values keep the listing of the worst document of
+//! every contract within half of a Worker isolate's memory. The other limits come from the schema
+//! maxima with generous headroom and only stop the walk early: the largest `maxItems` is 4,000,
+//! the widest object has 12 properties and the longest `maxLength` is 2,000 characters, or 8,000
+//! bytes. They never limit a valid document, because a valid document leaves `validate` before
+//! this check.
 //!
-//! The value limit is per document, not per contract. A schema-valid evaluation result or
+//! The value limit is per document, not per contract. A schema-valid evaluation input, result or
 //! checkpoint can hold more than [`MAX_NODES`] values (4,000 ledger entries alone hold about
 //! 36,000). Such a document is accepted when it is valid. When it is invalid, it reports
-//! `SCHEMA_VIOLATION` with the first violation, even if that violation is a decimal-grammar one.
+//! `SCHEMA_VIOLATION` with the first violation.
 //!
 //! The depth limit does not protect the first-error pass. That pass recurses over the depth of a
 //! recursive schema such as an expression. A [`serde_json::Value`] built by hand and nested
@@ -31,9 +35,9 @@ use serde_json::{Value, map::Iter as MapIter};
 
 use crate::error::SchemaViolation;
 
-/// Values in the whole document. The largest valid evaluation input holds about 5,400. A valid
-/// result or checkpoint can hold more, and the limit then applies only if the document is invalid.
-pub(crate) const MAX_NODES: usize = 20_000;
+/// Values in the whole document. An invalid document with more is not listed in full. A valid
+/// input, result or checkpoint can hold more: the limit applies only if the document is invalid.
+pub(crate) const MAX_NODES: usize = 4_096;
 /// Nesting depth. This is the recursion limit of the strict parser.
 pub(crate) const MAX_DEPTH: usize = 128;
 /// Items in one array. Twice the schema maximum.
