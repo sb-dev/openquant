@@ -5,5 +5,6 @@
 pub mod case;
 pub mod compare;
 pub mod coverage;
+pub mod market;
 pub mod replay;
 pub mod report;

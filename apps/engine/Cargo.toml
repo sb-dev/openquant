@@ -15,7 +15,7 @@ openquant-contracts.workspace = true
 openquant-core.workspace = true
 rust_decimal.workspace = true
 serde.workspace = true
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["raw_value"] }
 
 [[bin]]
 name = "s0-replay"
