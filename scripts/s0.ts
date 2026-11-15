@@ -96,10 +96,12 @@ export const expectedWorkspacePackages: readonly WorkspacePackage[] = [
   },
 ];
 
-// Files that decide whether a test run counts, pinned by SHA-256 of their bytes: the two reporters and the Vitest
-// configuration. A change to one is a change to this list in the same review.
+// Files that decide whether a test run counts or which guards run, pinned by SHA-256 of their bytes: the two
+// reporters, the Vitest configuration and the script that runs the dependency-using workspace guards. A change to
+// one, such as a new guard in check-workspace.ts, is a change to this list in the same review.
 export const pinnedFiles: Readonly<Record<string, string>> = {
   'scripts/workspace/test-reporter.ts': '17f7f7f7a69e261ae259db4e46cb49fdc66b1dbdb890642deee7b34a5339eff7',
+  'scripts/workspace/check-workspace.ts': '75d3b28748b91c4509c1747d4d957dd6b6a0476e65e98db3411cf5bfe184859f',
   'packages/api-contracts/ts/test-reporter.ts': '5a19ae965e6153903150f7fe3e37fc39a1e5b26a7729bb115065b70faf1d865d',
   'packages/api-contracts/ts/vitest.config.ts': '58433531d0bf46b50dba6178f0ce16c6b86c1972d8b3021edcbd9e3c3d5550fb',
 };
@@ -400,17 +402,19 @@ export const expectedEnvironmentCode: readonly string[] = [
   "  'NODE_OPTIONS',",
   "  'RUSTFLAGS',",
   "  'RUSTDOCFLAGS',",
+  "  'RUSTDOC',",
   "  'RUSTC_WRAPPER',",
   "  'RUSTC_WORKSPACE_WRAPPER',",
   "  'CARGO_BUILD_RUSTFLAGS',",
   "  'CARGO_BUILD_RUSTDOCFLAGS',",
+  "  'CARGO_BUILD_RUSTDOC',",
   "  'CARGO_ENCODED_RUSTFLAGS',",
   "  'CARGO_ENCODED_RUSTDOCFLAGS',",
   "  'CARGO_BUILD_RUSTC_WRAPPER',",
   "  'CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER',",
   "  'BIOME_CONFIG_PATH',",
   ']);',
-  'const removedPatterns: readonly RegExp[] = [/^NODE_TEST_/, /^TURBO_/, /^CARGO_TARGET_.+_(?:RUNNER|RUSTFLAGS|RUSTDOCFLAGS|LINKER)$/];',
+  'const removedPatterns: readonly RegExp[] = [/^NODE_TEST_/, /^TURBO_/, /^(?:NPM|PNPM)_CONFIG_/, /^CARGO_TARGET_.+_(?:RUNNER|RUSTFLAGS|RUSTDOCFLAGS|LINKER)$/];',
   'export function isRemovedVariable(name: string): boolean {',
   '  const key = name.toUpperCase();',
   '  return removedNames.has(key) || removedPatterns.some((pattern) => pattern.test(key));',

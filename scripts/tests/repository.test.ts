@@ -529,12 +529,13 @@ interface Driver {
   inherit?: Record<string,string>; edit?: Record<string,(text: string) => string>;
 }
 // The variables that stepEnvironment() removes (scripts/environment.ts), written out again here: every stand-in
-// refuses to run when one of them reaches it. TURBO_TELEMETRY_DISABLED=1 is the value the driver sets itself.
-const removedVariables = '^(BASH_ENV|ENV|NODE_OPTIONS|RUSTFLAGS|RUSTDOCFLAGS|RUSTC_WRAPPER|RUSTC_WORKSPACE_WRAPPER|CARGO_BUILD_RUSTFLAGS|CARGO_BUILD_RUSTDOCFLAGS|CARGO_ENCODED_RUSTFLAGS|CARGO_ENCODED_RUSTDOCFLAGS|CARGO_BUILD_RUSTC_WRAPPER|CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER|BIOME_CONFIG_PATH|NODE_TEST_[A-Z0-9_]*|TURBO_[A-Z0-9_]*|CARGO_TARGET_[A-Z0-9_]+_(RUNNER|RUSTFLAGS|RUSTDOCFLAGS|LINKER))=';
-const shellLeakCheck = (tool: string) => `leaked=$(env | grep -iE "$STAND_IN_REMOVED" | grep -v '^TURBO_TELEMETRY_DISABLED=1$' | cut -d= -f1 | tr '\\n' ' '); if [ -n "$leaked" ]; then echo "stand-in ${tool}: removed variable reached the step: $leaked" >&2; exit 3; fi`;
+// refuses to run when one of them reaches it. TURBO_TELEMETRY_DISABLED=1 and pnpm_config_verify_deps_before_run=error
+// are the two values that the driver sets itself.
+const removedVariables = '^(BASH_ENV|ENV|NODE_OPTIONS|RUSTFLAGS|RUSTDOCFLAGS|RUSTDOC|RUSTC_WRAPPER|RUSTC_WORKSPACE_WRAPPER|CARGO_BUILD_RUSTFLAGS|CARGO_BUILD_RUSTDOCFLAGS|CARGO_BUILD_RUSTDOC|CARGO_ENCODED_RUSTFLAGS|CARGO_ENCODED_RUSTDOCFLAGS|CARGO_BUILD_RUSTC_WRAPPER|CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER|BIOME_CONFIG_PATH|NODE_TEST_[A-Z0-9_]*|TURBO_[A-Z0-9_]*|(NPM|PNPM)_CONFIG_[^=]*|CARGO_TARGET_[A-Z0-9_]+_(RUNNER|RUSTFLAGS|RUSTDOCFLAGS|LINKER))=';
+const shellLeakCheck = (tool: string) => `leaked=$(env | grep -iE "$STAND_IN_REMOVED" | grep -v '^TURBO_TELEMETRY_DISABLED=1$' | grep -v '^pnpm_config_verify_deps_before_run=error$' | cut -d= -f1 | tr '\\n' ' '); if [ -n "$leaked" ]; then echo "stand-in ${tool}: removed variable reached the step: $leaked" >&2; exit 3; fi`;
 // The stand-in tests run under node --test, which sets NODE_TEST_CONTEXT and NODE_TEST_WORKER_ID for them itself;
 // the stand-in repository checks, started with the same environment, see every removed variable.
-const nodeLeakCheck = (tool: string, own: string = '^$') => `const leaked = Object.entries(process.env).filter(([name, value]) => new RegExp(process.env.STAND_IN_REMOVED ?? '', 'i').test(\`\${name}=\`) && !(name === 'TURBO_TELEMETRY_DISABLED' && value === '1') && !/${own}/.test(name)).map(([name]) => name);\nif (leaked.length > 0) { console.error(\`stand-in ${tool}: removed variable reached the step: \${leaked.join(' ')}\`); process.exit(3); }\n`;
+const nodeLeakCheck = (tool: string, own: string = '^$') => `const leaked = Object.entries(process.env).filter(([name, value]) => new RegExp(process.env.STAND_IN_REMOVED ?? '', 'i').test(\`\${name}=\`) && !(name === 'TURBO_TELEMETRY_DISABLED' && value === '1') && !(name === 'pnpm_config_verify_deps_before_run' && value === 'error') && !/${own}/.test(name)).map(([name]) => name);\nif (leaked.length > 0) { console.error(\`stand-in ${tool}: removed variable reached the step: \${leaked.join(' ')}\`); process.exit(3); }\n`;
 function driverRun(options: Driver = {}) {
   const temporary = mkdtempSync(resolve(tmpdir(),'openquant-driver-'));
   try {
@@ -742,10 +743,13 @@ const removedExamples: Record<string,string> = {
   CARGO_BUILD_RUSTC_WRAPPER: 'true', CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER: 'true', CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: 'true',
   CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: '--cap-lints=allow', CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTDOCFLAGS: '--cap-lints=allow', CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER: 'true',
   TURBO_FORCE: 'false', TURBO_TELEMETRY_DISABLED: '0', BIOME_CONFIG_PATH: '/tmp',
+  RUSTDOC: 'true', CARGO_BUILD_RUSTDOC: 'true', // the binary that runs the Rust doc tests (guards-2)
+  pnpm_config_node_options: '--test-skip-pattern=.', PNPM_CONFIG_NODE_OPTIONS: '--test-skip-pattern=.', npm_config_node_options: '--test-skip-pattern=.', NPM_CONFIG_NODE_OPTIONS: '--test-skip-pattern=.', // pnpm turns these into NODE_OPTIONS (guards-1)
+  pnpm_config_script_shell: '/bin/true', NPM_CONFIG_USERCONFIG: '/tmp/openquant-no-such-npmrc',
 };
 test('C7: stepEnvironment removes the variables that could switch a step off and keeps proxy, certificate and toolchain variables',()=>{
-  for (const name of [...Object.keys(removedExamples),'node_options','Rustflags']) assert.ok(isRemovedVariable(name),name);
-  const kept = ['PATH','HOME','HTTPS_PROXY','NO_PROXY','NODE_EXTRA_CA_CERTS','SSL_CERT_FILE','RUSTUP_TOOLCHAIN','RUSTUP_HOME','CARGO_HOME','CARGO_TARGET_DIR','CARGO_INCREMENTAL','CARGO_PROFILE_DEV_DEBUG','CARGO_TERM_COLOR','npm_config_user_agent'];
+  for (const name of [...Object.keys(removedExamples),'node_options','Rustflags','Rustdoc','npm_config_user_agent','Pnpm_Config_Registry']) assert.ok(isRemovedVariable(name),name);
+  const kept = ['PATH','HOME','HTTPS_PROXY','NO_PROXY','NODE_EXTRA_CA_CERTS','SSL_CERT_FILE','RUSTUP_TOOLCHAIN','RUSTUP_HOME','CARGO_HOME','CARGO_TARGET_DIR','CARGO_INCREMENTAL','CARGO_PROFILE_DEV_DEBUG','CARGO_TERM_COLOR','CARGO_BUILD_JOBS','RUSTDOCX','NPM_CONFIGURED'];
   for (const name of kept) assert.ok(!isRemovedVariable(name),name);
   const saved = { ...process.env };
   try {
@@ -782,6 +786,15 @@ test('C7: a stand-in fails when a removed variable reaches its step, so the driv
   assert.equal(repository.status,3);
   assert.match(repository.stderr,/stand-in repository checks: removed variable reached the step: NODE_OPTIONS/);
   assert.deepEqual(repository.steps,[]);
+  // The stand-ins also catch a pnpm setting and the Rust doc test binary, each let through by a copy that drops its rule.
+  const pnpmSetting = driverRun({inherit:{pnpm_config_node_options:'--test-skip-pattern=.'},edit:{'scripts/environment.ts':(t)=>replaceOnce(t,'/^(?:NPM|PNPM)_CONFIG_/, ','')}});
+  assert.equal(pnpmSetting.status,3);
+  assert.match(pnpmSetting.stderr,/stand-in repository checks: removed variable reached the step: (?:\S+ )*pnpm_config_node_options/);
+  for (const [name,line] of [['RUSTDOC',"  'RUSTDOC',\n"],['CARGO_BUILD_RUSTDOC',"  'CARGO_BUILD_RUSTDOC',\n"]] as const) {
+    const doctest = driverRun({inherit:{[name]:'true'},edit:{'scripts/environment.ts':(t)=>replaceOnce(t,line,'')}});
+    assert.equal(doctest.status,3,name);
+    assert.match(doctest.stderr,new RegExp(`stand-in repository checks: removed variable reached the step: ${name}`));
+  }
 });
 test('C7: the guards reject the reviewer\'s environment edits of runCargo and runTypescript',()=>{
   const cargoEnv = replaceOnce(liveRust,"  const result = spawnSync(program, args, { cwd: base, stdio: 'inherit', env: stepEnvironment() });","  const env = args[0] === 'test' ? { ...process.env, CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: 'true' } : process.env;\n  const result = spawnSync(program, args, { cwd: base, stdio: 'inherit', env });");
@@ -795,6 +808,46 @@ test('C7: the guards reject the reviewer\'s environment edits of runCargo and ru
   assert.match(typescript,/scripts\/typescript\.ts: every spawnSync call must pass env: stepEnvironment\(\)/);
   assert.match(environmentModuleErrors(replaceOnce(liveEnvironment,"  'RUSTFLAGS',\n",'')).join('\n'),/scripts\/environment\.ts must keep the reviewed code of the whole file/);
   assert.match(environmentModuleErrors(replaceOnce(liveEnvironment,"/^TURBO_/, ",'')).join('\n'),/scripts\/environment\.ts must keep the reviewed code of the whole file/);
+  assert.match(environmentModuleErrors(replaceOnce(liveEnvironment,"/^(?:NPM|PNPM)_CONFIG_/, ",'')).join('\n'),/scripts\/environment\.ts must keep the reviewed code of the whole file/);
+  for (const line of ["  'RUSTDOC',\n","  'CARGO_BUILD_RUSTDOC',\n"]) {
+    assert.match(environmentModuleErrors(replaceOnce(liveEnvironment,line,'')).join('\n'),/scripts\/environment\.ts must keep the reviewed code of the whole file/,line);
+  }
+});
+// guards-1: pnpm turns pnpm_config_node_options into the NODE_OPTIONS of the process that `pnpm exec node` starts, so
+// an inherited setting could switch off the workspace checks and tests. This test runs the real pnpm, at the version
+// pinned in package.json, in a scratch project (pnpm applies the setting there because of the packageManager field)
+// with a test that fails and a setting that skips every test. With the setting in the environment the run exits 0,
+// which shows that the setting switches the step off; with the environment of stepEnvironment() it exits 1. The
+// project has no dependencies, so pnpm's check of installed dependencies is off here.
+function stepEnvironmentWith(variables: Record<string,string>) {
+  const saved = { ...process.env };
+  try {
+    Object.assign(process.env,variables);
+    return stepEnvironment();
+  } finally {
+    for (const name of Object.keys(process.env)) if (!(name in saved)) delete process.env[name];
+    Object.assign(process.env,saved);
+  }
+}
+test('C7: a pnpm setting in the environment cannot switch off a step that pnpm exec starts',{skip:driverSkip},()=>{
+  const temporary = mkdtempSync(resolve(tmpdir(),'openquant-pnpm-setting-'));
+  try {
+    writeFileSync(resolve(temporary,'package.json'),JSON.stringify({name:'scratch',private:true,packageManager:`pnpm@${pinnedPnpm(root)}`}));
+    writeFileSync(resolve(temporary,'fails.test.ts'),"import test from 'node:test';\ntest('fails',()=>{ throw new Error('expected failure'); });\n");
+    const run = (environment: Record<string,string|undefined>) => {
+      const result = spawnSync('pnpm',['exec','node','--test','fails.test.ts'],{cwd:temporary,encoding:'utf8',timeout:60000,env:{...environment,pnpm_config_verify_deps_before_run:'false'}});
+      assert.equal(result.error,undefined,`this test runs the real pnpm ${pinnedPnpm(root)}: ${result.error?.message}`);
+      return result;
+    };
+    const skipAll = '--test-skip-pattern=.';
+    const switchedOff = run({...stepEnvironment(),pnpm_config_node_options:skipAll});
+    assert.equal(switchedOff.status,0,`the setting switches the step off when it reaches pnpm: ${switchedOff.stdout}${switchedOff.stderr}`);
+    assert.equal(run(stepEnvironment()).status,1,'the failing test fails the step');
+    for (const name of ['pnpm_config_node_options','PNPM_CONFIG_NODE_OPTIONS','npm_config_node_options','NPM_CONFIG_NODE_OPTIONS']) {
+      const result = run(stepEnvironmentWith({[name]:skipAll}));
+      assert.equal(result.status,1,`${name} must not switch off the step: ${result.stdout}${result.stderr}`);
+    }
+  } finally { rmSync(temporary,{recursive:true,force:true}); }
 });
 test('C7: every spawnSync in a verification script passes stepEnvironment()',()=>{
   const repository = readFileSync(resolve(root,'scripts/repository.ts'),'utf8');
@@ -865,6 +918,24 @@ test('C8: Vitest cannot pass an empty run or allow .only, and the reporters and 
   workspaceMutation((base)=>edit(base,vitestConfig,(t)=>replaceOnce(t,"include: ['test/**/*.test.ts']","include: ['test/parity.test.ts']")),/packages\/api-contracts\/ts\/vitest\.config\.ts changed: review the change, then set its SHA-256 in pinnedFiles/);
   workspaceMutation((base)=>edit(base,'packages/api-contracts/ts/test-reporter.ts',(t)=>replaceOnce(t,'      process.exitCode = 1;\n','')),/packages\/api-contracts\/ts\/test-reporter\.ts changed/);
   workspaceMutation((base)=>edit(base,'scripts/workspace/test-reporter.ts',(t)=>replaceOnce(t,'    process.exitCode = 1;\n','')),/scripts\/workspace\/test-reporter\.ts changed/);
+});
+// guards-3: scripts/workspace/check-workspace.ts runs the five dependency-using guards and decides the exit status,
+// so a deleted guard call or an exit status of 0 would let step 1 of the TypeScript steps print its success line
+// without running a guard. The file is pinned by SHA-256 like the reporters.
+test('C8: check-workspace.ts is pinned: a deleted guard call or an exit status of 0 fails the repository check',()=>{
+  const guards = ['Licences','Import boundaries','Workflows','Turborepo tasks','Cargo test targets'];
+  const source = readFileSync(resolve(root,'scripts/workspace/check-workspace.ts'),'utf8');
+  for (const label of guards) assert.ok(new RegExp(`^guard\\('${label}', `,'m').test(source),`${label} is still a guard call`);
+  const changed = /scripts\/workspace\/check-workspace\.ts changed: review the change, then set its SHA-256 in pinnedFiles in scripts\/s0\.ts to [0-9a-f]{64}/;
+  for (const label of guards) {
+    const run = checkerRun((base)=>edit(base,'scripts/workspace/check-workspace.ts',(t)=>t.replace(new RegExp(`^guard\\('${label}', .*\\n`,'m'),'')));
+    assert.equal(run.status,1,label);
+    assert.match(run.output,changed,label);
+  }
+  const exitZero = checkerRun((base)=>edit(base,'scripts/workspace/check-workspace.ts',(t)=>replaceOnce(t,'process.exit(1);','process.exit(0);')));
+  assert.equal(exitZero.status,1);
+  assert.match(exitZero.output,changed);
+  workspaceMutation((base)=>edit(base,'scripts/workspace/check-workspace.ts',(t)=>replaceOnce(t,'process.exit(1);','process.exit(0);')),changed);
 });
 test('C8: test sources cannot skip, focus or postpone a test, and sources cannot switch off a check',()=>{
   // Any test file of the package with a top-level test() call, so the test does not depend on one file's text.
