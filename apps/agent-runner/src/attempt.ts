@@ -5,9 +5,13 @@
 // executor version, the request artefact (its digest, then the request checks of assembly in `@openquant/agents`:
 // schema, canonical text, supplied methods, holdout exclusions that name V and H, operators of the frozen policy,
 // evidence and hashes; then the dispatch checks that the envelope cannot make), the executor, the shared validator on
-// its output (references, exact rule changes, and the two blockers that the host does not accept: an operator
-// outside the permitted set and a date inside a withheld window), the upload of the validated role output, and the
-// result.
+// its output (structure, references and exact rule changes; the blockers of a proposal stay notices, see below), the
+// upload of the validated role output, and the result.
+//
+// A proposal with an operator outside the permitted set or a date inside a withheld window is still a completion. Skill
+// code does not repeat the Rust core's operator validation (OQ-03 section 3): the draft is stored, the Rust core
+// returns INVALID, and its diagnostics go to the next proposer attempt (OQ-02 section 4). The runner logs the blockers
+// as notices; agent-attempt-result/1 has no field for them, so the API computes them again from the stored output.
 //
 // What is left for fencing and retry: a runner failure is not an execution outcome (OQ-03 section 5). When the
 // runner cannot read the request, cannot upload, loses its lease, or hits an internal error, it posts nothing and the
@@ -18,7 +22,7 @@ import {
   checkDispatch,
   type DispatchViolation,
   parseCritiqueResult,
-  parseFormulationForHost,
+  parseFormulationResult,
   RESULT_SCHEMAS,
   ROLE_BODY_LIMIT,
   type StrategyCritiqueRequest,
@@ -192,7 +196,7 @@ export async function runAttempt(
     if (!fetched.ok) {
       if (fetched.code === 'NOT_FOUND')
         return await deny('CAPABILITY_DENIED', 'the request artefact is not stored for this attempt');
-      if (fetched.code === 'BAD_RESPONSE')
+      if (fetched.code === 'TOO_LARGE')
         return await deny('CAPABILITY_DENIED', 'the request artefact is larger than a role request may be');
       return lost(fetched, 'the request artefact could not be read');
     }
@@ -256,13 +260,20 @@ export async function runAttempt(
     if (end.kind !== 'output') return { posted: false, why: 'internal_error', detail: 'unreachable execution end' };
     const validated =
       skill.id === 'strategy-formulation'
-        ? parseFormulationForHost(request as StrategyFormulationRequest, end.text)
+        ? parseFormulationResult(request as StrategyFormulationRequest, end.text)
         : parseCritiqueResult(request as StrategyCritiqueRequest, end.text);
     if (!validated.ok) {
       return await finish(
         { outcome: 'malformed_result', reason: validated.reason, diagnostic: say(validated.diagnostic) },
         end.facts,
       );
+    }
+    if ('blockers' in validated && validated.blockers.length > 0) {
+      // Non-fatal notices for the API and the next proposal; they never make the output malformed.
+      log('result_notices', {
+        attempt: attemptId,
+        notices: validated.blockers.map((blocker) => blocker.code).join(','),
+      });
     }
     let text: string;
     try {

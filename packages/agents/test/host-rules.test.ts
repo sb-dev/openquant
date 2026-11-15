@@ -1,6 +1,7 @@
 // The checks that a host applies to the artefacts it did not assemble itself (OQ-03 sections 3 and 4): a stored
-// request is verified the way assembly would have built it, and the output of an attempt is accepted only when it
-// followed the request. The runner calls both; the API can call the same exports.
+// request is verified the way assembly would have built it, and the output of an attempt is parsed against it. A
+// blocker of a proposal is a notice on a completion, never a malformed result: skill code does not repeat the Rust
+// core's operator validation (OQ-03 section 3). The runner calls both; the API can call the same exports.
 
 import { digest } from '@openquant/api-contracts';
 import { describe, expect, test } from 'vitest';
@@ -10,14 +11,11 @@ import {
   assembleCritiqueRequest,
   assembleFormulationRequest,
   BUNDLE_HASH,
-  HOST_REFUSED_BLOCKERS,
   PROCEDURES,
-  parseFormulationForHost,
   parseFormulationResult,
   type RefusalCode,
   ROLE_BODY_LIMIT,
   type StrategyCritiqueRequest,
-  type StrategyFormulationRequest,
   verifyRequest,
 } from '../src/index.ts';
 import { sha256Text, stable } from './support/oracle.ts';
@@ -202,21 +200,12 @@ describe('verifyRequest refuses a stored request that assembly would not have pr
   });
 });
 
-describe('parseFormulationForHost', () => {
+describe('what a host does with the blockers of a proposal', () => {
   const edits = [{ op: 'replace' as const, path: '/definition/indicators/0/expr/op', value: 'operator:ema@1' }];
+  const codesOf = (result: ReturnType<typeof parseFormulationResult>) =>
+    result.ok ? result.blockers.map((item) => item.code) : result.reason;
 
-  test('names the two blockers that make a completion a failed attempt, and no other', () => {
-    expect([...HOST_REFUSED_BLOCKERS].sort()).toEqual(['HOLDOUT_REFERENCE', 'OPERATOR_NOT_PERMITTED']);
-  });
-
-  test('accepts a valid revision exactly as the parse module does', async () => {
-    const request = (await revisionRequest()) as StrategyFormulationRequest;
-    const output = JSON.stringify(await revisionOutput());
-    expect(parseFormulationForHost(request, output)).toEqual(parseFormulationResult(request, output));
-    expect(parseFormulationForHost(request, output)).toMatchObject({ ok: true, blockers: [] });
-  });
-
-  test('an operator outside the permitted set is a malformed result with REFERENCE_INVALID and the pointer', async () => {
+  test('an operator outside the permitted set is a notice on a completion, for the Rust core to reject', async () => {
     const request = await revisionRequest();
     const output = JSON.stringify(
       await revisionOutput({
@@ -224,37 +213,57 @@ describe('parseFormulationForHost', () => {
         rule_changes: [{ path: '/definition/indicators/0/expr/op', from: 'operator:sma@1', to: 'operator:ema@1' }],
       }),
     );
-    // The parse module reports it as a blocker of a completion.
-    expect(parseFormulationResult(request, output)).toMatchObject({ ok: true });
-    const result = parseFormulationForHost(request, output);
-    expect(result).toMatchObject({ ok: false, reason: 'REFERENCE_INVALID' });
-    expect(!result.ok && result.diagnostic).toBe(
-      '1 refused blocker(s): OPERATOR_NOT_PERMITTED at /definition/indicators/0/expr/op: operator:ema@1 is not a permitted operator',
-    );
+    expect(parseFormulationResult(request, output)).toMatchObject({
+      ok: true,
+      blockers: [
+        {
+          code: 'OPERATOR_NOT_PERMITTED',
+          pointer: '/definition/indicators/0/expr/op',
+          detail: 'operator:ema@1 is not a permitted operator',
+        },
+      ],
+    });
   });
 
-  test('a date inside the validation or holdout window is a malformed result, and the day before is not', async () => {
+  test('a date inside the validation or holdout window is a notice on a completion, and the day before is none', async () => {
     const request = await revisionRequest();
     const leaking = JSON.stringify(
       await revisionOutput({ claims: { ...claims, rationale: 'Avoids 2024-01-02 and 2025-12-31.' } }),
     );
-    const result = parseFormulationForHost(request, leaking);
-    expect(result).toMatchObject({ ok: false, reason: 'REFERENCE_INVALID' });
-    expect(!result.ok && result.diagnostic).toMatch(/^2 refused blocker\(s\): HOLDOUT_REFERENCE/);
-    expect(!result.ok && result.diagnostic).toContain('2024-01-02');
+    const result = parseFormulationResult(request, leaking);
+    expect(codesOf(result)).toEqual(['HOLDOUT_REFERENCE', 'HOLDOUT_REFERENCE']);
+    expect(result.ok && result.blockers[0]?.detail).toContain('2024-01-02');
     const clear = JSON.stringify(await revisionOutput({ claims: { ...claims, rationale: 'Seen until 2024-01-01.' } }));
-    expect(parseFormulationForHost(request, clear).ok).toBe(true);
+    expect(codesOf(parseFormulationResult(request, clear))).toEqual([]);
   });
 
-  test('lists at most three refused blockers and counts all of them', async () => {
+  test.each([
+    ['an ISO timestamp', 'Seen at 2024-06-03T20:00:00Z.'],
+    ['a timestamp with an offset', 'Close 2024-06-03T00:00:00+00:00.'],
+    ['a date joined by an underscore', 'See file_2024-06-03.csv.'],
+    ['a date with a Z suffix', 'Seen 2024-06-03Z.'],
+    ['a date with slashes', 'Seen 2024/06/03.'],
+    ['a compact date', 'Seen 20240603.'],
+    ['a compact timestamp', 'Seen 20240603T200000Z.'],
+  ])('finds the date of %s inside a withheld window', async (_name, rationale) => {
     const request = await revisionRequest();
-    const dates = ['2024-02-01', '2024-03-01', '2024-04-01', '2024-05-01'];
-    const result = parseFormulationForHost(
+    const result = parseFormulationResult(
       request,
-      JSON.stringify(await revisionOutput({ claims: { ...claims, rationale: dates.join(' ') } })),
+      JSON.stringify(await revisionOutput({ claims: { ...claims, rationale } })),
     );
-    expect(!result.ok && result.diagnostic.startsWith('4 refused blocker(s):')).toBe(true);
-    expect(!result.ok && (result.diagnostic.match(/HOLDOUT_REFERENCE/g) ?? []).length).toBe(3);
+    expect(result.ok && result.blockers.map((item) => [item.code, item.detail])).toEqual([
+      ['HOLDOUT_REFERENCE', 'the proposal mentions 2024-06-03, inside a withheld window'],
+    ]);
+  });
+
+  test('an eight-digit number that is no calendar date and a timestamp before the windows are not notices', async () => {
+    const request = await revisionRequest();
+    const rationale = 'Order 20241399, seen 2024-01-01T23:59:59Z.';
+    const result = parseFormulationResult(
+      request,
+      JSON.stringify(await revisionOutput({ claims: { ...claims, rationale } })),
+    );
+    expect(codesOf(result)).toEqual([]);
   });
 
   test('a revision of both rules and an unresolved entry stay notices on a completion', async () => {
@@ -269,7 +278,7 @@ describe('parseFormulationForHost', () => {
         unresolved: [{ id: 'u1', element: THRESHOLD, question: 'Which close?' }],
       }),
     );
-    const result = parseFormulationForHost(request, both);
+    const result = parseFormulationResult(request, both);
     expect(result.ok && result.blockers.map((item) => item.code).sort()).toEqual([
       'REVISION_SCOPE',
       'UNRESOLVED_ASSUMPTION',
@@ -279,7 +288,7 @@ describe('parseFormulationForHost', () => {
   test('keeps the malformed reasons of the parse module: a rule change that is not the difference', async () => {
     const request = await revisionRequest();
     const output = JSON.stringify(await revisionOutput({ rule_changes: [{ path: THRESHOLD, from: '30', to: '31' }] }));
-    expect(parseFormulationForHost(request, output)).toMatchObject({ ok: false, reason: 'RULE_CHANGES_MISMATCH' });
+    expect(parseFormulationResult(request, output)).toMatchObject({ ok: false, reason: 'RULE_CHANGES_MISMATCH' });
   });
 
   test('digest of the request parent is the digest that the oracle computes', async () => {

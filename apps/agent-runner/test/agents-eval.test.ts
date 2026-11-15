@@ -1,5 +1,5 @@
-// The evaluation harness `pnpm agents:eval` (OQ-03 section 6, OQ-06 section 7): fixture mode by default, and a live
-// mode that refuses to run unless every guard holds. No test here starts the real executor or calls a model: the live
+// The evaluation harness `pnpm agents:eval` (OQ-03 section 6, OQ-06 section 7): the bare command refuses, fixture
+// mode runs only when named, and a live mode that refuses to run unless every guard holds. No test here starts the real executor or calls a model: the live
 // path runs a script that stands in for it, and every refusal is checked before any process exists.
 
 import { spawnSync } from 'node:child_process';
@@ -56,9 +56,10 @@ function collect() {
 }
 
 describe('the arguments', () => {
-  it('default to fixture mode with no opt-in, one trial and the reservation of decision D22', () => {
+  it('name no mode by default, with no opt-in, one trial and the reservation of decision D22', () => {
+    expect(args(['--mode', 'fixture']).mode).toBe('fixture');
     expect(args([])).toEqual({
-      mode: 'fixture',
+      mode: undefined,
       allowRealModelCalls: false,
       allowProxyEnv: false,
       maxBudgetUsd: undefined,
@@ -194,9 +195,28 @@ describe('the guards of the live mode', () => {
 });
 
 describe('main', () => {
-  it('runs the offline suites in fixture mode by default, and says that no model was called', async () => {
+  it('refuses the bare command, names the live flags and the missing key, and calls no model', async () => {
+    let calls = 0;
+    const deps = {
+      execute: async (): Promise<ExecutionEnd> => {
+        calls += 1;
+        throw new Error('the executor must not be reached');
+      },
+      now: () => Date.now(),
+    };
     const { out, err, output } = collect();
-    expect(await main([], {}, output)).toBe(0);
+    expect(await main([], {}, output, deps)).toBe(2);
+    expect(out).toEqual([]);
+    const text = err.join('\n');
+    expect(text).toMatch(/No model was called/);
+    for (const named of ['--mode live', '--allow-real-model-calls', `${KEY_VARIABLE} (not set)`, '--mode fixture'])
+      expect(text).toContain(named);
+    expect(calls).toBe(0);
+  });
+
+  it('runs the offline suites with --mode fixture, and says that no model was called', async () => {
+    const { out, err, output } = collect();
+    expect(await main(['--mode', 'fixture'], {}, output)).toBe(0);
     expect(err).toEqual([]);
     expect(out.at(-1)).toMatch(
       /^\d+ synthetic fixtures \(strategy-formulation \d+, strategy-critique \d+\), 0 failed\. Fixture mode: no model was called/,
@@ -206,7 +226,7 @@ describe('main', () => {
 
   it('refuses the live flags in fixture mode instead of ignoring them', async () => {
     const { err, output } = collect();
-    expect(await main(['--allow-real-model-calls'], {}, output)).toBe(2);
+    expect(await main(['--mode', 'fixture', '--allow-real-model-calls'], {}, output)).toBe(2);
     expect(err.join('\n')).toMatch(/belong to --mode live/);
   });
 
@@ -398,8 +418,12 @@ describe('the command as a program', () => {
     expect(result.stderr).toMatch(/--allow-real-model-calls/);
   });
 
-  it('runs the offline suites by default and exits 0', () => {
-    const result = run([], { PATH: process.env.PATH ?? '/usr/bin:/bin' });
+  it('refuses the bare command and exits 2, and runs the offline suites with --mode fixture', () => {
+    const bare = run([], { PATH: process.env.PATH ?? '/usr/bin:/bin' });
+    expect(bare.status).toBe(2);
+    expect(bare.stdout).toBe('');
+    expect(bare.stderr).toMatch(/--mode live, --allow-real-model-calls/);
+    const result = run(['--mode', 'fixture'], { PATH: process.env.PATH ?? '/usr/bin:/bin' });
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toMatch(/0 failed\. Fixture mode: no model was called/);
   });
