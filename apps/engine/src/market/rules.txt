@@ -1,0 +1,70 @@
+alpaca-daily-normaliser version 1
+
+These rules turn the responses of the Alpaca adapter into one dataset-manifest/1 snapshot. The
+SHA-256 of this text is the transformation digest of the manifest (OQ-05 section 7.1). Any change
+to the text is a new digest and a new normaliser version.
+
+Inputs. The profile's data semantics, the instrument mapping, the requested calendar range, the
+provider asset record, calendar, daily bars and corporate actions, and the response bytes.
+
+1. Instrument. The asset id equals provider_asset_id, the asset symbol equals the mapping symbol,
+   the asset class is us_equity, and instrument_id equals "alpaca:" followed by the asset id.
+   Otherwise the profile is blocked.
+
+2. Calendar. A session is a provider calendar row. Its open_at and close_at are the local New York
+   open and close converted to UTC with the US Eastern rule (daylight time from 02:00 on the second
+   Sunday of March to 02:00 on the first Sunday of November). A holiday, a weekend and an
+   unscheduled closure are absent from the provider calendar and therefore absent from the
+   snapshot; an early close is a session with its early close time. The snapshot calendar runs from
+   the first requested date to the later of the last requested date and the payment session of the
+   latest kept cash dividend.
+
+3. Bars. A bar is stamped with local midnight New York of its session; any other stamp blocks the
+   profile. The session must be in the calendar; otherwise the profile is blocked. Open, high, low
+   and close are positive decimals not above 1000000000, low is not above open or close, high is not
+   below open or close. Volume is a non-negative integer not above 1000000000000000. Numbers keep
+   their exact value and are written as minimal decimal strings (no exponent, no trailing zeros).
+   Two bars of one session are one bar when identical; otherwise the profile is blocked.
+
+4. Bar times. event_time is the session close_at. available_at is close_at plus the declared
+   data-ready delay in minutes. On an early-close day close_at is the early close. A bar is kept
+   even when its available_at is after the information cutoff of a run; the core decides
+   FUTURE_DATA.
+
+5. Coverage. The expected sessions are the calendar sessions inside the requested range. The
+   missing sessions are the expected sessions without a bar. COMPLETE: none missing and at least
+   one bar. PARTIAL: some missing. NO_OBSERVATIONS: no bar. An absent bar never creates a halt:
+   unplanned_events is always empty because no halt evidence source exists.
+
+6. Corporate actions. Only actions whose ex-date is inside the requested range are kept, and none
+   is dropped for any other reason. The ex-date must be a calendar session. Types: forward and
+   reverse splits are SPLIT; cash dividends are CASH_DIVIDEND, or SPECIAL_DISTRIBUTION when the
+   provider marks them special or foreign; any other type blocks the profile, because the profile
+   declares an availability rule for splits and dividends only.
+
+7. Action availability. For every kept split and cash dividend the provider field named by the
+   profile rule must hold a calendar date strictly before the ex-date. Then available_at is the
+   open_at of the ex-date session. A missing, unreadable or not-earlier date blocks the profile. No
+   fixed offset, record date, process date or retrieval time ever replaces it.
+
+8. Dividend payment. payment_session is the provider date named by the payment rule. It must be a
+   session of the provider calendar and not before the ex-date, otherwise the profile is blocked.
+   payment_phase is AFTER_CLOSE. The amount is the provider rate as an exact decimal, positive,
+   with at most 8 fractional digits, otherwise the profile is blocked.
+
+9. Splits. ratio_new and ratio_old are the provider new_rate and old_rate reduced to the lowest
+   integer ratio. Both must be within 1 and 1000, otherwise the profile is blocked.
+
+10. Action identity. Actions are ordered by ex-date, then splits before dividends, then provider
+    id, then the remaining provider fields, so the order never depends on the provider's list
+    order. action_id is split-<symbol>-<ex-date> or div-<symbol>-<ex-date> with the symbol in
+    lower case, and -2, -3 and so on for further actions of one kind and day in that order.
+    provider_record_id is the provider id when it is a valid identifier, otherwise "alpaca:" plus
+    the action_id. action_evidence records the profile field name and the provider value.
+
+11. Price scale. The smallest scale that holds every open, high, low and close exactly. Above 4
+    blocks the profile. A scale of 3 or 4 needs the S1 overflow evidence before use.
+
+12. Identity. dataset.id names symbol, timeframe, adjustment, feed and the requested range.
+    dataset.version is "c" and the first 16 hex characters of the canonical digest of the content.
+    A source response is listed with the SHA-256 of its exact bytes, by the sequence of its call.
