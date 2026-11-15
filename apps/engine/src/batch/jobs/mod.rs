@@ -10,6 +10,7 @@
 //! what happens to the attempt (OQ-05 section 4).
 
 pub mod assess;
+mod bind;
 pub mod evaluate;
 pub mod retrieve;
 pub mod validate;

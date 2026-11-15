@@ -42,8 +42,19 @@
 //!   schema, identity, policy and checkpoint codes) is a platform defect: every gate that needs
 //!   the run is `INSUFFICIENT` with `RUN_FAILED`. `ARITHMETIC_OVERFLOW` is outside the engine
 //!   domain: `OUTSIDE_ENGINE_DOMAIN`.
+//!
+//! # Evidence that does not bind
+//!
+//! The caller binds the evidence before it decides: a run to its slot of the evaluation plan, its
+//! submission to the run and to the running binary, its metrics to the run, the result they derive
+//! from and the method, the validation result to the candidate, the manifest to the datasets of
+//! the runs. Evidence that does not bind arrives with its [`Mismatch`] and is never read: the
+//! gates treat it as absent, with the reason code that the method text gives to absent evidence of
+//! its kind (`RUN_MISSING` for a run or a manifest, `METRICS_UNAVAILABLE` for metrics,
+//! `VALIDATION_FAILED` for a validation result) and a reason that names the mismatch. The gate
+//! report schema has no code of its own for it.
 
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, fmt};
 
 use openquant_contracts::{FailureCode, generated as g, parse_value};
 use serde_json::{Value, json};
@@ -122,11 +133,51 @@ pub fn is_candidate_defect(code: FailureCode) -> bool {
     )
 }
 
+/// One member of a piece of evidence that is not what the assessment requires: another run, slot,
+/// window, scenario, candidate, dataset, engine or method than the plan, the slot or the running
+/// binary name. The assess job finds it by comparing the evidence with what binds it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Mismatch {
+    /// The member that differs, as the document names it (`metrics.window.role`).
+    pub field: String,
+    /// What the plan, the slot, the candidate or the running binary require.
+    pub required: String,
+    /// What the evidence states.
+    pub found: String,
+}
+
+impl Mismatch {
+    #[must_use]
+    pub fn new(
+        field: impl Into<String>,
+        required: impl Into<String>,
+        found: impl Into<String>,
+    ) -> Self {
+        Self {
+            field: field.into(),
+            required: required.into(),
+            found: found.into(),
+        }
+    }
+}
+
+impl fmt::Display for Mismatch {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} is {}, required {}",
+            self.field, self.found, self.required
+        )
+    }
+}
+
 /// A published `evaluation-metrics/1` document and its digest.
 #[derive(Clone, Debug)]
 pub struct MetricsEvidence {
     pub digest: String,
     pub document: Value,
+    /// Why the document is not the metrics of its run. Such a document is never read.
+    pub unbound: Option<Mismatch>,
 }
 
 /// What the assessment read about one run.
@@ -147,13 +198,26 @@ pub struct RunEvidence {
     pub input_policy: Option<Value>,
     /// The audits of a completed run (`audit::audit_run`).
     pub checks: Option<RunChecks>,
+    /// Why this run is not the run of its slot of the plan: its labels, its submission or its
+    /// input do not bind. Such a run supplies no evidence, whatever else it carries.
+    pub unbound: Option<Mismatch>,
 }
 
 /// What the validate job said about the candidate.
 #[derive(Clone, Debug)]
 pub enum ValidationEvidence {
-    Valid { digest: String },
-    Invalid { digest: String },
+    Valid {
+        digest: String,
+    },
+    Invalid {
+        digest: String,
+    },
+    /// A validation result that is not the candidate's, or not of the running engine and method.
+    /// It is read and listed among the inputs, and no gate uses it.
+    Unbound {
+        digest: String,
+        mismatch: Mismatch,
+    },
     Missing,
 }
 
@@ -163,6 +227,8 @@ pub struct ManifestEvidence {
     pub digest: String,
     pub bars_without_availability: u32,
     pub actions_without_availability: u32,
+    /// Why this manifest is not the dataset of the runs. Such a manifest is never read.
+    pub unbound: Option<Mismatch>,
 }
 
 /// Everything the assessment of one candidate reads.
@@ -431,6 +497,12 @@ fn unavailable(run: &RunEvidence) -> Option<(&'static str, String)> {
         run.window.wire(),
         run.scenario.wire()
     );
+    if let Some(mismatch) = &run.unbound {
+        return Some((
+            "RUN_MISSING",
+            format!("Run {who} does not bind to its slot of the plan: {mismatch}."),
+        ));
+    }
     match run.outcome {
         Outcome::Completed => None,
         Outcome::Missing => Some(("RUN_MISSING", format!("Run {who} has no result."))),
@@ -534,6 +606,17 @@ fn threshold_decision(
                     missing.get_or_insert(("RUN_MISSING", reason));
                     continue;
                 }
+                // Several runs claim one window and scenario. When one of them does not bind to
+                // its slot of the plan, the claim is the dispatch's mistake and the cell has no
+                // evidence. Several runs that all bind cannot be told apart: a defect.
+                if let Some(gap) = candidates
+                    .iter()
+                    .filter(|r| r.unbound.is_some())
+                    .find_map(|r| unavailable(r))
+                {
+                    missing.get_or_insert(gap);
+                    continue;
+                }
                 return Err(GateError::Evidence(format!(
                     "{} regular runs for the {} window under {}",
                     candidates.len(),
@@ -552,6 +635,16 @@ fn threshold_decision(
                 ));
                 continue;
             };
+            if let Some(mismatch) = &metrics.unbound {
+                missing.get_or_insert((
+                    "METRICS_UNAVAILABLE",
+                    format!(
+                        "The metrics of run {} do not bind to it: {mismatch}.",
+                        run.run_id
+                    ),
+                ));
+                continue;
+            }
             let Some(observed) = metric_text(&metrics.document, &threshold.metric)? else {
                 let benchmark = matches!(
                     threshold.metric.as_str(),
@@ -643,15 +736,19 @@ fn validation_decision(
     evidence: &CandidateEvidence,
     notes: &mut Vec<String>,
 ) -> Result<Decision, GateError> {
-    let defect = evidence.runs.iter().find(|run| match run.outcome {
-        Outcome::Failed(code) | Outcome::NotPrepared(code) => is_candidate_defect(code),
-        _ => false,
+    let defect = evidence.runs.iter().find(|run| {
+        run.unbound.is_none()
+            && match run.outcome {
+                Outcome::Failed(code) | Outcome::NotPrepared(code) => is_candidate_defect(code),
+                _ => false,
+            }
     });
+    // A validation result that does not bind to the candidate is not cited, and decides nothing.
     let validation_digest = match &evidence.validation {
         ValidationEvidence::Valid { digest } | ValidationEvidence::Invalid { digest } => {
             Some(digest.clone())
         }
-        ValidationEvidence::Missing => None,
+        ValidationEvidence::Unbound { .. } | ValidationEvidence::Missing => None,
     };
     if let Some(run) = defect {
         notes.push(format!(
@@ -669,10 +766,21 @@ fn validation_decision(
             Ok(Decision::fail(vec![digest], Vec::new()))
         }
         Some(digest) => Ok(Decision::pass(vec![digest], Vec::new())),
-        None => Ok(Decision::insufficient(
-            "VALIDATION_FAILED",
-            "No validation result is part of the evidence.",
-        )),
+        None => Ok(match &evidence.validation {
+            ValidationEvidence::Unbound { mismatch, .. } => {
+                notes.push(format!(
+                    "DEFINITION_VALIDATION: the validation result does not bind: {mismatch}"
+                ));
+                Decision::insufficient(
+                    "VALIDATION_FAILED",
+                    format!("The validation result does not bind to the candidate: {mismatch}."),
+                )
+            }
+            _ => Decision::insufficient(
+                "VALIDATION_FAILED",
+                "No validation result is part of the evidence.",
+            ),
+        }),
     }
 }
 
@@ -784,6 +892,17 @@ fn point_in_time_decision(evidence: &CandidateEvidence, notes: &mut Vec<String>)
             "No dataset manifest is part of the evidence.",
         );
     };
+    // A manifest that is not the dataset of the runs says nothing about their data: it is not
+    // read, and not cited.
+    if let Some(mismatch) = &manifest.unbound {
+        notes.push(format!(
+            "POINT_IN_TIME_DATA: the manifest does not bind to the runs: {mismatch}"
+        ));
+        return Decision::insufficient(
+            "RUN_MISSING",
+            format!("The dataset manifest does not bind to the datasets of the runs: {mismatch}."),
+        );
+    }
     let cited = vec![manifest.digest.clone()];
     if manifest.bars_without_availability > 0 || manifest.actions_without_availability > 0 {
         notes.push(format!(
@@ -793,11 +912,12 @@ fn point_in_time_decision(evidence: &CandidateEvidence, notes: &mut Vec<String>)
         return Decision::fail(cited, Vec::new());
     }
     let future = evidence.runs.iter().find(|r| {
-        matches!(
-            r.outcome,
-            Outcome::Failed(FailureCode::FutureData)
-                | Outcome::NotPrepared(FailureCode::FutureData)
-        )
+        r.unbound.is_none()
+            && matches!(
+                r.outcome,
+                Outcome::Failed(FailureCode::FutureData)
+                    | Outcome::NotPrepared(FailureCode::FutureData)
+            )
     });
     if let Some(run) = future {
         return Decision::insufficient(
@@ -924,7 +1044,7 @@ fn cost_model_decision(
     let mut failing = false;
     let mut missing = None;
     for run in &evidence.runs {
-        let Some(policy) = &run.input_policy else {
+        let Some(policy) = run.input_policy.as_ref().filter(|_| run.unbound.is_none()) else {
             let (code, reason) = unavailable(run).unwrap_or((
                 "RUN_MISSING",
                 format!("Run {} has no input policy.", run.run_id),
@@ -1020,9 +1140,9 @@ fn collect_inputs(evidence: &CandidateEvidence) -> Vec<GateInput> {
         add("EVALUATION_PLAN", None, digest);
     }
     match &evidence.validation {
-        ValidationEvidence::Valid { digest } | ValidationEvidence::Invalid { digest } => {
-            add("VALIDATION_RESULT", None, digest)
-        }
+        ValidationEvidence::Valid { digest }
+        | ValidationEvidence::Invalid { digest }
+        | ValidationEvidence::Unbound { digest, .. } => add("VALIDATION_RESULT", None, digest),
         ValidationEvidence::Missing => {}
     }
     for run in &evidence.runs {
