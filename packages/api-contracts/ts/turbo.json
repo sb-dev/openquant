@@ -15,6 +15,7 @@
         "$TURBO_ROOT$/packages/api-contracts/schemas/**",
         "$TURBO_ROOT$/packages/api-contracts/routes/**",
         "$TURBO_ROOT$/packages/api-contracts/rust/src/**",
+        "$TURBO_ROOT$/packages/quant-core/tests/result_size_bound.rs",
         "$TURBO_ROOT$/fixtures/protocol/**",
         "$TURBO_ROOT$/fixtures/s0/**",
         "$TURBO_ROOT$/local-runs/contracts/report.json"

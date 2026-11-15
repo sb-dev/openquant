@@ -12,6 +12,8 @@ import { workflowFileErrors } from './workflows.ts';
 // Repository checks that need the installed dependencies or a current Cargo build. verify.ts runs them first in its
 // TypeScript steps, after the Cargo steps and the dependency check, and before Turborepo runs.
 // scripts/check-repository.ts stays free of dependencies and does not import them.
+// This file is pinned by SHA-256 in pinnedFiles in scripts/s0.ts, so a deleted guard call or an exit status of 0 fails
+// the repository checks. A change here, such as a new guard, sets the new SHA-256 there in the same code-owner review.
 const errors: string[] = [];
 const guard = (label: string, check: () => string[]) => {
   try {

@@ -1,7 +1,10 @@
 // The environment of every process that verification starts: the repository checks and their tests, each Cargo
 // and pnpm step, and the version checks (OQ-06 sections 1 and 7). It is the caller's environment without the
-// variables that change which tests run, how code is compiled or linked, which runner starts a test binary, which
-// file a shell reads first, or how Turborepo runs. An inherited variable therefore cannot switch a step off.
+// variables that change which tests run, how code is compiled, documented or linked, which runner starts a test
+// binary, which file a shell reads first, or how pnpm or Turborepo runs. An inherited variable therefore cannot
+// switch a step off. Every NPM_CONFIG_* and PNPM_CONFIG_* variable goes as well: pnpm turns settings such as
+// node-options into the NODE_OPTIONS of the process that `pnpm exec` starts, and verification never installs, so it
+// needs none.
 // Proxy, certificate and toolchain variables (PATH, HTTPS_PROXY, NODE_EXTRA_CA_CERTS, RUSTUP_TOOLCHAIN,
 // CARGO_HOME, CARGO_TARGET_DIR) are kept. scripts/s0.ts holds a literal copy of this code and compares the two.
 const removedNames: ReadonlySet<string> = new Set([
@@ -10,17 +13,19 @@ const removedNames: ReadonlySet<string> = new Set([
   'NODE_OPTIONS',
   'RUSTFLAGS',
   'RUSTDOCFLAGS',
+  'RUSTDOC',
   'RUSTC_WRAPPER',
   'RUSTC_WORKSPACE_WRAPPER',
   'CARGO_BUILD_RUSTFLAGS',
   'CARGO_BUILD_RUSTDOCFLAGS',
+  'CARGO_BUILD_RUSTDOC',
   'CARGO_ENCODED_RUSTFLAGS',
   'CARGO_ENCODED_RUSTDOCFLAGS',
   'CARGO_BUILD_RUSTC_WRAPPER',
   'CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER',
   'BIOME_CONFIG_PATH',
 ]);
-const removedPatterns: readonly RegExp[] = [/^NODE_TEST_/, /^TURBO_/, /^CARGO_TARGET_.+_(?:RUNNER|RUSTFLAGS|RUSTDOCFLAGS|LINKER)$/];
+const removedPatterns: readonly RegExp[] = [/^NODE_TEST_/, /^TURBO_/, /^(?:NPM|PNPM)_CONFIG_/, /^CARGO_TARGET_.+_(?:RUNNER|RUSTFLAGS|RUSTDOCFLAGS|LINKER)$/];
 
 export function isRemovedVariable(name: string): boolean {
   const key = name.toUpperCase();
