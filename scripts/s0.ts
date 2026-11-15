@@ -117,6 +117,17 @@ export const expectedWorkspacePackages: readonly WorkspacePackage[] = [
       build: 'node tools/generate.ts && tsc -p tsconfig.json && node tools/bundle-check.ts',
     },
   },
+  {
+    // A Node application: its build type checks and bundles the runner for Node 24, with the behaviour bundle beside it.
+    directory: 'apps/agent-runner',
+    name: '@openquant/agent-runner',
+    scripts: {
+      typecheck: 'tsc -p tsconfig.json && tsc -p tsconfig.test.json',
+      lint: 'biome check --error-on-warnings .',
+      test: 'vitest run --reporter=default --reporter=./test-reporter.ts',
+      build: 'tsc -p tsconfig.json && node tools/bundle.ts',
+    },
+  },
 ];
 
 // Files that decide whether a test run counts or which guards run, pinned by SHA-256 of their bytes: the two
@@ -131,6 +142,8 @@ export const pinnedFiles: Readonly<Record<string, string>> = {
   'apps/api/vitest.config.ts': 'b6d168e53c593d66690652dac99f253dee97a055834a01279ba76baaf257d151',
   'packages/agents/test-reporter.ts': '5a19ae965e6153903150f7fe3e37fc39a1e5b26a7729bb115065b70faf1d865d',
   'packages/agents/vitest.config.ts': '58433531d0bf46b50dba6178f0ce16c6b86c1972d8b3021edcbd9e3c3d5550fb',
+  'apps/agent-runner/test-reporter.ts': '5a19ae965e6153903150f7fe3e37fc39a1e5b26a7729bb115065b70faf1d865d',
+  'apps/agent-runner/vitest.config.ts': '58433531d0bf46b50dba6178f0ce16c6b86c1972d8b3021edcbd9e3c3d5550fb',
 };
 
 // Protocol manifest vocabulary. The Rust tests select entries by these exact expect values. For

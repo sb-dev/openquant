@@ -1,12 +1,12 @@
 # Applications
 
-Directories reserve ownership. No executable application is present in the bootstrap.
+Directories reserve ownership until their checkpoint. The agent runner is implemented for S1 and tested with a fake executor; nothing here is deployed.
 
 | Path | Purpose | First checkpoint |
 | --- | --- | --- |
 | [cli](cli/README.md) | TypeScript Ink operator client | M1 |
 | [api](api/README.md) | Cloudflare control application | M1 |
-| [agent-runner](agent-runner/README.md) | Fly.io delegated execution host | M1 |
+| [agent-runner](agent-runner/README.md) | Fly.io delegated execution host (implemented for S1, tested with a fake executor, not deployed) | M1 |
 | [engine](engine/README.md) | Native Rust host | M1 |
 | [web](web/README.md) | Public static website | Public release onward |
 

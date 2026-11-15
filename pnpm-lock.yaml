@@ -18,6 +18,28 @@ importers:
         specifier: 2.9.1
         version: 2.9.1
 
+  apps/agent-runner:
+    dependencies:
+      '@openquant/agents':
+        specifier: workspace:*
+        version: link:../../packages/agents
+      '@openquant/api-contracts':
+        specifier: workspace:*
+        version: link:../../packages/api-contracts/ts
+    devDependencies:
+      '@types/node':
+        specifier: 24.19.2
+        version: 24.19.2
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.1.0
+        version: 5.1.0(@types/node@24.19.2)(vite@8.3.8(@types/node@24.19.2)(esbuild@0.28.2)(yaml@2.9.1))
+
   apps/api:
     dependencies:
       '@openquant/api-contracts':
