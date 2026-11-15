@@ -1,3 +1,5 @@
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import type { AttemptClaimRequest } from '@openquant/api-contracts';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { HttpApiClient, isTransient, validBaseUrl } from '../src/api-client.ts';
@@ -113,7 +115,7 @@ describe('claim', () => {
 
   it('never follows a redirect, so the credential cannot be sent to another host', async () => {
     api.nextClaim = { status: 302, body: '', headers: { location: 'http://127.0.0.1:9/steal' } };
-    expect(await client.claim(claim)).toMatchObject({ ok: false, code: 'BAD_RESPONSE' });
+    expect(await client.claim(claim)).toMatchObject({ ok: false, status: 302, code: 'UNAVAILABLE' });
     expect(api.seen).toHaveLength(1);
   });
 
@@ -148,7 +150,7 @@ describe('the routes of the attempt', () => {
     api.inputs.set(digest, bytes);
     expect(await client.fetchInput('attempt-1', digest, CAPABILITY, 4999)).toMatchObject({
       ok: false,
-      code: 'BAD_RESPONSE',
+      code: 'TOO_LARGE',
     });
     expect(await client.fetchInput('attempt-1', digest, CAPABILITY, 5000)).toMatchObject({ ok: true });
   });
@@ -195,5 +197,46 @@ describe('the routes of the attempt', () => {
   it('encodes an attempt id that would otherwise change the path', async () => {
     await client.postAgentResult('a/../b?x', { schema_version: 'agent-attempt-result/1' } as never, CAPABILITY);
     expect(api.seen[0]?.path).toBe('/v1/attempts/a%2F..%2Fb%3Fx/agent-result');
+  });
+});
+
+describe('an answer that breaks off or redirects is not an oversized body', () => {
+  let server: Server | undefined;
+
+  afterEach(async () => {
+    const open = server;
+    server = undefined;
+    if (open) await new Promise<void>((done) => open.close(() => done()));
+  });
+
+  /** A loopback server that answers every request with `answer`; returns a client for it. */
+  async function serve(answer: Parameters<typeof createServer>[1]): Promise<HttpApiClient> {
+    server = createServer(answer);
+    await new Promise<void>((done) => server?.listen(0, '127.0.0.1', done));
+    const { port } = server.address() as AddressInfo;
+    return new HttpApiClient({ baseUrl: `http://127.0.0.1:${port}`, credential: API_TOKEN, timeoutMs: 1500 });
+  }
+
+  it('reports a connection reset in the middle of the body as a transient network failure', async () => {
+    const reset = await serve((_request, response) => {
+      response.writeHead(200, { 'content-length': '100000', 'content-type': 'application/json' });
+      response.write(Buffer.alloc(40_000, 0x20), () => response.socket?.destroy());
+    });
+    const answer = await reset.fetchInput('attempt-1', `sha256:${'0'.repeat(64)}`, CAPABILITY, 512 * 1024);
+    expect(answer).toMatchObject({ ok: false, status: 200, code: 'NETWORK' });
+    expect(isTransient(answer as never)).toBe(true);
+  });
+
+  it('reports a redirect of an input as an unavailable API, retried and never followed', async () => {
+    let requests = 0;
+    const redirect = await serve((_request, response) => {
+      requests += 1;
+      response.writeHead(307, { location: 'http://127.0.0.1:9/elsewhere', 'content-length': '0' });
+      response.end();
+    });
+    const answer = await redirect.fetchInput('attempt-1', `sha256:${'0'.repeat(64)}`, CAPABILITY, 1024);
+    expect(answer).toMatchObject({ ok: false, status: 307, code: 'UNAVAILABLE' });
+    expect(isTransient(answer as never)).toBe(true);
+    expect(requests).toBe(1);
   });
 });

@@ -42,13 +42,28 @@ export function exclusionIssues(exclusions: readonly HoldoutExclusion[], policy?
   return issues;
 }
 
-const ISO_DATE = /\b\d{4}-\d{2}-\d{2}\b/g;
+// A calendar date written year first: YYYY-MM-DD, YYYY/MM/DD or the compact YYYYMMDD, with one separator throughout.
+// No digit may stand directly before or after it, but any other character may, so the date inside an ISO timestamp
+// (2024-06-03T20:00:00Z, 20240603T200000Z), a file name (file_2024-06-03.csv) or a suffixed token (2024-06-03Z) is
+// found. Only a real calendar date counts, which keeps an unrelated eight-digit number out of the compact form.
+// Not screened: dates with a month name (June 3, 2024), day-first or month-first numeric dates (03/06/2024), two-digit
+// years, ordinal and week dates (2024-155, 2024-W23).
+const YEAR_FIRST_DATE = /(?<!\d)(\d{4})([-/]?)(\d{2})\2(\d{2})(?!\d)/g;
 
-/** The ISO dates in `text` that fall inside any excluded range (the bounds are inclusive). */
+function isCalendarDate(year: number, month: number, day: number): boolean {
+  if (month < 1 || month > 12 || day < 1) return false;
+  return day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/**
+ * The dates in `text` that fall inside any excluded range (the bounds are inclusive), each written as YYYY-MM-DD and
+ * listed once. See `YEAR_FIRST_DATE` for the forms that are found and those that are not.
+ */
 export function datesInExclusions(text: string, exclusions: readonly HoldoutExclusion[]): string[] {
   const found: string[] = [];
-  for (const match of text.matchAll(ISO_DATE)) {
-    const date = match[0];
+  for (const [, year = '', , month = '', day = ''] of text.matchAll(YEAR_FIRST_DATE)) {
+    if (!isCalendarDate(Number(year), Number(month), Number(day))) continue;
+    const date = `${year}-${month}-${day}`;
     if (exclusions.some((item) => date >= item.range.start && date <= item.range.end) && !found.includes(date)) {
       found.push(date);
     }

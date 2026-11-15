@@ -242,6 +242,15 @@ describe('the date screen of the withheld windows', () => {
     ['the day before the validation window starts', '2024-01-01', false],
     ['the last session of the development window', '2023-12-29', false],
     ['a date after the holdout window', '2026-01-02', false],
+    ['an ISO timestamp inside the validation window', '2024-06-03T20:00:00Z', true],
+    ['an ISO timestamp with an offset', '2024-06-03T00:00:00+00:00', true],
+    ['a date joined by an underscore', 'file_2024-06-03.csv', true],
+    ['a date with a Z suffix', '2024-06-03Z', true],
+    ['a date with slashes', '2024/06/03', true],
+    ['a compact date', '20240603', true],
+    ['a compact timestamp', '20240603T200000Z', true],
+    ['a timestamp the day before the validation window', '2024-01-01T23:59:59Z', false],
+    ['an eight-digit number that is no calendar date', '20241399', false],
   ])('%s', async (_name, date, refused) => {
     const input = await revisionInput({ evidence: evidenceWith(`The member closed lower on ${date}.`) });
     expect(await codes(await assembleFormulationRequest(input))).toEqual(refused ? ['HOLDOUT_OVERLAP'] : []);

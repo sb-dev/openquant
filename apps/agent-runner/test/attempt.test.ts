@@ -520,9 +520,19 @@ describe('failures of the runner are not outcomes', () => {
   });
 
   it('posts nothing when the request cannot be read after the retries: recovery fences a new attempt', async () => {
-    const context = await setup(reply({}), { world: { apiOptions: { input: apiFailure(503, 'UNAVAILABLE') } } });
-    expect(await go(context)).toMatchObject({ posted: false, why: 'api_unavailable' });
-    expect(context.world.api.results).toEqual([]);
+    // An unavailable API, a body that broke off while it was read, and a redirect that is never followed.
+    for (const input of [apiFailure(503, 'UNAVAILABLE'), apiFailure(200, 'NETWORK'), apiFailure(302, 'UNAVAILABLE')]) {
+      const context = await setup(reply({}), { world: { apiOptions: { input } } });
+      expect(await go(context), input.code).toMatchObject({ posted: false, why: 'api_unavailable' });
+      expect(context.world.api.events.filter((event) => event === 'fetch')).toHaveLength(4);
+      expect(context.world.api.results).toEqual([]);
+      expect(context.world.cli.calls()).toEqual([]);
+    }
+  });
+
+  it('denies the capability only for a request body above the role limit', async () => {
+    const context = await setup(reply({}), { world: { apiOptions: { input: apiFailure(200, 'TOO_LARGE') } } });
+    expect(await go(context)).toEqual({ posted: true, outcome: 'denied_capability', reason: 'CAPABILITY_DENIED' });
     expect(context.world.cli.calls()).toEqual([]);
   });
 
@@ -742,34 +752,32 @@ describe('a stored request that request assembly would not have built', () => {
   });
 });
 
-describe('output that is valid JSON of the schema and still did not follow its request', () => {
+describe('output that is valid JSON of the schema and carries blockers', () => {
   const operatorEdit = [{ op: 'replace' as const, path: '/definition/indicators/0/expr/op', value: 'operator:ema@1' }];
 
-  it('is a malformed result with REFERENCE_INVALID when it uses an operator outside the permitted set', async () => {
+  it('is a completion with a logged notice when it uses an operator outside the permitted set: Rust validates it', async () => {
     const output = await revisionOutput({
       strategy: applyEdits(proposedForm(seedArtefact(SEED_ONE)), operatorEdit),
       rule_changes: [{ path: '/definition/indicators/0/expr/op', from: 'operator:sma@1', to: 'operator:ema@1' }],
     });
     const context = await setup(reply(output));
-    expect(await go(context)).toEqual({ posted: true, outcome: 'malformed_result', reason: 'REFERENCE_INVALID' });
+    expect(await go(context)).toEqual({ posted: true, outcome: 'completion' });
     const result = posted(context);
-    expect(result.outcome.outcome === 'malformed_result' && result.outcome.diagnostic).toContain(
-      'OPERATOR_NOT_PERMITTED at /definition/indicators/0/expr/op',
-    );
-    expect(context.world.api.artefacts.size).toBe(0);
-    // The model ran and was paid: the usage is the executor's report.
-    expect(result.usage.cost).toMatchObject({ label: 'estimated' });
+    expect(result.outcome.outcome).toBe('completion');
+    // The draft is stored for the Rust core, whose INVALID diagnostics go to the next proposer attempt.
+    expect(context.world.api.artefacts.size).toBe(1);
+    expect(context.logs.join('\n')).toContain('"event":"result_notices","attempt":');
+    expect(context.logs.join('\n')).toContain('"notices":"OPERATOR_NOT_PERMITTED"');
   });
 
-  it('is a malformed result with REFERENCE_INVALID when it names a day inside the validation or holdout window', async () => {
-    const output = await revisionOutput({ claims: { ...claims, rationale: 'It avoids 2024-08-05 and 2025-04-07.' } });
+  it('is a completion with a logged notice when it names a day inside the validation or holdout window', async () => {
+    const output = await revisionOutput({
+      claims: { ...claims, rationale: 'It avoids 2024-08-05T20:00:00Z and 2025-04-07.' },
+    });
     const context = await setup(reply(output));
-    expect(await go(context)).toEqual({ posted: true, outcome: 'malformed_result', reason: 'REFERENCE_INVALID' });
-    const result = posted(context);
-    expect(result.outcome.outcome === 'malformed_result' && result.outcome.diagnostic).toMatch(
-      /2 refused blocker\(s\): HOLDOUT_REFERENCE/,
-    );
-    expect(context.world.api.artefacts.size).toBe(0);
+    expect(await go(context)).toEqual({ posted: true, outcome: 'completion' });
+    expect(context.world.api.artefacts.size).toBe(1);
+    expect(context.logs.join('\n')).toContain('"notices":"HOLDOUT_REFERENCE,HOLDOUT_REFERENCE"');
   });
 
   it('is still a completion when the revision changes both rules and an entry is unresolved: they are notices for the next proposal', async () => {

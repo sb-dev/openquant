@@ -1,10 +1,12 @@
 // `pnpm agents:eval`: the evaluation harness of the proposer and critic modules (OQ-03 section 6, OQ-06 section 7).
 //
-// Two modes:
+// OQ-06 section 7 defines the command as explicit real-model evaluation that fails without opt-in or required
+// authentication. So the bare command refuses: it exits non-zero, names `--mode live`, `--allow-real-model-calls` and
+// the missing key, and calls no model. Two modes are run only when named:
 //
-// - fixture (the default): runs every offline suite of fixtures/agent-results through request assembly and result
-//   parsing, exactly as `pnpm --filter @openquant/agents run eval:fixture` does. No model is called, and the result
-//   says so. A fixture is synthetic, so it never counts as a real-model result.
+// - fixture (`--mode fixture`): runs every offline suite of fixtures/agent-results through request assembly and
+//   result parsing, exactly as `pnpm --filter @openquant/agents run eval:fixture` does. No model is called, and the
+//   result says so. A fixture is synthetic, so it never counts as a real-model result.
 //
 // - live (`--mode live`): runs a few reviewed cases through the production path of the runner (`runAttempt`, the real
 //   executor, the shipped behaviour bundle) with the owner's key, and writes a report with the actual model, validity,
@@ -101,7 +103,8 @@ export const LIVE_CASES: readonly string[] = [
 ];
 
 export interface EvalArgs {
-  readonly mode: 'fixture' | 'live';
+  /** Undefined when `--mode` is not given: the command then refuses. */
+  readonly mode: 'fixture' | 'live' | undefined;
   readonly allowRealModelCalls: boolean;
   readonly allowProxyEnv: boolean;
   readonly maxBudgetUsd: number | undefined;
@@ -159,7 +162,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   return {
     ok: true,
     args: {
-      mode: mode === 'live' ? 'live' : 'fixture',
+      mode: mode === 'live' || mode === 'fixture' ? mode : undefined,
       allowRealModelCalls,
       allowProxyEnv,
       maxBudgetUsd,
@@ -561,9 +564,10 @@ function summarise(
 // Entry
 // ---------------------------------------------------------------------------------------------------------------
 
-const USAGE = `Usage: pnpm agents:eval [--mode fixture|live] [options]
+const USAGE = `Usage: pnpm agents:eval --mode live|fixture [options]
 
-  fixture (default)   run the offline suites; no model is called
+  The mode is required: without --mode the command refuses and calls no model.
+  fixture             run the offline suites; no model is called
   live                real, billed model calls with the owner's key; refused unless every guard holds
     --allow-real-model-calls   the explicit opt-in
     --max-budget-usd <n>       total reservation of the run (ceiling ${BUDGET_CEILING_USD})
@@ -591,6 +595,18 @@ export async function main(
     return 2;
   }
   const { args } = parsed;
+  if (args.mode === undefined) {
+    output.err(
+      'agents:eval runs an explicit real-model evaluation and refused to run without --mode. No model was called and no process was started.',
+    );
+    output.err(
+      `  A real-model run needs --mode live, --allow-real-model-calls, --max-budget-usd and the owner's key in ${KEY_VARIABLE}${
+        env[KEY_VARIABLE] === undefined ? ' (not set)' : ''
+      }.`,
+    );
+    output.err('  The offline fixtures run with --mode fixture; they call no model and are never a real-model result.');
+    return 2;
+  }
   if (args.mode === 'fixture') {
     if (args.allowRealModelCalls || args.maxBudgetUsd !== undefined) {
       output.err('--allow-real-model-calls and --max-budget-usd belong to --mode live; fixture mode calls no model.');

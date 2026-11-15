@@ -7,10 +7,9 @@
 // is called, and the fixtures stay synthetic: this proves the runner, not a model.
 //
 // What each fixture must give is written by hand in the fixture (`expect`, `assembly`). The runner differs from the
-// role module in two documented places, and this file states both independently of the code under test:
-// - a request that assembly refuses is never run: the runner denies it before an executor starts;
-// - a completion with an operator outside the permitted set or a date inside a withheld window is a malformed result
-//   with REFERENCE_INVALID, not a completion.
+// role module in one documented place, and this file states it independently of the code under test: a request that
+// assembly refuses is never run, the runner denies it before an executor starts. A completion with blockers, such as
+// an operator outside the permitted set or a date inside a withheld window, stays a completion (OQ-03 section 3).
 
 import { assembleCritiqueRequest, assembleFormulationRequest } from '@openquant/agents';
 import { digest } from '@openquant/api-contracts';
@@ -30,7 +29,6 @@ import { type Assembled, cleanup, dispatchFor, makeWorld, storedRequest } from '
 afterEach(cleanup);
 
 const files = fixtureFiles();
-const HOST_REFUSED_CODES = new Set(['OPERATOR_NOT_PERMITTED', 'HOLDOUT_REFERENCE']);
 
 interface Expected {
   readonly outcome: 'completion' | 'malformed_result' | 'denied_capability';
@@ -39,21 +37,14 @@ interface Expected {
   readonly neverStarted: boolean;
 }
 
-/** What the runner must post for a fixture, from the hand-written expectations of the fixture and the two rules above. */
+/** What the runner must post for a fixture, from the hand-written expectations of the fixture and the rule above. */
 function expectedOf(fixture: ReturnType<typeof readFixture>): Expected {
   if (fixture.assembly?.outcome === 'refused') {
     return { outcome: 'denied_capability', reason: 'CAPABILITY_DENIED', neverStarted: true };
   }
-  const expect = fixture.expect as {
-    outcome: 'completion' | 'malformed_result';
-    reason?: string;
-    blockers?: { code: string }[];
-  };
+  const expect = fixture.expect as { outcome: 'completion' | 'malformed_result'; reason?: string };
   if (expect.outcome === 'malformed_result') {
     return { outcome: 'malformed_result', reason: expect.reason, neverStarted: false };
-  }
-  if ((expect.blockers ?? []).some((blocker) => HOST_REFUSED_CODES.has(blocker.code))) {
-    return { outcome: 'malformed_result', reason: 'REFERENCE_INVALID', neverStarted: false };
   }
   return { outcome: 'completion', neverStarted: false };
 }
@@ -80,7 +71,7 @@ async function storedFor(fixture: ReturnType<typeof readFixture>): Promise<Assem
 }
 
 describe('the suites', () => {
-  it('hold every fixture that the role-module suites hold, and the table of the runner agrees with the blockers', () => {
+  it('hold every fixture that the role-module suites hold, and a fixture with blockers stays a completion', () => {
     const fixtures = files.map((file) => readFixture(file));
     expect(fixtures.length).toBeGreaterThanOrEqual(50);
     const denied = fixtures.filter((item) => item.assembly?.outcome === 'refused').map((item) => item.id);
@@ -91,10 +82,13 @@ describe('the suites', () => {
       'holdout-validation-evidence-overlap',
       'unregistered-subject',
     ]);
-    const refused = fixtures
-      .filter((item) => expectedOf(item).reason === 'REFERENCE_INVALID' && item.expect?.outcome === 'completion')
-      .map((item) => item.id);
-    expect(refused.sort()).toEqual(['holdout-leak-attempt', 'operator-outside-set']);
+    const withBlockers = fixtures.filter((item) =>
+      ((item.expect as { blockers?: { code: string }[] } | undefined)?.blockers ?? []).some(
+        (blocker) => blocker.code === 'OPERATOR_NOT_PERMITTED' || blocker.code === 'HOLDOUT_REFERENCE',
+      ),
+    );
+    expect(withBlockers.map((item) => item.id).sort()).toEqual(['holdout-leak-attempt', 'operator-outside-set']);
+    expect(withBlockers.map((item) => expectedOf(item).outcome)).toEqual(['completion', 'completion']);
   });
 });
 

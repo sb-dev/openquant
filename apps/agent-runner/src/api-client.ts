@@ -14,7 +14,11 @@ import {
   parseContract,
 } from '@openquant/api-contracts';
 
-export type ApiFailureCode = ApiErrorCode | 'NETWORK' | 'BAD_RESPONSE';
+/**
+ * The codes of the API, and three of the client: `NETWORK` (no answer, or the answer broke off while it was read),
+ * `BAD_RESPONSE` (an answer that is not what the route returns) and `TOO_LARGE` (a body above the limit of the call).
+ */
+export type ApiFailureCode = ApiErrorCode | 'NETWORK' | 'BAD_RESPONSE' | 'TOO_LARGE';
 
 export interface ApiFailure {
   readonly ok: false;
@@ -195,17 +199,26 @@ export class HttpApiClient implements ApiClient {
         `the API call ${method} ${path.replace(/\/[^/]*$/, '/...')} failed: ${(error as Error).name}`,
       );
     }
-    const read = await readBounded(response, maxBytes);
-    if (response.status >= 200 && response.status < 300) {
-      if (!read.ok) return failure(response.status, 'BAD_RESPONSE', 'the API answer is longer than the limit');
-      return { ok: true, value: read.bytes };
-    }
     if (response.status >= 300 && response.status < 400) {
+      // Never followed, so the capability cannot reach another host. A redirect is not an answer of the route: it is
+      // treated like an API that is not reachable, retried, and if it persists nothing is posted.
+      await response.body?.cancel().catch(() => undefined);
       return failure(
         response.status,
-        'BAD_RESPONSE',
+        'UNAVAILABLE',
         'the API answered with a redirect, which the runner never follows',
       );
+    }
+    const read = await readBounded(response, maxBytes);
+    if (response.status >= 200 && response.status < 300) {
+      if (read.ok) return { ok: true, value: read.bytes };
+      return read.why === 'over_limit'
+        ? failure(response.status, 'TOO_LARGE', 'the API answer is longer than the limit')
+        : failure(
+            response.status,
+            'NETWORK',
+            `the API answer to ${method} ${path.replace(/\/[^/]*$/, '/...')} broke off`,
+          );
     }
     const parsed = read.ok ? parseContract('api-error', read.bytes) : undefined;
     const code: ApiFailureCode =
@@ -219,7 +232,7 @@ export class HttpApiClient implements ApiClient {
 async function readBounded(
   response: Response,
   limit: number,
-): Promise<{ ok: true; bytes: Uint8Array } | { ok: false }> {
+): Promise<{ ok: true; bytes: Uint8Array } | { ok: false; why: 'over_limit' | 'read_failed' }> {
   if (!response.body) return { ok: true, bytes: new Uint8Array() };
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -230,13 +243,14 @@ async function readBounded(
       if (done) break;
       total += value.byteLength;
       if (total > limit) {
-        await reader.cancel();
-        return { ok: false };
+        await reader.cancel().catch(() => undefined);
+        return { ok: false, why: 'over_limit' };
       }
       chunks.push(value);
     }
   } catch {
-    return { ok: false };
+    // The connection broke or timed out while the body was read: a network failure, not an oversized answer.
+    return { ok: false, why: 'read_failed' };
   }
   return { ok: true, bytes: Buffer.concat(chunks) };
 }
