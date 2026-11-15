@@ -1,0 +1,8 @@
+{
+ "corporate_actions": {
+  "spin_offs": [
+    {"id":"ca-0040","symbol":"SYNTH","process_date":"2024-03-07","ex_date":"2024-03-07","declaration_date":"2024-03-01"}
+  ]
+ },
+ "next_page_token": null
+}

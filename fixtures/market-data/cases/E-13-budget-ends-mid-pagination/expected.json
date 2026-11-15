@@ -1,0 +1,54 @@
+{
+  "schema": "market-expected/1",
+  "case": "E-13-budget-ends-mid-pagination",
+  "origin": {
+    "kind": "oracle",
+    "oracle": "oracle/oracle.py",
+    "oracle_sha256": "sha256:d1ca09fbbd4f3160e44ca08988456f6c84b0e2af4dd9d2e87d829d747c4dc926"
+  },
+  "expect": {
+    "requests": 4,
+    "calls": [
+      {
+        "sequence": 1,
+        "operation": "asset",
+        "started_at": "2026-11-14T10:00:00Z",
+        "http_status": 200,
+        "error": null,
+        "retry_after_seconds": null
+      },
+      {
+        "sequence": 2,
+        "operation": "calendar",
+        "started_at": "2026-11-14T10:00:00Z",
+        "http_status": 200,
+        "error": null,
+        "retry_after_seconds": null
+      },
+      {
+        "sequence": 3,
+        "operation": "daily_bars",
+        "started_at": "2026-11-14T10:00:00Z",
+        "http_status": 200,
+        "error": null,
+        "retry_after_seconds": null
+      },
+      {
+        "sequence": 4,
+        "operation": "daily_bars",
+        "started_at": "2026-11-14T10:00:00Z",
+        "http_status": 200,
+        "error": null,
+        "retry_after_seconds": null
+      }
+    ],
+    "sleeps": [],
+    "outcome": "error",
+    "error": {
+      "code": "REQUEST_LIMIT_REACHED",
+      "class": "UNAVAILABLE_DATA",
+      "retryable": false,
+      "retry_after_seconds": null
+    }
+  }
+}

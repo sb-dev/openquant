@@ -1,0 +1,8 @@
+{
+ "corporate_actions": {
+  "cash_dividends": [
+    {"id":"ca-0002","symbol":"SYNTH","rate":0.30,"special":false,"foreign":false,"process_date":"2024-12-12","ex_date":"2024-12-12","record_date":"2024-12-12","payable_date":"2024-12-16","declaration_date":"2024-12-03"}
+  ]
+ },
+ "next_page_token": null
+}

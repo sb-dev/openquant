@@ -1,0 +1,176 @@
+{
+  "id": "E-02-403",
+  "title": "HTTP 403 is a permission failure and is not retried",
+  "now": "2026-11-14T10:00:00Z",
+  "request": {
+    "schema_version": "retrieval-request/1",
+    "job_id": "job-synth-retrieve-0001",
+    "attempt": {
+      "attempt_id": "att-synth-retrieve-0001-1",
+      "ownership_revision": 1
+    },
+    "environment": "STAGING",
+    "profile": {
+      "id": "synth-us-daily-sip",
+      "revision": 1,
+      "digest": "sha256:8e6ecf0c1da66dd7c08022f68d805f6d94373ef3ac03cf7ff78a7461740b281f"
+    },
+    "instrument": {
+      "instrument_id": "alpaca:00000000-0000-4000-8000-000000000001",
+      "symbol": "SYNTH",
+      "provider": "alpaca",
+      "provider_asset_id": "00000000-0000-4000-8000-000000000001",
+      "effective_from": "2023-01-02"
+    },
+    "operations": [
+      "provider:alpaca/daily_bars@1",
+      "provider:alpaca/corporate_actions@1",
+      "provider:alpaca/calendar@1",
+      "provider:alpaca/asset@1"
+    ],
+    "range": {
+      "start": "2024-03-04",
+      "end": "2024-03-08"
+    },
+    "information_cutoff": "2026-11-14T10:00:00Z",
+    "semantics": {
+      "feed": "SIP",
+      "timeframe": "1Day",
+      "adjustment": "RAW",
+      "session_basis": "REGULAR_HOURS",
+      "currency": "USD",
+      "minimum_end_age_minutes": 15,
+      "bar_availability": {
+        "rule": "SESSION_CLOSE_PLUS_DELAY",
+        "delay_minutes": 120
+      },
+      "split_availability": {
+        "provider_field": "declaration_date",
+        "available_at": "EFFECTIVE_SESSION_OPEN",
+        "evidence": "DECLARED_BEFORE_EFFECTIVE_SESSION",
+        "when_unevidenced": "BLOCK_PROFILE"
+      },
+      "dividend_availability": {
+        "provider_field": "declaration_date",
+        "available_at": "EFFECTIVE_SESSION_OPEN",
+        "evidence": "DECLARED_BEFORE_EFFECTIVE_SESSION",
+        "when_unevidenced": "BLOCK_PROFILE"
+      },
+      "dividend_payment": {
+        "provider_field": "payable_date",
+        "payment_session": "PAYABLE_DATE",
+        "payment_phase": "AFTER_CLOSE",
+        "when_unmatched": "BLOCK_PROFILE"
+      }
+    },
+    "limits": {
+      "max_requests": 30,
+      "max_retries": 2,
+      "request_timeout_seconds": 30,
+      "max_response_bytes": 1048576
+    },
+    "deadline": "2026-11-14T10:15:00Z"
+  },
+  "host": {
+    "adapter_version": "1",
+    "executable": {
+      "name": "engine-batch",
+      "version": "0.0.0",
+      "digest": "sha256:f8f58b36bc8d386a8530d3d599bfb0c1b404a2b513d3b377602b8db575678d69"
+    },
+    "constraints": {
+      "redistribution_permitted": false,
+      "retain_raw": true,
+      "terms_ref": "docs/reference/service-providers.md#alpaca"
+    },
+    "licence": "Synthetic Alpaca-shaped values on an invented instrument, generated for this repository under Apache-2.0. Not provider data."
+  },
+  "script": [
+    {
+      "expect": {
+        "host": "paper",
+        "path": "/v2/assets/SYNTH",
+        "query": []
+      },
+      "reply": {
+        "status": 200,
+        "headers": [
+          [
+            "content-type",
+            "application/json"
+          ]
+        ],
+        "body": "responses/01-asset.json"
+      }
+    },
+    {
+      "expect": {
+        "host": "paper",
+        "path": "/v2/calendar",
+        "query": [
+          [
+            "start",
+            "2024-03-04"
+          ],
+          [
+            "end",
+            "2024-04-22"
+          ]
+        ]
+      },
+      "reply": {
+        "status": 200,
+        "headers": [
+          [
+            "content-type",
+            "application/json"
+          ]
+        ],
+        "body": "responses/02-calendar.json"
+      }
+    },
+    {
+      "expect": {
+        "host": "data",
+        "path": "/v2/stocks/SYNTH/bars",
+        "query": [
+          [
+            "timeframe",
+            "1Day"
+          ],
+          [
+            "start",
+            "2024-03-04T00:00:00Z"
+          ],
+          [
+            "end",
+            "2024-03-08T23:59:59Z"
+          ],
+          [
+            "limit",
+            "10000"
+          ],
+          [
+            "adjustment",
+            "raw"
+          ],
+          [
+            "feed",
+            "sip"
+          ],
+          [
+            "sort",
+            "asc"
+          ]
+        ]
+      },
+      "reply": {
+        "status": 403,
+        "headers": [],
+        "body": "responses/03-bars.json"
+      }
+    }
+  ],
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}
