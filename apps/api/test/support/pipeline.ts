@@ -29,6 +29,12 @@ export async function completedCritique(world: World, slot: string) {
     `INSERT INTO artefacts (digest, media_type, size_bytes, stored_at, uploaded_by) VALUES ($1, 'application/json', 1003, $2, $3) ON CONFLICT DO NOTHING`,
     [result.digest, '2026-11-15T10:00:00Z', ids.runner],
   );
+  // The agent-result route records the link between the attempt and its output: so does this stand-in for it.
+  await world.sql(
+    `INSERT INTO agent_results (attempt_id, job_id, role, outcome, result_digest, output_contract, output_digest, recorded_at)
+     VALUES ($1, $2, 'CRITIC', 'completion', $3, 'strategy-critique.result/1', $3, $4)`,
+    [job.attemptId, job.jobId, result.digest, '2026-11-15T10:00:00Z'],
+  );
   return { status: 'COMPLETED', attempt_id: job.attemptId, result };
 }
 

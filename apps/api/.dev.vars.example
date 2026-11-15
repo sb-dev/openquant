@@ -3,3 +3,7 @@
 # TOKEN_SIGNING_KEY: base64url of at least 32 random bytes, for example the output of `openssl rand -base64 48`
 # with the characters + and / replaced by - and _ and the padding removed.
 TOKEN_SIGNING_KEY=
+# AGENT_RUNNER_URL: the https base URL of the Fly agent runner. AGENT_RUNNER_CREDENTIAL: the credential of the workflows
+# service principal (the bootstrap command issues it). The scheduled dispatcher uses both; without them agent work is not sent.
+AGENT_RUNNER_URL=
+AGENT_RUNNER_CREDENTIAL=

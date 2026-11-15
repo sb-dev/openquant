@@ -325,6 +325,12 @@ describe('record_evaluation_decision: what is checked first', () => {
   it('refuses every binding that does not hold, and each refusal leaves the Decision unwritten', async () => {
     const world = await pipeline();
     const critique = await completedCritique(world, 'rev-a');
+    // Another recorded artefact of the same size and type: not what the critic attempt reported as its output.
+    const other = { ...critique.result, digest: sha('another-output') };
+    await world.sql(
+      `INSERT INTO artefacts (digest, media_type, size_bytes, stored_at, uploaded_by) VALUES ($1, 'application/json', 1003, $2, $3)`,
+      [other.digest, '2026-11-15T10:00:00Z', ids.runner],
+    );
     const cases: [string, (payload: Doc) => void, string, string][] = [
       ['an unknown plan digest', (p) => (p.plan_digest = sha('another-plan')), 'IDENTITY_MISMATCH', 'plan digest'],
       ['an unknown slot', (p) => (p.trial_slot = 'rev-z'), 'NOT_FOUND', 'rev-z'],
@@ -363,6 +369,12 @@ describe('record_evaluation_decision: what is checked first', () => {
         (p) => (p.critique = { ...critique, result: { ...critique.result, size_bytes: 1 } }),
         'IDENTITY_MISMATCH',
         'recorded artefact',
+      ],
+      [
+        'a recorded artefact that the critic attempt did not report as its output',
+        (p) => (p.critique = { ...critique, result: other }),
+        'IDENTITY_MISMATCH',
+        'output that the completed critic attempt reported',
       ],
     ];
     for (const [label, edit, code, text] of cases) {

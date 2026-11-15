@@ -98,9 +98,12 @@ const oracle = {
   attempt: (route: RawRoute, kind: string, state: string, samePath: boolean): Outcome => {
     const listed = ruleOf(route, 'attempt').some((rule) => rule.principals?.includes(kind));
     if (!listed || !samePath) return 'FORBIDDEN';
+    // An attempt that ended passes authorisation, and its route decides: a result route answers a repeat of its own
+    // submission, while the input and artefact routes read and write nothing once the lease has ended.
+    const ended = route.id === 'attempts.input' || route.id === 'attempts.artefact' ? 'LEASE_EXPIRED' : 'allowed';
     return {
       live: 'allowed',
-      completed: 'allowed',
+      completed: ended,
       lease_expired: 'LEASE_EXPIRED',
       stale: 'STALE_OWNERSHIP',
       expired_by_time: 'LEASE_EXPIRED',

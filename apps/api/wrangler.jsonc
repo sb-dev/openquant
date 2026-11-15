@@ -7,6 +7,8 @@
 //
 // Secrets, never listed here (names only, see .dev.vars.example):
 //   TOKEN_SIGNING_KEY  base64url of at least 32 random bytes: the HMAC key of access tokens and attempt capabilities
+//   AGENT_RUNNER_URL, AGENT_RUNNER_CREDENTIAL  the https base URL of the agent runner and the credential of the workflows
+//                      service principal; the scheduled dispatcher sends agent-dispatch/1 with them
 {
   "name": "openquant-api",
   "main": "src/worker.ts",
@@ -33,5 +35,14 @@
   "r2_buckets": [
     // Immutable artefacts, keyed by SHA-256. The Fly hosts hold no R2 credentials: they upload through this Worker.
     { "binding": "ARTEFACTS" }
-  ]
+  ],
+  "queues": {
+    // The one batch queue (OQ-05 section 1). The scheduled dispatcher produces job-dispatch/1 messages to it; the batch
+    // host pulls them through the Queues HTTP API (an HTTP-pull consumer, no push consumer). P6 adds the queue name.
+    "producers": [{ "binding": "BATCH_QUEUE" }]
+  },
+  "triggers": {
+    // Recovery and the outbox dispatcher: expired leases and unsent dispatches are found with no client connected.
+    "crons": ["* * * * *"]
+  }
 }

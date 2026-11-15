@@ -1,6 +1,6 @@
 # Cloudflare control application
 
-Status: S1 pull request P2, parts A and B, are implemented: the Hono route layer for every route of the route manifest, authentication, the SQL migrations with their runner and the real-Postgres test setup (part A); and the guarded commands, the state machine of jobs, runs, attempts, leases, reservations and outbox entries, the budgets, and the routes of the seven commands and of the command status (part B). `auth.token`, `system.identity`, `/health`, the seven command routes and `commands.show` answer with data. The other 19 routes pass the whole route layer and then answer `UNAVAILABLE` and name the part that builds them. The attempt and result routes, the read models, the release route, the bootstrap command, recovery as a scheduled task, the outbox dispatcher and both Workflows are not implemented. S1 is incomplete, and M1 to M4 are not implemented.
+Status: S1 pull request P2 is implemented in three parts: the Hono route layer, authentication, the SQL migrations with their runner and the real-Postgres test setup (part A); the guarded commands, the state machine of jobs, runs, attempts, leases, reservations and outbox entries, and the budgets (part B); and the attempt, result, recovery, read-model and bootstrap work of part C. Every one of the 29 routes of the `api` host answers with data: no route answers "not implemented". The outbox dispatcher and the scheduled recovery pass are built on interfaces for the batch queue and the agent runner and are tested with fakes; the Worker runtime (workerd, Hyperdrive, R2, Queues), `ResearchWorkflow` and `EvaluationWorkflow` (P5) and the deployment (P6) are not built or tested here. S1 is incomplete: the connected competition is not implemented. M1 to M4 are not implemented.
 
 Hono routes, domain rules, guarded commands, two Workflows, notifications, and infrastructure adapters. Keep filing/web provider adapters and SQL migrations here. API-only modules stay here until another consumer exists.
 
@@ -18,16 +18,20 @@ Owner: [05-system-architecture-and-data-spec.md](../../docs/specs/05-system-arch
 | `src/body.ts` | Reads a body within the limit of its route. It never calls `request.text()` on an unbounded body. |
 | `src/errors.ts` | `api-error/1`: a `ContractError` becomes `code`, `violations` (`apiViolations`, at most 21, pointers cut to 1,024 characters) and a message that repeats no body text. |
 | `src/auth/` | Tokens (WebCrypto HMAC), credentials (hash only), authentication and authorisation. |
-| `src/handlers/` | The handlers that exist (`auth.token`, `system.identity`, the command routes and `commands.show`) and the table of the deferred routes. |
+| `src/handlers/` | One handler for every route of the `api` host (`index.ts` is the registry): identity, commands, the attempt routes (`attempts.ts`), the read routes (`reads.ts`) and the release route (`releases.ts`). |
 | `src/commands/` | The guarded commands: the runner (`runner.ts`) and the appliers of the nine kinds (`registrations.ts`, `missions.ts`, `decisions.ts`), with the rules that a schema cannot state (`policy-checks.ts`). |
-| `src/domain/` | The rules behind the commands: the transition table (`transitions.ts`), runs and jobs (`work.ts`), attempts, leases, retry and cancellation (`attempts.ts`, `retry.ts`), budgets (`budget.ts`), mission status (`missions.ts`), finding treatment and holdout consumption (`findings.ts`), the dispatch messages (`dispatch.ts`), registered documents (`documents.ts`, `store.ts`) and exact decimals (`decimal.ts`). |
+| `src/domain/` | The rules behind the commands and the routes: the transition table (`transitions.ts`), runs and jobs (`work.ts`), attempts, leases, retry and cancellation (`attempts.ts`, `retry.ts`), budgets (`budget.ts`), mission status (`missions.ts`), finding treatment and holdout consumption (`findings.ts`), registered documents (`documents.ts`, `store.ts`) and exact decimals (`decimal.ts`). The dispatch messages are built in `dispatch.ts` (retrieve, evaluate) and `builders.ts` (validate, assess, the retry of an agent, and `startValidation` and `startAssessment` for the workflow). Part C adds the claim (`claim.ts`), one acceptance function for each result route (`retrieval.ts`, `validation.ts`, `evaluation.ts`, `assessment.ts`, `agents.ts`), the outcome table of OQ-02 §3.6 (`outcomes.ts`), the evaluation plan (`plan.ts`), the reading of a role output (`critique.ts`), cited artefacts (`refs.ts`), the shared steps of a result route (`results.ts`) and attention items (`attention.ts`). |
+| `src/outbox.ts` | The outbox dispatcher: the interfaces of the batch queue and of the agent runner, and the authenticated HTTPS call to the runner. |
+| `src/recovery.ts` | One scheduled recovery pass: expired leases, confirmed terminations, and the dispatch of what is pending. |
+| `src/read-models.ts` | The read models of the GET routes. |
 | `src/db/` | The `Database` interface, the one node-postgres adapter, the migration level. |
 | `src/store/objects.ts` | The content-addressed object store (`sha256/<hex>`) and its R2 adapter. It verifies the digest before it writes. |
-| `migrations/` | Eight plain SQL files, `0001_identity` to `0008_commands`. |
+| `migrations/` | Nine plain SQL files, `0001_identity` to `0009_attempt_routes`. |
 | `tools/migrations.ts`, `tools/migrate.ts` | The migration runner and its command. |
+| `tools/bootstrap.ts` | The bootstrap of an environment: the first Administrator and the service principals. |
 | `tools/test-database.ts` | Provisioning of the test database. |
 | `tools/bundle-check.ts` | The Worker bundle check (part of `build`). |
-| `wrangler.jsonc`, `.dev.vars.example` | Binding names and secret names. No identifier, no bucket name, no value. |
+| `wrangler.jsonc`, `.dev.vars.example` | Binding names, secret names and the cron trigger. No identifier, no bucket name, no value. |
 
 ## Commands
 
@@ -40,6 +44,7 @@ Run these from this directory, or through Turborepo from the repository root (`p
 | `pnpm run test` | Vitest on a real PostgreSQL server (below). |
 | `pnpm run build` | `tsc` on `src`, then the Worker bundle check: `src/worker.ts` bundles for the neutral platform with no Node module, with Hono as the one bundled dependency and `pg` as the one import. |
 | `pnpm run migrate` | Apply the pending migrations to `DATABASE_URL`. `-- --status` shows what is applied and pending. |
+| `pnpm run bootstrap -- --environment <E> --out <file>` | Create the first Administrator and the four service principals of an environment on a clean database (`DATABASE_URL`, a direct connection), and write their credentials, shown once, to a new file of mode 0600 (below). |
 
 ## Why the tests run in Node
 
@@ -50,8 +55,8 @@ wrangler, miniflare and `@cloudflare/vitest-pool-workers` are not installed, and
 
 The tests therefore run in Node against the Hono app (`app.request`) and a real PostgreSQL server, through `pg` behind the small `Database` interface. `wrangler.jsonc` is a plain config file that no tool in this repository reads. Running the Worker under `workerd` with a Hyperdrive binding is a probe for P6 and a recorded limitation. Unverified until then:
 
-- the Worker runtime itself: `pg` over `cloudflare:sockets` with `nodejs_compat`, Hyperdrive transactions, the R2 adapter, `ctx.waitUntil` closing the connection;
-- that `wrangler` accepts `wrangler.jsonc` (the `main`, `hyperdrive` and `r2_buckets` entries need an id and a bucket name that P6 supplies), and that it bundles `pg` as the bundle check assumes;
+- the Worker runtime itself: `pg` over `cloudflare:sockets` with `nodejs_compat`, Hyperdrive transactions, the R2 adapter, `ctx.waitUntil` closing the connection, the Queue producer binding that the dispatcher sends to, and the cron trigger that calls `scheduled` (the tests call both with fakes);
+- that `wrangler` accepts `wrangler.jsonc` (the `main`, `hyperdrive`, `r2_buckets` and `queues` entries need an id, a bucket name and a queue name that P6 supplies), and that it bundles `pg` as the bundle check assumes;
 - the bundle size on the platform: the bundle is about 3 MiB (about 240 KiB gzip), almost all of it the generated contract validators of `@openquant/api-contracts`;
 - `WorkerBindings` in `src/env.ts` is written by hand, because `wrangler types` needs wrangler. `test/wrangler-config.test.ts` compares it with `wrangler.jsonc` and `.dev.vars.example` in both directions. This is a known drift risk until P6 adds the tool.
 
@@ -74,19 +79,92 @@ The application issues its own tokens. Three credentials appear in `Authorizatio
 
 ## Routes
 
-The route table is built from the manifest. A test checks that the app serves exactly the 29 routes of the `api` host and `/health`, and that each route has either a handler or an entry in the deferred table, never both. `runner.dispatch` belongs to the agent runner and is a 404 here.
+The route table is built from the manifest. A test checks that the app serves exactly the 29 routes of the `api` host and `/health`, that each has one handler in `src/handlers/index.ts`, and that none answers `UNAVAILABLE`. `runner.dispatch` belongs to the agent runner and is a 404 here.
 
-Implemented here: `auth.token`, `system.identity` (environment, protocol versions from the manifest, the migration level read live, and the release recorded for the environment or the statement that none is), `/health`, the seven command routes (`research-profiles.register`, `cohort-policies.register`, `budgets.register`, `seeds.register`, `missions.create`, `missions.run-now`, `missions.cancel`) and `commands.show`.
-
-Deferred, with the part that builds them (the message of the `UNAVAILABLE` answer names it):
-
-| Part | Routes |
+| Routes | What they do |
 | --- | --- |
-| P2 part C, attempts | `attempts.claim`, `attempts.input`, `attempts.artefact`, `attempts.retrieval-result`, `attempts.validation-result`, `attempts.evaluation-submission`, `attempts.gate-report`, `attempts.agent-result` |
-| P2 part C, read models | `missions.show`, `missions.plan`, `missions.lineage`, `missions.trials`, `missions.findings`, `missions.gates`, `missions.decisions`, `runs.metrics`, `runs.result`, `jobs.show` |
-| P2 part C, release | `releases.record` |
+| `auth.token`, `system.identity`, `/health` | Identity (above). `/health` is not in the manifest. |
+| `research-profiles.register`, `cohort-policies.register`, `budgets.register`, `seeds.register`, `missions.create`, `missions.run-now`, `missions.cancel`, `commands.show` | Guarded commands and their status read-back (below). |
+| `attempts.claim`, `attempts.input`, `attempts.artefact` | The claim of an attempt and what a host reads and writes under its capability (below). |
+| `attempts.retrieval-result`, `attempts.validation-result`, `attempts.evaluation-submission`, `attempts.gate-report`, `attempts.agent-result` | The five result submissions (below). |
+| `missions.show`, `missions.plan`, `missions.lineage`, `missions.trials`, `missions.findings`, `missions.gates`, `missions.decisions`, `jobs.show`, `runs.metrics`, `runs.result` | Read models (below). |
+| `releases.record` | The release identity of an environment (below). |
 
-`api-error/1` has no "not implemented" code. `UNAVAILABLE` is in the error list of every route, and this answer is acceptable in this part only. A later part moves its routes from the table to the handler registry.
+## Attempts and results (OQ-05 §§4, 5 and 7, OQ-02 §§3.6 and 8)
+
+**Claim.** A service principal that received a dispatch message claims its attempt with `attempt-claim/1` before it does anything. The claim is refused, and nothing is written, when research execution is off (`EXECUTION_DISABLED`), when the principal is not the host of the message (`FORBIDDEN`: a batch credential cannot claim agent work), when the dispatch digest, the ownership revision or the executable (it must be one of the executables of the release recorded for the environment, once one is recorded) is not the attempt's (`IDENTITY_MISMATCH`, `STALE_OWNERSHIP`), when the attempt is not `PENDING` or its mission is withdrawn or concluded (`ATTEMPT_NOT_CLAIMABLE`), and when the mission already runs as many attempts on that host as the cohort policy allows (`RATE_LIMITED`, safe to repeat). The grant is a lease of the attempt timeout of the policy plus 60 seconds, and an `oqp1` capability that expires with it. The attempt is `CLAIMED`, the lease `HELD`, and the run or job `RUNNING`.
+
+**Inputs and artefacts.** `attempts.input` serves an artefact that the dispatch message names, or that the request document of an evaluation or the submissions of an assessment name in turn, and no other. `attempts.artefact` is content-addressed: the Worker hashes the bytes, refuses them when they are not the digest of the path (`DIGEST_MISMATCH`) or above the artefact limit of the cohort policy (`LIMIT_EXCEEDED`), then writes the key `sha256/<hex>` and the artefact row with the uploader and the attempt. Fly hosts hold no storage credentials. Once the lease has ended, the capability reads and writes nothing (`LEASE_EXPIRED`, `STALE_OWNERSHIP`).
+
+**Results.** Every result route runs one transaction through one function of `src/domain/`. The caller must hold the current lease and ownership revision, and the document must bind to its request:
+
+| Route | Accepted when | Writes |
+| --- | --- | --- |
+| `attempts.retrieval-result` | The manifest (cited, uploaded, parsed within its limit) names this job, attempt and request, the mission's instrument, the research profile revision and data semantics, the claiming executable and the requested range, repeats the coverage of the result, and gives every bar the availability of its session close plus the profile's delay. | The job `COMPLETED` with its coverage (`COMPLETE`, `PARTIAL`, `NO_OBSERVATIONS`), the dataset manifest, the retrieval result, and the evaluation plan (below). A failure is classified: only a transient class is retried, within the cap and the budget. |
+| `attempts.validation-result` | It names the draft and the parent that the job asked about, the engine and method of the release, the claiming executable and the policy's warm-up, and for a revision the declared changes equal the changes that Rust computed. | `VALID`: Strategy Version in `DRAFT`, its trial `REGISTERED`, its lineage. `INVALID`: the trial `INVALID` with the diagnostics. Either way the job is `COMPLETED`. |
+| `attempts.evaluation-submission` | The submission names this run, attempt, request, mode, environment, engine, method and executable; the result is scanned (below) and its schema version, strategy hash, input hash, engine digest and outcome status and code equal the submission; the input repeats the windows, cutoff, capital, policy and seed of the request and is built from the mission's dataset manifest; the metrics derive from that result and input for the window and cost case of the run. | Exactly one official result for the run (`results.run_id` is its key), the metrics of a `COMPLETED` outcome, and the run status of the outcome table below. |
+| `attempts.gate-report` | The report is the report of this job and candidate, the policy and its method, and lists every gate of the policy once with the outcome kind that the policy allows; every artefact it read was given to the job or committed by its runs. | The gate report and its results, the eligibility for `EVALUATING` to `PAPER` with its reasons, the treatment of the candidate's findings, and, when nothing is open, the conclusion of the mission. |
+| `attempts.agent-result` | The provenance is that of the dispatch (request, bundle, session) and of the claiming runner; a completion returns the output contract of the role, within its limit and readable. | An outcome other than a completion: the logical run `FAILED` or retried (retry classes below). A completion: the run `COMPLETED`, the link from the attempt to its output (`agent_results`), and for a critic one finding per entry, labelled `model_judgement`; the registered policy, not the model, assigns the treatment. |
+
+A violated binding is `IDENTITY_MISMATCH` (`SCHEMA_VIOLATION` or `LIMIT_EXCEEDED` where the contract layer says so). Its transaction rolls back whole, the attempt stays `CLAIMED` for the next try, and the refusal is recorded in the audit log. A submission that repeats the document that the attempt completed with returns the stored outcome and writes nothing; another document from the same attempt is `IDENTITY_MISMATCH`. A submission after the lease, after a newer attempt exists, or after `cancel_mission` is rejected (`LEASE_EXPIRED`, `STALE_OWNERSHIP`), the rejection is recorded in the same transaction, and nothing else changes. The usage in a result settles the reservation of its attempt: a value that nothing reported stays reserved and is never zero (budgets below). The Decision `record_evaluation_decision` cites a critique result only when it is the output that the completed critic attempt reported.
+
+**The result scan.** The API reads a cited `evaluation-result/1` with `scanEvaluationResult` and never parses all of it. It accepts one of up to 8 MiB (`RESULT_SCAN_LIMIT`), although the parse limit of the contract is 512 KiB, and builds only its head. A larger result commits nothing: the run fails with `RESULT_TOO_LARGE` as a platform failure, an attention item is opened and the caller is told `LIMIT_EXCEEDED`. `test/results.scan.test.ts` submits results of 2 MiB and of exactly 8 MiB.
+
+**Outcome to status** (`src/domain/outcomes.ts`, OQ-02 §3.6, D5, D6). The engine derives the status from the code, so a pair that does not belong together is refused.
+
+| Outcome | Run | Gates | Attention item |
+| --- | --- | --- | --- |
+| `COMPLETED` | `COMPLETED`, with metrics | assessed from the metrics | no |
+| `FAILED` with `INVALID_LEVEL` or an operator code | `FAILED` | correctness `FAIL`: the candidate's defect | no |
+| `FAILED` with `FUTURE_DATA`, `EVENT_OUT_OF_ORDER`, or an input, schema, identity, policy or checkpoint code | `FAILED` | `INSUFFICIENT`: the platform's defect | yes |
+| `FAILED` with `ARITHMETIC_OVERFLOW` | `FAILED` | `INSUFFICIENT`: outside the engine domain | no |
+| `INSUFFICIENT` with any of its codes | `COMPLETED`, no metrics | `INSUFFICIENT` | no |
+| `NOT_PREPARED` with a code | `FAILED`, no result document | as the `FAILED` rows | as the `FAILED` rows |
+
+**A job that ends for good** (attempt cap exhausted, or a failure that is not retried) is not left to be found: a retrieval that failed blocks its mission with the reason; a validation that could not run discards its trial, with the reason; every kind but an agent's logical run opens an attention item (`attention_items`). An agent run's outcome is the input of the Decision (`DEFERRED`) and is not reported twice.
+
+## The evaluation plan (OQ-02 §§3.1 and 3.3)
+
+The plan is recorded in the transaction that accepts the retrieval, after retrieval and before any validation or run, and never changes (`src/domain/plan.ts`). It resolves each window rule of the cohort policy against the calendar of the frozen manifest: the first and last scored session, the session that starts its fixed warm-up, the information cutoff (the availability of the last scored bar) and the number of sessions of its run, including dividend payment sessions. It lists the trial slots (the seed, and one revision for each proposer configuration), every run slot (each window and cost case, the repeat of the D base run, the H slots), and the scenarios. Data that a run needs and the retrieved manifest lacks, a window that cannot be resolved, or a run above the session limit, does not give a plan: the mission is `BLOCKED` with the reason and an attention item. `NO_OBSERVATIONS` does the same. `missions.plan` serves the stored document.
+
+The workflow starts the work that follows with `startValidation` (a validation of a draft: its trial row, a validate job and its first attempt) and `startAssessment` (one candidate's assessment, after its runs ended) in `src/domain/builders.ts`. They are entry points for P5, not routes. `startValidation` refuses what the lineage forbids (a seed with a parent or another draft; a revision whose parent is not the Strategy Version registered for the seed slot) and a slot that has used the revisions of the mission budget. The first attempt of an agent run is built by the workflow that assembles its request (OQ-03 §3); a retry repeats the message of the attempt before it, for its own attempt, session and result route.
+
+## The dispatch outbox and recovery (OQ-05 §4)
+
+The outbox entry is written with its attempt and reservation. `dispatchPending` (`src/outbox.ts`) sends the stored message to the batch queue (`job-dispatch/1`) or to the agent runner (`agent-dispatch/1`) through two small interfaces, so a test supplies fakes. A failed send leaves the entry `PENDING`, and the next pass sends the same message under the same attempt; an entry whose attempt was claimed already is marked `SENT` without a send, and a cancelled one is never sent. With research execution off, or without the binding of a destination, nothing is sent. The runner is called over HTTPS only, with the credential of the workflows principal, with no redirect.
+
+`runRecovery` (`src/recovery.ts`) is one pass, run by the cron trigger of `wrangler.jsonc` every minute (`scheduled` in `src/worker.ts`), with no client connected:
+
+1. A held lease that has ended is fenced: the attempt is `LEASE_EXPIRED`, and below the attempt cap and with budget a new attempt of the same run or job is written with its own reservation and outbox entry. At the cap the run or job is `FAILED`; with no budget it waits `QUEUED` and the mission is `BLOCKED`.
+2. The reservation of a fenced attempt, or of one that `cancel_mission` cancelled while claimed, stays `RESERVED` until its termination is confirmed. A probe says whether the host stopped; the default one (`deadlineProbe`) confirms once the lease deadline and 300 seconds have passed. With no usage report the reservation becomes `UNRECONCILED`: the full amount counts as spent, and a later report can still settle it.
+3. Every pending entry is sent.
+
+Each step is idempotent, and one failing item is logged, counted in the summary and tried again on the next pass. The writes run under the one active `workflows` service principal of the environment; with none, the pass logs it and only sends.
+
+## Read models (OQ-04 §§4 and 5, OQ-05 §7)
+
+Any person with a role reads them, and none changes mission state. A value that nothing reported is `null` or labelled unreported, never zero (`used` of a reservation line, an unset treatment, an unfinished run). The shapes are API-owned (`src/read-models.ts`); `runs.metrics` and `runs.result` return the committed bytes unchanged, with `x-content-digest`, and `NOT_FOUND` while none is committed (a `FAILED` or `INSUFFICIENT` run has no metrics).
+
+| Route | View |
+| --- | --- |
+| `missions.show` | Status, outcome and reasons, scope, profile and policy revision, plan digest, budget limits and pools, reservations by status, candidates by trial slot, jobs with their attempts, run counts, attention items. |
+| `missions.plan` | The stored `evaluation-plan/1`. |
+| `missions.lineage` | The Strategy Graph, derived: versions, parents, change scope, linked runs, findings and Decisions. |
+| `missions.trials` | Trial slots, planned run slots with their run (status, mode, environment, attempts, holdout consumption), and every proposal, invalid and discarded ones too. |
+| `missions.findings` | Findings with category, source, applicability and the treatment of each lifecycle transition. |
+| `missions.gates` | Gate reports with eligibility and its reasons. |
+| `missions.decisions` | Decisions with actor, outcome and evidence, and the Steward approval that each policy-determined Decision names. |
+| `jobs.show` | A job or an evaluation run: attempts with outcome, lease, ownership revision, dispatch state and reservation lines. |
+
+Revealing the result of a holdout run is consumption (OQ-02 §3.3, A05). The first read of the metrics or result of a `HOLDOUT` run, and the first read of a gate report that shows holdout observations, write one record per run in the transaction of that read.
+
+## Release identity (OQ-05 §§9 and 11, D23)
+
+`releases.record` stores the `release-manifest/1` that the delivery job built, for the environment of this API and at the migration level of its database (`IDENTITY_MISMATCH` otherwise). The same manifest twice is one record, and `system.identity` shows the newest. Run requests, claims, validation, evaluation and gate reports bind to the engine, method and executables of that record.
+
+## Bootstrap (OQ-05 §9, D12)
+
+`pnpm --filter @openquant/api run bootstrap -- --environment STAGING --out /path/to/secrets.json` (with `DATABASE_URL`, a direct connection) creates the first Administrator and the `batch`, `runner`, `workflows` and `deploy` principals of an environment, and one credential for each. It is a command with the database role that applies the migrations, not a route: nobody who can only reach the API can create an Administrator. The credentials go to the file that the operator names, which the command creates with mode 0600 and never overwrites; the command prints identifiers and the path, no secret. The database stores only hashes. The file belongs in a secret store (GitHub environment secrets, Fly secrets), never in version control; the operator moves each secret and deletes the file. A failure removes the file and creates nothing. It refuses an environment that has principals already. The Administrator has that role only (no hierarchy, no trading authority); each service credential carries the operations that the manifest lists for its principal.
 
 ## Guarded commands (OQ-05 §§3 and 4, OQ-02 §§1 and 4, `command/1`)
 
@@ -144,13 +222,13 @@ Amounts are exact decimals (`decimal.ts`) in `numeric(24, 8)` columns; nothing i
 
 `src/domain/dispatch.ts` builds the dispatch message of the work that this part creates and stores its request document by digest: the `retrieval-request/1` of a mission's retrieval (the instrument, the dataset operations of the profile, its history range, the information cutoff, the data semantics, the limits) and the `evaluation-request/1` of each planned run (the strategy version, the resolved window of the plan, the cost scenario, the engine and method identity of the release recorded for the environment, the holdout withheld from every run that does not evaluate it). The cost stress multiplies the components that the cohort policy names. A test compares both with the fixtures of the protocol manifest.
 
-A run request needs the release identity of the environment (the engine digest and the method identity come from the recorded `release-manifest/1`). Without one the command answers `EXECUTION_DISABLED`, stays `PENDING`, and applies when the same ID is retried after the release is recorded. Messages for `validate`, `assess` and agent work need inputs that part C records: a caller that creates such work passes its own builder, and a retry of it without one throws.
+A run request needs the release identity of the environment (the engine digest and the method identity come from the recorded `release-manifest/1`). Without one the command answers `EXECUTION_DISABLED`, stays `PENDING`, and applies when the same ID is retried after the release is recorded. `builders.ts` builds the `validate` and `assess` messages (below). The first attempt of agent work needs the role request that the workflow assembles, so its caller passes its own builder; its retry repeats the message of the attempt before it.
 
 ## Migrations
 
 `migrations/NNNN_name.sql`, numbered from `0001` without a gap, each applied in its own transaction together with its row in `schema_migrations`, under one advisory lock. The runner refuses a changed or missing applied file and a file with transaction control. The migration level is the id of the last applied file; `system.identity` reads it for the release identity. Use a direct, not a pooled, connection string.
 
-Migration `0008_commands` adds the strategy ID of a seed draft (unique, so two drafts of one strategy cannot both become version 1) and the reason of a withdrawal. Nothing is deployed, so the first column is `NOT NULL`.
+Migration `0008_commands` adds the strategy ID of a seed draft (unique, so two drafts of one strategy cannot both become version 1) and the reason of a withdrawal. Migration `0009_attempt_routes` adds the draft and parent of a validate job, the digest of the result document that an attempt ended with (so a repeated submission finds it), and `agent_results`, the link from an agent attempt to its output. Nothing is deployed, so the first columns are `NOT NULL`.
 
 State rules of the specifications are constraints: the transition table of OQ-05 §4 (`state_transitions` and one trigger per status column, with terminal states that never move), one live attempt per run or job, the attempt cap and fencing revisions, attempt, reservation and outbox written in one transaction, a budget pool that cannot commit more than its limit, one official result per run, results tied to a COMPLETED attempt and to the run status of OQ-02 §3.6, metrics only for COMPLETED results, holdout runs only through `freeze_candidates` slots, no EVALUATING to PAPER Decision and no PAPER lifecycle, hash-only credentials, and append-only audit. `test/constraints.*.test.ts` tries to break each one, and `test/transitions.test.ts` compares the transition table with a literal written from the specification.
 
@@ -168,18 +246,20 @@ Unverified until a pull request runs: the CI path (a non-root runner with the pr
 
 ## Limits and open points
 
-- No rate limiting: `RATE_LIMITED` is never emitted. A Workers rate-limit binding is a P6 item.
-- The views (`access-token`, `system-identity`) are typed in `src/views.ts`, which `packages/api-client` cannot import (import boundary). A shared home is a decision for the lead.
-- `/health` is not in the route manifest.
-- `attention_items.status` takes the values `OPEN`, `ACKNOWLEDGED` and `RESOLVED`: the specifications name attention items and give no values.
-- S1 uses four roles. No Operator role exists (OQ-05 §9 adds it with paper sessions).
-- `releases.record` lists `REVISION_CONFLICT`, but its request carries no expected revision; its meaning is unspecified. Decide it before the route is built.
-- The first Administrator and the service principals have no bootstrap command yet. `createPrincipal`, `grantRole` and `issueCredential` in `src/auth/credentials.ts` are the tested library functions that a bootstrap command will call.
+What part C does not do, and what a reader must not assume:
+
+- **Not built here.** `ResearchWorkflow` and `EvaluationWorkflow` (P5) call the entry points of this package (`startValidation`, `startAssessment`, `record_evaluation_decision`, `freeze_candidates`, the agent builder); nothing here starts a proposer, reads a proposal or decides when to freeze. The batch host (P3) and the agent runner (P4) are not called by any test: the tests play their side through the HTTP routes with synthetic documents. The Queues pull consumer, the queue name, the Hyperdrive and R2 identifiers and the Worker runtime are P6.
+- **Replay runs.** `evaluation-request/1` has a `REPLAY` mode and the runs table allows it, but a run without a mission has no budget to draw on, so the evaluation route accepts `BACKTEST` runs only. The connected S0 replay is P5.
+- **Role outputs.** The shared parsers of `packages/agents` are not an import of this package yet. The API reads a critic's output with its own strict reading of `strategy-critique.result/1` (`src/domain/critique.ts`) so that the findings it records are what the critic returned, and a proposer's output only for its tag and proposal kind; the workflow that reads the proposal must use the shared parser. Reference checks against the request (cited methods, evidence, elements) are the shared parser's job.
+- **Termination is assumed from the clock.** `deadlineProbe` takes a host to have stopped 300 seconds after its lease ended. No platform call backs it: P6 supplies a probe that asks Fly. The assumption is safe in one direction: confirming without a report releases nothing.
+- **Rate limiting.** `RATE_LIMITED` is answered only by the claim route, for the concurrency limit of the cohort policy. There is no general rate limit; a Workers rate-limit binding is a P6 item.
+- **Attention items.** `attention_items.status` takes the values `OPEN`, `ACKNOWLEDGED` and `RESOLVED`: the specifications name attention items and give no values. No route reads or changes them yet; `missions.show` lists them.
+- **View shapes.** The views are typed here and in `src/views.ts`, which `packages/api-client` cannot import (import boundary). A shared home is a decision for the lead.
+- `releases.record` lists `REVISION_CONFLICT`, but its request carries no expected revision; its meaning is unspecified, so the route never answers it.
+- `/health` is not in the route manifest. S1 uses four roles: no Operator role exists (OQ-05 §9 adds it with paper sessions).
 - The mission budget stays taken from the period budget after a withdrawal or a conclusion: no S1 command returns the unspent part (the reservations of a cancelled mission do return to the mission's pools).
 - The batch compute that an attempt reserves is the job timeout of the cohort policy, the per-attempt cap. The pilot proposes 600 seconds for an evaluate attempt and 7,200 batch seconds for a mission: 21 runs would reserve 12,600, so a mission with the proposed values is `BLOCKED` at its third candidate (a test shows it). P3 replaces the batch timeouts with measured values, and the policy and the mission budget must then agree.
 - `max_retries` (2) and `request_timeout_seconds` (30) of a retrieval request have no source in the research profile or the cohort policy, so `dispatch.ts` sets them. The seed of an evaluation request is 0: the evaluator reads no random seed.
-- The concurrency limits of the cohort policy (`concurrent_batch_attempts`, `concurrent_agent_attempts`) are not enforced yet: they belong to the claim route of part C, and `attempts.claim` lists no code for "try later".
-- No table links an attempt to the agent result that it produced, so `record_evaluation_decision` checks the critique result only as a recorded artefact of the stated size. The agent-result route of part C should record the link.
-- The evaluation plan, the dataset manifest and the registered Strategy Versions are written by part C. The tests write them with SQL, as part C will.
+- The retrieval cutoff of a request assumes a 16:00 New York close on the last window end date, because the retrieved calendar does not exist yet; the plan then resolves the real cutoff from the retrieved bars.
+- A claim made before any release is recorded skips the executable check of the release (there is none to check against); every result route needs a release and refuses without one.
 - Command IDs are global, as the table of migration 0007 makes them: a principal who guesses the predictable ID of a workflow command can take it first, and the workflow then gets `COMMAND_ID_REUSED`. Scoping the ID by actor needs a migration; the specification does not say.
-- Recovery as a scheduled task, the outbox dispatcher and the Workflows are not built. Their guarded functions (`expireLease`, `confirmTermination`, `reconcileReservation`, `markOutboxSent`) are, with tests.

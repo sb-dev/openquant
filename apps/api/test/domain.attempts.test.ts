@@ -421,9 +421,11 @@ describe('which failures are retried', () => {
     expect(
       await world.sql('SELECT ownership_revision, status, failure_code FROM attempts WHERE job_id = $1', [jobId]),
     ).toEqual([{ ownership_revision: 1, status: 'FAILED', failure_code: 'RETRIEVAL_EGRESS_REFUSED' }]);
-    // No new reservation, no outbox entry for a second attempt, and the mission is not blocked: the failure is final.
+    // No new reservation and no outbox entry for a second attempt: the failure is final. The mission cannot go on without
+    // its data, so it is BLOCKED with the reason, and an attention item shows it to an operator.
     expect(await world.sql('SELECT 1 FROM outbox')).toHaveLength(1);
-    expect(await world.sql('SELECT status FROM missions')).toEqual([{ status: 'IN_PROGRESS' }]);
+    expect(await world.sql('SELECT status FROM missions')).toEqual([{ status: 'BLOCKED' }]);
+    expect(await world.sql('SELECT subject FROM attention_items')).toEqual([{ subject: `retrieve job ${jobId}` }]);
     await world.drop();
   });
 

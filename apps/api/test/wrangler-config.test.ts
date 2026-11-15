@@ -43,6 +43,8 @@ interface WranglerConfig {
   vars: Record<string, string>;
   hyperdrive: { binding: string }[];
   r2_buckets: { binding: string }[];
+  queues: { producers: { binding: string }[] };
+  triggers: { crons: string[] };
   [key: string]: unknown;
 }
 
@@ -65,12 +67,16 @@ describe('wrangler.jsonc', () => {
     const configured = [
       ...config.hyperdrive.map((entry) => entry.binding),
       ...config.r2_buckets.map((entry) => entry.binding),
+      ...config.queues.producers.map((entry) => entry.binding),
       ...Object.keys(config.vars),
       ...secretNames,
     ].sort();
     expect(configured).toEqual(declaredBindings());
     expect(declaredBindings()).toEqual([
+      'AGENT_RUNNER_CREDENTIAL',
+      'AGENT_RUNNER_URL',
       'ARTEFACTS',
+      'BATCH_QUEUE',
       'HYPERDRIVE',
       'OPENQUANT_ENVIRONMENT',
       'OPENQUANT_RESEARCH_EXECUTION',
@@ -117,7 +123,7 @@ describe('wrangler.jsonc', () => {
       read('.dev.vars.example')
         .split('\n')
         .filter((line) => /^[A-Z][A-Z0-9_]*=/.test(line)),
-    ).toEqual(['TOKEN_SIGNING_KEY=']);
+    ).toEqual(['TOKEN_SIGNING_KEY=', 'AGENT_RUNNER_URL=', 'AGENT_RUNNER_CREDENTIAL=']);
   });
 
   it('enables nodejs_compat for pg, a current compatibility date, and logs and traces', () => {
@@ -133,6 +139,13 @@ describe('wrangler.jsonc', () => {
     expect(config.hyperdrive).toEqual([{ binding: 'HYPERDRIVE' }]);
     expect(config.r2_buckets).toEqual([{ binding: 'ARTEFACTS' }]);
     expect(config.name).toBe('openquant-api');
+  });
+
+  it('produces to the one batch queue and runs the recovery pass every minute', () => {
+    expect(config.queues).toEqual({ producers: [{ binding: 'BATCH_QUEUE' }] });
+    expect(config.triggers).toEqual({ crons: ['* * * * *'] });
+    // The Worker exports the handler that the cron trigger calls.
+    expect(read('src/worker.ts')).toMatch(/\bscheduled\(/);
   });
 
   it('is not configured to skip anything: no passThroughOnException, no remote bindings, no unsafe settings', () => {
