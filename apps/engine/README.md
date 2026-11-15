@@ -1,6 +1,6 @@
 # Native Rust host
 
-Status: S0 local harness implemented (`s0-replay`, crate `openquant-engine`). The connected batch host is planned for M1/S1.
+Status: S0 local harness implemented (`s0-replay`, crate `openquant-engine`). The S1 market-data library is implemented as the `market` module: the Alpaca adapter, the normaliser that writes `dataset-manifest/1`, the enablement gate and the retrieval sequence, tested offline against synthetic provider responses. Nothing calls a provider: no real HTTP transport, queue consumer, claim, upload or `engine-batch` binary exists yet, and the provider endpoint shapes are not verified against a live response. The connected batch host is planned for M1/S1.
 
 Thin entry points around quant-core. S0 runs the core locally through a small harness; it does not require the connected batch host. Add batch hosting and the first market adapter in S1, then the second market adapter in S2. Add live-data paper at M2, shadow validation at M3, and separately deployed live execution at M4. Market and broker adapters belong beside this host.
 
@@ -11,5 +11,24 @@ Expectation sections (`expect` in a case's `expected.json`): every section excep
 The detail text comes from the shared core. It is written for a reader and the harness never parses it. It names these facts: `MISSING_REQUIRED_BAR` the instrument and the session with no bar; `UNSUPPORTED_VALUATION` the instrument, the `event_id` of every confirmed halt of the session, the first unvalued session and the last session of the scored window (`windows.scored_end`); `UNSUPPORTED_CORPORATE_ACTION` and `FRACTIONAL_ENTITLEMENT` the instrument, the `action_id` and the effective session. The result schema limits the detail to 1000 characters.
 
 Lints: the crate inherits the workspace lint policy, so `unwrap`, `expect`, `panic`, indexing and float arithmetic are denied in the library and the binary as in the core. The integration tests allow them at their crate roots, as the core tests do.
+
+## Market data (S1)
+
+`src/market` holds the provider side of retrieval (OQ-05 sections 5, 7 and 7.1; OQ-02 sections 1.1, 2.5 and 2.6). It reads no environment variable, clock, file or network socket of its own: the batch host supplies the transport, the clock and the configuration.
+
+| Module | Role |
+| --- | --- |
+| `provider` | The `MarketDataProvider` interface, the capabilities an adapter declares and `CallContext`, which enforces the request budget (reserved before any I/O, retries and pages included), the deadline, cancellation and the bounded retry policy outside the adapter. Every attempt is one recorded call; every successful response is kept as a source body. |
+| `alpaca` | The Alpaca adapter over an `HttpTransport`: raw daily bars, regular-hours minute bars (for the session probe), corporate actions, the trading calendar and the asset record, with `next_page_token` pagination, `Retry-After`, typed errors and the exact host and path allowlist (`EGRESS_RULES`) that the egress module of the batch host must permit. Numbers are read as JSON tokens and shifted into decimal text: no float exists anywhere. |
+| `http`, `error` | The transport seam (GET only, no redirect followed, credentials beside the request and printed as `<redacted>`) and the typed errors with their `retrieval-result/1` classes. A credential, a URL, a query or a response body never appears in an error, a log or a `Debug` output. |
+| `normalise` | Provider data to `dataset-manifest/1`: per-session OHLCV, `available_at` = session close + the declared data-ready delay (an early close runs from the early close), a calendar with holidays, closures, early closes and daylight saving, corporate actions with `available_at` = the ex-date open only when the declaration date is strictly before the ex-date, the payment-session rule, coverage, source hashes and the price-scale rule. Its rules are in `src/market/rules.txt`, whose SHA-256 is the transformation digest. Where the evidence is missing it blocks the profile; it never substitutes a fixed offset, the record or process date or the retrieval time, and never drops an action. |
+| `gate` | Provider retrieval is off by default. It runs only when `OPENQUANT_MARKET_RETRIEVAL` is exactly `enabled` and six facts are verified by a recorded probe: paper authority, no live authority, the feed entitlement, the session semantics, the egress refusals and the declaration-date field. A `RetrievalPermit` has no public constructor, so `retrieve_snapshot` cannot be called without a yes from the gate. The gate does no I/O: the delivery probes produce the evidence. |
+| `session` | The pure comparison of a daily bar with the regular-hours minute bars of its session, exact and without tolerance. |
+| `retrieve` | One snapshot retrieval behind the gate: asset, calendar, daily bars, corporate actions, then the normaliser. The request ends at the earlier of its range end and the clock minus the profile's minimum end age. |
+| `time`, `number` | Civil dates, UTC instants and the US Eastern rule (2007 to 2099) in integer arithmetic, and exact decimal text for provider numbers. |
+
+Tests: `tests/market_adapter.rs` (the endpoints, pagination, typed errors, retries, `Retry-After`, the budget, cancellation, redaction), `tests/market_normaliser.rs` (every normalised and blocked case against the independent oracle, and each rule at its boundary), `tests/market_gate.rs`, `tests/market_retrieve.rs` and `tests/market_session_probe.rs`, with the shared scripted transport in `tests/market_support`. The cases and the oracle are in [market-data fixtures](../../fixtures/market-data/README.md).
+
+Limits: the endpoint paths, query names and response shapes follow Alpaca's public reference as last known and are unverified; the market-data corporate-actions response is not known to carry the declaration date or a record id, so the profile may be blocked by rule until the provider probe or another evidenced source says otherwise (the owner approved a Trading API announcements read only conditionally, and it is not built); a corporate action of any type other than a split or a cash dividend blocks the profile because no availability rule exists for it; the price scale above 4 blocks the profile and a scale of 3 or 4 needs the S1 overflow test first.
 
 Owner: [05-system-architecture-and-data-spec.md](../../docs/specs/05-system-architecture-and-data-spec.md). Add executable files and required verification together.
