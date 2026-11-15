@@ -891,7 +891,7 @@ const contractsManifest = 'packages/api-contracts/ts/package.json';
 function workspaceMutation(change: (directory: string) => void, expected: RegExp) {
   const temporary = mkdtempSync(resolve(tmpdir(),'openquant-workspace-'));
   try {
-    const kept = (file: string) => file.startsWith('packages/api-contracts/ts/') || file.startsWith('scripts/workspace/') || ['package.json','pnpm-workspace.yaml','tsconfig.base.json','biome.json'].includes(file);
+    const kept = (file: string) => file.startsWith('packages/api-contracts/ts/') || file.startsWith('apps/api/') || file.startsWith('scripts/workspace/') || ['package.json','pnpm-workspace.yaml','tsconfig.base.json','biome.json'].includes(file);
     for (const file of paths(root).filter(kept)) { mkdirSync(resolve(temporary,file,'..'),{recursive:true}); copyFileSync(resolve(root,file),resolve(temporary,file)); }
     assert.deepEqual(workspaceErrors(temporary,new Set(paths(temporary))),[],'the small copy passes before the change');
     change(temporary);
@@ -955,8 +955,8 @@ test('C8: test sources cannot skip, focus or postpone a test, and sources cannot
 
 // C9 and U0: the workspace packages and the workspace test files are literal lists in scripts/s0.ts.
 test('C9: the reviewer\'s empty workspace fails: pnpm-workspace.yaml must list exactly the expected packages',()=>{
-  mutated((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - packages/api-contracts/ts\n','  - packages/none-yet\n')),/pnpm-workspace\.yaml must list exactly these packages, one per line, in this order: packages\/api-contracts\/ts; found packages\/none-yet/);
-  workspaceMutation((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - packages/api-contracts/ts\n','  - packages/api-contracts/ts\n  - packages/agents\n')),/found packages\/api-contracts\/ts, packages\/agents/);
+  mutated((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - packages/api-contracts/ts\n','  - packages/none-yet\n')),/pnpm-workspace\.yaml must list exactly these packages, one per line, in this order: packages\/api-contracts\/ts, apps\/api; found packages\/none-yet, apps\/api/);
+  workspaceMutation((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - packages/api-contracts/ts\n','  - packages/api-contracts/ts\n  - packages/agents\n')),/found packages\/api-contracts\/ts, packages\/agents, apps\/api/);
   workspaceMutation((base)=>editJson(base,contractsManifest,(value)=>{ value.name = '@openquant/other'; }),/package\.json must be named @openquant\/api-contracts/);
   assert.equal(workspacePackageList('packages: [packages/api-contracts/ts]\n'),undefined);
   assert.deepEqual(workspacePackageList('# list\npackages:\n  # one\n  - a\n\n  - b\nother: x\n  - c\n'),['a','b']);

@@ -94,6 +94,16 @@ export const expectedWorkspacePackages: readonly WorkspacePackage[] = [
       build: 'node tools/generate.ts && tsc -p tsconfig.json && node tools/bundle-check.ts',
     },
   },
+  {
+    directory: 'apps/api',
+    name: '@openquant/api',
+    scripts: {
+      typecheck: 'tsc -p tsconfig.json && tsc -p tsconfig.test.json',
+      lint: 'biome check --error-on-warnings .',
+      test: 'vitest run --reporter=default --reporter=./test-reporter.ts',
+      build: 'tsc -p tsconfig.json && node tools/bundle-check.ts',
+    },
+  },
 ];
 
 // Files that decide whether a test run counts or which guards run, pinned by SHA-256 of their bytes: the two
@@ -104,6 +114,8 @@ export const pinnedFiles: Readonly<Record<string, string>> = {
   'scripts/workspace/check-workspace.ts': '75d3b28748b91c4509c1747d4d957dd6b6a0476e65e98db3411cf5bfe184859f',
   'packages/api-contracts/ts/test-reporter.ts': '5a19ae965e6153903150f7fe3e37fc39a1e5b26a7729bb115065b70faf1d865d',
   'packages/api-contracts/ts/vitest.config.ts': '58433531d0bf46b50dba6178f0ce16c6b86c1972d8b3021edcbd9e3c3d5550fb',
+  'apps/api/test-reporter.ts': '5a19ae965e6153903150f7fe3e37fc39a1e5b26a7729bb115065b70faf1d865d',
+  'apps/api/vitest.config.ts': 'b6d168e53c593d66690652dac99f253dee97a055834a01279ba76baaf257d151',
 };
 
 // Protocol manifest vocabulary. The Rust tests select entries by these exact expect values. For
