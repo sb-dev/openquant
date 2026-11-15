@@ -314,6 +314,7 @@ test('a Cargo step cannot be dropped, shortened or changed',()=>{
   const fmt = 'cargo fmt --all --check';
   const clippy = 'cargo clippy --workspace --all-targets --locked -- -D warnings';
   const tests = 'cargo test --workspace --locked';
+  const batch = steps.find((step)=>step.includes('--bin engine-batch'))!;
   const replay = steps.find((step)=>step.includes('--bin s0-replay'))!;
   const report = steps.find((step)=>step.includes('--bin contracts-report'))!;
   const mutations: Record<string,string[]> = {
@@ -328,10 +329,15 @@ test('a Cargo step cannot be dropped, shortened or changed',()=>{
     'clippy without --locked': withStep(clippy,clippy.replace(' --locked','')),
     'replay without --locked': withStep(replay,replay.replace(' --locked','')),
     'replay to another directory': withStep(replay,replay.replace('local-runs/s0','local-runs/other')),
+    'drop the engine-batch build': withStep(batch),
+    'engine-batch build without --locked': withStep(batch,batch.replace(' --locked','')),
+    'engine-batch build of another binary': withStep(batch,batch.replace('--bin engine-batch','--bin s0-replay')),
+    'engine-batch build of the whole package': withStep(batch,batch.replace(' --bin engine-batch','')),
+    'engine-batch build before the tests': [...steps.slice(0,2),batch,tests,...steps.slice(4)],
     'drop the contracts report': withStep(report),
     'contracts report without --locked': withStep(report,report.replace(' --locked','')),
     'contracts report to another directory': withStep(report,report.replace('local-runs/contracts','local-runs/other')),
-    'contracts report before the replay': [...steps.slice(0,3),report,replay],
+    'contracts report before the replay': [...steps.slice(0,4),report,replay],
     'fmt without --check': withStep(fmt,'cargo fmt --all'),
     'no steps': [],
     'a step twice': [...steps,fmt],

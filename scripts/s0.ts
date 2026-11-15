@@ -50,6 +50,7 @@ export const expectedCargoCommands: readonly string[] = [
   'cargo fmt --all --check',
   'cargo clippy --workspace --all-targets --locked -- -D warnings',
   'cargo test --workspace --locked',
+  'cargo build --locked -p openquant-engine --bin engine-batch',
   'cargo run --locked -p openquant-engine --bin s0-replay -- --out local-runs/s0',
   'cargo run --locked -p openquant-contracts --bin contracts-report -- --out local-runs/contracts',
 ];
