@@ -99,6 +99,8 @@ const pathOf = (route: RawRoute, attemptId: string) =>
   route.path
     .replace('{attempt_id}', attemptId)
     .replace('{digest}', `sha256:${'a'.repeat(64)}`)
+    // The mission of the path is the mission of the command fixtures: a command for another mission is refused.
+    .replace('{mission_id}', 'msn-aapl-0001')
     .replace(/\{[a-z_]+\}/g, 'x-1');
 
 async function send(
@@ -157,9 +159,10 @@ describe('the body limit comes before the parse (OQ-05 section 7)', () => {
       expect(over.status, 'a declared length above the limit').toBe(413);
       expect((await errorOf(over)).code).toBe('LIMIT_EXCEEDED');
       const exact = await send(route, padded(document, limit), { 'content-length': String(limit) });
-      // Past the limit and the parse, a route that a later part builds answers UNAVAILABLE.
-      expect(exact.status, 'exactly the limit').toBe(503);
-      expect((await errorOf(exact)).code).toBe('UNAVAILABLE');
+      // Past the limit and the parse the route does its own work: a command is applied or refused for its own reason,
+      // and a route that a later part builds answers UNAVAILABLE. It is neither LIMIT_EXCEEDED nor a parse failure.
+      expect([202, 204, 404, 409, 422, 503], `exactly the limit: ${exact.status}`).toContain(exact.status);
+      if (exact.status === 503) expect((await errorOf(exact)).code).toBe('UNAVAILABLE');
     });
   }
 
@@ -442,7 +445,9 @@ describe('the form and the command kind of a route', () => {
   it('accepts the command that the route names, for every command route', async () => {
     for (const route of served.filter((entry) => entry.request.command_kind !== undefined)) {
       const response = await send(route, fixture(validFixture[route.id] as string));
-      expect(response.status, route.id).toBe(503);
+      // The command is accepted by the route layer. What the command then does (it is applied, or refused for want of
+      // the records that it names) is the business of the command tests.
+      expect([202, 404, 409, 422], `${route.id}: ${response.status}`).toContain(response.status);
     }
   });
 });
@@ -481,35 +486,45 @@ describe('routes that do not exist', () => {
 describe('routes that a later part builds', () => {
   it('splits the 29 served routes between the handlers and the deferred table, each route in exactly one', () => {
     const implemented = Object.keys(handlers);
-    expect(implemented.sort()).toEqual(['auth.token', 'system.identity']);
-    expect(deferredRouteIds).toHaveLength(27);
-    expect(new Set(deferredRouteIds).size).toBe(27);
+    expect(implemented.sort()).toEqual([
+      'auth.token',
+      'budgets.register',
+      'cohort-policies.register',
+      'commands.show',
+      'missions.cancel',
+      'missions.create',
+      'missions.run-now',
+      'research-profiles.register',
+      'seeds.register',
+      'system.identity',
+    ]);
+    expect(deferredRouteIds).toHaveLength(19);
+    expect(new Set(deferredRouteIds).size).toBe(19);
     expect([...implemented, ...deferredRouteIds].sort()).toEqual(served.map((route) => route.id).sort());
     expect(implemented.filter((id) => deferredRouteIds.includes(id))).toEqual([]);
   });
 
   it('answers UNAVAILABLE and names the part, only after authentication, authorisation, the limit and the parse', async () => {
-    const route = served.find((entry) => entry.id === 'missions.create') as RawRoute;
-    const unauthenticated = await testApp.request('/v1/missions', {
+    const route = served.find((entry) => entry.id === 'releases.record') as RawRoute;
+    const unauthenticated = await testApp.request('/v1/releases', {
       method: 'POST',
-      body: fixture(validFixture['missions.create'] as string),
+      body: fixture(validFixture['releases.record'] as string),
     });
     expect(unauthenticated.status).toBe(401);
-    const forbidden = await send(route, fixture(validFixture['missions.create'] as string), {}, people.viewer);
+    const forbidden = await send(route, fixture(validFixture['releases.record'] as string), {}, people.viewer);
     expect(forbidden.status).toBe(403);
     const invalid = await send(route, '{}');
     expect(invalid.status).toBe(400);
-    const valid = await send(route, fixture(validFixture['missions.create'] as string));
+    const valid = await send(route, fixture(validFixture['releases.record'] as string));
     expect(valid.status).toBe(503);
     const body = await errorOf(valid);
     expect(body).toMatchObject({ code: 'UNAVAILABLE', retry_safe: false, state_changed: 'NONE' });
-    expect(body.message).toContain('missions.create');
-    expect(body.message).toContain('P2 part B');
+    expect(body.message).toContain('releases.record');
+    expect(body.message).toContain('P2 part C');
   });
 
   it('names the part of each deferred group', async () => {
     const expected: Record<string, string> = {
-      'commands.show': 'P2 part B',
       'attempts.input': 'P2 part C (attempts',
       'missions.show': 'P2 part C (read models',
       'releases.record': 'P2 part C (release records)',

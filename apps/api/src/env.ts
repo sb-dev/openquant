@@ -26,6 +26,11 @@ export interface ApiEnv {
   readonly objects: ObjectStore;
   readonly clock: () => Date;
   readonly ids: IdGenerator;
+  /**
+   * Whether research execution is on. It is off by default: a Researcher can register and create, and run_mission_now
+   * is refused with EXECUTION_DISABLED until the deployment turns it on (OQ-05 section 4).
+   */
+  readonly researchExecution: boolean;
   readonly secrets: {
     /** HMAC key of access tokens and attempt capabilities: at least 32 bytes. */
     readonly tokenSigningKey: Uint8Array;
@@ -43,6 +48,8 @@ export interface WorkerBindings {
   readonly TOKEN_SIGNING_KEY: string;
   /** Plain variable: DEVELOPMENT, STAGING or PRODUCTION. */
   readonly OPENQUANT_ENVIRONMENT: string;
+  /** Plain variable: `enabled` turns research execution on; any other value, or none, leaves it off. */
+  readonly OPENQUANT_RESEARCH_EXECUTION: string;
 }
 
 /** Identifiers from the platform's random source: 96 bits after the prefix. */

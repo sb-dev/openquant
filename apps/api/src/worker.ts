@@ -39,6 +39,7 @@ export function workerEnv(bindings: WorkerBindings): ApiEnv {
     objects: createR2ObjectStore(bindings.ARTEFACTS),
     clock: () => new Date(),
     ids: randomIds(),
+    researchExecution: bindings.OPENQUANT_RESEARCH_EXECUTION === 'enabled',
     secrets: { tokenSigningKey },
     // One JSON line: Workers Logs makes it searchable (workers-best-practices).
     log: (entry) => (entry.level === 'error' ? console.error : console.log)(JSON.stringify(entry)),

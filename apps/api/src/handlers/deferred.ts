@@ -1,4 +1,4 @@
-// Routes that a later part of the durable API builds. In part A of P2 (the foundation) a route that has no handler
+// Routes that a later part of the durable API builds. A route that has no handler yet
 // still goes through the whole route layer: authentication, authorisation, the body limit and the contract parse. It
 // then answers UNAVAILABLE and says which part is missing. api-error/1 has no "not implemented" code; UNAVAILABLE is
 // in the error list of every route, and this answer is acceptable in this part only. Each later part moves its routes
@@ -13,19 +13,6 @@ export interface DeferredGroup {
 }
 
 export const deferredGroups: readonly DeferredGroup[] = [
-  {
-    part: 'P2 part B (guarded commands and the command status)',
-    routes: [
-      'research-profiles.register',
-      'cohort-policies.register',
-      'budgets.register',
-      'seeds.register',
-      'missions.create',
-      'missions.run-now',
-      'missions.cancel',
-      'commands.show',
-    ],
-  },
   {
     part: 'P2 part C (attempts, results and recovery)',
     routes: [

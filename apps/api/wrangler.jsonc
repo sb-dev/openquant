@@ -20,7 +20,10 @@
   },
   "vars": {
     // DEVELOPMENT, STAGING or PRODUCTION. The delivery job sets it for each environment.
-    "OPENQUANT_ENVIRONMENT": "DEVELOPMENT"
+    "OPENQUANT_ENVIRONMENT": "DEVELOPMENT",
+    // `enabled` turns research execution on. It stays `disabled` until the deployment is verified (OQ-05 section 4):
+    // run_mission_now answers EXECUTION_DISABLED, and nothing is dispatched to the batch host or the agent runner.
+    "OPENQUANT_RESEARCH_EXECUTION": "disabled"
   },
   "hyperdrive": [
     // Query caching is disabled on the Hyperdrive resource itself (OQ-05 section 1); Terraform creates it with

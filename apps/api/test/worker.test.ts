@@ -31,6 +31,7 @@ function bindings(overrides: Record<string, unknown> = {}): WorkerBindings {
     ARTEFACTS: {},
     TOKEN_SIGNING_KEY: toBase64Url(signingKey),
     OPENQUANT_ENVIRONMENT: 'DEVELOPMENT',
+    OPENQUANT_RESEARCH_EXECUTION: 'disabled',
     ...overrides,
   } as unknown as WorkerBindings;
 }
@@ -126,6 +127,14 @@ describe('the Worker entry', () => {
     expect(first.database()).not.toBe(first.database());
     expect(first.environment).toBe('DEVELOPMENT');
     expect(workerEnv(bindings({ OPENQUANT_ENVIRONMENT: 'PRODUCTION' })).environment).toBe('PRODUCTION');
+  });
+
+  it('turns research execution on only for the value enabled, and leaves it off for anything else', () => {
+    expect(workerEnv(bindings()).researchExecution).toBe(false);
+    expect(workerEnv(bindings({ OPENQUANT_RESEARCH_EXECUTION: 'enabled' })).researchExecution).toBe(true);
+    for (const value of ['Enabled', 'true', '1', '', undefined]) {
+      expect(workerEnv(bindings({ OPENQUANT_RESEARCH_EXECUTION: value })).researchExecution, String(value)).toBe(false);
+    }
   });
 
   it('logs one JSON line for an unexpected error and never a credential', async () => {
