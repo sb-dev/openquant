@@ -6,10 +6,11 @@
 //   1. an attempt whose lease ran out without a result is fenced (LEASE_EXPIRED). Below the attempt cap, with budget and
 //      a retryable cause, a new attempt of the same run or job is written with its own reservation and outbox entry. At
 //      the cap the run or job fails. Without budget it waits QUEUED and the mission is BLOCKED (expireLease);
-//   2. the reservation of a fenced or cancelled-while-claimed attempt stays RESERVED until its termination is confirmed.
-//      A probe says whether the host has stopped; the default one confirms when the lease deadline and a grace have
-//      passed (below). Confirmation with no usage report makes the reservation UNRECONCILED: the full amount counts as
-//      spent. Nothing is released without a report (confirmTermination);
+//   2. the reservation of a fenced or cancelled-while-claimed attempt stays RESERVED, and the attempt keeps its
+//      concurrency slot, until its termination is confirmed (decision D22). Only the probe confirms, never the clock;
+//      the default probe confirms nothing (below). While unconfirmed, one attention item reports the hold
+//      (reportUnconfirmed); confirmation resolves it. Confirmation with no usage report makes the reservation
+//      UNRECONCILED: the full amount counts as spent. Nothing is released without a report (confirmTermination);
 //   3. a reservation that stayed UNRECONCILED is reconciled when the probe now reports the usage of its attempt
 //      (reconcileReservation, OQ-05 section 4: "Recovery reconciles UNRECONCILED reservations"). The step asks about the
 //      attempts that were fenced or cancelled while claimed and still hold an UNRECONCILED reservation, other than the
@@ -20,7 +21,13 @@
 // One failing item never stops the pass: its error is logged and counted, and the item is tried again on the next pass.
 
 import type { Database } from './db/database.ts';
-import { confirmTermination, expireLease, reconcileReservation, type WorkContext } from './domain/attempts.ts';
+import {
+  confirmTermination,
+  expireLease,
+  reconcileReservation,
+  reportUnconfirmed,
+  type WorkContext,
+} from './domain/attempts.ts';
 import type { UsageReport } from './domain/budget.ts';
 import { allBuilders } from './domain/builders.ts';
 import type { ApiEnv } from './env.ts';
@@ -40,27 +47,23 @@ export interface FencedAttempt {
   readonly leaseExpiresAt: Date;
 }
 
-/** Whether the host of a fenced attempt has stopped. P6 supplies a probe that asks the platform; S1 ships the deadline. */
+/**
+ * Whether the host of a fenced attempt has stopped. Only a probe confirms a termination, never the clock alone (decision
+ * D22). P6 supplies the probe that asks the platform (Fly.io) whether the host of the attempt stopped.
+ */
 export interface TerminationProbe {
   check(attempt: FencedAttempt, now: Date): Promise<TerminationEvidence>;
 }
 
-/** Default grace after the lease deadline: the host's own timeout ends the work before the lease does. */
-export const TERMINATION_GRACE_SECONDS = 300;
-
 /**
- * The host is taken to have stopped once the lease deadline and a grace have passed: the host stops its work at its own
- * timeout, which is shorter than the lease. This is an assumption that no platform call backs yet (README, open points).
- * It is safe: confirming without a report releases nothing, and a later report (a runner's agent result, or the usage that
- * a platform probe reports) can still settle the reservation. The default probe reports no usage.
+ * The probe used while no platform probe is wired: it confirms nothing. The reservation of a fenced attempt then stays
+ * RESERVED, the attempt keeps its concurrency slot, and an attention item reports the hold (README, open points).
  */
-export function deadlineProbe(graceSeconds: number = TERMINATION_GRACE_SECONDS): TerminationProbe {
-  return {
-    async check(attempt, now) {
-      return { terminated: now.getTime() >= attempt.leaseExpiresAt.getTime() + graceSeconds * 1000 };
-    },
-  };
-}
+export const unwiredProbe: TerminationProbe = {
+  async check() {
+    return { terminated: false };
+  },
+};
 
 export interface RecoveryDeps {
   readonly dispatchers: Dispatchers;
@@ -83,7 +86,7 @@ export interface RecoverySummary {
 
 export async function runRecovery(env: ApiEnv, db: Database, deps: RecoveryDeps): Promise<RecoverySummary> {
   const limit = deps.limit ?? 50;
-  const probe = deps.probe ?? deadlineProbe();
+  const probe = deps.probe ?? unwiredProbe;
   // Recovery writes under the workflows service principal: the requests that it stores name an uploader (a principal).
   const actor = await db.query<{ principal_id: string }>(
     `SELECT principal_id FROM principals WHERE kind = 'SERVICE' AND service_kind = 'workflows' AND status = 'ACTIVE' AND environment = $1`,
@@ -157,7 +160,10 @@ export async function runRecovery(env: ApiEnv, db: Database, deps: RecoveryDeps)
         { attemptId: row.attempt_id, status: row.status, destination: row.destination, leaseExpiresAt: row.expires_at },
         now,
       );
-      if (!evidence.terminated) continue;
+      if (!evidence.terminated) {
+        await db.transaction((tx) => reportUnconfirmed(tx, context, row.attempt_id));
+        continue;
+      }
       await db.transaction((tx) => confirmTermination(tx, context, row.attempt_id, evidence.usage ?? {}));
       terminationsConfirmed += 1;
     } catch (error) {

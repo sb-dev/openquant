@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { Database } from '../src/db/database.ts';
 import type { ApiEnv } from '../src/env.ts';
 import type { Dispatchers } from '../src/outbox.ts';
-import { deadlineProbe, runRecovery, TERMINATION_GRACE_SECONDS, type TerminationProbe } from '../src/recovery.ts';
+import { runRecovery, type TerminationProbe } from '../src/recovery.ts';
 import {
   AGENT_RUNNER,
   type Claimed,
@@ -27,8 +27,8 @@ import {
 import { ids } from './support/seed.ts';
 
 const flows: (Flow & Started)[] = [];
-async function fresh(): Promise<Flow & Started> {
-  const flow = await startedFlow();
+async function fresh(options: Parameters<typeof startedFlow>[0] = {}): Promise<Flow & Started> {
+  const flow = await startedFlow(options);
   flows.push(flow);
   return flow;
 }
@@ -55,6 +55,8 @@ function queue() {
 
 /** A host that never confirms: the reservations of fenced attempts stay as they are. */
 const never: TerminationProbe = { check: async () => ({ terminated: false }) };
+/** A host that is confirmed stopped, with no usage report. Only a probe confirms a termination, never the clock (D22). */
+const stopped: TerminationProbe = { check: async () => ({ terminated: true }) };
 
 async function recover(
   flow: Flow & Started,
@@ -217,10 +219,9 @@ describe('a worker that died', () => {
     expect(await flow.world.sql('SELECT attempt_id FROM retrieval_results')).toEqual([{ attempt_id: secondId }]);
     expect(await flow.world.sql('SELECT 1 FROM dataset_manifests')).toHaveLength(1);
 
-    // The dead attempt's reservation is confirmed once its host is taken to have stopped: it reported nothing, so the
-    // full amount counts as spent; the successor's reservation settled with what it reported.
-    afterLease(flow, first, TERMINATION_GRACE_SECONDS + 1);
-    const summary = await recover(flow, { dispatchers });
+    // The dead attempt's reservation is confirmed once the probe says that its host stopped: it reported nothing, so
+    // the full amount counts as spent; the successor's reservation settled with what it reported.
+    const summary = await recover(flow, { dispatchers, probe: stopped });
     expect(summary.terminationsConfirmed).toBe(1);
     expect(await reservationsOf(flow)).toEqual([
       { ownership_revision: 1, status: 'UNRECONCILED' },
@@ -234,7 +235,8 @@ describe('a worker that died', () => {
 
 describe('a worker that dies every time', () => {
   it('is fenced at each lease until the cap of 3: the job FAILED, the mission BLOCKED, an attention item, no fourth attempt', async () => {
-    const flow = await fresh();
+    // Every fenced attempt keeps its concurrency slot while unconfirmed: three claims need a limit of three.
+    const flow = await fresh({ policy: (policy) => (policy.limits.concurrent_batch_attempts = 3) });
     const { sent, dispatchers } = queue();
     let attemptId = flow.retrieve.attemptId;
     for (const revision of [1, 2, 3]) {
@@ -264,7 +266,7 @@ describe('a worker that dies every time', () => {
     expect(mission?.status).toBe('BLOCKED');
     expect(mission?.blocked_reason).toContain('attempt cap of 3');
     const items = await flow.world.sql<{ subject: string; reason: string; status: string }>(
-      'SELECT subject, reason, status FROM attention_items WHERE mission_id = $1',
+      `SELECT subject, reason, status FROM attention_items WHERE mission_id = $1 AND subject NOT LIKE 'termination of %'`,
       [flow.missionId],
     );
     expect(items).toHaveLength(1);
@@ -284,9 +286,19 @@ describe('a worker that dies every time', () => {
     ]);
     expect(await committed(flow, 'BATCH_COMPUTE_SECONDS')).toBe('1800.00000000');
 
-    // Once the deadline and the grace have passed, with no report, every full reservation counts as spent.
-    afterLease(flow, { leaseExpiresAt: (await lastLeaseEnd(flow)).toISOString() }, TERMINATION_GRACE_SECONDS + 1);
-    expect((await recover(flow, { dispatchers, probe: deadlineProbe() })).terminationsConfirmed).toBe(3);
+    // Each unconfirmed host is reported once, and stays reported however much time passes.
+    const terminations = () =>
+      flow.world.sql<{ status: string }>(
+        `SELECT status FROM attention_items WHERE mission_id = $1 AND subject LIKE 'termination of %' ORDER BY item_id`,
+        [flow.missionId],
+      );
+    afterLease(flow, { leaseExpiresAt: (await lastLeaseEnd(flow)).toISOString() }, 86_400);
+    expect((await recover(flow, { dispatchers, probe: never })).terminationsConfirmed).toBe(0);
+    expect((await terminations()).map((row) => row.status)).toEqual(['OPEN', 'OPEN', 'OPEN']);
+
+    // The probe confirms that the hosts stopped, with no report: every full reservation counts as spent.
+    expect((await recover(flow, { dispatchers, probe: stopped })).terminationsConfirmed).toBe(3);
+    expect((await terminations()).map((row) => row.status)).toEqual(['RESOLVED', 'RESOLVED', 'RESOLVED']);
     expect((await reservationsOf(flow)).map((row) => row.status)).toEqual([
       'UNRECONCILED',
       'UNRECONCILED',
@@ -294,7 +306,7 @@ describe('a worker that dies every time', () => {
     ]);
     expect(await committed(flow, 'BATCH_COMPUTE_SECONDS')).toBe('1800.00000000');
     expect(await committed(flow, 'PROVIDER_REQUESTS')).toBe('60.00000000');
-    expect((await recover(flow, { dispatchers, probe: deadlineProbe() })).terminationsConfirmed).toBe(0);
+    expect((await recover(flow, { dispatchers, probe: stopped })).terminationsConfirmed).toBe(0);
     // A failed job is final: no pass opens a fourth attempt.
     expect(await attemptsOf(flow)).toHaveLength(3);
   });
@@ -328,7 +340,10 @@ describe('a worker that dies every time', () => {
   });
 });
 
-/** A host that dies on every attempt of a job: three claims, each followed by the end of its lease and one pass. */
+/**
+ * A host that dies on every attempt of a job: three claims, each followed by the end of its lease and one pass. The probe
+ * confirms each termination, so the slot of the dead attempt is free for the claim of the next.
+ */
 async function crashEveryAttempt(
   flow: Flow & Started,
   jobId: string,
@@ -342,7 +357,7 @@ async function crashEveryAttempt(
     );
     const claimed = await claim(flow, row?.attempt_id as string, host.who, host.executable);
     afterLease(flow, claimed);
-    await recover(flow, { dispatchers, probe: never });
+    await recover(flow, { dispatchers, probe: stopped });
   }
 }
 
@@ -426,7 +441,7 @@ describe('the termination of a host', () => {
     expect(await committed(flow, 'PROVIDER_REQUESTS')).toBe('21.00000000');
   });
 
-  it('is confirmed for an attempt that cancel_mission cancelled while it was claimed, once the deadline and the grace passed', async () => {
+  it('is confirmed for an attempt that cancel_mission cancelled while it was claimed, only when the probe says so', async () => {
     const flow = await fresh();
     const { dispatchers } = queue();
     const claimed = await claim(flow, flow.retrieve.attemptId);
@@ -444,10 +459,11 @@ describe('the termination of a host', () => {
     // The lease was released by the cancellation; the reservation is kept until the host is known to have stopped.
     expect(await reservationsOf(flow)).toEqual([{ ownership_revision: 1, status: 'RESERVED' }]);
 
-    afterLease(flow, claimed, TERMINATION_GRACE_SECONDS - 1);
+    // The clock alone confirms nothing: a day after the lease, the default probe (no platform probe wired) still does not.
+    afterLease(flow, claimed, 86_400);
     expect((await recover(flow, { dispatchers })).terminationsConfirmed).toBe(0);
-    afterLease(flow, claimed, TERMINATION_GRACE_SECONDS + 1);
-    const summary = await recover(flow, { dispatchers });
+    expect(await reservationsOf(flow)).toEqual([{ ownership_revision: 1, status: 'RESERVED' }]);
+    const summary = await recover(flow, { dispatchers, probe: stopped });
     expect(summary).toMatchObject({ leasesExpired: 0, terminationsConfirmed: 1 });
     expect(await reservationsOf(flow)).toEqual([{ ownership_revision: 1, status: 'UNRECONCILED' }]);
   });

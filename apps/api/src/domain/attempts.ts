@@ -18,7 +18,7 @@ import { writeAudit } from '../audit.ts';
 import type { Queryable } from '../db/database.ts';
 import type { ApiEnv } from '../env.ts';
 import { ApiFailure } from '../errors.ts';
-import { openAttention } from './attention.ts';
+import { attentionOpen, openAttention, resolveAttention } from './attention.ts';
 import {
   type AgentAllowanceCheck,
   commitReservation,
@@ -621,6 +621,36 @@ export async function expireLease(tx: Queryable, ctx: WorkContext, attemptId: st
   return { status: 'EXPIRED', after };
 }
 
+const unconfirmedSubject = (attemptId: string): string => `termination of attempt ${attemptId}`;
+
+/**
+ * The termination probe did not confirm that the host of a fenced attempt (LEASE_EXPIRED, or cancelled while claimed)
+ * stopped. Its reservation stays RESERVED and it keeps its concurrency slot (claim.ts, heldSlots), so one attention item
+ * makes the hold visible (OQ-02 section 3.6). It is opened once and resolved when the termination is confirmed.
+ * Returns whether this call opened it.
+ */
+export async function reportUnconfirmed(tx: Queryable, ctx: WorkContext, attemptId: string): Promise<boolean> {
+  const located = await locate(tx, attemptId);
+  if (located === undefined) return false;
+  const { mission, attempt } = located;
+  if (attempt.status !== 'LEASE_EXPIRED' && !(attempt.status === 'CANCELLED' && attempt.claimed_at !== null)) {
+    return false;
+  }
+  const reservation = await tx.query<{ status: string }>('SELECT status FROM reservations WHERE attempt_id = $1', [
+    attemptId,
+  ]);
+  const subject = unconfirmedSubject(attemptId);
+  if (reservation.rows[0]?.status !== 'RESERVED' || (await attentionOpen(tx, subject))) return false;
+  await openAttention(
+    tx,
+    ctx.env,
+    mission.mission_id,
+    subject,
+    `The attempt ${attemptId} is ${attempt.status} and its host is not confirmed to have stopped. Its reservation stays RESERVED and it holds a concurrency slot of the mission until the termination probe confirms that the host stopped.`,
+  );
+  return true;
+}
+
 /**
  * The termination of an attempt that was fenced by lease expiry or cancelled while claimed is confirmed, with the
  * usage that its host reported, if any (OQ-03 section 1: lease expiry releases nothing until termination is
@@ -643,6 +673,7 @@ export async function confirmTermination(
   }
   const settled = await settleReservation(tx, attemptId, usage, ctx.env.clock());
   await blockOnOverrun(tx, ctx, mission, settled.overruns, attemptId);
+  await resolveAttention(tx, ctx.env, unconfirmedSubject(attemptId));
   await writeAudit(tx, ctx.env.clock(), {
     eventType: 'attempt.termination_confirmed',
     actor: ctx.actorId,

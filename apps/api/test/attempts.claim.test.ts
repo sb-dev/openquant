@@ -5,6 +5,8 @@
 
 import { parseContract } from '@openquant/api-contracts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { heldSlots } from '../src/domain/claim.ts';
+import { runRecovery, type TerminationProbe } from '../src/recovery.ts';
 import { createTestApp } from './support/app.ts';
 import {
   cancelMissionPayload,
@@ -20,7 +22,9 @@ import {
   sha,
   startedFlow,
   startValidationOf,
+  submit,
 } from './support/flow.ts';
+import { validationResult } from './support/steps.ts';
 
 let flow: Flow & Started;
 const ATTEMPT_PATH = (attemptId: string) => `/v1/attempts/${attemptId}/claim`;
@@ -270,7 +274,7 @@ describe('the concurrency limit of the cohort policy', () => {
         trialSlot: 'seed',
         draftDigest: limited.world.records.seedDigest,
       });
-      await claim(limited, first.attemptId);
+      const claimedFirst = await claim(limited, first.attemptId);
       const outbox = await outboxOf(limited, second.attemptId);
       const refused = await limited.send(
         'POST',
@@ -305,12 +309,137 @@ describe('the concurrency limit of the cohort policy', () => {
       );
       expect(stale.status).toBe(409);
       expect((await json<{ code: string }>(stale)).code).toBe('STALE_OWNERSHIP');
-      // The lease of the first attempt ends: the limit counts leases that are held.
-      limited.world.testApp.clock.advanceSeconds(300 + 60 + 1);
+      // The first attempt completes: its slot is free at once, with no clock movement and no probe.
+      const result = validationResult(limited, claimedFirst, first.jobId, limited.world.records.seedDigest);
+      expect((await submit(limited, claimedFirst, 'validation-result', result)).status).toBe(204);
       const granted = await claim(limited, second.attemptId);
       expect(granted.attemptId).toBe(second.attemptId);
     } finally {
       await limited.world.drop();
+    }
+  });
+
+  // Decision D22: lease expiry releases nothing until termination is confirmed. A worker whose lease ended may still be
+  // running, so its slot is held until the termination probe says that it stopped; the clock alone never frees it.
+  const stopped: TerminationProbe = { check: async () => ({ terminated: true }) };
+  const running: TerminationProbe = { check: async () => ({ terminated: false }) };
+  async function recover(started: Flow & Started, probe: TerminationProbe) {
+    const env = started.world.testApp.env;
+    const db = env.database();
+    try {
+      return await runRecovery(env, db, {
+        dispatchers: { batch: { async send() {} }, runner: { async dispatch() {} } },
+        probe,
+      });
+    } finally {
+      await db.close();
+    }
+  }
+  const reservationOf = async (started: Flow, attemptId: string) =>
+    (
+      await started.world.sql<{ status: string }>('SELECT status FROM reservations WHERE attempt_id = $1', [attemptId])
+    )[0]?.status;
+  const termItems = (started: Flow & Started) =>
+    started.world.sql<{ subject: string; status: string }>(
+      `SELECT subject, status FROM attention_items WHERE mission_id = $1 AND subject LIKE 'termination of attempt %'`,
+      [started.missionId],
+    );
+
+  it('holds the slot of an attempt whose lease expired until the probe confirms that its worker stopped', async () => {
+    const limited = await startedFlow({
+      policy: (policy) => {
+        policy.limits.concurrent_batch_attempts = 1;
+      },
+    });
+    try {
+      expect((await driveRetrieval(limited)).response.status).toBe(204);
+      const draftDigest = limited.world.records.seedDigest;
+      const first = await startValidationOf(limited, { trialSlot: 'seed', draftDigest });
+      const second = await startValidationOf(limited, { trialSlot: 'seed', draftDigest });
+      const claimedFirst = await claim(limited, first.attemptId);
+      const refusedNow = async () => {
+        const outbox = await outboxOf(limited, second.attemptId);
+        const response = await limited.send(
+          'POST',
+          ATTEMPT_PATH(second.attemptId),
+          limited.service('batch'),
+          claimRequest(second.attemptId, outbox.revision, outbox.digest),
+        );
+        expect(response.status).toBe(429);
+        expect(await errorCode(response)).toBe('RATE_LIMITED');
+      };
+      // The lease ends with no result and no evidence that the worker stopped: the slot is still held.
+      limited.world.testApp.clock.set(new Date(Date.parse(claimedFirst.leaseExpiresAt) + 1000));
+      await refusedNow();
+
+      // Recovery fences the attempt; the probe does not confirm. Slot and reservation stay held, an item reports it.
+      expect(await recover(limited, running)).toMatchObject({ leasesExpired: 1, terminationsConfirmed: 0, errors: 0 });
+      await refusedNow();
+      expect(await reservationOf(limited, first.attemptId)).toBe('RESERVED');
+      expect(await termItems(limited)).toEqual([
+        { subject: `termination of attempt ${first.attemptId}`, status: 'OPEN' },
+      ]);
+      // An hour later, a second pass with the same answer: still held, still one item.
+      limited.world.testApp.clock.advanceSeconds(3600);
+      expect(await recover(limited, running)).toMatchObject({ terminationsConfirmed: 0, errors: 0 });
+      await refusedNow();
+      expect(await termItems(limited)).toHaveLength(1);
+
+      // The probe confirms: the termination is settled (no usage report, so UNRECONCILED), the item resolved, the slot free.
+      expect(await recover(limited, stopped)).toMatchObject({ terminationsConfirmed: 1, errors: 0 });
+      expect(await reservationOf(limited, first.attemptId)).toBe('UNRECONCILED');
+      expect(await termItems(limited)).toEqual([
+        { subject: `termination of attempt ${first.attemptId}`, status: 'RESOLVED' },
+      ]);
+      expect((await claim(limited, second.attemptId)).attemptId).toBe(second.attemptId);
+    } finally {
+      await limited.world.drop();
+    }
+  });
+
+  it('holds the slot of an attempt cancelled while claimed until its termination is confirmed', async () => {
+    const started = await startedFlow();
+    try {
+      await claim(started, started.retrieve.attemptId);
+      const held = () => started.world.tx((tx) => heldSlots(tx, started.missionId, 'BATCH_QUEUE'));
+      expect(await held()).toBe(1);
+      const [mission] = await started.world.sql<{ revision: number }>(
+        'SELECT revision FROM missions WHERE mission_id = $1',
+        [started.missionId],
+      );
+      const cancelled = await started.world.apply('researcher', cancelMissionPayload(started.missionId), {
+        expectedRevision: mission?.revision as number,
+      });
+      expect(cancelled.state).toBe('APPLIED');
+      // Cancelled, its lease released, but its worker may still run: the slot is held.
+      expect(await held()).toBe(1);
+      started.world.testApp.clock.advanceSeconds(3600);
+      await recover(started, running);
+      expect(await held()).toBe(1);
+      expect(await termItems(started)).toMatchObject([{ status: 'OPEN' }]);
+      await recover(started, stopped);
+      expect(await held()).toBe(0);
+      expect(await termItems(started)).toMatchObject([{ status: 'RESOLVED' }]);
+    } finally {
+      await started.world.drop();
+    }
+  });
+
+  it('frees the slot of an expired attempt once its late result was refused and recorded; the reservation stays', async () => {
+    const started = await startedFlow();
+    try {
+      const claimed = await claim(started, started.retrieve.attemptId);
+      const held = () => started.world.tx((tx) => heldSlots(tx, started.missionId, 'BATCH_QUEUE'));
+      started.world.testApp.clock.set(new Date(Date.parse(claimed.leaseExpiresAt) + 1000));
+      await recover(started, running);
+      expect(await held()).toBe(1);
+      // The worker reached its end and submitted: the result is refused (a retry owns the job) and recorded.
+      const late = await submit(started, claimed, 'retrieval-result', { schema_version: 'retrieval-result/1' });
+      expect(await errorCode(late)).toBe('STALE_OWNERSHIP');
+      expect(await held()).toBe(0);
+      expect(await reservationOf(started, claimed.attemptId)).toBe('RESERVED');
+    } finally {
+      await started.world.drop();
     }
   });
 });

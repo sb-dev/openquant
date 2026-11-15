@@ -1,7 +1,7 @@
 // UNRECONCILED reservations (OQ-05 section 4, the reservation row: "Without a report, UNRECONCILED: the full amount
 // counts as spent", and Recovery column: "Recovery reconciles UNRECONCILED reservations"). An attempt whose lease ended
-// without a usage report is fenced, and 300 seconds later its reservation becomes UNRECONCILED: the whole amount counts
-// as spent. Two paths settle it from what a host later reports, never above the reservation:
+// without a usage report is fenced, and once the termination probe confirms that its host stopped its reservation
+// becomes UNRECONCILED: the whole amount counts as spent. Two paths settle it from what a host later reports, never above the reservation:
 //
 //   - a late agent-result from the runner of the fenced attempt. The submission is rejected as before (LEASE_EXPIRED or
 //     STALE_OWNERSHIP, recorded, the run and the result unchanged), but the usage that it carries settles the
@@ -68,9 +68,12 @@ async function recover(flow: Flow & Started, probe?: TerminationProbe) {
   }
 }
 
-/** The seconds after the end of a lease at which the default probe takes the host to have stopped: 300 and one. */
-const settleAfterLease = (flow: Flow, claimed: Pick<Claimed, 'leaseExpiresAt'>, plusSeconds = 301) =>
+/** Move the clock past the end of a lease. The clock alone confirms no termination: only a probe does (D22). */
+const afterLease = (flow: Flow, claimed: Pick<Claimed, 'leaseExpiresAt'>, plusSeconds = 1) =>
   flow.world.testApp.clock.set(new Date(Date.parse(claimed.leaseExpiresAt) + plusSeconds * 1000));
+
+/** A probe that confirms that the host stopped, with no usage report. */
+const stopped: TerminationProbe = { check: async () => ({ terminated: true }) };
 
 async function pool(flow: Flow & Started, dimension: string, configuration: string | null = null) {
   const [row] = await flow.world.sql<{ committed: string; overrun: string }>(
@@ -90,8 +93,8 @@ async function silentAgent(flow: Flow & Started) {
   const work = await startAgent(flow, { role: 'CRITIC' });
   const claimed = await claim(flow, work.attemptId, 'runner', AGENT_RUNNER);
   const { message } = await outboxOf(flow, work.attemptId);
-  settleAfterLease(flow, claimed);
-  const summary = await recover(flow);
+  afterLease(flow, claimed);
+  const summary = await recover(flow, stopped);
   return { work, claimed, message, summary };
 }
 
@@ -185,8 +188,13 @@ describe('a late agent report from a fenced attempt', () => {
     });
     const claimed = await claim(flow, work.attemptId, 'runner', AGENT_RUNNER);
     const { message } = await outboxOf(flow, work.attemptId);
-    settleAfterLease(flow, claimed);
-    expect(await recover(flow)).toMatchObject({ leasesExpired: 1, retried: 0, failed: 1, terminationsConfirmed: 1 });
+    afterLease(flow, claimed);
+    expect(await recover(flow, stopped)).toMatchObject({
+      leasesExpired: 1,
+      retried: 0,
+      failed: 1,
+      terminationsConfirmed: 1,
+    });
     expect(await reservationOf(flow, work.attemptId)).toBe('UNRECONCILED');
 
     const response = await submit(flow, claimed, 'agent-result', lateReport(claimed, message, '2.50'));
@@ -254,8 +262,8 @@ describe('a late agent report from a fenced attempt', () => {
     const work = await startAgent(flow, { role: 'CRITIC' });
     const claimed = await claim(flow, work.attemptId, 'runner', AGENT_RUNNER);
     const { message } = await outboxOf(flow, work.attemptId);
-    // Fenced, but the host is not yet known to have stopped (the grace of 300 seconds has not passed).
-    settleAfterLease(flow, claimed, 1);
+    // Fenced, but the host is not known to have stopped: the default probe confirms nothing.
+    afterLease(flow, claimed);
     expect(await recover(flow)).toMatchObject({ leasesExpired: 1, terminationsConfirmed: 0 });
     expect(await reservationOf(flow, work.attemptId)).toBe('RESERVED');
     const response = await submit(flow, claimed, 'agent-result', lateReport(claimed, message, '1.10'));
@@ -275,8 +283,8 @@ describe('a late report from a batch attempt', () => {
       claimed,
       bytesOf(manifestFor(flow, { jobId, attemptId, requestDigest: request.digest })),
     );
-    settleAfterLease(flow, claimed);
-    expect(await recover(flow)).toMatchObject({ leasesExpired: 1, terminationsConfirmed: 1, reconciled: 0 });
+    afterLease(flow, claimed);
+    expect(await recover(flow, stopped)).toMatchObject({ leasesExpired: 1, terminationsConfirmed: 1, reconciled: 0 });
     expect(await reservationOf(flow, attemptId)).toBe('UNRECONCILED');
     const response = await submit(
       flow,
@@ -318,7 +326,7 @@ describe('the recovery step that reconciles', () => {
     const flow = await fresh();
     const work = await startAgent(flow, { role: 'CRITIC' });
     const claimed = await claim(flow, work.attemptId, 'runner', AGENT_RUNNER);
-    settleAfterLease(flow, claimed);
+    afterLease(flow, claimed);
     // The pass that confirms the termination without a report: the probe is asked once, not again by the second step.
     const silent = probe(async () => ({ terminated: true }));
     expect(await recover(flow, silent.checked)).toMatchObject({ terminationsConfirmed: 1, reconciled: 0 });
