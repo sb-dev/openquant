@@ -265,6 +265,23 @@ export const recordEvaluationDecision: Applier<RecordEvaluationDecision> = async
         'The critique result is not a recorded artefact with this size and media type.',
       );
     }
+    // The result that the Decision cites is the output of that attempt, which the agent-result route recorded.
+    const produced = await tx.query<{ outcome: string; output_contract: string | null; output_digest: string | null }>(
+      'SELECT outcome, output_contract, output_digest FROM agent_results WHERE attempt_id = $1',
+      [critique.attempt_id],
+    );
+    const output = produced.rows[0];
+    if (
+      output === undefined ||
+      output.outcome !== 'completion' ||
+      output.output_contract !== 'strategy-critique.result/1' ||
+      output.output_digest !== critique.result.digest
+    ) {
+      throw reject(
+        'IDENTITY_MISMATCH',
+        'The critique result is not the output that the completed critic attempt reported.',
+      );
+    }
     critiqueDigest = critique.result.digest;
     await assignFindingTreatments(tx, env, mission.mission_id, payload.strategy_hash, policy);
     const blocking = await blockingFindings(tx, mission.mission_id, payload.strategy_hash, 'DRAFT_TO_EVALUATING');

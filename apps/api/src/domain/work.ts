@@ -157,13 +157,17 @@ export interface NewJob {
   readonly trialSlot?: string;
   readonly configurationId?: string;
   readonly agentRole?: 'PROPOSER' | 'CRITIC';
+  /** A validate job names the draft it validates and, for a revision, the registered parent. */
+  readonly draftDigest?: string;
+  readonly parentHash?: string;
 }
 
 export async function insertJob(tx: Queryable, env: Pick<ApiEnv, 'ids' | 'clock'>, job: NewJob): Promise<Work> {
   const jobId = env.ids.next('job');
   await tx.query(
-    `INSERT INTO jobs (job_id, kind, mission_id, trial_slot, agent_role, configuration_id, attempt_cap, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    `INSERT INTO jobs (job_id, kind, mission_id, trial_slot, agent_role, configuration_id, attempt_cap, created_at,
+       draft_digest, parent_hash)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
     [
       jobId,
       job.kind,
@@ -173,6 +177,8 @@ export async function insertJob(tx: Queryable, env: Pick<ApiEnv, 'ids' | 'clock'
       job.configurationId ?? null,
       job.attemptCap,
       env.clock(),
+      job.draftDigest ?? null,
+      job.parentHash ?? null,
     ],
   );
   return (await findWork(tx, 'job', jobId)) as Work;

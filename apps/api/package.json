@@ -10,7 +10,8 @@
     "lint": "biome check --error-on-warnings .",
     "test": "vitest run --reporter=default --reporter=./test-reporter.ts",
     "build": "tsc -p tsconfig.json && node tools/bundle-check.ts",
-    "migrate": "node tools/migrate.ts"
+    "migrate": "node tools/migrate.ts",
+    "bootstrap": "node tools/bootstrap.ts"
   },
   "dependencies": {
     "@openquant/api-contracts": "workspace:*",

@@ -18,6 +18,7 @@ import { writeAudit } from '../audit.ts';
 import type { Queryable } from '../db/database.ts';
 import type { ApiEnv } from '../env.ts';
 import { ApiFailure } from '../errors.ts';
+import { openAttention } from './attention.ts';
 import {
   type AgentAllowanceCheck,
   commitReservation,
@@ -58,6 +59,8 @@ export interface AttemptRow {
   readonly agent_outcome: string | null;
   readonly worker_id: string | null;
   readonly claimed_at: Date | null;
+  /** The digest of the result document that the attempt ended with, once a result route accepted one. */
+  readonly result_digest: string | null;
 }
 
 interface LeaseRow {
@@ -66,7 +69,7 @@ interface LeaseRow {
 }
 
 const ATTEMPT_COLUMNS = `attempt_id, run_id, job_id, ownership_revision, attempt_cap, status, failure_code,
-  agent_outcome, worker_id, claimed_at`;
+  agent_outcome, worker_id, claimed_at, result_digest`;
 
 async function lockAttempt(tx: Queryable, attemptId: string): Promise<AttemptRow | undefined> {
   const { rows } = await tx.query<AttemptRow>(
@@ -114,7 +117,7 @@ export async function locate(tx: Queryable, attemptId: string): Promise<Located 
 }
 
 /** The refusal of a call that does not come from the live owner of its attempt, or undefined when it does. */
-async function fenceFailure(
+export async function fenceFailure(
   tx: Queryable,
   env: Pick<ApiEnv, 'clock'>,
   attempt: AttemptRow,
@@ -146,7 +149,7 @@ async function fenceFailure(
   }
 }
 
-async function recordRejection(
+export async function recordRejection(
   tx: Queryable,
   ctx: WorkContext,
   attempt: AttemptRow,
@@ -372,6 +375,8 @@ export interface Completion {
   readonly workStatus: 'COMPLETED' | 'FAILED';
   readonly failureCode?: string;
   readonly usage: UsageReport;
+  /** The digest of the stored result document, so that a repeat of the same submission finds it (OQ-05 section 4). */
+  readonly resultDigest?: string;
 }
 
 export interface Completed {
@@ -415,11 +420,10 @@ export async function completeAttempt(
   }
   const now = ctx.env.clock();
   assertTransition('attempt', 'CLAIMED', 'COMPLETED');
-  await tx.query(`UPDATE attempts SET status = 'COMPLETED', ended_at = $2, agent_outcome = $3 WHERE attempt_id = $1`, [
-    attempt.attempt_id,
-    now,
-    work.dispatchKind === 'agent' ? 'completion' : null,
-  ]);
+  await tx.query(
+    `UPDATE attempts SET status = 'COMPLETED', ended_at = $2, agent_outcome = $3, result_digest = $4 WHERE attempt_id = $1`,
+    [attempt.attempt_id, now, work.dispatchKind === 'agent' ? 'completion' : null, completion.resultDigest ?? null],
+  );
   assertTransition('lease', 'HELD', 'RELEASED');
   await tx.query(`UPDATE leases SET status = 'RELEASED', released_at = $2 WHERE attempt_id = $1`, [
     attempt.attempt_id,
@@ -445,6 +449,41 @@ export type AfterFailure =
   | { readonly outcome: 'WAITING'; readonly work: Work; readonly reason: string };
 
 /**
+ * The run or job ended for good: its attempt cap is exhausted or its failure is not retried. Nothing else moves it, so
+ * the people who work with the mission must be able to see it (OQ-02 section 3.6: a defect of the platform opens an
+ * attention item):
+ *   - an agent's logical run is not reported: its outcome is the input of the Decision (DEFERRED) or of the next attempt;
+ *   - a retrieval that failed leaves the mission without data, so the mission is BLOCKED with the reason;
+ *   - a validation that could not run leaves its trial DRAFTED for good, so the trial is DISCARDED with the reason;
+ *   - every kind but the agent's gets an attention item.
+ */
+async function endForGood(
+  tx: Queryable,
+  ctx: WorkContext,
+  mission: MissionRow,
+  work: Work,
+  code: string,
+  why: string,
+): Promise<void> {
+  if (work.dispatchKind === 'agent') return;
+  const what = work.kind === 'run' ? `run ${work.id}` : `${work.dispatchKind} job ${work.id}`;
+  const reason = `The ${what} FAILED (${code}) and is not retried: ${why}`.slice(0, 1000);
+  if (work.dispatchKind === 'retrieve') await blockMission(tx, ctx.env, mission, reason, ctx.actorId);
+  if (work.dispatchKind === 'validate') {
+    const draft = await tx.query<{ draft_digest: string | null }>('SELECT draft_digest FROM jobs WHERE job_id = $1', [
+      work.id,
+    ]);
+    assertTransition('trial', 'DRAFTED', 'DISCARDED');
+    await tx.query(
+      `UPDATE trials SET status = 'DISCARDED', reason = $4
+        WHERE mission_id = $1 AND trial_slot = $2 AND draft_digest = $3 AND status = 'DRAFTED'`,
+      [mission.mission_id, work.trialSlot, draft.rows[0]?.draft_digest ?? null, reason],
+    );
+  }
+  await openAttention(tx, ctx.env, mission.mission_id, what, reason);
+}
+
+/**
  * The work of a run or job whose attempt ended without an accepted result and that is RUNNING: retry it with a new
  * attempt, leave it waiting for budget, or fail it (OQ-05 section 4).
  */
@@ -455,14 +494,19 @@ async function retryOrFail(
   work: Work,
   attempt: AttemptRow,
   classification: { retryable: boolean; code: string },
+  detail?: string,
 ): Promise<AfterFailure> {
   if (!classification.retryable) {
     const failed = await setWorkStatus(tx, ctx.env, work, 'FAILED', { failureCode: classification.code });
-    return { outcome: 'FAILED', work: failed, reason: `${classification.code} is not retried.` };
+    const why = detail ?? `${classification.code} is not retried.`;
+    await endForGood(tx, ctx, mission, failed, classification.code, why);
+    return { outcome: 'FAILED', work: failed, reason: why };
   }
   if (attempt.ownership_revision >= work.attemptCap) {
     const failed = await setWorkStatus(tx, ctx.env, work, 'FAILED', { failureCode: classification.code });
-    return { outcome: 'FAILED', work: failed, reason: `The attempt cap of ${work.attemptCap} is exhausted.` };
+    const why = `The attempt cap of ${work.attemptCap} is exhausted.`;
+    await endForGood(tx, ctx, mission, failed, classification.code, why);
+    return { outcome: 'FAILED', work: failed, reason: why };
   }
   const queued = await setWorkStatus(tx, ctx.env, work, 'QUEUED');
   const opened = await openAttempt(tx, ctx, queued);
@@ -486,6 +530,10 @@ export interface FailureReport {
   readonly ownershipRevision: number;
   readonly cause: Exclude<FailureCause, { kind: 'LEASE_EXPIRED' }>;
   readonly usage: UsageReport;
+  /** The digest of the stored result document that reported the failure, if one did. */
+  readonly resultDigest?: string;
+  /** Why the failure is final, for the reason of the attention item, when the code alone does not say it. */
+  readonly detail?: string;
 }
 
 /**
@@ -510,8 +558,9 @@ export async function failAttempt(
   const now = ctx.env.clock();
   assertTransition('attempt', 'CLAIMED', 'FAILED');
   await tx.query(
-    `UPDATE attempts SET status = 'FAILED', ended_at = $2, failure_code = $3, agent_outcome = $4 WHERE attempt_id = $1`,
-    [attempt.attempt_id, now, classification.code, classification.agentOutcome ?? null],
+    `UPDATE attempts SET status = 'FAILED', ended_at = $2, failure_code = $3, agent_outcome = $4, result_digest = $5
+      WHERE attempt_id = $1`,
+    [attempt.attempt_id, now, classification.code, classification.agentOutcome ?? null, report.resultDigest ?? null],
   );
   assertTransition('lease', 'HELD', 'RELEASED');
   await tx.query(`UPDATE leases SET status = 'RELEASED', released_at = $2 WHERE attempt_id = $1`, [
@@ -527,6 +576,7 @@ export async function failAttempt(
     work,
     attempt,
     classification,
+    report.detail,
   );
   await writeAudit(tx, now, {
     eventType: 'attempt.failed',

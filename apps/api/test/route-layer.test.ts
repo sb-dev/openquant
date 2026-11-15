@@ -1,5 +1,5 @@
 // The route layer (OQ-05 sections 7 and 9): the body limit before any parse, the mapping of a ContractError onto
-// api-error/1, the form and command kind checks, the order of the chain, unknown routes, deferred routes, unexpected
+// api-error/1, the form and command kind checks, the order of the chain, unknown routes, the handler of every route, unexpected
 // errors and response headers. Requests go through the real Hono app on a real database.
 
 import { readFileSync } from 'node:fs';
@@ -10,7 +10,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readBounded } from '../src/body.ts';
 import { ApiFailure } from '../src/errors.ts';
 import type { Handler } from '../src/handlers/context.ts';
-import { deferredRouteIds } from '../src/handlers/deferred.ts';
 import { handlers } from '../src/handlers/index.ts';
 import { type Actors, accessTokenFor, type HumanName, mintCapability, seedActors } from './support/actors.ts';
 import { bearer, createTestApp, type TestApp } from './support/app.ts';
@@ -160,9 +159,15 @@ describe('the body limit comes before the parse (OQ-05 section 7)', () => {
       expect((await errorOf(over)).code).toBe('LIMIT_EXCEEDED');
       const exact = await send(route, padded(document, limit), { 'content-length': String(limit) });
       // Past the limit and the parse the route does its own work: a command is applied or refused for its own reason,
-      // and a route that a later part builds answers UNAVAILABLE. It is neither LIMIT_EXCEEDED nor a parse failure.
-      expect([202, 204, 404, 409, 422, 503], `exactly the limit: ${exact.status}`).toContain(exact.status);
-      if (exact.status === 503) expect((await errorOf(exact)).code).toBe('UNAVAILABLE');
+      // and an attempt route refuses a body whose attempt is not the attempt of the path. It is neither LIMIT_EXCEEDED
+      // nor a failure of the parse.
+      expect([202, 204, 400, 404, 409, 422], `exactly the limit: ${exact.status}`).toContain(exact.status);
+      if (exact.status === 400) {
+        expect(
+          (await errorOf(exact)).violations?.[0]?.pointer,
+          'a 400 past the parse names the attempt of the body',
+        ).toBe('/attempt/attempt_id');
+      }
     });
   }
 
@@ -483,62 +488,16 @@ describe('routes that do not exist', () => {
   });
 });
 
-describe('routes that a later part builds', () => {
-  it('splits the 29 served routes between the handlers and the deferred table, each route in exactly one', () => {
-    const implemented = Object.keys(handlers);
-    expect(implemented.sort()).toEqual([
-      'auth.token',
-      'budgets.register',
-      'cohort-policies.register',
-      'commands.show',
-      'missions.cancel',
-      'missions.create',
-      'missions.run-now',
-      'research-profiles.register',
-      'seeds.register',
-      'system.identity',
-    ]);
-    expect(deferredRouteIds).toHaveLength(19);
-    expect(new Set(deferredRouteIds).size).toBe(19);
-    expect([...implemented, ...deferredRouteIds].sort()).toEqual(served.map((route) => route.id).sort());
-    expect(implemented.filter((id) => deferredRouteIds.includes(id))).toEqual([]);
+describe('every served route has a handler', () => {
+  it('registers a handler for each of the 29 routes of the API host, and for no other', () => {
+    expect(Object.keys(handlers).sort()).toEqual(served.map((route) => route.id).sort());
+    expect(served).toHaveLength(29);
   });
 
-  it('answers UNAVAILABLE and names the part, only after authentication, authorisation, the limit and the parse', async () => {
-    const route = served.find((entry) => entry.id === 'releases.record') as RawRoute;
-    const unauthenticated = await testApp.request('/v1/releases', {
-      method: 'POST',
-      body: fixture(validFixture['releases.record'] as string),
-    });
-    expect(unauthenticated.status).toBe(401);
-    const forbidden = await send(route, fixture(validFixture['releases.record'] as string), {}, people.viewer);
-    expect(forbidden.status).toBe(403);
-    const invalid = await send(route, '{}');
-    expect(invalid.status).toBe(400);
-    const valid = await send(route, fixture(validFixture['releases.record'] as string));
-    expect(valid.status).toBe(503);
-    const body = await errorOf(valid);
-    expect(body).toMatchObject({ code: 'UNAVAILABLE', retry_safe: false, state_changed: 'NONE' });
-    expect(body.message).toContain('releases.record');
-    expect(body.message).toContain('P2 part C');
-  });
-
-  it('names the part of each deferred group', async () => {
-    const expected: Record<string, string> = {
-      'attempts.input': 'P2 part C (attempts',
-      'missions.show': 'P2 part C (read models',
-      'releases.record': 'P2 part C (release records)',
-    };
-    for (const [id, part] of Object.entries(expected)) {
-      const route = served.find((entry) => entry.id === id) as RawRoute;
-      const response = await send(
-        route,
-        route.request.kind === 'none'
-          ? undefined
-          : fixture(validFixture[id] ?? 'protocol/valid/release-manifest.staging.json'),
-      );
-      expect(response.status, id).toBe(503);
-      expect((await errorOf(response)).message, id).toContain(part);
+  it('answers no route with UNAVAILABLE: nothing is "not implemented" after part C', async () => {
+    for (const route of served) {
+      const response = await send(route, route.request.kind === 'none' ? undefined : '{}');
+      expect(response.status, route.id).not.toBe(503);
     }
   });
 });

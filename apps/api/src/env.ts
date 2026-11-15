@@ -50,6 +50,12 @@ export interface WorkerBindings {
   readonly OPENQUANT_ENVIRONMENT: string;
   /** Plain variable: `enabled` turns research execution on; any other value, or none, leaves it off. */
   readonly OPENQUANT_RESEARCH_EXECUTION: string;
+  /** The Queue producer of the one batch queue (OQ-05 section 1). The scheduled dispatcher sends job-dispatch/1 to it. */
+  readonly BATCH_QUEUE: Queue;
+  /** Secret: the base URL (https) of the Fly agent runner. */
+  readonly AGENT_RUNNER_URL: string;
+  /** Secret: the credential of the workflows service principal, which the runner accepts for its dispatch route. */
+  readonly AGENT_RUNNER_CREDENTIAL: string;
 }
 
 /** Identifiers from the platform's random source: 96 bits after the prefix. */

@@ -6,7 +6,7 @@
 //   3. refuse a body above the route's max_body_bytes with LIMIT_EXCEEDED, before any parse;
 //   4. parse the body as the contract of the route, on bytes (parseContract), and map a ContractError onto api-error/1;
 //   5. check the form and the command kind that the route accepts;
-//   6. call the handler of the route, or the deferred answer of a route that a later part builds.
+//   6. call the handler of the route (every route of the manifest that the API host serves has one).
 //
 // A caller that fails step 1 or 2 never has its body read. The manifest, not this file, says which routes exist.
 
@@ -18,7 +18,6 @@ import { readBounded } from './body.ts';
 import type { RequestContext } from './env.ts';
 import { ApiFailure, fromContractError } from './errors.ts';
 import type { Handler, ParsedBody } from './handlers/context.ts';
-import { deferredHandler } from './handlers/deferred.ts';
 import type { RouteSpec } from './manifest.ts';
 
 export async function readBody(route: RouteSpec, request: Request): Promise<ParsedBody> {
@@ -82,6 +81,7 @@ export async function serveRoute(
     throw denied;
   }
   const body = await readBody(route, request);
-  const handler = registry[route.id] ?? deferredHandler(route.id);
+  const handler = registry[route.id];
+  if (handler === undefined) throw new Error(`The route ${route.id} has no handler.`);
   return handler({ ...context, route, caller, params, body, request });
 }

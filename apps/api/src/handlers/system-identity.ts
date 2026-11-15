@@ -4,7 +4,9 @@
 // not invented.
 
 import { contracts } from '@openquant/api-contracts';
+import type { Queryable } from '../db/database.ts';
 import { readMigrationLevel } from '../db/migration-level.ts';
+import type { ApiEnv } from '../env.ts';
 import { apiRoutes, manifest } from '../manifest.ts';
 import { type SystemIdentityView, utcTimestamp } from '../views.ts';
 import { type Handler, json } from './context.ts';
@@ -23,7 +25,8 @@ export function protocolContracts(): string[] {
     .sort();
 }
 
-export const systemIdentity: Handler = async ({ env, db }) => {
+/** The view of system.identity: also what releases.record returns after it records a manifest. */
+export async function buildSystemIdentity(env: ApiEnv, db: Queryable): Promise<SystemIdentityView> {
   const level = await readMigrationLevel(db);
   const { rows } = await db.query<{
     release_id: string;
@@ -52,5 +55,7 @@ export const systemIdentity: Handler = async ({ env, db }) => {
     release_note: release === undefined ? `No release manifest is recorded for ${env.environment}.` : null,
     generated_at: utcTimestamp(env.clock()),
   };
-  return json(200, view);
-};
+  return view;
+}
+
+export const systemIdentity: Handler = async ({ env, db }) => json(200, await buildSystemIdentity(env, db));
