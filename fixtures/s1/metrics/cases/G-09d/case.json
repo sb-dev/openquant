@@ -1,0 +1,13 @@
+{
+  "id": "G-09d",
+  "title": "A run fails with the platform code CHECKPOINT_MISMATCH",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "platform defect",
+    "CHECKPOINT_MISMATCH"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

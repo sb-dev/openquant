@@ -1,0 +1,13 @@
+{
+  "id": "G-08e",
+  "title": "A run fails with the candidate defect INVALID_PARAMETER",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "candidate defect",
+    "INVALID_PARAMETER"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

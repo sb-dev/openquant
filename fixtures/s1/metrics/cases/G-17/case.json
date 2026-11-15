@@ -1,0 +1,13 @@
+{
+  "id": "G-17",
+  "title": "An observed value equal to its threshold",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "threshold boundary",
+    "tolerance zero"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

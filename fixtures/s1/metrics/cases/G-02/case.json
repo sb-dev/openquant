@@ -1,0 +1,15 @@
+{
+  "id": "G-02",
+  "title": "The expected S1 outcome: no eligible candidate",
+  "kind": "gates",
+  "policy": "pilot",
+  "covers": [
+    "no eligible candidate",
+    "RECORDED_INSUFFICIENT",
+    "NOT_APPLICABLE",
+    "limitation repeated"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

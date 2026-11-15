@@ -1,0 +1,13 @@
+{
+  "id": "G-09b",
+  "title": "A run fails with the platform code EVENT_OUT_OF_ORDER",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "platform defect",
+    "EVENT_OUT_OF_ORDER"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

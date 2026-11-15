@@ -1,0 +1,12 @@
+{
+  "id": "G-20",
+  "title": "Too few trades in every window",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "minimum trade count"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

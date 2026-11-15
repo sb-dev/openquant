@@ -1,0 +1,13 @@
+{
+  "id": "G-09c",
+  "title": "A run fails with the platform code INVALID_INPUT",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "platform defect",
+    "INVALID_INPUT"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

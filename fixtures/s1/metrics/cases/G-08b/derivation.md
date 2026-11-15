@@ -1,0 +1,23 @@
+# G-08b: A run fails with the candidate defect UNSUPPORTED_OPERATOR
+
+Origin: `fixtures/s1/metrics/oracle/oracle.py`, from the offline cohort policy and the evidence of `evidence.json` by the rules of OQ-02 sections 3.2 and 3.6 and the decision record D18. Hand: the defect belongs to the candidate. DEFINITION_VALIDATION is FAIL. A failed run has no ledger, timing or result, so the gates that need it are INSUFFICIENT with RUN_FAILED rather than FAIL.
+
+| Gate | Result | Reason code |
+| --- | --- | --- |
+| DEFINITION_VALIDATION | FAIL |  |
+| DETERMINISTIC_REPLAY | PASS |  |
+| ACCOUNTING_RECONCILIATION | INSUFFICIENT | RUN_FAILED |
+| SIGNAL_DATA_TIMING | INSUFFICIENT | RUN_FAILED |
+| POINT_IN_TIME_DATA | PASS |  |
+| BASE_COST_MODEL | PASS |  |
+| EXCESS_OVER_BUY_AND_HOLD | INSUFFICIENT | RUN_FAILED |
+| WALK_FORWARD | INSUFFICIENT | RUN_FAILED |
+| MINIMUM_TRADE_COUNT | INSUFFICIENT | RUN_FAILED |
+| COST_STRESS | PASS |  |
+| PARAMETER_SENSITIVITY | NOT_APPLICABLE | POLICY_RECORDED |
+| EXECUTION_DELAY | NOT_APPLICABLE | POLICY_RECORDED |
+| ADVERSE_REGIMES | NOT_APPLICABLE | POLICY_RECORDED |
+| RESAMPLING | NOT_APPLICABLE | POLICY_RECORDED |
+| PROSPECTIVE_EVIDENCE | NOT_APPLICABLE | POLICY_RECORDED |
+| PORTFOLIO_FIT | NOT_APPLICABLE | POLICY_RECORDED |
+| OPERATING_READINESS | NOT_APPLICABLE | POLICY_RECORDED |

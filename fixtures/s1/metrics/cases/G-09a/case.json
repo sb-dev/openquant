@@ -1,0 +1,13 @@
+{
+  "id": "G-09a",
+  "title": "A run fails with the platform code FUTURE_DATA",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "platform defect",
+    "FUTURE_DATA"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

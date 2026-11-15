@@ -1,0 +1,12 @@
+{
+  "id": "G-14",
+  "title": "A fill of one run is outside its phase",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "timing FAIL"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

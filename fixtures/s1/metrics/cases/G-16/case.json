@@ -1,0 +1,12 @@
+{
+  "id": "G-16",
+  "title": "A policy that requires parameter sensitivity",
+  "kind": "gates",
+  "policy": "inline",
+  "covers": [
+    "unsupported required gate"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

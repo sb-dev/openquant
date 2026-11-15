@@ -1,0 +1,13 @@
+{
+  "id": "G-15b",
+  "title": "No dataset manifest was read",
+  "kind": "gates",
+  "policy": "pilot",
+  "covers": [
+    "point in time missing",
+    "limitation repeated"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

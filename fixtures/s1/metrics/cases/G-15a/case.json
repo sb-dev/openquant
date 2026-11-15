@@ -1,0 +1,13 @@
+{
+  "id": "G-15a",
+  "title": "Three bars have no availability time",
+  "kind": "gates",
+  "policy": "pilot",
+  "covers": [
+    "point in time FAIL",
+    "limitation repeated"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "G-07",
+  "title": "A measured failure wins over missing evidence",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "precedence"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

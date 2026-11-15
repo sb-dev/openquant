@@ -1,0 +1,13 @@
+{
+  "id": "G-08b",
+  "title": "A run fails with the candidate defect UNSUPPORTED_OPERATOR",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "candidate defect",
+    "UNSUPPORTED_OPERATOR"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

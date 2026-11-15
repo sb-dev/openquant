@@ -1,0 +1,13 @@
+{
+  "id": "G-11",
+  "title": "An INSUFFICIENT outcome and a run that never prepared",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "RUN_INSUFFICIENT",
+    "NOT_PREPARED"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}
