@@ -1,0 +1,12 @@
+{
+  "id": "G-05",
+  "title": "The buy-and-hold benchmark is unavailable in V",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "BENCHMARK_UNAVAILABLE"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

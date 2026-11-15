@@ -1,0 +1,12 @@
+{
+  "id": "G-18c",
+  "title": "Decimals that differ in text and not in value",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "decimal comparison by value"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

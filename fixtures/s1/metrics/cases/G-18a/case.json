@@ -1,0 +1,12 @@
+{
+  "id": "G-18a",
+  "title": "A base run carries another fee than the cohort's",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "base cost model FAIL"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "G-12b",
+  "title": "No repeat of D is part of the evidence",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "replay missing"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

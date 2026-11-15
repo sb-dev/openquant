@@ -1,0 +1,12 @@
+{
+  "id": "G-06",
+  "title": "The holdout runs are missing",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "RUN_MISSING"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

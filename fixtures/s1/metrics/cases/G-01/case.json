@@ -1,0 +1,12 @@
+{
+  "id": "G-01",
+  "title": "Every gate passes under the offline test policy",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "PASS path"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

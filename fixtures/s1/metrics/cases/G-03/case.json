@@ -1,0 +1,13 @@
+{
+  "id": "G-03",
+  "title": "Excess return fails in the holdout alone: walk-forward does not average",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "walk-forward",
+    "no averaging"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

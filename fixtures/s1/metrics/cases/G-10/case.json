@@ -1,0 +1,13 @@
+{
+  "id": "G-10",
+  "title": "A run overflows: outside the engine domain",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "ARITHMETIC_OVERFLOW",
+    "OUTSIDE_ENGINE_DOMAIN"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

@@ -5,6 +5,7 @@ S0 added executable fixtures: versioned seed definitions, synthetic inputs, inde
 | Area | Contract |
 | --- | --- |
 | [S0 seed evaluation](s0/README.md) | Versioned seed Strategy Definitions, independent synthetic cases and the S0 coverage map. |
+| [S1 derived evidence](s1/metrics/README.md) | Independent expected metrics, benchmark and gate outcomes, derived with exact fractions and by hand. |
 | [Market data](market-data/README.md) | Synthetic or redistributable observations with timestamps, availability, provenance, and licence. |
 | [Example packs](example-packs/README.md) | One shared input for demo, test, guide, Academy, and public evidence. |
 | [Benchmark packs](benchmark-packs/README.md) | Fixed methods, independent expected invariants, and versioned results. |

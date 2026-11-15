@@ -1,0 +1,196 @@
+{
+  "plan": "sha256:fa575ca7733f4dd1db7e4853266699d9e7ba4405a0814c336ada342169dfcedf",
+  "validation": {
+    "status": "VALID",
+    "digest": "sha256:197a866b8539eaa1dc279fb0691ebf46fa2ff0ce8a9dacebad69659ee552dbd8"
+  },
+  "manifest": {
+    "digest": "sha256:b014a18087eda420aa5bb6ca824718bee719f7be26cda237e65f2b32b473b142",
+    "bars_without_availability": 0,
+    "actions_without_availability": 0
+  },
+  "runs": [
+    {
+      "run_id": "run-d-base",
+      "window": "DEVELOPMENT",
+      "scenario": "BASE",
+      "repeat_of": null,
+      "submission": "sha256:42c60f5a771e59de79c1442e081202c067c140d159fc09c8ca16bdceba30eaf2",
+      "result": "sha256:934391e84b9a4691c9879429a3cbf18dea742ca02f7ee16a0f592444269e0fb0",
+      "metrics_digest": "sha256:574d6c02295aefb8ea6938d44dfc090b3f6acd9086e09efd3e9167f3e79504e2",
+      "outcome": {
+        "kind": "COMPLETED"
+      },
+      "metrics": {
+        "net_return": "0.067310",
+        "excess_return": "0.017310",
+        "trade_count": 11,
+        "buy_and_hold": "COMPUTED"
+      },
+      "cost": {
+        "fixed_fee_per_fill": "0.00",
+        "fee_bps": "5",
+        "gap_exit_slippage_bps": "10"
+      },
+      "checks": {
+        "reconciliation": "PASS",
+        "timing": "PASS"
+      }
+    },
+    {
+      "run_id": "run-v-base",
+      "window": "VALIDATION",
+      "scenario": "BASE",
+      "repeat_of": null,
+      "submission": "sha256:0217f641bdbcf4d36f88bf6a72b91419aaba67d27b3d25577a7b994e4f7176b5",
+      "result": "sha256:20324cb1ba130f16489d498ef8370f44bc0abd73ab861bc90c0d98ad71232e60",
+      "metrics_digest": "sha256:30cb51729f174430ca8349aa8d7338a64d717410767bb4ecc7ae4a555c154898",
+      "outcome": {
+        "kind": "COMPLETED"
+      },
+      "metrics": {
+        "net_return": "0.041873",
+        "excess_return": "0.012873",
+        "trade_count": 12,
+        "buy_and_hold": "COMPUTED"
+      },
+      "cost": {
+        "fixed_fee_per_fill": "0.00",
+        "fee_bps": "5",
+        "gap_exit_slippage_bps": "10"
+      },
+      "checks": {
+        "reconciliation": "PASS",
+        "timing": "PASS"
+      }
+    },
+    {
+      "run_id": "run-h-base",
+      "window": "HOLDOUT",
+      "scenario": "BASE",
+      "repeat_of": null,
+      "submission": "sha256:7439f62d3853ca6011753f4741592b1110ec7bc362a34cf08c07a16ad05b95f6",
+      "result": null,
+      "metrics_digest": null,
+      "outcome": {
+        "kind": "FAILED",
+        "code": "UNSUPPORTED_POLICY"
+      },
+      "metrics": null,
+      "cost": {
+        "fixed_fee_per_fill": "0.00",
+        "fee_bps": "5",
+        "gap_exit_slippage_bps": "10"
+      },
+      "checks": null
+    },
+    {
+      "run_id": "run-d-stress",
+      "window": "DEVELOPMENT",
+      "scenario": "COST_STRESS",
+      "repeat_of": null,
+      "submission": "sha256:b19bc7222c545d17fe105ecfd3dd9d43f24680d0afcc7e5fcd5af2c343520896",
+      "result": "sha256:8025d3996a70071136b0e9b50072c1370d48f1566cf5f49ed0e4a2d80966f159",
+      "metrics_digest": "sha256:dc9da7a4daca14b25d22fd3eb25949d83ed6f3d885924ec3d0f3867b1b76514a",
+      "outcome": {
+        "kind": "COMPLETED"
+      },
+      "metrics": {
+        "net_return": "0.063127",
+        "excess_return": "0.013127",
+        "trade_count": 11,
+        "buy_and_hold": "COMPUTED"
+      },
+      "cost": {
+        "fixed_fee_per_fill": "0.00",
+        "fee_bps": "10",
+        "gap_exit_slippage_bps": "20"
+      },
+      "checks": {
+        "reconciliation": "PASS",
+        "timing": "PASS"
+      }
+    },
+    {
+      "run_id": "run-v-stress",
+      "window": "VALIDATION",
+      "scenario": "COST_STRESS",
+      "repeat_of": null,
+      "submission": "sha256:34dd353528d40e0710c9d41549b0694002207fac859676f44473b5a5e2853f2f",
+      "result": "sha256:ca6aa136b12238dbfa686f9b08d2cac4d6aa47ac17a5c5656faf78f29f30e5e1",
+      "metrics_digest": "sha256:4de08a8dd91a27c813dd385b1732beb6d7ed0fc29cbaa5c88f0682832db308b8",
+      "outcome": {
+        "kind": "COMPLETED"
+      },
+      "metrics": {
+        "net_return": "0.037402",
+        "excess_return": "0.008402",
+        "trade_count": 12,
+        "buy_and_hold": "COMPUTED"
+      },
+      "cost": {
+        "fixed_fee_per_fill": "0.00",
+        "fee_bps": "10",
+        "gap_exit_slippage_bps": "20"
+      },
+      "checks": {
+        "reconciliation": "PASS",
+        "timing": "PASS"
+      }
+    },
+    {
+      "run_id": "run-h-stress",
+      "window": "HOLDOUT",
+      "scenario": "COST_STRESS",
+      "repeat_of": null,
+      "submission": "sha256:24a48b23039147acab22d9b1effe17759e587e069a99e77aceb59c0092483f74",
+      "result": "sha256:2c127447f7bb2af4899ed655cf8a27086d757b8941899c9c16f4128022390910",
+      "metrics_digest": "sha256:59af788b998f5060e7990d4c465ffe726ba35d1f83d2c66f706d783190a134b7",
+      "outcome": {
+        "kind": "COMPLETED"
+      },
+      "metrics": {
+        "net_return": "0.026100",
+        "excess_return": "0.000100",
+        "trade_count": 10,
+        "buy_and_hold": "COMPUTED"
+      },
+      "cost": {
+        "fixed_fee_per_fill": "0.00",
+        "fee_bps": "10",
+        "gap_exit_slippage_bps": "20"
+      },
+      "checks": {
+        "reconciliation": "PASS",
+        "timing": "PASS"
+      }
+    },
+    {
+      "run_id": "run-d-base-replay",
+      "window": "DEVELOPMENT",
+      "scenario": "BASE",
+      "repeat_of": "run-d-base",
+      "submission": "sha256:fe380a50a900006975544f3ee25bcafba30c2f3b1f58bb184e7d216ef37d42fa",
+      "result": "sha256:934391e84b9a4691c9879429a3cbf18dea742ca02f7ee16a0f592444269e0fb0",
+      "metrics_digest": "sha256:39e4f3a03facfc0ccc36ff1943b15b4ce7209dd53a4c7eaa2062871f95a012e9",
+      "outcome": {
+        "kind": "COMPLETED"
+      },
+      "metrics": {
+        "net_return": "0.067310",
+        "excess_return": "0.017310",
+        "trade_count": 11,
+        "buy_and_hold": "COMPUTED"
+      },
+      "cost": {
+        "fixed_fee_per_fill": "0.00",
+        "fee_bps": "5",
+        "gap_exit_slippage_bps": "10"
+      },
+      "checks": {
+        "reconciliation": "PASS",
+        "timing": "PASS"
+      }
+    }
+  ]
+}

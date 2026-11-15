@@ -1,0 +1,12 @@
+{
+  "id": "G-12c",
+  "title": "The repeat of D failed",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "replay failed"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

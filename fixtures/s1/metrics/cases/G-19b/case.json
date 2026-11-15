@@ -1,0 +1,12 @@
+{
+  "id": "G-19b",
+  "title": "No validation result is part of the evidence",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "validation missing"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

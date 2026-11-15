@@ -1,0 +1,12 @@
+{
+  "id": "G-04",
+  "title": "Cost stress fails in V while the base costs pass",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "cost stress"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

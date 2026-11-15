@@ -1,0 +1,12 @@
+{
+  "id": "G-12a",
+  "title": "The repeat of D has another result digest",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "replay mismatch"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

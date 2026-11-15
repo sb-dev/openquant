@@ -1,0 +1,13 @@
+{
+  "id": "G-09e",
+  "title": "A run fails with the platform code IDENTITY_MISMATCH",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "platform defect",
+    "IDENTITY_MISMATCH"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

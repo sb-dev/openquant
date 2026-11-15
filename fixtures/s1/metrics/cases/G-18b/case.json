@@ -1,0 +1,12 @@
+{
+  "id": "G-18b",
+  "title": "A stress run does not double the slippage",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "stress cost model FAIL"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

@@ -1,0 +1,13 @@
+{
+  "id": "G-09f",
+  "title": "A run fails with the platform code UNSUPPORTED_POLICY",
+  "kind": "gates",
+  "policy": "offline",
+  "covers": [
+    "platform defect",
+    "UNSUPPORTED_POLICY"
+  ],
+  "evidence": "evidence.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

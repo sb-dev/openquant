@@ -1,0 +1,13 @@
+{
+  "schema": "s1-metrics-expected/1",
+  "case": "G-16",
+  "origin": {
+    "kind": "oracle",
+    "oracle": "oracle.py",
+    "oracle_sha256": "8e515204bde1db71554ed15cd845f136bc5c46cb764280f76fb5ecdce861ad53",
+    "note": "Derived from the policy and the evidence by the rules of the method text."
+  },
+  "expect": {
+    "error": "UnsupportedRequiredGate PARAMETER_SENSITIVITY"
+  }
+}

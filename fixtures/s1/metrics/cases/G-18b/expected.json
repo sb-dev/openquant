@@ -1,0 +1,514 @@
+{
+  "schema": "s1-metrics-expected/1",
+  "case": "G-18b",
+  "origin": {
+    "kind": "oracle",
+    "oracle": "oracle.py",
+    "oracle_sha256": "8e515204bde1db71554ed15cd845f136bc5c46cb764280f76fb5ecdce861ad53",
+    "note": "Derived from the policy and the evidence by the rules of the method text."
+  },
+  "expect": {
+    "inputs": [
+      {
+        "kind": "EVALUATION_PLAN",
+        "digest": "sha256:fa575ca7733f4dd1db7e4853266699d9e7ba4405a0814c336ada342169dfcedf"
+      },
+      {
+        "kind": "VALIDATION_RESULT",
+        "digest": "sha256:197a866b8539eaa1dc279fb0691ebf46fa2ff0ce8a9dacebad69659ee552dbd8"
+      },
+      {
+        "kind": "EVALUATION_SUBMISSION",
+        "digest": "sha256:42c60f5a771e59de79c1442e081202c067c140d159fc09c8ca16bdceba30eaf2",
+        "run_id": "run-d-base"
+      },
+      {
+        "kind": "EVALUATION_RESULT",
+        "digest": "sha256:934391e84b9a4691c9879429a3cbf18dea742ca02f7ee16a0f592444269e0fb0",
+        "run_id": "run-d-base"
+      },
+      {
+        "kind": "EVALUATION_METRICS",
+        "digest": "sha256:574d6c02295aefb8ea6938d44dfc090b3f6acd9086e09efd3e9167f3e79504e2",
+        "run_id": "run-d-base"
+      },
+      {
+        "kind": "EVALUATION_SUBMISSION",
+        "digest": "sha256:0217f641bdbcf4d36f88bf6a72b91419aaba67d27b3d25577a7b994e4f7176b5",
+        "run_id": "run-v-base"
+      },
+      {
+        "kind": "EVALUATION_RESULT",
+        "digest": "sha256:20324cb1ba130f16489d498ef8370f44bc0abd73ab861bc90c0d98ad71232e60",
+        "run_id": "run-v-base"
+      },
+      {
+        "kind": "EVALUATION_METRICS",
+        "digest": "sha256:30cb51729f174430ca8349aa8d7338a64d717410767bb4ecc7ae4a555c154898",
+        "run_id": "run-v-base"
+      },
+      {
+        "kind": "EVALUATION_SUBMISSION",
+        "digest": "sha256:7439f62d3853ca6011753f4741592b1110ec7bc362a34cf08c07a16ad05b95f6",
+        "run_id": "run-h-base"
+      },
+      {
+        "kind": "EVALUATION_RESULT",
+        "digest": "sha256:26be38f1bb89bf559ee925b0919d4cb78375bde6600a8abf8f6686f796b88577",
+        "run_id": "run-h-base"
+      },
+      {
+        "kind": "EVALUATION_METRICS",
+        "digest": "sha256:34d9860998395eb7c34895e477467e8a432ca6edd25812382bdbb8cd8fe22de7",
+        "run_id": "run-h-base"
+      },
+      {
+        "kind": "EVALUATION_SUBMISSION",
+        "digest": "sha256:b19bc7222c545d17fe105ecfd3dd9d43f24680d0afcc7e5fcd5af2c343520896",
+        "run_id": "run-d-stress"
+      },
+      {
+        "kind": "EVALUATION_RESULT",
+        "digest": "sha256:8025d3996a70071136b0e9b50072c1370d48f1566cf5f49ed0e4a2d80966f159",
+        "run_id": "run-d-stress"
+      },
+      {
+        "kind": "EVALUATION_METRICS",
+        "digest": "sha256:dc9da7a4daca14b25d22fd3eb25949d83ed6f3d885924ec3d0f3867b1b76514a",
+        "run_id": "run-d-stress"
+      },
+      {
+        "kind": "EVALUATION_SUBMISSION",
+        "digest": "sha256:34dd353528d40e0710c9d41549b0694002207fac859676f44473b5a5e2853f2f",
+        "run_id": "run-v-stress"
+      },
+      {
+        "kind": "EVALUATION_RESULT",
+        "digest": "sha256:ca6aa136b12238dbfa686f9b08d2cac4d6aa47ac17a5c5656faf78f29f30e5e1",
+        "run_id": "run-v-stress"
+      },
+      {
+        "kind": "EVALUATION_METRICS",
+        "digest": "sha256:4de08a8dd91a27c813dd385b1732beb6d7ed0fc29cbaa5c88f0682832db308b8",
+        "run_id": "run-v-stress"
+      },
+      {
+        "kind": "EVALUATION_SUBMISSION",
+        "digest": "sha256:24a48b23039147acab22d9b1effe17759e587e069a99e77aceb59c0092483f74",
+        "run_id": "run-h-stress"
+      },
+      {
+        "kind": "EVALUATION_RESULT",
+        "digest": "sha256:2c127447f7bb2af4899ed655cf8a27086d757b8941899c9c16f4128022390910",
+        "run_id": "run-h-stress"
+      },
+      {
+        "kind": "EVALUATION_METRICS",
+        "digest": "sha256:59af788b998f5060e7990d4c465ffe726ba35d1f83d2c66f706d783190a134b7",
+        "run_id": "run-h-stress"
+      },
+      {
+        "kind": "EVALUATION_SUBMISSION",
+        "digest": "sha256:fe380a50a900006975544f3ee25bcafba30c2f3b1f58bb184e7d216ef37d42fa",
+        "run_id": "run-d-base-replay"
+      },
+      {
+        "kind": "EVALUATION_RESULT",
+        "digest": "sha256:934391e84b9a4691c9879429a3cbf18dea742ca02f7ee16a0f592444269e0fb0",
+        "run_id": "run-d-base-replay"
+      },
+      {
+        "kind": "EVALUATION_METRICS",
+        "digest": "sha256:39e4f3a03facfc0ccc36ff1943b15b4ce7209dd53a4c7eaa2062871f95a012e9",
+        "run_id": "run-d-base-replay"
+      },
+      {
+        "kind": "DATASET_MANIFEST",
+        "digest": "sha256:b014a18087eda420aa5bb6ca824718bee719f7be26cda237e65f2b32b473b142"
+      }
+    ],
+    "gates": [
+      {
+        "gate": "DEFINITION_VALIDATION",
+        "category": "CORRECTNESS",
+        "result": "PASS",
+        "evidence": [
+          "sha256:197a866b8539eaa1dc279fb0691ebf46fa2ff0ce8a9dacebad69659ee552dbd8"
+        ],
+        "observations": []
+      },
+      {
+        "gate": "DETERMINISTIC_REPLAY",
+        "category": "CORRECTNESS",
+        "result": "PASS",
+        "evidence": [
+          "sha256:42c60f5a771e59de79c1442e081202c067c140d159fc09c8ca16bdceba30eaf2",
+          "sha256:fe380a50a900006975544f3ee25bcafba30c2f3b1f58bb184e7d216ef37d42fa"
+        ],
+        "observations": []
+      },
+      {
+        "gate": "ACCOUNTING_RECONCILIATION",
+        "category": "CORRECTNESS",
+        "result": "PASS",
+        "evidence": [
+          "sha256:42c60f5a771e59de79c1442e081202c067c140d159fc09c8ca16bdceba30eaf2",
+          "sha256:0217f641bdbcf4d36f88bf6a72b91419aaba67d27b3d25577a7b994e4f7176b5",
+          "sha256:7439f62d3853ca6011753f4741592b1110ec7bc362a34cf08c07a16ad05b95f6",
+          "sha256:b19bc7222c545d17fe105ecfd3dd9d43f24680d0afcc7e5fcd5af2c343520896",
+          "sha256:34dd353528d40e0710c9d41549b0694002207fac859676f44473b5a5e2853f2f",
+          "sha256:24a48b23039147acab22d9b1effe17759e587e069a99e77aceb59c0092483f74",
+          "sha256:fe380a50a900006975544f3ee25bcafba30c2f3b1f58bb184e7d216ef37d42fa"
+        ],
+        "observations": []
+      },
+      {
+        "gate": "SIGNAL_DATA_TIMING",
+        "category": "CORRECTNESS",
+        "result": "PASS",
+        "evidence": [
+          "sha256:42c60f5a771e59de79c1442e081202c067c140d159fc09c8ca16bdceba30eaf2",
+          "sha256:0217f641bdbcf4d36f88bf6a72b91419aaba67d27b3d25577a7b994e4f7176b5",
+          "sha256:7439f62d3853ca6011753f4741592b1110ec7bc362a34cf08c07a16ad05b95f6",
+          "sha256:b19bc7222c545d17fe105ecfd3dd9d43f24680d0afcc7e5fcd5af2c343520896",
+          "sha256:34dd353528d40e0710c9d41549b0694002207fac859676f44473b5a5e2853f2f",
+          "sha256:24a48b23039147acab22d9b1effe17759e587e069a99e77aceb59c0092483f74",
+          "sha256:fe380a50a900006975544f3ee25bcafba30c2f3b1f58bb184e7d216ef37d42fa"
+        ],
+        "observations": []
+      },
+      {
+        "gate": "POINT_IN_TIME_DATA",
+        "category": "HISTORICAL_VALIDITY",
+        "result": "PASS",
+        "evidence": [
+          "sha256:b014a18087eda420aa5bb6ca824718bee719f7be26cda237e65f2b32b473b142"
+        ],
+        "observations": [],
+        "limitation": "PASS covers what the gate checks: every bar and corporate action has an availability time from the profile rules, and no run failed with FUTURE_DATA. Provider revision history is not evidenced: the snapshot is retrieved after the period it covers and can hold later provider corrections (OQ-02 section 1.1)."
+      },
+      {
+        "gate": "BASE_COST_MODEL",
+        "category": "HISTORICAL_VALIDITY",
+        "result": "FAIL",
+        "evidence": [
+          "sha256:42c60f5a771e59de79c1442e081202c067c140d159fc09c8ca16bdceba30eaf2",
+          "sha256:0217f641bdbcf4d36f88bf6a72b91419aaba67d27b3d25577a7b994e4f7176b5",
+          "sha256:7439f62d3853ca6011753f4741592b1110ec7bc362a34cf08c07a16ad05b95f6",
+          "sha256:b19bc7222c545d17fe105ecfd3dd9d43f24680d0afcc7e5fcd5af2c343520896",
+          "sha256:34dd353528d40e0710c9d41549b0694002207fac859676f44473b5a5e2853f2f",
+          "sha256:24a48b23039147acab22d9b1effe17759e587e069a99e77aceb59c0092483f74",
+          "sha256:fe380a50a900006975544f3ee25bcafba30c2f3b1f58bb184e7d216ef37d42fa"
+        ],
+        "observations": []
+      },
+      {
+        "gate": "EXCESS_OVER_BUY_AND_HOLD",
+        "category": "HISTORICAL_VALIDITY",
+        "result": "PASS",
+        "evidence": [
+          "sha256:42c60f5a771e59de79c1442e081202c067c140d159fc09c8ca16bdceba30eaf2",
+          "sha256:0217f641bdbcf4d36f88bf6a72b91419aaba67d27b3d25577a7b994e4f7176b5",
+          "sha256:7439f62d3853ca6011753f4741592b1110ec7bc362a34cf08c07a16ad05b95f6"
+        ],
+        "observations": [
+          {
+            "run_id": "run-d-base",
+            "metric": "excess_return_over_buy_and_hold",
+            "window": "DEVELOPMENT",
+            "cost_scenario": "BASE",
+            "observed": "0.017310",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          },
+          {
+            "run_id": "run-v-base",
+            "metric": "excess_return_over_buy_and_hold",
+            "window": "VALIDATION",
+            "cost_scenario": "BASE",
+            "observed": "0.012873",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          },
+          {
+            "run_id": "run-h-base",
+            "metric": "excess_return_over_buy_and_hold",
+            "window": "HOLDOUT",
+            "cost_scenario": "BASE",
+            "observed": "0.004250",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          },
+          {
+            "run_id": "run-d-base",
+            "metric": "net_return",
+            "window": "DEVELOPMENT",
+            "cost_scenario": "BASE",
+            "observed": "0.067310",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          },
+          {
+            "run_id": "run-v-base",
+            "metric": "net_return",
+            "window": "VALIDATION",
+            "cost_scenario": "BASE",
+            "observed": "0.041873",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          },
+          {
+            "run_id": "run-h-base",
+            "metric": "net_return",
+            "window": "HOLDOUT",
+            "cost_scenario": "BASE",
+            "observed": "0.030250",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          }
+        ]
+      },
+      {
+        "gate": "WALK_FORWARD",
+        "category": "HISTORICAL_VALIDITY",
+        "result": "PASS",
+        "evidence": [
+          "sha256:42c60f5a771e59de79c1442e081202c067c140d159fc09c8ca16bdceba30eaf2",
+          "sha256:0217f641bdbcf4d36f88bf6a72b91419aaba67d27b3d25577a7b994e4f7176b5",
+          "sha256:7439f62d3853ca6011753f4741592b1110ec7bc362a34cf08c07a16ad05b95f6"
+        ],
+        "observations": [
+          {
+            "run_id": "run-d-base",
+            "metric": "excess_return_over_buy_and_hold",
+            "window": "DEVELOPMENT",
+            "cost_scenario": "BASE",
+            "observed": "0.017310",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          },
+          {
+            "run_id": "run-v-base",
+            "metric": "excess_return_over_buy_and_hold",
+            "window": "VALIDATION",
+            "cost_scenario": "BASE",
+            "observed": "0.012873",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          },
+          {
+            "run_id": "run-h-base",
+            "metric": "excess_return_over_buy_and_hold",
+            "window": "HOLDOUT",
+            "cost_scenario": "BASE",
+            "observed": "0.004250",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          },
+          {
+            "run_id": "run-d-base",
+            "metric": "net_return",
+            "window": "DEVELOPMENT",
+            "cost_scenario": "BASE",
+            "observed": "0.067310",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          },
+          {
+            "run_id": "run-v-base",
+            "metric": "net_return",
+            "window": "VALIDATION",
+            "cost_scenario": "BASE",
+            "observed": "0.041873",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          },
+          {
+            "run_id": "run-h-base",
+            "metric": "net_return",
+            "window": "HOLDOUT",
+            "cost_scenario": "BASE",
+            "observed": "0.030250",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          }
+        ]
+      },
+      {
+        "gate": "MINIMUM_TRADE_COUNT",
+        "category": "HISTORICAL_VALIDITY",
+        "result": "PASS",
+        "evidence": [
+          "sha256:42c60f5a771e59de79c1442e081202c067c140d159fc09c8ca16bdceba30eaf2",
+          "sha256:0217f641bdbcf4d36f88bf6a72b91419aaba67d27b3d25577a7b994e4f7176b5",
+          "sha256:7439f62d3853ca6011753f4741592b1110ec7bc362a34cf08c07a16ad05b95f6"
+        ],
+        "observations": [
+          {
+            "run_id": "run-d-base",
+            "metric": "trade_count",
+            "window": "DEVELOPMENT",
+            "cost_scenario": "BASE",
+            "observed": "11",
+            "comparison": "AT_LEAST",
+            "threshold": "10",
+            "holds": true
+          },
+          {
+            "run_id": "run-v-base",
+            "metric": "trade_count",
+            "window": "VALIDATION",
+            "cost_scenario": "BASE",
+            "observed": "12",
+            "comparison": "AT_LEAST",
+            "threshold": "10",
+            "holds": true
+          },
+          {
+            "run_id": "run-h-base",
+            "metric": "trade_count",
+            "window": "HOLDOUT",
+            "cost_scenario": "BASE",
+            "observed": "10",
+            "comparison": "AT_LEAST",
+            "threshold": "10",
+            "holds": true
+          }
+        ]
+      },
+      {
+        "gate": "COST_STRESS",
+        "category": "ROBUSTNESS",
+        "result": "PASS",
+        "evidence": [
+          "sha256:b19bc7222c545d17fe105ecfd3dd9d43f24680d0afcc7e5fcd5af2c343520896",
+          "sha256:34dd353528d40e0710c9d41549b0694002207fac859676f44473b5a5e2853f2f",
+          "sha256:24a48b23039147acab22d9b1effe17759e587e069a99e77aceb59c0092483f74"
+        ],
+        "observations": [
+          {
+            "run_id": "run-d-stress",
+            "metric": "excess_return_over_buy_and_hold",
+            "window": "DEVELOPMENT",
+            "cost_scenario": "COST_STRESS",
+            "observed": "0.013127",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          },
+          {
+            "run_id": "run-v-stress",
+            "metric": "excess_return_over_buy_and_hold",
+            "window": "VALIDATION",
+            "cost_scenario": "COST_STRESS",
+            "observed": "0.008402",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          },
+          {
+            "run_id": "run-h-stress",
+            "metric": "excess_return_over_buy_and_hold",
+            "window": "HOLDOUT",
+            "cost_scenario": "COST_STRESS",
+            "observed": "0.000100",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          },
+          {
+            "run_id": "run-d-stress",
+            "metric": "net_return",
+            "window": "DEVELOPMENT",
+            "cost_scenario": "COST_STRESS",
+            "observed": "0.063127",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          },
+          {
+            "run_id": "run-v-stress",
+            "metric": "net_return",
+            "window": "VALIDATION",
+            "cost_scenario": "COST_STRESS",
+            "observed": "0.037402",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          },
+          {
+            "run_id": "run-h-stress",
+            "metric": "net_return",
+            "window": "HOLDOUT",
+            "cost_scenario": "COST_STRESS",
+            "observed": "0.026100",
+            "comparison": "GREATER_THAN",
+            "threshold": "0",
+            "holds": true
+          }
+        ]
+      },
+      {
+        "result": "NOT_APPLICABLE",
+        "gate": "PARAMETER_SENSITIVITY",
+        "category": "ROBUSTNESS",
+        "reason_code": "POLICY_RECORDED",
+        "reason": "The offline test suite has no parameter sensitivity check; the PASS path is exercised without it."
+      },
+      {
+        "result": "NOT_APPLICABLE",
+        "gate": "EXECUTION_DELAY",
+        "category": "ROBUSTNESS",
+        "reason_code": "POLICY_RECORDED",
+        "reason": "The offline test suite has no execution delay check; the PASS path is exercised without it."
+      },
+      {
+        "result": "NOT_APPLICABLE",
+        "gate": "ADVERSE_REGIMES",
+        "category": "ROBUSTNESS",
+        "reason_code": "POLICY_RECORDED",
+        "reason": "The offline test suite has no adverse regimes check; the PASS path is exercised without it."
+      },
+      {
+        "result": "NOT_APPLICABLE",
+        "gate": "RESAMPLING",
+        "category": "ROBUSTNESS",
+        "reason_code": "POLICY_RECORDED",
+        "reason": "OQ-02 section 3.6 gives no resampling method for one stock in S1; the cohort records the limitation."
+      },
+      {
+        "result": "NOT_APPLICABLE",
+        "gate": "PROSPECTIVE_EVIDENCE",
+        "category": "PROSPECTIVE",
+        "reason_code": "POLICY_RECORDED",
+        "reason": "S1 has no live-data adapter. Prospective evidence belongs to the PAPER stage."
+      },
+      {
+        "result": "NOT_APPLICABLE",
+        "gate": "PORTFOLIO_FIT",
+        "category": "PORTFOLIO_FIT",
+        "reason_code": "POLICY_RECORDED",
+        "reason": "S1 evaluates one stock with no portfolio proposal."
+      },
+      {
+        "result": "NOT_APPLICABLE",
+        "gate": "OPERATING_READINESS",
+        "category": "OPERATING_READINESS",
+        "reason_code": "POLICY_RECORDED",
+        "reason": "No paper, shadow or live path exists in S1."
+      }
+    ]
+  }
+}
