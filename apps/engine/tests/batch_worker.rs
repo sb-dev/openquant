@@ -17,6 +17,7 @@ mod batch_support;
 
 use std::{sync::Arc, thread, time::Duration};
 
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use batch_support::{Action, AttemptState, Harness, data::*, worker_handled};
 use openquant_engine::batch::{
     wire::WireError,
@@ -417,7 +418,10 @@ fn a_message_that_is_not_a_dispatch_is_given_back_with_a_long_delay_and_never_ac
     let harness = Harness::new();
     let id = harness.world().enqueue_raw(json!({"hello": "world"}));
     let handled = worker_handled(&harness.poll(), &id);
-    assert_eq!(handled, Handled::Poison { retried: true });
+    assert!(
+        matches!(&handled, Handled::Poison { code, retried: true } if !code.contains("QUEUE")),
+        "{handled:?}"
+    );
     let world = harness.world();
     assert_eq!(world.retries, vec![(id.clone(), 3_600)]);
     assert!(!world.is_acked(&id));
@@ -439,15 +443,109 @@ fn a_message_for_another_environment_is_not_claimed() {
     assert_eq!(harness.world().retries, vec![(job.message, 300)]);
 }
 
+/// The pull-consumer documentation of Cloudflare Queues (1 July 2026): a `json` or `bytes` body
+/// arrives base64-encoded (RFC 4648), a `text` body as a plain UTF-8 string, and a pull consumer
+/// cannot decode `v8`. The content type is `metadata["CF-Content-Type"]` in its example.
 #[test]
-fn a_queue_that_serves_the_body_as_json_is_read_the_same_way() {
+fn a_base64_json_dispatch_with_its_content_type_is_decoded_and_run() {
     let harness = Harness::new();
-    harness.world().body_as_object = true;
-    let job = harness.enqueue_replay(&small_case(), "object");
+    let job = harness.enqueue_replay(&small_case(), "base64");
+    let text = harness.world().message_text(&job.message);
+    harness.world().serve_as(
+        &job.message,
+        Some("json"),
+        json!(BASE64.encode(text.as_bytes())),
+    );
     let handled = worker_handled(&harness.poll(), &job.message);
     assert!(
         matches!(handled, Handled::Completed { acked: true, .. }),
         "{handled:?}"
+    );
+}
+
+#[test]
+fn a_text_dispatch_is_read_as_plain_utf8_and_run() {
+    let harness = Harness::new();
+    let job = harness.enqueue_replay(&small_case(), "text");
+    let text = harness.world().message_text(&job.message);
+    harness
+        .world()
+        .serve_as(&job.message, Some("text"), json!(text));
+    let handled = worker_handled(&harness.poll(), &job.message);
+    assert!(
+        matches!(handled, Handled::Completed { acked: true, .. }),
+        "{handled:?}"
+    );
+}
+
+/// Serve a dispatch as `content_type` with `body`, poll once and return the poison code. The
+/// message is given back with the poison delay, never claimed or acknowledged, and the log names
+/// the content type and none of the body.
+fn poison_code(content_type: Option<&str>, body: impl FnOnce(&str) -> String) -> String {
+    let harness = Harness::new();
+    let job = harness.enqueue_replay(&small_case(), "poison");
+    let served = body(&harness.world().message_text(&job.message));
+    harness
+        .world()
+        .serve_as(&job.message, content_type, json!(served));
+    let handled = worker_handled(&harness.poll(), &job.message);
+    let Handled::Poison {
+        code,
+        retried: true,
+    } = handled
+    else {
+        panic!("{handled:?}");
+    };
+    let world = harness.world();
+    assert_eq!(world.retries, vec![(job.message.clone(), 3_600)]);
+    assert!(!world.is_acked(&job.message));
+    assert_eq!(world.requests_with("attempts.claim"), 0);
+    let log = harness.log_text();
+    assert!(!log.contains(&served), "{log}");
+    if code.contains("QUEUE") {
+        let named = content_type.unwrap_or("(none)");
+        assert!(log.contains(&format!("content type {named}")), "{log}");
+    }
+    code
+}
+
+#[test]
+fn a_body_that_cannot_be_decoded_or_is_not_a_dispatch_is_poison() {
+    // Not base64: the plain JSON text served as json, and a URL-safe alphabet.
+    assert_eq!(
+        poison_code(Some("json"), str::to_owned),
+        "MALFORMED_QUEUE_BODY"
+    );
+    assert_eq!(
+        poison_code(Some("json"), |text| {
+            let mut encoded = BASE64.encode(text);
+            encoded.replace_range(0..1, "-");
+            encoded
+        }),
+        "MALFORMED_QUEUE_BODY"
+    );
+    // Base64 of bytes that are not UTF-8.
+    assert_eq!(
+        poison_code(Some("json"), |text| {
+            let mut bytes = vec![0xff, 0xfe];
+            bytes.extend_from_slice(text.as_bytes());
+            BASE64.encode(bytes)
+        }),
+        "MALFORMED_QUEUE_BODY"
+    );
+    // Base64 of valid UTF-8 that is not a valid dispatch: the contract failure code.
+    let code = poison_code(Some("json"), |text| {
+        BASE64.encode(text.replace("job-dispatch/1", "job-dispatch/9"))
+    });
+    assert!(!code.contains("QUEUE"), "{code}");
+    // v8 and a missing content type cannot be decoded by a pull consumer.
+    assert_eq!(
+        poison_code(Some("v8"), |text| BASE64.encode(text)),
+        "UNSUPPORTED_QUEUE_ENCODING"
+    );
+    assert_eq!(
+        poison_code(None, |text| BASE64.encode(text)),
+        "UNSUPPORTED_QUEUE_ENCODING"
     );
 }
 

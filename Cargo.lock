@@ -697,6 +697,7 @@ dependencies = [
 name = "openquant-engine"
 version = "0.0.0"
 dependencies = [
+ "base64",
  "openquant-contracts",
  "openquant-core",
  "rcgen",

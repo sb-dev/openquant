@@ -11,6 +11,9 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+# Decodes the base64 bodies of pulled queue messages (apps/engine/src/batch/queue.rs). Already in
+# the build through ureq, with the same version and features.
+base64 = { version = "0.23.1", default-features = false, features = ["std"] }
 openquant-contracts.workspace = true
 openquant-core.workspace = true
 rust_decimal.workspace = true
