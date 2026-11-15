@@ -48,7 +48,7 @@ The requirements are the S0 paragraphs and case rows of OQ-06 section 8 and the 
 | Independent expectations: both RSI entry conditions, timing, sizing, corporate actions, invalid inputs | 97 oracle cases and F0-smoke; the oracle hash check in `s0_fixtures.rs`; spot checks 1 to 7 | PASS | Verify does not rerun the oracle. Git cannot show blind authorship. |
 | Each variant is a versioned contract and definition; no hard-coded seed path | The strategy files differ only in data; distinct SHA-256; no variant names in `quant-core/src` | PASS | |
 | Only the reviewed operator subset the seed needs | 19 operators in `operators/catalogue.rs` | PASS | `lt` is unused; `min` and `max` are absent though OQ-02 section 2.2 lists them (S0 interpretation 3). |
-| Versioned schemas, generated Rust bindings, version, unknown-field and decimal validation, shared fixtures | 5 schemas; `build.rs`; 18 valid and 61 invalid manifest entries | PASS | |
+| Versioned schemas, generated Rust bindings, version, unknown-field and decimal validation, shared fixtures | 5 schemas; `build.rs`; 19 valid and 70 invalid (39 schema-invalid, 31 semantic-invalid) manifest entries at `a5b7f3b` | PASS | |
 | Checkpoint binds identities and the cursor to positions, cash, reservations, pending entries, scheduled stops and applied actions | `checkpoint.rs` write and restore | PASS | Restore does not cross-check stop, target, snapshot or rank values (known limit). |
 | Numerical payload uses the shared result schema; no remote identities | `evaluation-result` schema; every case reports "schema ok" | PASS | |
 | Clean checkout: workspace, toolchain, lockfile; checks wired into verify and CI | `scripts/rust.ts`, `scripts/verify.ts`, `ci.yml`; the verify run; CI run 43507285573 | PASS | A worktree with a cold target and a warm registry, not a fresh clone. |
@@ -105,4 +105,4 @@ PASS WITH LIMITS. Every S0 requirement of OQ-06 section 8 and the roadmap S0 row
 
 ## Verification
 
-This change adds this log and its index line only. The figures above come from the reviewer's report. This log does not repeat them.
+The commit that adds this log also adds the S1 pilot profile log, the OQ-02 to OQ-06 specification patches, `docs/reference/commands.md`, the `docs/reference/README.md` update and the index and tree entries. This log adds no code and no check of its own. The figures above come from the reviewer's report, except the manifest entry counts, which were counted in the manifest at `a5b7f3b`. This log does not repeat the reviewer's other figures.

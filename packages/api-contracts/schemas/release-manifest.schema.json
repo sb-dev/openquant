@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:openquant:schema:release-manifest:1",
   "title": "ReleaseManifest",
-  "description": "Release identity of one deployment to one environment (OQ-05 section 11, OQ-06 section 3). deploy.yml builds it from the built artefacts and the identities it reads back from the deployed services. An Administrator records it through the releases route, and the system identity route shows the current one. source_commit is the Git commit SHA. executables lists the image and binary digests. bundle_hash is the behaviour-bundle hash. It grants no trading authority.",
+  "description": "Release identity of one deployment to one environment (OQ-05 section 11, OQ-06 section 3). deploy.yml builds it from the built artefacts and the identities it reads back from the deployed services. The deploy service principal, or an Administrator, records it through the releases route, and the system identity route shows the current one. source_commit is the Git commit SHA. executables lists the image and binary digests. bundle_hash is the behaviour-bundle hash. It grants no trading authority.",
   "type": "object",
   "additionalProperties": false,
   "required": [

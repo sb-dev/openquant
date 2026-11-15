@@ -8,7 +8,7 @@ import type { EntryResult } from './manifest.ts';
 
 export const REPORT_SCHEMA = 'contracts-report/1';
 export const PRODUCE_REPORT =
-  'Produce it with the Rust contracts report (cargo run --locked -p openquant-contracts --bin contracts-report), which writes local-runs/contracts/report.json, then rerun pnpm verify:contracts.';
+  'Produce it with the Rust contracts report (cargo run --locked -p openquant-contracts --bin contracts-report -- --out local-runs/contracts), which writes local-runs/contracts/report.json, then rerun pnpm verify:contracts.';
 
 function describe(entry: { readonly verdict?: unknown; readonly code?: unknown; readonly digest?: unknown }): string {
   return entry.verdict === 'accepted' ? `accepted ${String(entry.digest)}` : `rejected ${String(entry.code)}`;
