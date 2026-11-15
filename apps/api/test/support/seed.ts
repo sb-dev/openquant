@@ -127,8 +127,9 @@ export async function seedPolicy(exec: Exec): Promise<void> {
 export async function seedMission(exec: Exec): Promise<void> {
   await artefact(exec, digests.seedDraft);
   await exec.query(
-    `INSERT INTO seed_drafts (draft_digest, origin, registered_by, registered_at) VALUES ($1, 'researcher_authored', $2, $3)`,
-    [digests.seedDraft, ids.researcher, NOW],
+    `INSERT INTO seed_drafts (draft_digest, origin, strategy_id, registered_by, registered_at)
+     VALUES ($1, 'researcher_authored', $2, $3, $4)`,
+    [digests.seedDraft, ids.strategy, ids.researcher, NOW],
   );
   await exec.query(
     `INSERT INTO source_interpretations (draft_digest, sources, source_differences, recorded_at) VALUES ($1, '[]', '[]', $2)`,

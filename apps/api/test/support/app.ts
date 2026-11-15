@@ -48,6 +48,8 @@ export interface TestApp {
 
 export interface TestAppOptions {
   readonly environment?: DeploymentEnvironment;
+  /** Research execution on or off. On by default in tests that start missions. */
+  readonly researchExecution?: boolean;
   readonly registry?: Readonly<Record<string, Handler>>;
   readonly database?: TestDatabase;
   readonly signingKey?: Uint8Array;
@@ -82,6 +84,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     },
     objects,
     clock: () => clock.now(),
+    researchExecution: options.researchExecution ?? true,
     ids: {
       next: (prefix) => {
         counter += 1;

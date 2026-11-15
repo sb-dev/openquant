@@ -69,7 +69,13 @@ describe('wrangler.jsonc', () => {
       ...secretNames,
     ].sort();
     expect(configured).toEqual(declaredBindings());
-    expect(declaredBindings()).toEqual(['ARTEFACTS', 'HYPERDRIVE', 'OPENQUANT_ENVIRONMENT', 'TOKEN_SIGNING_KEY']);
+    expect(declaredBindings()).toEqual([
+      'ARTEFACTS',
+      'HYPERDRIVE',
+      'OPENQUANT_ENVIRONMENT',
+      'OPENQUANT_RESEARCH_EXECUTION',
+      'TOKEN_SIGNING_KEY',
+    ]);
   });
 
   it('is read by the code under exactly those names: every name that the Worker reads from its bindings is declared', () => {
@@ -103,7 +109,8 @@ describe('wrangler.jsonc', () => {
       }
     };
     walk(config, 'config');
-    expect(config.vars).toEqual({ OPENQUANT_ENVIRONMENT: 'DEVELOPMENT' });
+    // Research execution is off in the file: the delivery job turns it on for an environment, never this file.
+    expect(config.vars).toEqual({ OPENQUANT_ENVIRONMENT: 'DEVELOPMENT', OPENQUANT_RESEARCH_EXECUTION: 'disabled' });
     expect(JSON.stringify(config)).not.toMatch(/postgres(?:ql)?:\/\/|oqk1\.|oqa1\.|sk-|Bearer /i);
     // A secret has its name in .dev.vars.example and an empty value, never a value.
     expect(
