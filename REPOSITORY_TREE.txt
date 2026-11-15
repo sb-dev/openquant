@@ -676,6 +676,7 @@ apps/engine/src/batch/egress.rs
 apps/engine/src/batch/identity.rs
 apps/engine/src/batch/input.rs
 apps/engine/src/batch/jobs/assess.rs
+apps/engine/src/batch/jobs/bind.rs
 apps/engine/src/batch/jobs/evaluate.rs
 apps/engine/src/batch/jobs/mod.rs
 apps/engine/src/batch/jobs/retrieve.rs

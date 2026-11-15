@@ -320,7 +320,7 @@ impl Harness {
         let mut world = self.world();
         let manifest_ref = world.store_json(spec.manifest);
         let strategy_ref = world.store_json(spec.strategy);
-        let policy = cohort_policy();
+        let policy = spec.cohort.clone().unwrap_or_else(cohort_policy);
         let policy_ref = world.store_json(&policy);
         let request = json!({
             "schema_version": "evaluation-request/1",
@@ -344,9 +344,9 @@ impl Harness {
                     "digest": policy_ref["digest"],
                 },
                 "suite_id": policy["suite_id"],
-                "plan_digest": digest_bytes(b"the plan of the test"),
+                "plan_digest": spec.plan_digest.clone().unwrap_or_else(|| digest_bytes(b"the plan of the test")),
                 "trial_slot": "seed",
-                "run_slot": format!("seed.{}.{}", spec.window.to_lowercase(), spec.scenario.to_lowercase()),
+                "run_slot": spec.run_slot.clone().unwrap_or_else(|| format!("seed.{}.{}", spec.window.to_lowercase(), spec.scenario.to_lowercase())),
                 "window_role": spec.window,
                 "cost_scenario": spec.scenario,
             },
@@ -431,6 +431,12 @@ pub struct BacktestSpec<'a> {
     pub windows: Option<Value>,
     /// Replace the profile that the request names (a test of a manifest of another profile).
     pub profile: Option<Value>,
+    /// Replace the cohort policy of the request (the pilot policy of the fixtures by default).
+    pub cohort: Option<Value>,
+    /// Replace the run slot that the request names (derived from the window and the scenario).
+    pub run_slot: Option<String>,
+    /// Replace the plan digest that the request names (a fixed placeholder by default).
+    pub plan_digest: Option<String>,
 }
 
 impl<'a> BacktestSpec<'a> {
@@ -457,6 +463,9 @@ impl<'a> BacktestSpec<'a> {
             policy: None,
             windows: None,
             profile: None,
+            cohort: None,
+            run_slot: None,
+            plan_digest: None,
         }
     }
 }

@@ -23,8 +23,8 @@ use openquant_core::{
     exact::Q,
     gates::{
         Assessment, CandidateEvidence, GateError, GateInput, ManifestEvidence, MetricsEvidence,
-        Outcome, ReportContext, RunEvidence, ValidationEvidence, assess, cost_scenario_matches,
-        report,
+        Mismatch, Outcome, ReportContext, RunEvidence, ValidationEvidence, assess,
+        cost_scenario_matches, report,
     },
     metrics::{Scenario, Window},
 };
@@ -162,12 +162,14 @@ fn evidence_of(policy: &Value, value: &Value) -> CandidateEvidence {
                 metrics: (!run["metrics"].is_null()).then(|| MetricsEvidence {
                     digest: run["metrics_digest"].as_str().unwrap().to_owned(),
                     document: metrics_document(run),
+                    unbound: None,
                 }),
                 input_policy,
                 checks: (!run["checks"].is_null()).then(|| RunChecks {
                     reconciliation: check_of(run["checks"]["reconciliation"].as_str().unwrap()),
                     timing: check_of(run["checks"]["timing"].as_str().unwrap()),
                 }),
+                unbound: None,
             }
         })
         .collect();
@@ -197,6 +199,7 @@ fn evidence_of(policy: &Value, value: &Value) -> CandidateEvidence {
                     .unwrap(),
             )
             .unwrap(),
+            unbound: None,
         }),
         runs,
     }
@@ -566,6 +569,248 @@ fn the_policy_and_the_evidence_must_be_usable() {
     unsealed.runs[0].result_digest = None;
     assert!(matches!(
         assess(&policy, &unsealed),
+        Err(GateError::Evidence(_))
+    ));
+}
+
+fn gate_of<'a>(assessment: &'a Assessment, id: &str) -> &'a Value {
+    assessment.gates.iter().find(|g| g["gate"] == id).unwrap()
+}
+
+fn gate_must_be_insufficient(assessment: &Assessment, id: &str, code: &str) -> String {
+    let gate = gate_of(assessment, id);
+    assert_eq!(gate["result"], "INSUFFICIENT", "{id}: {gate}");
+    assert_eq!(gate["reason_code"], code, "{id}: {gate}");
+    gate["reason"].as_str().unwrap().to_owned()
+}
+
+fn cites(assessment: &Assessment, digest: &str) -> bool {
+    assessment.gates.iter().any(|g| {
+        g["evidence"]
+            .as_array()
+            .is_some_and(|list| list.iter().any(|d| d == digest))
+    })
+}
+
+#[test]
+fn a_run_that_does_not_bind_to_its_slot_supplies_no_evidence_whatever_else_it_carries() {
+    // G-01 passes every gate. The validation base run keeps its result, metrics, policy and audits,
+    // and carries a mismatch: no gate may read any of it.
+    let (policy, mut evidence) = pilot_case("G-01");
+    let victim = evidence
+        .runs
+        .iter_mut()
+        .find(|r| r.run_id == "run-v-base")
+        .unwrap();
+    victim.unbound = Some(Mismatch::new("window_role", "VALIDATION", "HOLDOUT"));
+    let digest = victim.submission_digest.clone().unwrap();
+    let assessment = assess(&policy, &evidence).unwrap();
+    // The three threshold gates that read the base-cost validation run, and the gates that read
+    // every run, are insufficient for the missing run and name the mismatch.
+    for id in [
+        "EXCESS_OVER_BUY_AND_HOLD",
+        "WALK_FORWARD",
+        "MINIMUM_TRADE_COUNT",
+        "ACCOUNTING_RECONCILIATION",
+        "SIGNAL_DATA_TIMING",
+        "BASE_COST_MODEL",
+    ] {
+        let reason = gate_must_be_insufficient(&assessment, id, "RUN_MISSING");
+        assert!(
+            reason.contains("run-v-base")
+                && reason.contains("window_role is HOLDOUT, required VALIDATION"),
+            "{id}: {reason}"
+        );
+    }
+    // The stress run of the same window is another run, and the replay pair is not this run.
+    assert_eq!(gate_of(&assessment, "COST_STRESS")["result"], "PASS");
+    assert_eq!(
+        gate_of(&assessment, "DETERMINISTIC_REPLAY")["result"],
+        "PASS"
+    );
+    assert!(!cites(&assessment, &digest), "a gate cites the unbound run");
+    for gate in &assessment.gates {
+        for observation in gate["observations"].as_array().into_iter().flatten() {
+            assert_ne!(observation["run_id"], "run-v-base", "{gate}");
+        }
+    }
+    // The report is still a valid gate-report.
+    let method = test_method();
+    report(&report_context(&method, &policy), &assessment).unwrap();
+}
+
+#[test]
+fn a_run_that_does_not_bind_is_not_a_candidate_defect_and_not_future_data() {
+    let (policy, mut evidence) = pilot_case("G-01");
+    // An unbound run that failed with a candidate defect does not fail the definition, and one
+    // that failed with FUTURE_DATA does not hold up the point-in-time gate: both are evidence
+    // that the gates do not read.
+    for (code, gate) in [
+        (FailureCode::InvalidLevel, "DEFINITION_VALIDATION"),
+        (FailureCode::FutureData, "POINT_IN_TIME_DATA"),
+    ] {
+        let victim = evidence
+            .runs
+            .iter_mut()
+            .find(|r| r.run_id == "run-h-stress")
+            .unwrap();
+        victim.outcome = Outcome::Failed(code);
+        victim.unbound = Some(Mismatch::new("run_slot", "a slot of the plan", "seed.zzz"));
+        let assessment = assess(&policy, &evidence).unwrap();
+        assert_eq!(gate_of(&assessment, gate)["result"], "PASS", "{code}");
+    }
+}
+
+#[test]
+fn metrics_that_do_not_bind_are_unavailable_to_the_threshold_gates_only() {
+    let (policy, mut evidence) = pilot_case("G-01");
+    let victim = evidence
+        .runs
+        .iter_mut()
+        .find(|r| r.run_id == "run-v-base")
+        .unwrap();
+    victim.metrics.as_mut().unwrap().unbound =
+        Some(Mismatch::new("metrics.run_id", "run-v-base", "run-other"));
+    let assessment = assess(&policy, &evidence).unwrap();
+    for id in [
+        "EXCESS_OVER_BUY_AND_HOLD",
+        "WALK_FORWARD",
+        "MINIMUM_TRADE_COUNT",
+    ] {
+        let reason = gate_must_be_insufficient(&assessment, id, "METRICS_UNAVAILABLE");
+        assert!(
+            reason.contains("run-v-base") && reason.contains("metrics.run_id is run-other"),
+            "{id}: {reason}"
+        );
+        for observation in gate_of(&assessment, id)["observations"].as_array().unwrap() {
+            assert_ne!(observation["run_id"], "run-v-base");
+        }
+    }
+    // The metrics are not what the run supplies to the audits, the replay or the cost model.
+    for id in [
+        "COST_STRESS",
+        "DEFINITION_VALIDATION",
+        "DETERMINISTIC_REPLAY",
+        "ACCOUNTING_RECONCILIATION",
+        "SIGNAL_DATA_TIMING",
+        "POINT_IN_TIME_DATA",
+        "BASE_COST_MODEL",
+    ] {
+        assert_eq!(gate_of(&assessment, id)["result"], "PASS", "{id}");
+    }
+}
+
+#[test]
+fn a_measured_failure_still_decides_over_metrics_that_do_not_bind() {
+    // Precedence is unchanged: a threshold that provably fails cannot be rescued by a window
+    // that lacks evidence, whatever the reason.
+    let (policy, mut evidence) = pilot_case("G-01");
+    let victim = evidence
+        .runs
+        .iter_mut()
+        .find(|r| r.run_id == "run-v-base")
+        .unwrap();
+    victim.metrics.as_mut().unwrap().unbound = Some(Mismatch::new("metrics.run_id", "a", "b"));
+    let failing = evidence
+        .runs
+        .iter_mut()
+        .find(|r| r.run_id == "run-h-base")
+        .unwrap();
+    failing.metrics.as_mut().unwrap().document["strategy"]["trade_count"]["value"] = json!(1);
+    let assessment = assess(&policy, &evidence).unwrap();
+    // MINIMUM_TRADE_COUNT of G-01 is INSUFFICIENT below the threshold, by the policy.
+    let gate = gate_of(&assessment, "MINIMUM_TRADE_COUNT");
+    assert_eq!(gate["reason_code"], "BELOW_THRESHOLD", "{gate}");
+}
+
+#[test]
+fn a_manifest_that_does_not_bind_is_not_read_and_not_cited() {
+    let (policy, mut evidence) = pilot_case("G-01");
+    let manifest = evidence.manifest.as_mut().unwrap();
+    manifest.unbound = Some(Mismatch::new("manifest.dataset", "synth@1", "other@1"));
+    // Even a manifest whose bars lack an availability time says nothing about other data.
+    manifest.bars_without_availability = 3;
+    let digest = manifest.digest.clone();
+    let assessment = assess(&policy, &evidence).unwrap();
+    let reason = gate_must_be_insufficient(&assessment, "POINT_IN_TIME_DATA", "RUN_MISSING");
+    assert!(
+        reason.contains("manifest.dataset is other@1, required synth@1"),
+        "{reason}"
+    );
+    assert!(!cites(&assessment, &digest));
+    // The manifest was read, and the report lists it among its inputs.
+    assert!(assessment.inputs.iter().any(|i| i.digest == digest));
+    assert_eq!(gate_of(&assessment, "BASE_COST_MODEL")["result"], "PASS");
+}
+
+#[test]
+fn a_validation_result_that_does_not_bind_is_not_cited_and_decides_nothing() {
+    let (policy, mut evidence) = pilot_case("G-01");
+    let ValidationEvidence::Valid { digest } = evidence.validation.clone() else {
+        panic!("G-01 has a valid validation result");
+    };
+    evidence.validation = ValidationEvidence::Unbound {
+        digest: digest.clone(),
+        mismatch: Mismatch::new("validation.draft_digest", "sha256:a", "sha256:b"),
+    };
+    let assessment = assess(&policy, &evidence).unwrap();
+    let reason =
+        gate_must_be_insufficient(&assessment, "DEFINITION_VALIDATION", "VALIDATION_FAILED");
+    assert!(
+        reason.contains("validation.draft_digest is sha256:b"),
+        "{reason}"
+    );
+    assert!(!cites(&assessment, &digest));
+    assert!(assessment.inputs.iter().any(|i| i.digest == digest));
+    // A run that failed with a candidate defect still fails the definition: that evidence is the
+    // run's own, and it does not need the validation result.
+    let victim = evidence
+        .runs
+        .iter_mut()
+        .find(|r| r.run_id == "run-h-stress")
+        .unwrap();
+    victim.outcome = Outcome::Failed(FailureCode::InvalidLevel);
+    let assessment = assess(&policy, &evidence).unwrap();
+    let gate = gate_of(&assessment, "DEFINITION_VALIDATION");
+    assert_eq!(gate["result"], "FAIL", "{gate}");
+    assert!(!cites(&assessment, &digest));
+}
+
+#[test]
+fn several_runs_for_one_cell_are_insufficient_when_one_does_not_bind_and_a_defect_when_all_do() {
+    let (policy, evidence) = pilot_case("G-01");
+    let mut claimed = evidence.clone();
+    let mut stray = claimed
+        .runs
+        .iter()
+        .find(|r| r.run_id == "run-v-base")
+        .unwrap()
+        .clone();
+    stray.run_id = "run-stray".to_owned();
+    stray.unbound = Some(Mismatch::new(
+        "run_slot",
+        "a planned slot",
+        "seed.v.elsewhere",
+    ));
+    claimed.runs.push(stray);
+    let assessment = assess(&policy, &claimed).unwrap();
+    for id in [
+        "EXCESS_OVER_BUY_AND_HOLD",
+        "WALK_FORWARD",
+        "MINIMUM_TRADE_COUNT",
+    ] {
+        let reason = gate_must_be_insufficient(&assessment, id, "RUN_MISSING");
+        assert!(
+            reason.contains("run-stray") && reason.contains("run_slot"),
+            "{id}: {reason}"
+        );
+    }
+    // Two runs that both bind cannot be told apart.
+    let mut doubled = evidence;
+    let copy = doubled.runs[0].clone();
+    doubled.runs.push(copy);
+    assert!(matches!(
+        assess(&policy, &doubled),
         Err(GateError::Evidence(_))
     ));
 }
