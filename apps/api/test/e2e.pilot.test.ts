@@ -3,8 +3,9 @@
 // Decision and freezes the candidates, a Viewer reads the views. Every stage checks what the specifications require of it;
 // the stages build on one another, in order.
 //
-// One candidate (the seed) is evaluated. The two revision slots end without a registered version (NO_REGISTERED_VERSION),
-// so the mission concludes NO_ELIGIBLE_CANDIDATE: the expected S1 outcome (OQ-02 section 3.2).
+// One candidate (the seed) is evaluated. The two revision slots end without a registered version (NO_REGISTERED_VERSION):
+// their proposers are refused and make no proposal, which is what makes a revision slot terminal here (OQ-02 section 4).
+// The mission then concludes NO_ELIGIBLE_CANDIDATE: the expected S1 outcome (OQ-02 section 3.2).
 
 import { parseContract } from '@openquant/api-contracts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -24,7 +25,13 @@ import {
   submit,
 } from './support/flow.ts';
 import { missionRevision } from './support/pipeline.ts';
-import { CRITIQUE_FINDING, runsOf, submitEvaluation, toEvaluating } from './support/steps.ts';
+import {
+  CRITIQUE_FINDING,
+  proposerEndsWithoutProposal,
+  runsOf,
+  submitEvaluation,
+  toEvaluating,
+} from './support/steps.ts';
 import type { Doc } from './support/world.ts';
 
 let flow: Flow & Started;
@@ -105,6 +112,9 @@ describe('the pilot, stage by stage', () => {
   });
 
   it('4. freeze_candidates writes the holdout runs of the candidate in EVALUATING and ends the two slots without a version', async () => {
+    // Each proposer ran and was refused, so its revision slot has no proposal in flight and none to come.
+    await proposerEndsWithoutProposal(flow, 'rev-a', 'proposer-a');
+    await proposerEndsWithoutProposal(flow, 'rev-b', 'proposer-b');
     const frozen = await flow.world.apply(
       'workflows',
       {
@@ -301,7 +311,8 @@ describe('the pilot, stage by stage', () => {
     // Batch seconds: retrieval 5, validation 2, seven runs of 41 seconds, assessment 3 (2310 ms round up).
     const batch = 5 + 2 + 7 * 41 + 3;
     expect(pools.find((pool) => pool.dimension === 'BATCH_COMPUTE_SECONDS')?.committed).toBe(`${batch}.00000000`);
-    expect(pools.find((pool) => pool.dimension === 'AGENT_COMPUTE_SECONDS')?.committed).toBe('240.00000000');
+    // Agent seconds: the critic and the two refused proposers each reported 240 seconds (240000 ms).
+    expect(pools.find((pool) => pool.dimension === 'AGENT_COMPUTE_SECONDS')?.committed).toBe('720.00000000');
     expect(pools.find((pool) => pool.dimension === 'PROVIDER_REQUESTS')?.committed).toBe('2.00000000');
   });
 });
@@ -343,6 +354,8 @@ describe('the views of the concluded mission', () => {
     ]);
     expect(view.jobs.map((job: Doc) => `${job.kind}:${job.status}`).sort()).toEqual([
       'agent:COMPLETED',
+      'agent:FAILED',
+      'agent:FAILED',
       'assess:COMPLETED',
       'retrieve:COMPLETED',
       'validate:COMPLETED',

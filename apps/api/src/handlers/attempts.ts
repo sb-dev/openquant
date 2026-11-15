@@ -4,9 +4,9 @@
 // Every result route runs one transaction through a domain function that answers with the typed refusal as data, so a
 // rejected late submission is recorded in the audit log in the same transaction and nothing else changes.
 
-import type { AttemptClaimRequest } from '@openquant/api-contracts';
+import type { AgentAttemptResult, AttemptClaimRequest } from '@openquant/api-contracts';
 import { digestBytes, type Sha256Digest } from '@openquant/api-contracts';
-import { acceptAgentResult } from '../domain/agents.ts';
+import { acceptAgentResult, settleLateAgentReport } from '../domain/agents.ts';
 import { acceptGateReport } from '../domain/assessment.ts';
 import type { Guarded, WorkContext } from '../domain/attempts.ts';
 import { allBuilders } from '../domain/builders.ts';
@@ -20,7 +20,7 @@ import { findMission } from '../domain/rows.ts';
 import { acceptValidationResult } from '../domain/validation.ts';
 import { workOfAttempt } from '../domain/work.ts';
 import { ApiFailure } from '../errors.ts';
-import { type Handler, json } from './context.ts';
+import { type Handler, json, type LateHandler } from './context.ts';
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 
@@ -183,3 +183,15 @@ export const validationResultRoute: Handler = resultRoute(acceptValidationResult
 export const evaluationSubmissionRoute: Handler = resultRoute(acceptEvaluationSubmission);
 export const gateReportRoute: Handler = resultRoute(acceptGateReport);
 export const agentResultRoute: Handler = resultRoute(acceptAgentResult);
+
+/**
+ * A report from an agent attempt whose lease ended: the route layer answers LEASE_EXPIRED or STALE_OWNERSHIP, and the
+ * usage that the report carries settles an UNRECONCILED reservation of that attempt (the run and the result do not
+ * change). Batch results have no such path: for batch work UNRECONCILED stays final in S1.
+ */
+export const lateAgentResult: LateHandler = async (tx, { env, caller, params, body }) => {
+  if (caller.kind !== 'attempt' || body.kind !== 'contract') return;
+  const result = body.value as unknown as AgentAttemptResult;
+  if (result.attempt.attempt_id !== params.attempt_id) return;
+  await settleLateAgentReport(tx, workContext(env, caller.principal.id), result);
+};

@@ -8,12 +8,13 @@ import {
   evaluationSubmissionRoute,
   gateReportRoute,
   inputRoute,
+  lateAgentResult,
   retrievalResultRoute,
   validationResultRoute,
 } from './attempts.ts';
 import { authToken } from './auth-token.ts';
 import { applyCommand, showCommand } from './commands.ts';
-import type { Handler } from './context.ts';
+import type { Handler, LateHandler } from './context.ts';
 import {
   runMetrics,
   runResult,
@@ -59,4 +60,12 @@ export const handlers: Readonly<Record<string, Handler>> = {
   'attempts.evaluation-submission': evaluationSubmissionRoute,
   'attempts.gate-report': gateReportRoute,
   'attempts.agent-result': agentResultRoute,
+};
+
+/**
+ * The routes that do something with a submission from an attempt whose lease ended, besides the refusal: the agent
+ * result settles the UNRECONCILED reservation of the attempt from the usage that it carries.
+ */
+export const lateSubmissions: Readonly<Record<string, LateHandler>> = {
+  'attempts.agent-result': lateAgentResult,
 };

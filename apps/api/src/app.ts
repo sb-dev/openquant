@@ -6,8 +6,8 @@
 import { Hono } from 'hono';
 import { type ApiEnv, type RequestContext, randomIds, redact, type WorkerBindings } from './env.ts';
 import { ApiFailure, errorBody } from './errors.ts';
-import { type Handler, json } from './handlers/context.ts';
-import { handlers } from './handlers/index.ts';
+import { type Handler, json, type LateHandler } from './handlers/context.ts';
+import { handlers, lateSubmissions } from './handlers/index.ts';
 import { apiRoutes, honoPath } from './manifest.ts';
 import { serveRoute } from './route-layer.ts';
 
@@ -29,7 +29,11 @@ function respond(failure: ApiFailure, diagnosticRef: string): Response {
   return new Response(JSON.stringify(errorBody(failure, diagnosticRef)), { status: failure.status, headers });
 }
 
-export function createApp(source: EnvSource, registry: Readonly<Record<string, Handler>> = handlers): Hono<AppTypes> {
+export function createApp(
+  source: EnvSource,
+  registry: Readonly<Record<string, Handler>> = handlers,
+  late: Readonly<Record<string, LateHandler>> = lateSubmissions,
+): Hono<AppTypes> {
   const app = new Hono<AppTypes>();
 
   app.use('*', async (c, next) => {
@@ -68,7 +72,7 @@ export function createApp(source: EnvSource, registry: Readonly<Record<string, H
 
   for (const route of apiRoutes) {
     app.on(route.method, honoPath(route.path), (c) =>
-      serveRoute(route, c.get('context'), c.req.raw, c.req.param(), registry),
+      serveRoute(route, c.get('context'), c.req.raw, c.req.param(), registry, late),
     );
   }
 

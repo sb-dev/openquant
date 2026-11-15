@@ -144,15 +144,25 @@ export interface Started {
   readonly retrieve: { jobId: string; attemptId: string };
 }
 
-/** Records registered, the mission created and started, the release recorded: the retrieval attempt is PENDING. */
+/**
+ * Records registered, the mission created and started, the release recorded (unless `release: false`): the retrieval
+ * attempt is PENDING.
+ */
 export async function startedFlow(
-  options: WorldOptions & { readonly mission?: (mission: Doc) => void } = {},
+  options: WorldOptions & {
+    readonly mission?: (mission: Doc) => void;
+    /** False: no release is recorded for the environment. `flow.release` then holds the unrecorded fixture release. */
+    readonly release?: boolean;
+  } = {},
 ): Promise<Flow & Started> {
   const flow = await createFlow(options);
   const { world } = flow;
   await registerRecords(world);
   const missionId = await createMission(world, options.mission);
-  flow.release = await recordRelease(world);
+  flow.release =
+    options.release === false
+      ? { ...structuredClone(fixture('release-manifest.staging.json')), environment: world.testApp.env.environment }
+      : await recordRelease(world);
   const retrieve = await startMission(world);
   return Object.assign(flow, { missionId, retrieve: { jobId: retrieve.jobId, attemptId: retrieve.attemptId } });
 }

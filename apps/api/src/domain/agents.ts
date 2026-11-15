@@ -20,6 +20,7 @@ import {
   failAttempt,
   type Guarded,
   locate,
+  reconcileReservation,
   type WorkContext,
 } from './attempts.ts';
 import type { UsageReport } from './budget.ts';
@@ -30,6 +31,7 @@ import { costUsage, durationUsage, openResult, repeatOutcome } from './results.t
 import type { AgentFailureOutcome } from './retry.ts';
 import { loadMissionBudget } from './rows.ts';
 import { storeDocument } from './store.ts';
+import { requireReleasedExecutable } from './validation.ts';
 
 function mismatch(message: string): ApiFailure {
   return new ApiFailure('IDENTITY_MISMATCH', message);
@@ -40,6 +42,9 @@ interface AgentDispatchMessage {
   inputs: { request: { artefact: { digest: string } } };
 }
 
+/** The parse limit of a role output: no registered output limit lifts it. */
+export const ROLE_OUTPUT_CEILING_BYTES = 512 * 1024;
+
 export type AgentAccepted = 'COMPLETED' | 'RETRIED' | 'FAILED' | 'WAITING' | 'REPEATED' | 'TERMINATION_CONFIRMED';
 
 function usageOf(result: AgentAttemptResult, currency: string): UsageReport {
@@ -47,6 +52,51 @@ function usageOf(result: AgentAttemptResult, currency: string): UsageReport {
     MODEL_SPEND: costUsage(result.usage.cost, currency),
     AGENT_COMPUTE_SECONDS: durationUsage(result.usage.duration),
   };
+}
+
+/**
+ * The report of an agent attempt whose lease ended, after the route layer has refused it (LEASE_EXPIRED, or
+ * STALE_OWNERSHIP once a newer attempt exists). The refusal stands and nothing about the run, the attempts or the result
+ * changes. But the usage that the report carries settles the reservation of the attempt when that reservation is
+ * UNRECONCILED, never above the reservation, and usage above it is an overrun that blocks the mission (OQ-05 section 4,
+ * reservation row: "Recovery reconciles UNRECONCILED reservations"). The report is bound as a live one is: the
+ * ownership revision of the attempt, the request, bundle and session of its dispatch, and the runner that claimed it.
+ * A reservation that is not UNRECONCILED is left as it is; so is one whose report names no usage.
+ */
+export async function settleLateAgentReport(
+  tx: Queryable,
+  ctx: WorkContext,
+  result: AgentAttemptResult,
+): Promise<'RECONCILED' | 'IGNORED'> {
+  const attemptId = result.attempt.attempt_id;
+  const found = await locate(tx, attemptId);
+  if (found === undefined) return 'IGNORED';
+  const { mission, work, attempt } = found;
+  if (attempt.status !== 'LEASE_EXPIRED' || attempt.ownership_revision !== result.attempt.ownership_revision) {
+    return 'IGNORED';
+  }
+  if (work.kind !== 'job' || work.dispatchKind !== 'agent') return 'IGNORED';
+  const message = (await dispatchOf(tx, attemptId)).message as unknown as AgentDispatchMessage;
+  const { provenance } = result;
+  if (
+    provenance.input_hash !== message.inputs.request.artefact.digest ||
+    provenance.bundle_hash !== message.identity.bundle_hash ||
+    provenance.session_id !== message.identity.session_id ||
+    !sameExecutable(provenance.runner, await claimedExecutable(tx, attemptId))
+  ) {
+    return 'IGNORED';
+  }
+  let usage: UsageReport;
+  try {
+    usage = usageOf(result, (await loadMissionBudget(tx, mission.mission_id)).currency);
+  } catch (error) {
+    // A cost in another currency cannot be settled against the pools of the mission.
+    if (error instanceof ApiFailure) return 'IGNORED';
+    throw error;
+  }
+  if (!Object.values(usage).some((value) => value !== undefined && value.label !== 'unknown')) return 'IGNORED';
+  const settled = await reconcileReservation(tx, ctx, attemptId, usage);
+  return settled.status === 'UNCHANGED' ? 'IGNORED' : 'RECONCILED';
 }
 
 export async function acceptAgentResult(
@@ -102,15 +152,20 @@ export async function acceptAgentResult(
   if (!sameExecutable(provenance.runner, executable)) {
     throw mismatch('The result comes from another runner than the one that claimed this attempt.');
   }
+  await requireReleasedExecutable(tx, env.environment, executable);
   const budget = await loadMissionBudget(tx, mission.mission_id);
   const usage = usageOf(result, budget.currency);
 
-  if (outcome.outcome !== 'completion') {
+  /** The attempt ends without a role output: its report is stored, its reservation settled, its run failed or retried. */
+  const endWithoutOutput = async (
+    ended: AgentFailureOutcome,
+    reason: string | null,
+  ): Promise<Guarded<AgentAccepted>> => {
     const stored = await storeDocument(tx, env, 'agent-attempt-result', result, principalId);
     const failed = await failAttempt(tx, ctx, {
       attemptId,
       ownershipRevision: attempt.ownership_revision,
-      cause: { kind: 'AGENT_OUTCOME', outcome: outcome.outcome as AgentFailureOutcome },
+      cause: { kind: 'AGENT_OUTCOME', outcome: ended },
       usage,
       resultDigest: stored.ref.digest,
     });
@@ -118,17 +173,13 @@ export async function acceptAgentResult(
     await tx.query(
       `INSERT INTO agent_results (attempt_id, job_id, role, outcome, reason, result_digest, recorded_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [
-        attemptId,
-        work.id,
-        work.agentRole,
-        outcome.outcome,
-        'reason' in outcome ? outcome.reason : null,
-        stored.ref.digest,
-        env.clock(),
-      ],
+      [attemptId, work.id, work.agentRole, ended, reason, stored.ref.digest, env.clock()],
     );
     return { ok: true, value: failed.value.outcome };
+  };
+
+  if (outcome.outcome !== 'completion') {
+    return endWithoutOutput(outcome.outcome as AgentFailureOutcome, 'reason' in outcome ? outcome.reason : null);
   }
 
   // A completion: the role output must be the output of this role, recorded, within its limit and readable.
@@ -140,10 +191,11 @@ export async function acceptAgentResult(
   await requireStoredRef(tx, output.artefact, 'role output');
   const policy = await loadPolicy(tx, env, mission.policy_id, mission.policy_revision);
   if (policy === undefined) throw new Error(`The policy of mission ${mission.mission_id} is missing.`);
-  const limit = role === 'CRITIC' ? policy.document.limits.agent_output_limit_bytes : 512 * 1024;
-  if (output.artefact.size_bytes > Math.min(limit, 512 * 1024)) {
-    throw new ApiFailure('LIMIT_EXCEEDED', 'The role output is larger than the output limit of the cohort policy.');
-  }
+  // Every proposer configuration and the critic get the same limit; 512 KiB, the parse limit of a role output, is the
+  // ceiling whatever the policy registers. An output above it is a malformed result (OQ-03 section 4, D6): the report
+  // is recorded as that outcome with the reason of the schema, and the attempt is retried like any malformed result.
+  const limit = Math.min(policy.document.limits.agent_output_limit_bytes, ROLE_OUTPUT_CEILING_BYTES);
+  if (output.artefact.size_bytes > limit) return endWithoutOutput('malformed_result', 'OUTPUT_LIMIT_EXCEEDED');
   const bytes = await storedBytes(env, output.artefact.digest);
   const critique = role === 'CRITIC' ? readCritique(bytes) : undefined;
   const reading = critique ?? readFormulation(bytes);

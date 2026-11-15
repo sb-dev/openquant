@@ -119,6 +119,28 @@ export async function driveCritique(
   return { work, claimed, output, response: await submit(flow, claimed, 'agent-result', result) };
 }
 
+/**
+ * A proposer run that ends without a proposal: the runner reports a refusal, which is never retried, so the logical
+ * run of the revision slot is FAILED and nothing is left in flight for it.
+ */
+export async function proposerEndsWithoutProposal(
+  flow: Flow & Started,
+  slot: string,
+  configuration: string,
+): Promise<StartedWork> {
+  const work = await startAgent(flow, { slot, role: 'PROPOSER', configuration });
+  const claimed = await claim(flow, work.attemptId, 'runner', AGENT_RUNNER);
+  const { message } = await outboxOf(flow, work.attemptId);
+  const response = await submit(
+    flow,
+    claimed,
+    'agent-result',
+    agentResultDoc(claimed, message, { outcome: 'refusal', diagnostic: 'The model declined the task.' }),
+  );
+  if (response.status !== 204) throw new Error(`The refusal of ${slot} answered ${response.status}`);
+  return work;
+}
+
 export async function runsOf(flow: Flow, slot: string) {
   const rows = await flow.world.sql<{ run_id: string; run_slot: string; attempt_id: string }>(
     `SELECT r.run_id, r.run_slot, a.attempt_id FROM runs r JOIN attempts a ON a.run_id = r.run_id AND a.status IN ('PENDING', 'CLAIMED')
