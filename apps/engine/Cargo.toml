@@ -16,7 +16,20 @@ openquant-core.workspace = true
 rust_decimal.workspace = true
 serde.workspace = true
 serde_json = { workspace = true, features = ["raw_value"] }
+sha2.workspace = true
+# The only HTTP client of the batch binary (apps/engine/src/batch/wire.rs). No async runtime, TLS by
+# rustls with the ring provider and the bundled web PKI roots, no compression, no cookies.
+ureq = { version = "3.5", default-features = false, features = ["rustls"] }
+
+[dev-dependencies]
+# The loopback TLS test of the real wire builds a certificate and a server at test time.
+rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }
+rustls = { version = "0.23", default-features = false, features = ["std", "ring", "tls12"] }
 
 [[bin]]
 name = "s0-replay"
 path = "src/bin/s0_replay.rs"
+
+[[bin]]
+name = "engine-batch"
+path = "src/bin/engine_batch.rs"
