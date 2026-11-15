@@ -1,0 +1,5 @@
+# Secret names that the Worker reads, with empty values. Copy this file to .dev.vars (ignored by Git) for local runs.
+# Never put a value in this file. Production secrets are set with `wrangler secret put` by the delivery job.
+# TOKEN_SIGNING_KEY: base64url of at least 32 random bytes, for example the output of `openssl rand -base64 48`
+# with the characters + and / replaced by - and _ and the padding removed.
+TOKEN_SIGNING_KEY=

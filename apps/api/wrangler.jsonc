@@ -1,0 +1,34 @@
+// The control API Worker (OQ-05 section 1: Hono on Cloudflare Workers, Neon through Hyperdrive, R2 for artefacts).
+//
+// This file names the bindings and settings that the code reads. It holds no identifier, no bucket name and no secret
+// value: the delivery job of P6 adds the Hyperdrive id and the R2 bucket name per environment, and sets the secret
+// with `wrangler secret put`. wrangler is not installed in this repository (apps/api/README.md, "Why the tests run in
+// Node"), so this file has not been read by wrangler, and `wrangler deploy` fails until P6 supplies the missing ids.
+//
+// Secrets, never listed here (names only, see .dev.vars.example):
+//   TOKEN_SIGNING_KEY  base64url of at least 32 random bytes: the HMAC key of access tokens and attempt capabilities
+{
+  "name": "openquant-api",
+  "main": "src/worker.ts",
+  // nodejs_compat is needed by node-postgres (pg) through Hyperdrive. Move the date forward with a review of the
+  // compatibility changes, and run the tests after it (workers-best-practices).
+  "compatibility_date": "2026-11-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "traces": { "enabled": true }
+  },
+  "vars": {
+    // DEVELOPMENT, STAGING or PRODUCTION. The delivery job sets it for each environment.
+    "OPENQUANT_ENVIRONMENT": "DEVELOPMENT"
+  },
+  "hyperdrive": [
+    // Query caching is disabled on the Hyperdrive resource itself (OQ-05 section 1); Terraform creates it with
+    // caching off in P6, and the application never reads a cached answer for private state.
+    { "binding": "HYPERDRIVE" }
+  ],
+  "r2_buckets": [
+    // Immutable artefacts, keyed by SHA-256. The Fly hosts hold no R2 credentials: they upload through this Worker.
+    { "binding": "ARTEFACTS" }
+  ]
+}
