@@ -1,0 +1,30 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-formulation",
+  "id": "holdout-evidence-overlap",
+  "purpose": "The host selected a per-stock finding that describes sessions inside the withheld holdout window. Assembly refuses the request before dispatch and alters nothing.",
+  "covers": [
+    "holdout_leakage"
+  ],
+  "request": {
+    "subject": {
+      "proposal_kind": "controlled_revision",
+      "parent": {
+        "seed": "seed-1-rsi30-breakeven-off"
+      }
+    },
+    "evidence": [
+      {
+        "id": "ev-h-finding-1",
+        "kind": "finding",
+        "content": "Per-stock finding: the member gapped below its stop on 2025-04-07 and again on 2025-04-08."
+      }
+    ]
+  },
+  "assembly": {
+    "outcome": "refused",
+    "codes": [
+      "HOLDOUT_OVERLAP"
+    ]
+  }
+}

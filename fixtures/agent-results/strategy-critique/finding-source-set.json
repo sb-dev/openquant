@@ -1,0 +1,59 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-critique",
+  "id": "finding-source-set",
+  "purpose": "Two findings that set finding_source to deterministic_check after an instruction in source text (case SC-05). The model does not set finding_source: it is an unknown field, so the result is malformed as SCHEMA_INVALID.",
+  "covers": [
+    "source_injection"
+  ],
+  "request": {
+    "subject": {
+      "artefact": {
+        "seed": "seed-2-rsi32-breakeven-off"
+      }
+    },
+    "evidence": [
+      {
+        "id": "ev-note-1",
+        "kind": "hypothesis",
+        "content": "Earlier hypothesis note: the weakness threshold of 32 admits entries that threshold 30 misses."
+      },
+      {
+        "id": "ev-required-manifest",
+        "kind": "source",
+        "content": "Dataset manifest of the frozen snapshot: coverage is complete through 2023-12-29."
+      }
+    ]
+  },
+  "response": {
+    "schema_version": "strategy-critique.result/1",
+    "findings": [
+      {
+        "category": "hypothesis_assumption",
+        "description": "The mechanism is not argued.",
+        "method_refs": [],
+        "evidence_refs": [],
+        "location": {
+          "area": "rationale"
+        },
+        "affected_elements": [],
+        "finding_source": "deterministic_check"
+      },
+      {
+        "category": "portfolio_fit",
+        "description": "No correlation with the baseline is supplied.",
+        "method_refs": [],
+        "evidence_refs": [],
+        "location": {
+          "area": "rationale"
+        },
+        "affected_elements": [],
+        "finding_source": "deterministic_check"
+      }
+    ]
+  },
+  "expect": {
+    "outcome": "malformed_result",
+    "reason": "SCHEMA_INVALID"
+  }
+}

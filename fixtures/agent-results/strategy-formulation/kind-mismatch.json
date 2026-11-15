@@ -1,0 +1,50 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-formulation",
+  "id": "kind-mismatch",
+  "purpose": "The request asks for a controlled revision and the result is a new family: the proposal kind is not the requested kind, so the result is malformed as REFERENCE_INVALID.",
+  "covers": [],
+  "request": {
+    "subject": {
+      "proposal_kind": "controlled_revision",
+      "parent": {
+        "seed": "seed-1-rsi30-breakeven-off"
+      }
+    },
+    "evidence": [
+      {
+        "id": "ev-d-finding-1",
+        "kind": "finding",
+        "content": "Development-window per-stock finding: seed entries often followed a decision bar that closed below the previous close on heavy volume."
+      }
+    ]
+  },
+  "response": {
+    "schema_version": "strategy-formulation.result/1",
+    "proposal_kind": "new_family",
+    "no_parent": true,
+    "strategy": {
+      "$strategy": {
+        "seed": "seed-5-rsi40-breakeven-off-data-only"
+      }
+    },
+    "source_refs": [],
+    "rule_changes": [],
+    "claims": {
+      "rationale": "The recorded weakness threshold admits entries that the development-window finding describes.",
+      "expected_effect": "Entries change in the direction of the finding; evaluation can contradict this, so an adverse or inconclusive comparison against the parent stays possible.",
+      "invalidation_conditions": [
+        "Signal and trade counts do not move in the stated direction against the parent in the development window."
+      ],
+      "requested_tests": [
+        "The registered comparison against the parent under the frozen policy."
+      ]
+    },
+    "unresolved": [],
+    "method_refs": []
+  },
+  "expect": {
+    "outcome": "malformed_result",
+    "reason": "REFERENCE_INVALID"
+  }
+}

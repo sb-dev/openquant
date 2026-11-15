@@ -1,0 +1,65 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-critique",
+  "id": "related-categories-and-tests",
+  "purpose": "A finding with related categories and proposed tests: both are optional fields that parsing keeps. The primary category decides the treatment.",
+  "covers": [],
+  "request": {
+    "subject": {
+      "artefact": {
+        "seed": "seed-2-rsi32-breakeven-off"
+      }
+    },
+    "evidence": [
+      {
+        "id": "ev-note-1",
+        "kind": "hypothesis",
+        "content": "Earlier hypothesis note: the weakness threshold of 32 admits entries that threshold 30 misses."
+      },
+      {
+        "id": "ev-required-manifest",
+        "kind": "source",
+        "content": "Dataset manifest of the frozen snapshot: coverage is complete through 2023-12-29."
+      }
+    ]
+  },
+  "required_evidence": [
+    "ev-required-manifest"
+  ],
+  "response": {
+    "schema_version": "strategy-critique.result/1",
+    "findings": [
+      {
+        "category": "search_overfitting",
+        "description": "The threshold comes from an unregistered sweep.",
+        "method_refs": [],
+        "evidence_refs": [],
+        "location": {
+          "area": "rationale"
+        },
+        "affected_elements": [],
+        "related_categories": [
+          "policy_mismatch"
+        ],
+        "proposed_tests": [
+          "Register the neighbouring thresholds as trials and report all of them."
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "outcome": "completion",
+    "empty_is_not_pass": false,
+    "findings": [
+      {
+        "category": "search_overfitting",
+        "area": "rationale",
+        "affected_elements": [],
+        "treatment": {
+          "DRAFT_TO_EVALUATING": "advisory",
+          "EVALUATING_TO_PAPER": "blocking"
+        }
+      }
+    ]
+  }
+}

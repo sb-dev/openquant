@@ -1,0 +1,89 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-formulation",
+  "id": "seed-translation-unresolved",
+  "purpose": "A source that needs a short leg, leverage and intraday exits cannot be expressed with the permitted operators. The proposal keeps the baseline shape, holds each unsupported element in an unresolved entry and stays draft material: it parses, and each entry is a blocker.",
+  "covers": [
+    "unresolved_executable_assumption",
+    "unsupported_operator"
+  ],
+  "request": {
+    "subject": {
+      "proposal_kind": "seed_translation",
+      "source": {
+        "source_id": "src-note-2",
+        "media_type": "text/plain",
+        "lines": [
+          "Buy the two largest gainers and short the two largest losers with twice the cash, and close mid-morning."
+        ]
+      }
+    },
+    "evidence": []
+  },
+  "response": {
+    "schema_version": "strategy-formulation.result/1",
+    "proposal_kind": "seed_translation",
+    "no_parent": true,
+    "strategy": {
+      "$strategy": {
+        "seed": "seed-1-rsi30-breakeven-off"
+      }
+    },
+    "source_refs": [
+      "src-note-2"
+    ],
+    "rule_changes": [],
+    "claims": {
+      "rationale": "The note describes a different hypothesis; only the long side is recorded here as a draft.",
+      "expected_effect": "None is stated: the source cannot be expressed on the daily long-only platform.",
+      "invalidation_conditions": [
+        "Signal and trade counts do not move in the stated direction against the parent in the development window."
+      ],
+      "requested_tests": [
+        "The registered comparison against the parent under the frozen policy."
+      ]
+    },
+    "unresolved": [
+      {
+        "id": "u-short",
+        "element": "/definition/selection",
+        "question": "The source shorts the two largest losers; the platform is long-only."
+      },
+      {
+        "id": "u-leverage",
+        "element": "/definition/sizing",
+        "question": "The source funds the book with twice the cash; sizing is cash-only."
+      },
+      {
+        "id": "u-intraday",
+        "element": "/definition/execution",
+        "question": "The source decides and exits intraday; the platform decides after the close."
+      }
+    ],
+    "source_differences": [
+      {
+        "element": "/definition/selection",
+        "source": "Long the two largest gainers and short the two largest losers.",
+        "draft": "Long only, ranked by volume expansion and weakness."
+      }
+    ],
+    "method_refs": []
+  },
+  "expect": {
+    "outcome": "completion",
+    "blockers": [
+      {
+        "code": "UNRESOLVED_ASSUMPTION",
+        "pointer": "/definition/selection"
+      },
+      {
+        "code": "UNRESOLVED_ASSUMPTION",
+        "pointer": "/definition/sizing"
+      },
+      {
+        "code": "UNRESOLVED_ASSUMPTION",
+        "pointer": "/definition/execution"
+      }
+    ]
+  }
+}

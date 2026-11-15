@@ -1,0 +1,40 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-critique",
+  "id": "empty-findings",
+  "purpose": "A valid completion with no finding. An empty list is not a pass: it is flagged so that no later step reads it as approval.",
+  "covers": [
+    "positive_control"
+  ],
+  "request": {
+    "subject": {
+      "artefact": {
+        "seed": "seed-2-rsi32-breakeven-off"
+      }
+    },
+    "evidence": [
+      {
+        "id": "ev-note-1",
+        "kind": "hypothesis",
+        "content": "Earlier hypothesis note: the weakness threshold of 32 admits entries that threshold 30 misses."
+      },
+      {
+        "id": "ev-required-manifest",
+        "kind": "source",
+        "content": "Dataset manifest of the frozen snapshot: coverage is complete through 2023-12-29."
+      }
+    ]
+  },
+  "required_evidence": [
+    "ev-required-manifest"
+  ],
+  "response": {
+    "schema_version": "strategy-critique.result/1",
+    "findings": []
+  },
+  "expect": {
+    "outcome": "completion",
+    "empty_is_not_pass": true,
+    "findings": []
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-formulation",
+  "id": "valid-seed-translation",
+  "purpose": "A seed translation of a recorded source note into the baseline definition. It has no parent, declares its source-to-draft differences and no unresolved element.",
+  "covers": [
+    "valid_seed"
+  ],
+  "request": {
+    "subject": {
+      "proposal_kind": "seed_translation",
+      "source": {
+        "source_id": "src-note-1",
+        "media_type": "text/plain",
+        "lines": [
+          "Buy a liquid stock above its 50-session mean after a recent weak RSI and a rebound on rising volume.",
+          "Rank candidates by volume expansion and weakness, hold at most five, size equally.",
+          "Stop at two ATR below the entry, target at five ATR above."
+        ]
+      }
+    },
+    "evidence": []
+  },
+  "response": {
+    "schema_version": "strategy-formulation.result/1",
+    "proposal_kind": "seed_translation",
+    "no_parent": true,
+    "strategy": {
+      "$strategy": {
+        "seed": "seed-1-rsi30-breakeven-off"
+      }
+    },
+    "source_refs": [
+      "src-note-1"
+    ],
+    "rule_changes": [],
+    "claims": {
+      "rationale": "A stock in an established uptrend that dipped to weakness and rebounds on heavier trading tends to recover over days to weeks.",
+      "expected_effect": "Entries follow the rebound; evaluation can contradict this.",
+      "invalidation_conditions": [
+        "Signal and trade counts do not move in the stated direction against the parent in the development window."
+      ],
+      "requested_tests": [
+        "The registered comparison against the parent under the frozen policy."
+      ]
+    },
+    "unresolved": [],
+    "source_differences": [
+      {
+        "element": "/definition/execution",
+        "source": "The note does not state when a signal fills.",
+        "draft": "Entries fill at the next session open under the declared cost model."
+      },
+      {
+        "element": "/definition/selection",
+        "source": "The note states no tie-break.",
+        "draft": "Ties break by ascending instrument identifier."
+      }
+    ],
+    "method_refs": []
+  },
+  "expect": {
+    "outcome": "completion",
+    "blockers": []
+  }
+}

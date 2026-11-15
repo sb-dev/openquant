@@ -1,0 +1,27 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-critique",
+  "id": "evaluation-metrics-evidence",
+  "purpose": "The host passed run metrics as evidence. Critique precedes evaluation, so assembly refuses the request.",
+  "covers": [],
+  "request": {
+    "subject": {
+      "artefact": {
+        "seed": "seed-2-rsi32-breakeven-off"
+      }
+    },
+    "evidence": [
+      {
+        "id": "ev-metrics-1",
+        "kind": "evaluation_metrics",
+        "content": "Net return and drawdown of a development-window run."
+      }
+    ]
+  },
+  "assembly": {
+    "outcome": "refused",
+    "codes": [
+      "EVIDENCE_NOT_PERMITTED"
+    ]
+  }
+}

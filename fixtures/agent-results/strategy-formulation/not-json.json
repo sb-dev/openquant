@@ -1,0 +1,27 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-formulation",
+  "id": "not-json",
+  "purpose": "An output that is prose, not JSON: malformed as NOT_JSON.",
+  "covers": [],
+  "request": {
+    "subject": {
+      "proposal_kind": "controlled_revision",
+      "parent": {
+        "seed": "seed-1-rsi30-breakeven-off"
+      }
+    },
+    "evidence": [
+      {
+        "id": "ev-d-finding-1",
+        "kind": "finding",
+        "content": "Development-window per-stock finding: seed entries often followed a decision bar that closed below the previous close on heavy volume."
+      }
+    ]
+  },
+  "response_text": "Here is my proposal: raise the threshold to 32 and buy more shares on weakness.",
+  "expect": {
+    "outcome": "malformed_result",
+    "reason": "NOT_JSON"
+  }
+}

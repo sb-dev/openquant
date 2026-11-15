@@ -1,0 +1,47 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-critique",
+  "id": "affected-element-outside-definition",
+  "purpose": "An affected element that exists but lies in the contract, not the definition: affected_elements names definition elements only, so the result is malformed as REFERENCE_INVALID.",
+  "covers": [],
+  "request": {
+    "subject": {
+      "artefact": {
+        "seed": "seed-2-rsi32-breakeven-off"
+      }
+    },
+    "evidence": [
+      {
+        "id": "ev-note-1",
+        "kind": "hypothesis",
+        "content": "Earlier hypothesis note: the weakness threshold of 32 admits entries that threshold 30 misses."
+      },
+      {
+        "id": "ev-required-manifest",
+        "kind": "source",
+        "content": "Dataset manifest of the frozen snapshot: coverage is complete through 2023-12-29."
+      }
+    ]
+  },
+  "response": {
+    "schema_version": "strategy-critique.result/1",
+    "findings": [
+      {
+        "category": "hypothesis_assumption",
+        "description": "The rationale is thin.",
+        "method_refs": [],
+        "evidence_refs": [],
+        "location": {
+          "area": "rationale"
+        },
+        "affected_elements": [
+          "/contract/rationale"
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "outcome": "malformed_result",
+    "reason": "REFERENCE_INVALID"
+  }
+}

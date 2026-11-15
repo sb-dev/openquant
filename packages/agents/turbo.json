@@ -1,0 +1,31 @@
+{
+  "$schema": "../../node_modules/turbo/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "typecheck": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/api-contracts/schemas/**",
+        "$TURBO_ROOT$/fixtures/agent-results/**"
+      ],
+      "outputs": ["dist/generated/**"]
+    },
+    "lint": {
+      "inputs": ["$TURBO_DEFAULT$"]
+    },
+    "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/api-contracts/schemas/**",
+        "$TURBO_ROOT$/fixtures/agent-results/**",
+        "$TURBO_ROOT$/fixtures/s0/strategies/**",
+        "$TURBO_ROOT$/fixtures/protocol/valid/**"
+      ],
+      "outputs": ["dist/generated/**"]
+    },
+    "build": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/api-contracts/schemas/**"],
+      "outputs": ["dist/generated/**"]
+    }
+  }
+}

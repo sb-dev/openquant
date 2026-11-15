@@ -1,0 +1,47 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-critique",
+  "id": "affected-element-missing",
+  "purpose": "A finding whose affected element is not an element of the subject definition: malformed as REFERENCE_INVALID.",
+  "covers": [],
+  "request": {
+    "subject": {
+      "artefact": {
+        "seed": "seed-2-rsi32-breakeven-off"
+      }
+    },
+    "evidence": [
+      {
+        "id": "ev-note-1",
+        "kind": "hypothesis",
+        "content": "Earlier hypothesis note: the weakness threshold of 32 admits entries that threshold 30 misses."
+      },
+      {
+        "id": "ev-required-manifest",
+        "kind": "source",
+        "content": "Dataset manifest of the frozen snapshot: coverage is complete through 2023-12-29."
+      }
+    ]
+  },
+  "response": {
+    "schema_version": "strategy-critique.result/1",
+    "findings": [
+      {
+        "category": "execution_accounting_assumption",
+        "description": "A cost is missing.",
+        "method_refs": [],
+        "evidence_refs": [],
+        "location": {
+          "area": "definition"
+        },
+        "affected_elements": [
+          "/definition/costs"
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "outcome": "malformed_result",
+    "reason": "REFERENCE_INVALID"
+  }
+}

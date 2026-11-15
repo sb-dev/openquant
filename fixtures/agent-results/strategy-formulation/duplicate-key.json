@@ -1,0 +1,27 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-formulation",
+  "id": "duplicate-key",
+  "purpose": "A JSON document with a repeated key: strict JSON refuses it, so it is malformed as SCHEMA_INVALID and no value of the repeated key is chosen.",
+  "covers": [],
+  "request": {
+    "subject": {
+      "proposal_kind": "controlled_revision",
+      "parent": {
+        "seed": "seed-1-rsi30-breakeven-off"
+      }
+    },
+    "evidence": [
+      {
+        "id": "ev-d-finding-1",
+        "kind": "finding",
+        "content": "Development-window per-stock finding: seed entries often followed a decision bar that closed below the previous close on heavy volume."
+      }
+    ]
+  },
+  "response_text": "{\"schema_version\":\"strategy-formulation.result/1\",\"schema_version\":\"strategy-formulation.result/1\"}",
+  "expect": {
+    "outcome": "malformed_result",
+    "reason": "SCHEMA_INVALID"
+  }
+}

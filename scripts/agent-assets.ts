@@ -1,10 +1,20 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-// Checks the pre-S1 draft assets and the S1 role schemas in packages/agents (OQ-03 §§3, 4 and 6; OQ-06 §8).
+// Checks the assets of packages/agents (OQ-03 sections 3, 4 and 6; OQ-06 section 8): the behaviour-bundle manifest,
+// the shipped procedures and role schemas, the draft method notes that stay outside the bundle, the synthetic fixture
+// policy, the evaluation cases and the offline agent fixtures.
+//
+// The bundle is an exact allowlist of paths and content hashes (OQ-03 section 3). bundle.manifest.json lists what
+// ships. This check verifies every listed file and hash, requires the set of files in the bundle directories to equal
+// the listed set, and fails a manifest that lists an evaluation file, an expected answer, a development script, a
+// method note, a private snapshot or a path outside the shipped file classes. The derived result schemas are
+// checked by the package build (tools/generate.ts), which needs the schema bundler.
 // Use the checked repository inventory. Do not follow untrusted filesystem paths.
 
 const agents = 'packages/agents';
+const fixtureRoot = 'fixtures/agent-results';
 const oq03 = 'docs/specs/03-model-backed-execution-spec.md';
 const specFiles: Record<string, string> = {
   'OQ-01': 'docs/specs/01-product-design-spec.md',
@@ -21,11 +31,13 @@ const scopes = ['seed', 'needs_operator', 'out_of_scope'];
 const splits = ['authoring', 'tuning', 'fresh'];
 const kinds = ['behaviour', 'parser'];
 const escalations = ['affects_executable_rule', 'required_evidence'];
+// The lifecycle transitions that finding treatment can block in S1 (OQ-02 section 4).
+const transitions = ['DRAFT_TO_EVALUATING', 'EVALUATING_TO_PAPER'];
 const ruleHeader = '| Rule | Statement | Origin | Category | Scope | Summary page | Corrections and limits |';
 const noteSections = ['## Scope', '## Rules', '## Conflicts and adaptations', '## Limits'];
 const procedureSections = ['## Role and authority', '## Inputs', '## Method selection', '## Workflow', '## Output', '## Limits'];
 const categoryHeader = '| Category | Defect or concern covered |';
-const procedureCategoryHeader = '| Category | What to check | Rules |';
+const procedureCategoryHeader = '| Category | What to check |';
 
 // Coverage tags mirror the proposal and criticism cases in OQ-03 §§4 and 6. Update them together.
 const pilotSkills: Record<string, {
@@ -56,7 +68,39 @@ const roleSchemas = [
 const proposalKinds = ['seed_translation', 'controlled_revision', 'new_family', 'none'];
 const ownerValidations = ['registered', 'rejected', 'not_reached'];
 
+// The package files that always exist, beside the bundle files and the draft method notes.
+const packageFiles = [
+  'README.md', 'package.json', 'tsconfig.json', 'tsconfig.test.json', 'turbo.json', 'vitest.config.ts', 'test-reporter.ts',
+  'bundle.manifest.json', 'schemas/README.md', 'src/methods/sources.json', 'evals/fixture-policy.json',
+];
+// The directories of code that is not part of the bundle. Each is listed here, and only .ts files are accepted in them.
+const codeDirectories = ['src', 'test', 'tools', 'dev'];
+// The bundle directories: every file in them ships, except the schema README, so every file must be in the manifest.
+const bundleDirectories = ['schemas', 'src/skills'];
+const manifestKeys = ['derived', 'files', 'format', 'id', 'methods', 'skills', 'version'];
+const skillKeys = ['id', 'procedure', 'request_contract', 'result_contract', 'role', 'version'];
+const manifestFormat = 'openquant-agent-bundle/1';
+const updateHint = 'run pnpm --filter @openquant/agents run bundle:update and review the manifest change';
+// A method rule identifier such as CHAN-07. The production bundle adopts no method note, so none may appear in it.
+const methodRuleId = /\b[A-Z]{3,}-\d{2}\b/;
+
 type Json = any;
+
+// Why a path may not be a bundle file, or undefined when its class may ship (OQ-03 section 3).
+export function bundlePathProblem(path: string): string | undefined {
+  if (typeof path !== 'string' || path === '') return 'is not a path';
+  if (path.startsWith('/') || /^[A-Za-z]:/.test(path) || path.includes('\\')) return 'is not a relative path';
+  const parts = path.split('/');
+  if (parts.some((part) => part === '' || part === '.' || part === '..')) return 'is not a canonical path inside the package';
+  if (parts[0] === 'evals' || parts[0] === 'fixtures') return 'is an evaluation file';
+  if (parts[0] === 'dev' || parts[0] === 'tools' || parts[0] === 'test' || path.endsWith('.ts')) return 'is a development script';
+  if (path.startsWith('src/methods/')) return 'is a method note, which the baseline bundle does not adopt';
+  if (/(?:^|[/._-])expected(?:[/._-]|$)/i.test(path)) return 'is an expected answer';
+  if (/(?:^|[/._-])(?:snapshot|private|licensed)(?:[/._-]|$)/i.test(path)) return 'is a private snapshot';
+  if (/^schemas\/[a-z][a-z0-9.-]*\.schema\.json$/.test(path)) return undefined;
+  if (/^src\/skills\/[a-z][a-z0-9-]*\/procedure\.md$/.test(path)) return undefined;
+  return 'is not a procedure or a role schema';
+}
 
 export function agentAssetErrors(base: string, files: Set<string>): string[] {
   const errors: string[] = [];
@@ -73,6 +117,7 @@ export function agentAssetErrors(base: string, files: Set<string>): string[] {
     try { run(); } catch (error) { errors.push(`Agent assets: ${label}: ${error instanceof Error ? error.message : error}`); }
   };
   const text = (value: unknown) => typeof value === 'string' && value.trim().length > 0;
+  const sha = (path: string) => `sha256:${createHash('sha256').update(readFileSync(resolve(base, path))).digest('hex')}`;
 
   // Canonical vocabulary from OQ-03 §4.
   let categories: string[] = [];
@@ -105,15 +150,73 @@ export function agentAssetErrors(base: string, files: Set<string>): string[] {
     }
   };
 
-  // Source registry and method notes.
+  // The behaviour-bundle manifest (OQ-03 section 3): exact paths and content hashes, nothing recursive.
+  const shipped = new Set<string>();
+  const manifestPath = `${agents}/bundle.manifest.json`;
+  let manifestSkills: Json[] = [];
+  tryGroup('bundle manifest', () => {
+    const manifest = json(manifestPath);
+    if (typeof manifest !== 'object' || manifest === null || Array.isArray(manifest)) throw new Error('the manifest is not an object');
+    const keys = Object.keys(manifest).sort();
+    if (keys.join() !== manifestKeys.join()) errors.push(`Bundle manifest keys must be exactly [${manifestKeys.join(', ')}], found [${keys.join(', ')}]`);
+    if (manifest.format !== manifestFormat) errors.push(`Bundle manifest format must be ${manifestFormat}`);
+    if (!/^[a-z][a-z0-9-]*$/.test(manifest.id ?? '') || !Number.isInteger(manifest.version) || manifest.version < 1) errors.push('Bundle manifest needs an id and a positive integer version');
+    if (!Array.isArray(manifest.methods) || manifest.methods.length) errors.push('Bundle manifest methods must be an empty list: the baseline bundle adopts no method note');
+
+    manifestSkills = Array.isArray(manifest.skills) ? manifest.skills : [];
+    if (manifestSkills.map((skill) => skill?.id).join() !== Object.keys(pilotSkills).join()) errors.push(`Bundle manifest skills must be exactly [${Object.keys(pilotSkills).join(', ')}], in this order`);
+    for (const skill of manifestSkills) {
+      const definition = pilotSkills[skill?.id];
+      if (!definition) continue;
+      const id = skill.id;
+      if (Object.keys(skill).sort().join() !== skillKeys.join() || skill.version !== '1' || skill.role !== definition.role
+        || skill.procedure !== `src/skills/${id}/procedure.md` || skill.request_contract !== `${id}.request/1` || skill.result_contract !== `${id}.result/1`) {
+        errors.push(`Invalid bundle manifest skill: ${id}`);
+      }
+    }
+
+    const listed: Json[] = Array.isArray(manifest.files) ? manifest.files : [];
+    if (!listed.length) errors.push('Bundle manifest lists no file');
+    const paths = listed.map((entry) => entry?.path);
+    if (paths.some((path, index) => index > 0 && !(String(paths[index - 1]) < String(path)))) errors.push('Bundle manifest files must be sorted by path, each path once');
+    for (const entry of listed) {
+      const path = entry?.path;
+      if (typeof entry !== 'object' || entry === null || Object.keys(entry).sort().join() !== 'path,sha256') { errors.push(`Invalid bundle manifest file entry: ${path ?? JSON.stringify(entry)}`); continue; }
+      const problem = bundlePathProblem(path);
+      if (problem) { errors.push(`Bundle file ${problem}: ${path}`); continue; }
+      shipped.add(path);
+      const full = `${agents}/${path}`;
+      if (!files.has(full)) { errors.push(`Bundle file is missing: ${full}`); continue; }
+      if (!/^sha256:[0-9a-f]{64}$/.test(entry.sha256 ?? '')) { errors.push(`Bundle file has no SHA-256 digest: ${path}`); continue; }
+      if (sha(full) !== entry.sha256) errors.push(`Bundle file changed after the manifest recorded it: ${full}; ${updateHint}`);
+    }
+    for (const skill of manifestSkills) {
+      if (pilotSkills[skill?.id] && !shipped.has(skill.procedure)) errors.push(`The procedure of ${skill.id} is not a bundle file`);
+    }
+
+    const derived: Json[] = Array.isArray(manifest.derived) ? manifest.derived : [];
+    const wanted = manifestSkills.map((skill) => skill?.result_contract);
+    if (derived.map((entry) => entry?.name).join() !== wanted.join()
+      || derived.some((entry) => typeof entry !== 'object' || entry === null || Object.keys(entry).sort().join() !== 'name,sha256' || !/^sha256:[0-9a-f]{64}$/.test(entry.sha256 ?? ''))) {
+      errors.push(`Bundle manifest derived entries must name the result contracts [${wanted.join(', ')}], each with a SHA-256 digest`);
+    }
+  });
+  // Every file in a bundle directory ships, so every one must be listed. The schema README documents the schemas.
+  for (const path of [...files].sort()) {
+    if (!path.startsWith(`${agents}/`)) continue;
+    const relative = path.slice(agents.length + 1);
+    if (relative === 'schemas/README.md') continue;
+    if (bundleDirectories.some((directory) => relative.startsWith(`${directory}/`)) && !shipped.has(relative)) {
+      errors.push(`Shipped file is not listed in the bundle manifest: ${path}; list it only if it is a procedure or a role schema, and ${updateHint}`);
+    }
+  }
+
+  // Source registry and method notes. They are draft material outside the bundle.
   const prefixes = new Map<string, Json>();
   const rules = new Map<string, { category: string; origin: string }>();
   const required = new Set<string>([
-    `${agents}/README.md`,
-    `${agents}/schemas/README.md`,
+    ...packageFiles.map((name) => `${agents}/${name}`),
     ...roleSchemas.map((name) => `${agents}/schemas/${name}`),
-    `${agents}/src/methods/sources.json`,
-    `${agents}/evals/fixture-policy.json`,
     ...Object.keys(pilotSkills).flatMap((skill) => [
       `${agents}/src/skills/${skill}/procedure.md`,
       `${agents}/evals/${skill}/fixtures/dataset.json`,
@@ -185,13 +288,25 @@ export function agentAssetErrors(base: string, files: Set<string>): string[] {
     });
   }
 
-  // Exact layout. S1 replaces this allowlist with the bundle manifest.
-  for (const path of files) if (path.startsWith(`${agents}/`) && !required.has(path)) errors.push(`Unexpected agent asset: ${path}`);
+  // Exact layout. A file is one of the package files, a bundle file, a draft method note, a source file in a code
+  // directory, or part of the explicitly listed non-bundle directories. The bundle directories report their own errors.
+  for (const path of files) {
+    if (!path.startsWith(`${agents}/`)) continue;
+    const relative = path.slice(agents.length + 1);
+    if (required.has(path)) continue;
+    if (bundleDirectories.some((directory) => relative.startsWith(`${directory}/`)) && relative !== 'schemas/README.md') {
+      if (/^src\/skills\/[^/]+\/procedure\.md$/.test(relative) || /^schemas\/[^/]+\.schema\.json$/.test(relative) || shipped.has(relative)) continue;
+    }
+    const directory = relative.split('/')[0];
+    const code = codeDirectories.includes(directory) && !relative.startsWith('src/skills/') && !relative.startsWith('src/methods/') && /\.ts$/.test(relative);
+    if (!code) errors.push(`Unexpected agent asset: ${path}`);
+  }
   for (const path of required) if (!files.has(path)) errors.push(`Missing agent asset: ${path}`);
 
-  // Runtime assets must not reveal evaluation material or depend on links or quotations. The link and
-  // blockquote rules read Markdown; a schema pattern or JSON text can hold `](` without being a link.
+  // Shipped text must not reveal evaluation material or depend on links or quotations, and the draft method notes
+  // keep the same rules. A schema pattern or JSON text can hold `](` without being a link. Code is not shipped text.
   for (const path of [...files].filter((item) => item.startsWith(`${agents}/src/`) || item.startsWith(`${agents}/schemas/`))) {
+    if (path.endsWith('.ts')) continue;
     tryGroup(path, () => {
       const content = read(path);
       const markdown = path.endsWith('.md');
@@ -204,26 +319,23 @@ export function agentAssetErrors(base: string, files: Set<string>): string[] {
     });
   }
 
-  const unknownReferences = (content: string, path: string) => {
-    const cited = [...content.matchAll(/`([A-Z]{3,}-\d{2})`/g)].map((match) => match[1]);
-    for (const id of cited) if (!rules.has(id)) errors.push(`Unknown rule reference ${id} in ${path}`);
-    return cited;
-  };
-
-  // Procedures.
+  // Procedures: the shipped, spec-derived text. No method rule, no draft marker, the reviewed sections, and an
+  // Output section that names every field of the role result schema, so the instructions cannot drift from it.
   for (const [skill, definition] of Object.entries(pilotSkills)) {
     const path = `${agents}/src/skills/${skill}/procedure.md`;
     if (!files.has(path)) continue;
     tryGroup(path, () => {
       const content = read(path);
       const front = /^---\n([\s\S]*?)\n---\n/.exec(content)?.[1];
-      if (front !== `skill: ${skill}\nrole: ${definition.role}\nstatus: draft`) errors.push(`Invalid procedure metadata: ${path}`);
+      if (front !== `skill: ${skill}\nrole: ${definition.role}\nversion: 1\nbundle: baseline`) errors.push(`Invalid procedure metadata: ${path}`);
       const headings = content.split('\n').filter((line) => line.startsWith('## '));
       const expectedSections = definition.role === 'critic'
         ? [...procedureSections.slice(0, 3), '## Finding categories', ...procedureSections.slice(3)]
         : procedureSections;
       if (headings.join('\n') !== expectedSections.join('\n')) errors.push(`Procedure sections differ from [${expectedSections.join(', ')}]: ${path}`);
-      if (!unknownReferences(content, path).length) errors.push(`Procedure cites no method rule: ${path}`);
+      const cited = content.match(new RegExp(methodRuleId, 'g'));
+      if (cited) errors.push(`Procedure cites a method rule, which the baseline bundle does not adopt: ${path}: ${[...new Set(cited)].join(', ')}`);
+      if (/\bstatus: draft\b/.test(content)) errors.push(`Procedure is marked as a draft: ${path}`);
       if (definition.role === 'critic') {
         const lines = content.split('\n');
         const start = lines.indexOf(procedureCategoryHeader);
@@ -236,23 +348,68 @@ export function agentAssetErrors(base: string, files: Set<string>): string[] {
         }
         if (categories.length) sameSet('Critic procedure', listed, true);
       }
+      // Drift guard: every property of the role result schema is named in backticks in the Output section.
+      const schemaPath = `${agents}/schemas/${skill}.result.schema.json`;
+      if (!files.has(schemaPath)) return;
+      const schema = json(schemaPath);
+      const names = new Set<string>(Object.keys(schema.properties ?? {}));
+      for (const definitionSchema of Object.values<Json>(schema.$defs ?? {})) for (const name of Object.keys(definitionSchema?.properties ?? {})) names.add(name);
+      const output = /\n## Output\n([\s\S]*?)(?=\n## |$)/.exec(content)?.[1] ?? '';
+      for (const name of [...names].sort()) {
+        if (!output.includes(`\`${name}\``)) errors.push(`Procedure Output section does not describe the result field \`${name}\`: ${path}`);
+      }
     });
   }
 
-  // Synthetic fixture policy.
-  let treatments: Record<string, { default: string; escalate_when: string[] }> = {};
+  // Synthetic fixture policy: one row per category and lifecycle transition (OQ-02 section 4).
+  let treatments: Record<string, Record<string, { default: string; escalate_when: string[] }>> = {};
   tryGroup('fixture policy', () => {
     if (!files.has(`${agents}/evals/fixture-policy.json`)) return;
     const policy = json(`${agents}/evals/fixture-policy.json`);
     if (policy.synthetic !== true || !text(policy.purpose)) errors.push('Fixture policy must be marked synthetic and state its purpose');
+    if (JSON.stringify(policy.transitions) !== JSON.stringify(transitions)) errors.push(`Fixture policy transitions must be exactly [${transitions.join(', ')}]`);
     const entries = policy.treatments ?? {};
     if (categories.length) sameSet('Fixture policy', Object.keys(entries), false);
-    for (const [category, treatment] of Object.entries<Json>(entries)) {
-      const escalate = treatment?.escalate_when ?? [];
-      if (!['blocking', 'advisory'].includes(treatment?.default) || !Array.isArray(escalate)) { errors.push(`Invalid treatment for ${category}`); continue; }
-      for (const condition of escalate) if (!escalations.includes(condition)) errors.push(`Unknown applicability condition ${condition} for ${category}`);
-      if (treatment.default === 'blocking' && escalate.length) errors.push(`Blocking treatment cannot escalate: ${category}`);
-      treatments[category] = { default: treatment.default, escalate_when: escalate };
+    for (const [category, byTransition] of Object.entries<Json>(entries)) {
+      if (Object.keys(byTransition ?? {}).join() !== transitions.join()) { errors.push(`Fixture policy needs one treatment per transition [${transitions.join(', ')}] for ${category}`); continue; }
+      treatments[category] = {};
+      for (const transition of transitions) {
+        const treatment = byTransition[transition];
+        const escalate = treatment?.escalate_when ?? [];
+        if (!['blocking', 'advisory'].includes(treatment?.default) || !Array.isArray(escalate)) { errors.push(`Invalid treatment for ${category} at ${transition}`); continue; }
+        for (const condition of escalate) if (!escalations.includes(condition)) errors.push(`Unknown applicability condition ${condition} for ${category}`);
+        if (treatment.default === 'blocking' && escalate.length) errors.push(`Blocking treatment cannot escalate: ${category}`);
+        // In S1 no finding category blocks DRAFT_TO_EVALUATING (OQ-02 section 4).
+        if (transition === 'DRAFT_TO_EVALUATING' && (treatment.default !== 'advisory' || escalate.length)) errors.push(`No finding category blocks DRAFT_TO_EVALUATING in S1: ${category}`);
+        treatments[category][transition] = { default: treatment.default, escalate_when: escalate };
+      }
+    }
+  });
+
+  // Offline agent fixtures: labelled synthetic responses and the shared context. None is recorded before S1 acceptance.
+  const fixtureResponses = new Map<string, string>();
+  tryGroup('offline agent fixtures', () => {
+    for (const path of [...files].filter((item) => item.startsWith(`${fixtureRoot}/`)).sort()) {
+      const relative = path.slice(fixtureRoot.length + 1);
+      if (relative === 'README.md') continue;
+      const suite = /^([^/]+)\/[^/]+\.json$/.exec(relative)?.[1];
+      if (/^context\.[a-z0-9-]+\.json$/.test(relative)) {
+        const context = json(path);
+        if (context.label !== 'synthetic') errors.push(`Agent fixture must be labelled synthetic until a real model has produced it: ${path}`);
+        continue;
+      }
+      if (!suite || !pilotSkills[suite]) { errors.push(`Unexpected agent fixture: ${path}`); continue; }
+      const fixture = json(path);
+      if (fixture.label !== 'synthetic') errors.push(`Agent fixture must be labelled synthetic until a real model has produced it: ${path}`);
+      if (fixture.suite !== suite || `${fixture.id}.json` !== relative.slice(suite.length + 1)) errors.push(`Agent fixture suite and id must match its path: ${path}`);
+      if (!text(fixture.purpose)) errors.push(`Agent fixture states no purpose: ${path}`);
+      if (typeof fixture.request !== 'object' || fixture.request === null) errors.push(`Agent fixture has no request recipe: ${path}`);
+      const refused = fixture.assembly?.outcome === 'refused';
+      const responses = ['response', 'response_text', 'response_pad'].filter((key) => key in fixture);
+      if (refused ? responses.length : responses.length !== 1 || typeof fixture.expect !== 'object' || fixture.expect === null) {
+        errors.push(`Agent fixture needs a refusal and no response, or exactly one response and an expectation: ${path}`);
+      }
+      fixtureResponses.set(path, suite);
     }
   });
 
@@ -303,7 +460,8 @@ export function agentAssetErrors(base: string, files: Set<string>): string[] {
         }
         if (!Array.isArray(item.recorded_responses)) invalid('recorded_responses');
         for (const response of item.recorded_responses ?? []) {
-          if (typeof response !== 'string' || !response.startsWith('fixtures/agent-results/') || !files.has(response)) errors.push(`Case ${id} references untracked recorded response ${response}`);
+          if (typeof response !== 'string' || !response.startsWith(`${fixtureRoot}/`) || !files.has(response)) errors.push(`Case ${id} references untracked recorded response ${response}`);
+          else if (fixtureResponses.get(response) !== skill) errors.push(`Case ${id} references a response of another suite: ${response}`);
         }
         if (!Array.isArray(item.permitted_tools)) invalid('permitted_tools');
         else if (item.permitted_tools.length) errors.push(`Case ${id} permits tools before S3: ${item.permitted_tools.join(', ')}`);
@@ -331,15 +489,19 @@ export function agentAssetErrors(base: string, files: Set<string>): string[] {
             const applicability = finding.applicability ?? [];
             if (!Array.isArray(applicability) || applicability.some((condition: string) => !escalations.includes(condition))) invalid('expected.findings.applicability');
             else if (Array.isArray(finding.affected_elements) && applicability.includes('affects_executable_rule') !== finding.affected_elements.length > 0) errors.push(`Case ${id}: affects_executable_rule must hold exactly when affected_elements is non-empty`);
-            const treatment = treatments[category];
-            if (treatment) {
+            // Treatment is stated per lifecycle transition and follows the fixture policy for each (OQ-02 section 4).
+            const stated = finding.treatment;
+            if (typeof stated !== 'object' || stated === null || Object.keys(stated).join() !== transitions.join()) { invalid('expected.findings.treatment'); continue; }
+            for (const transition of transitions) {
+              const treatment = treatments[category]?.[transition];
+              if (!treatment) continue;
               const computed = treatment.default === 'blocking' || applicability.some((condition: string) => treatment.escalate_when.includes(condition)) ? 'blocking' : 'advisory';
-              if (finding.treatment !== computed) errors.push(`Case ${id} treatment for ${category} differs from fixture policy`);
+              if (stated[transition] !== computed) errors.push(`Case ${id} treatment for ${category} at ${transition} differs from fixture policy`);
             }
           }
           for (const category of expected.tolerated) {
             if (!categories.includes(category)) errors.push(`Case ${id} uses unknown finding category ${category}`);
-            else if (treatments[category]?.default !== 'advisory') errors.push(`Case ${id} tolerates non-advisory category ${category}`);
+            else if (transitions.some((transition) => treatments[category]?.[transition]?.default !== 'advisory')) errors.push(`Case ${id} tolerates non-advisory category ${category}`);
           }
         }
       }

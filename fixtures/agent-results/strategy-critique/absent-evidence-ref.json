@@ -1,0 +1,47 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-critique",
+  "id": "absent-evidence-ref",
+  "purpose": "A finding that cites an evidence id that is not in the request: malformed as REFERENCE_INVALID.",
+  "covers": [],
+  "request": {
+    "subject": {
+      "artefact": {
+        "seed": "seed-2-rsi32-breakeven-off"
+      }
+    },
+    "evidence": [
+      {
+        "id": "ev-note-1",
+        "kind": "hypothesis",
+        "content": "Earlier hypothesis note: the weakness threshold of 32 admits entries that threshold 30 misses."
+      },
+      {
+        "id": "ev-required-manifest",
+        "kind": "source",
+        "content": "Dataset manifest of the frozen snapshot: coverage is complete through 2023-12-29."
+      }
+    ]
+  },
+  "response": {
+    "schema_version": "strategy-critique.result/1",
+    "findings": [
+      {
+        "category": "missing_evidence",
+        "description": "A claim has no support.",
+        "method_refs": [],
+        "evidence_refs": [
+          "ev-invented"
+        ],
+        "location": {
+          "area": "evidence"
+        },
+        "affected_elements": []
+      }
+    ]
+  },
+  "expect": {
+    "outcome": "malformed_result",
+    "reason": "REFERENCE_INVALID"
+  }
+}
