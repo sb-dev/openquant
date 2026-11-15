@@ -1,0 +1,30 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-critique",
+  "id": "unregistered-subject",
+  "purpose": "The subject carries a hash that the proposer computed for a draft, not the digest of a registered artefact (cases SC-01 and SC-02). Assembly refuses it before dispatch; no hash is fabricated and no critic session starts.",
+  "covers": [
+    "unregistered_candidate"
+  ],
+  "request": {
+    "subject": {
+      "artefact": {
+        "seed": "seed-2-rsi32-breakeven-off"
+      },
+      "strategy_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "evidence": [
+      {
+        "id": "ev-note-1",
+        "kind": "hypothesis",
+        "content": "Earlier hypothesis note: the weakness threshold of 32 admits entries that threshold 30 misses."
+      }
+    ]
+  },
+  "assembly": {
+    "outcome": "refused",
+    "codes": [
+      "STRATEGY_HASH_MISMATCH"
+    ]
+  }
+}

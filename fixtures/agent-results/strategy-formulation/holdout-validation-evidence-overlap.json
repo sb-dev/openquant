@@ -1,0 +1,30 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-formulation",
+  "id": "holdout-validation-evidence-overlap",
+  "purpose": "The same refusal for a finding that describes a session inside the withheld validation window.",
+  "covers": [
+    "holdout_leakage"
+  ],
+  "request": {
+    "subject": {
+      "proposal_kind": "controlled_revision",
+      "parent": {
+        "seed": "seed-1-rsi30-breakeven-off"
+      }
+    },
+    "evidence": [
+      {
+        "id": "ev-v-finding-1",
+        "kind": "finding",
+        "content": "Per-stock finding: relative volume peaked on 2024-06-03."
+      }
+    ]
+  },
+  "assembly": {
+    "outcome": "refused",
+    "codes": [
+      "HOLDOUT_OVERLAP"
+    ]
+  }
+}

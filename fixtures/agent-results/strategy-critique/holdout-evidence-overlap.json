@@ -1,0 +1,29 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-critique",
+  "id": "holdout-evidence-overlap",
+  "purpose": "A supplied record that describes a session inside the withheld holdout window: assembly refuses the request.",
+  "covers": [
+    "holdout_leakage"
+  ],
+  "request": {
+    "subject": {
+      "artefact": {
+        "seed": "seed-2-rsi32-breakeven-off"
+      }
+    },
+    "evidence": [
+      {
+        "id": "ev-h-note-1",
+        "kind": "hypothesis",
+        "content": "Earlier note: the strategy would have stayed out of the sell-off of 2025-04-04."
+      }
+    ]
+  },
+  "assembly": {
+    "outcome": "refused",
+    "codes": [
+      "HOLDOUT_OVERLAP"
+    ]
+  }
+}

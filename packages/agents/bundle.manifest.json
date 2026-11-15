@@ -1,0 +1,64 @@
+{
+  "format": "openquant-agent-bundle/1",
+  "id": "baseline",
+  "version": 1,
+  "methods": [],
+  "skills": [
+    {
+      "id": "strategy-formulation",
+      "version": "1",
+      "role": "proposer",
+      "procedure": "src/skills/strategy-formulation/procedure.md",
+      "request_contract": "strategy-formulation.request/1",
+      "result_contract": "strategy-formulation.result/1"
+    },
+    {
+      "id": "strategy-critique",
+      "version": "1",
+      "role": "critic",
+      "procedure": "src/skills/strategy-critique/procedure.md",
+      "request_contract": "strategy-critique.request/1",
+      "result_contract": "strategy-critique.result/1"
+    }
+  ],
+  "files": [
+    {
+      "path": "schemas/role-common.schema.json",
+      "sha256": "sha256:9cb3433e9113ea369571878472b3cdcdde4d0d3e313b82c2ea8910da7e6fb777"
+    },
+    {
+      "path": "schemas/strategy-critique.request.schema.json",
+      "sha256": "sha256:14bd81895dccc4416fdc30e55d39a58ee4570f79967219632a4c06227a06e121"
+    },
+    {
+      "path": "schemas/strategy-critique.result.schema.json",
+      "sha256": "sha256:b80dae2e640097b73398bc8943b1be61593a111333a2ee101c6d010d967f29fb"
+    },
+    {
+      "path": "schemas/strategy-formulation.request.schema.json",
+      "sha256": "sha256:de5baead2d8bc0a6af56a228da8d39abbb3379d52edc50339665c3b9cc5fd973"
+    },
+    {
+      "path": "schemas/strategy-formulation.result.schema.json",
+      "sha256": "sha256:8131c7c97b5e0d8189ba8ed66586f0129f695ae5b677e097530d794276d8afcc"
+    },
+    {
+      "path": "src/skills/strategy-critique/procedure.md",
+      "sha256": "sha256:304e648a866dc46d27707b44031c18937f7d0a2249b6a61d36903657854f1692"
+    },
+    {
+      "path": "src/skills/strategy-formulation/procedure.md",
+      "sha256": "sha256:4847689b5aa1f052a496cde359ec1e4ca18ec35aafd0b37095533fffdc776edb"
+    }
+  ],
+  "derived": [
+    {
+      "name": "strategy-formulation.result/1",
+      "sha256": "sha256:dfede021816d9217c1ac62b2acd7b6337e6f53bbc2882ac1eb61bf9569f2b797"
+    },
+    {
+      "name": "strategy-critique.result/1",
+      "sha256": "sha256:f3901de6c7ce7c30d78c4d7e43083ccbb135a538dcbb71d0ed4f8fe9e423d045"
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-critique",
+  "id": "category-search-overfitting",
+  "purpose": "One valid completion with a finding of the category search_overfitting (OQ-03 section 4). The treatment of each lifecycle transition is read by hand from the synthetic fixture policy.",
+  "covers": [
+    "category:search_overfitting"
+  ],
+  "request": {
+    "subject": {
+      "artefact": {
+        "seed": "seed-2-rsi32-breakeven-off"
+      }
+    },
+    "evidence": [
+      {
+        "id": "ev-note-1",
+        "kind": "hypothesis",
+        "content": "Earlier hypothesis note: the weakness threshold of 32 admits entries that threshold 30 misses."
+      },
+      {
+        "id": "ev-required-manifest",
+        "kind": "source",
+        "content": "Dataset manifest of the frozen snapshot: coverage is complete through 2023-12-29."
+      }
+    ]
+  },
+  "required_evidence": [
+    "ev-required-manifest"
+  ],
+  "response": {
+    "schema_version": "strategy-critique.result/1",
+    "findings": [
+      {
+        "category": "search_overfitting",
+        "description": "The threshold 32 was chosen after a sweep that the search history does not record, so its other trials are missing.",
+        "method_refs": [],
+        "evidence_refs": [
+          "ev-note-1"
+        ],
+        "location": {
+          "area": "rationale"
+        },
+        "affected_elements": []
+      }
+    ]
+  },
+  "expect": {
+    "outcome": "completion",
+    "empty_is_not_pass": false,
+    "findings": [
+      {
+        "category": "search_overfitting",
+        "area": "rationale",
+        "affected_elements": [],
+        "treatment": {
+          "DRAFT_TO_EVALUATING": "advisory",
+          "EVALUATING_TO_PAPER": "blocking"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,313 @@
+// Request assembly (OQ-03 sections 3 and 4): what a request carries, how it is bound, and every refusal.
+
+import { digest, type JsonValue } from '@openquant/api-contracts';
+import { describe, expect, test } from 'vitest';
+import { seedArtefact } from '../dev/world.ts';
+import {
+  type Assembly,
+  assembleCritiqueRequest,
+  assembleFormulationRequest,
+  BUNDLE_HASH,
+  PROCEDURES,
+  type RefusalCode,
+  ROLE_BODY_LIMIT,
+} from '../src/index.ts';
+import type { EvidenceItem, HoldoutExclusion, RoleContext } from '../src/types.ts';
+import { sha256Text, stable } from './support/oracle.ts';
+import { critiqueRequestInput, FINDING, revisionInput, SEED_ONE } from './support/requests.ts';
+
+const encoder = new TextEncoder();
+
+async function codes(assembly: Assembly<unknown>): Promise<RefusalCode[]> {
+  return assembly.ok ? [] : assembly.refusals.map((item) => item.code);
+}
+
+function withContext(context: RoleContext, change: (copy: RoleContext) => void): RoleContext {
+  const copy = structuredClone(context);
+  change(copy);
+  return copy;
+}
+
+describe('a proposer request for a controlled revision', () => {
+  test('is bound by the digest of its canonical text, its size and its media type', async () => {
+    const assembly = await assembleFormulationRequest(await revisionInput());
+    expect(assembly.ok).toBe(true);
+    if (!assembly.ok) return;
+    const text = stable(assembly.request);
+    expect(assembly.text).toBe(text);
+    expect(assembly.artefact).toEqual({
+      digest: sha256Text(text),
+      media_type: 'application/json',
+      size_bytes: encoder.encode(text).byteLength,
+    });
+    expect(assembly.request.schema_version).toBe('strategy-formulation.request/1');
+  });
+
+  test('takes its instructions and its bundle hash from the generated module', async () => {
+    const assembly = await assembleFormulationRequest(await revisionInput());
+    expect(assembly.ok && assembly.instructions).toBe(PROCEDURES['strategy-formulation']);
+    expect(assembly.ok && assembly.bundle_hash).toBe(BUNDLE_HASH);
+  });
+
+  test('carries the parent, its hash, the development evidence and the withheld windows, and nothing else', async () => {
+    const assembly = await assembleFormulationRequest(await revisionInput());
+    if (!assembly.ok) throw new Error('refused');
+    const { request } = assembly;
+    expect(Object.keys(request).sort()).toEqual([
+      'context',
+      'evidence_refs',
+      'schema_version',
+      'subject',
+      'supplied_methods',
+    ]);
+    expect(request.subject.proposal_kind).toBe('controlled_revision');
+    if (request.subject.proposal_kind !== 'controlled_revision') return;
+    expect(request.subject.parent_hash).toBe(await digest(seedArtefact(SEED_ONE)));
+    expect(request.evidence_refs.map((item) => item.id)).toEqual([FINDING.id]);
+    expect(request.context.holdout_exclusions.map((item) => item.window)).toEqual(['VALIDATION', 'HOLDOUT']);
+    expect(Object.keys(request.context).sort()).toEqual([
+      'cutoff',
+      'evaluation_policy',
+      'holdout_exclusions',
+      'operators',
+      'provider_capabilities',
+      'scope',
+    ]);
+  });
+
+  test('supplies no method: the module decides, and a caller cannot add one', async () => {
+    const input = {
+      ...(await revisionInput()),
+      supplied_methods: [{ id: 'm', rule_origin: 'primary_checked', category: 'method_advice', scope: 'seed' }],
+    };
+    const assembly = await assembleFormulationRequest(input);
+    expect(assembly.ok && assembly.request.supplied_methods).toEqual([]);
+  });
+
+  test('is the same bytes each time', async () => {
+    const first = await assembleFormulationRequest(await revisionInput());
+    const second = await assembleFormulationRequest(await revisionInput());
+    expect(first.ok && second.ok && first.artefact.digest === second.artefact.digest).toBe(true);
+  });
+});
+
+describe('a proposer request for a seed translation and a new family', () => {
+  test('a seed translation carries its source text', async () => {
+    const input = await revisionInput({
+      subject: {
+        proposal_kind: 'seed_translation',
+        source: {
+          source_id: 'src-1',
+          content_digest: `sha256:${'a'.repeat(64)}`,
+          media_type: 'text/plain',
+          lines: ['Buy weakness.'],
+        },
+      },
+      evidence: [],
+    });
+    const assembly = await assembleFormulationRequest(input);
+    expect(assembly.ok && assembly.request.subject.proposal_kind).toBe('seed_translation');
+  });
+
+  test('a new family carries no parent', async () => {
+    const assembly = await assembleFormulationRequest(
+      await revisionInput({ subject: { proposal_kind: 'new_family' } }),
+    );
+    expect(assembly.ok && assembly.request.subject).toEqual({ proposal_kind: 'new_family' });
+  });
+
+  test('a source above the request limit is refused as too large', async () => {
+    const lines = Array.from({ length: 3000 }, (_, index) => `${index} ${'x'.repeat(190)}`);
+    const input = await revisionInput({
+      subject: {
+        proposal_kind: 'seed_translation',
+        source: { source_id: 'src-big', content_digest: `sha256:${'b'.repeat(64)}`, media_type: 'text/plain', lines },
+      },
+      evidence: [],
+    });
+    expect(encoder.encode(JSON.stringify(input)).byteLength).toBeGreaterThan(ROLE_BODY_LIMIT);
+    expect(await codes(await assembleFormulationRequest(input))).toEqual(['REQUEST_TOO_LARGE']);
+  });
+});
+
+describe('refusals of a proposer request', () => {
+  test('a request that breaks its schema is refused with the first violation', async () => {
+    const input = await revisionInput();
+    const broken = {
+      ...input,
+      evidence: [{ ...(input.evidence[0] as EvidenceItem), kind: 'rumour' }],
+    } as unknown as typeof input;
+    const assembly = await assembleFormulationRequest(broken);
+    expect(await codes(assembly)).toEqual(['REQUEST_INVALID']);
+    expect(!assembly.ok && assembly.refusals[0]?.detail).toMatch(/evidence_refs\/0\/kind/);
+  });
+
+  test('a value with no JSON form is refused as invalid', async () => {
+    const input = await revisionInput();
+    const broken = {
+      ...input,
+      evidence: [{ ...(input.evidence[0] as EvidenceItem), content: Number.NaN }],
+    } as unknown as typeof input;
+    expect(await codes(await assembleFormulationRequest(broken))).toEqual(['REQUEST_INVALID']);
+  });
+
+  test('exclusions that omit the validation window are refused', async () => {
+    const input = await revisionInput();
+    const context = withContext(input.context, (copy) => {
+      copy.holdout_exclusions = copy.holdout_exclusions.filter((item) => item.window !== 'VALIDATION');
+    });
+    const assembly = await assembleFormulationRequest({ ...input, context });
+    expect(await codes(assembly)).toEqual(['HOLDOUT_EXCLUSIONS_INVALID']);
+    expect(!assembly.ok && assembly.refusals[0]?.detail).toMatch(/VALIDATION/);
+  });
+
+  test('exclusions that omit the holdout window are refused', async () => {
+    const input = await revisionInput();
+    const context = withContext(input.context, (copy) => {
+      copy.holdout_exclusions = copy.holdout_exclusions.filter((item) => item.window !== 'HOLDOUT');
+    });
+    expect(await codes(await assembleFormulationRequest({ ...input, context }))).toEqual([
+      'HOLDOUT_EXCLUSIONS_INVALID',
+    ]);
+  });
+
+  test('no exclusions at all are refused for both windows', async () => {
+    const input = await revisionInput();
+    const context = withContext(input.context, (copy) => {
+      copy.holdout_exclusions = [];
+    });
+    const assembly = await assembleFormulationRequest({ ...input, context });
+    expect(!assembly.ok && assembly.refusals.map((item) => item.detail).join(' ')).toMatch(/VALIDATION.*HOLDOUT/);
+  });
+
+  test('a window named twice is refused', async () => {
+    const input = await revisionInput();
+    const context = withContext(input.context, (copy) => {
+      copy.holdout_exclusions = [
+        ...copy.holdout_exclusions,
+        structuredClone(copy.holdout_exclusions[0] as HoldoutExclusion),
+      ];
+    });
+    expect(await codes(await assembleFormulationRequest({ ...input, context }))).toEqual([
+      'HOLDOUT_EXCLUSIONS_INVALID',
+    ]);
+  });
+
+  test('an exclusion with another label than the policy window, or outside its dates, is refused', async () => {
+    const input = await revisionInput();
+    const relabelled = withContext(input.context, (copy) => {
+      (copy.holdout_exclusions[1] as HoldoutExclusion).label = 'untouched holdout';
+    });
+    expect(await codes(await assembleFormulationRequest({ ...input, context: relabelled }))).toEqual([
+      'HOLDOUT_EXCLUSIONS_INVALID',
+    ]);
+    const moved = withContext(input.context, (copy) => {
+      (copy.holdout_exclusions[1] as HoldoutExclusion).range = { start: '2024-06-03', end: '2025-12-31' };
+    });
+    expect(await codes(await assembleFormulationRequest({ ...input, context: moved }))).toEqual([
+      'HOLDOUT_EXCLUSIONS_INVALID',
+    ]);
+  });
+
+  test('operators that are not the policy operators are refused', async () => {
+    const input = await revisionInput();
+    const context = withContext(input.context, (copy) => {
+      copy.operators = { ...copy.operators, permitted: copy.operators.permitted.slice(0, 5) };
+    });
+    expect(await codes(await assembleFormulationRequest({ ...input, context }))).toEqual(['OPERATORS_MISMATCH']);
+  });
+
+  test('a parent hash that is not the digest of the parent is refused', async () => {
+    const input = await revisionInput();
+    const subject = { ...input.subject, parent_hash: `sha256:${'0'.repeat(64)}` } as typeof input.subject;
+    expect(await codes(await assembleFormulationRequest({ ...input, subject }))).toEqual(['PARENT_HASH_MISMATCH']);
+  });
+
+  test('an evidence id used twice is refused', async () => {
+    const input = await revisionInput();
+    const evidence = [...input.evidence, { ...(input.evidence[0] as EvidenceItem), content: 'Another record.' }];
+    expect(await codes(await assembleFormulationRequest({ ...input, evidence }))).toEqual(['DUPLICATE_EVIDENCE_ID']);
+  });
+});
+
+describe('the date screen of the withheld windows', () => {
+  const evidenceWith = (content: string): EvidenceItem[] => [
+    { ...FINDING, record_digest: `sha256:${'c'.repeat(64)}`, recorded_at: '2023-12-29T22:00:00Z', content },
+  ];
+
+  test.each([
+    ['the first session of the validation window', '2024-01-02', true],
+    ['the last session of the holdout window', '2025-12-31', true],
+    ['a date inside the validation window', '2024-07-04', true],
+    ['the day before the validation window starts', '2024-01-01', false],
+    ['the last session of the development window', '2023-12-29', false],
+    ['a date after the holdout window', '2026-01-02', false],
+  ])('%s', async (_name, date, refused) => {
+    const input = await revisionInput({ evidence: evidenceWith(`The member closed lower on ${date}.`) });
+    expect(await codes(await assembleFormulationRequest(input))).toEqual(refused ? ['HOLDOUT_OVERLAP'] : []);
+  });
+
+  test('a date in the record text is found wherever it stands, and one record is refused once per date', async () => {
+    const input = await revisionInput({
+      evidence: evidenceWith('From 2024-03-01, then again 2025-03-14, and 2024-03-01.'),
+    });
+    const assembly = await assembleFormulationRequest(input);
+    expect(await codes(assembly)).toEqual(['HOLDOUT_OVERLAP']);
+    expect(!assembly.ok && assembly.refusals[0]?.detail).toMatch(/2024-03-01, 2025-03-14/);
+  });
+});
+
+describe('a critic request', () => {
+  test('carries one registered version bound by the digest of its artefact', async () => {
+    const input = await critiqueRequestInput();
+    const assembly = await assembleCritiqueRequest(input);
+    expect(assembly.ok).toBe(true);
+    if (!assembly.ok) return;
+    expect(assembly.request.schema_version).toBe('strategy-critique.request/1');
+    expect(assembly.request.subject.strategy_hash).toBe(
+      sha256Text(stable(assembly.request.subject.strategy as unknown as JsonValue)),
+    );
+    expect(assembly.artefact.digest).toBe(sha256Text(assembly.text));
+    expect(assembly.instructions).toBe(PROCEDURES['strategy-critique']);
+    expect(assembly.request.context.holdout_exclusions.map((item) => item.window)).toEqual(['VALIDATION', 'HOLDOUT']);
+  });
+
+  test('a hash that is not the digest of the registered artefact is refused', async () => {
+    const input = await critiqueRequestInput();
+    const subject = { ...input.subject, strategy_hash: `sha256:${'0'.repeat(64)}` };
+    expect(await codes(await assembleCritiqueRequest({ ...input, subject }))).toEqual(['STRATEGY_HASH_MISMATCH']);
+  });
+
+  test('the hash of an edited artefact no longer binds', async () => {
+    const input = await critiqueRequestInput();
+    const strategy = { ...input.subject.strategy, version: input.subject.strategy.version + 1 };
+    expect(await codes(await assembleCritiqueRequest({ ...input, subject: { ...input.subject, strategy } }))).toEqual([
+      'STRATEGY_HASH_MISMATCH',
+    ]);
+  });
+
+  test('run metrics as evidence are refused: critique precedes evaluation', async () => {
+    const input = await critiqueRequestInput();
+    const evidence = [{ ...(input.evidence[0] as EvidenceItem), kind: 'evaluation_metrics' as const }];
+    const assembly = await assembleCritiqueRequest({ ...input, evidence });
+    expect(await codes(assembly)).toEqual(['EVIDENCE_NOT_PERMITTED']);
+  });
+
+  test('exclusions and dates are screened as for the proposer', async () => {
+    const input = await critiqueRequestInput();
+    const context = withContext(input.context, (copy) => {
+      copy.holdout_exclusions = [];
+    });
+    expect(await codes(await assembleCritiqueRequest({ ...input, context }))).toEqual([
+      'HOLDOUT_EXCLUSIONS_INVALID',
+      'HOLDOUT_EXCLUSIONS_INVALID',
+    ]);
+    const evidence = [{ ...(input.evidence[0] as EvidenceItem), content: 'Seen on 2025-06-02.' }];
+    expect(await codes(await assembleCritiqueRequest({ ...input, evidence }))).toEqual(['HOLDOUT_OVERLAP']);
+  });
+
+  test('supplies no method', async () => {
+    const assembly = await assembleCritiqueRequest(await critiqueRequestInput());
+    expect(assembly.ok && assembly.request.supplied_methods).toEqual([]);
+  });
+});

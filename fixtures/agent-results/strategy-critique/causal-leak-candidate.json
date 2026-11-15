@@ -1,0 +1,63 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-critique",
+  "id": "causal-leak-candidate",
+  "purpose": "A candidate whose rationale cites entries at the signal-session close while the registered version enters at the next open. The critic reports causal_leakage located in the rationale, with no affected definition element. The finding is advisory for DRAFT_TO_EVALUATING and blocking for EVALUATING_TO_PAPER.",
+  "covers": [
+    "same_close_signal_fill"
+  ],
+  "request": {
+    "subject": {
+      "artefact": {
+        "seed": "seed-2-rsi32-breakeven-off",
+        "edits": [
+          {
+            "op": "replace",
+            "path": "/contract/rationale",
+            "value": "The entry rule is supported by a trade table whose entries are taken at the close of the signal session; the table shows the average gain per trade that this revision expects."
+          }
+        ]
+      }
+    },
+    "evidence": [
+      {
+        "id": "ev-note-1",
+        "kind": "hypothesis",
+        "content": "Earlier hypothesis note: the weakness threshold of 32 admits entries that threshold 30 misses."
+      }
+    ]
+  },
+  "response": {
+    "schema_version": "strategy-critique.result/1",
+    "findings": [
+      {
+        "category": "causal_leakage",
+        "description": "The rationale cites a table of entries at the signal close. The registered version enters at the next open, so the claimed gain per trade does not describe it.",
+        "method_refs": [],
+        "evidence_refs": [],
+        "location": {
+          "area": "rationale"
+        },
+        "affected_elements": [],
+        "proposed_tests": [
+          "Compare the signal-close entry table with a next-open entry replay under the frozen policy."
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "outcome": "completion",
+    "empty_is_not_pass": false,
+    "findings": [
+      {
+        "category": "causal_leakage",
+        "area": "rationale",
+        "affected_elements": [],
+        "treatment": {
+          "DRAFT_TO_EVALUATING": "advisory",
+          "EVALUATING_TO_PAPER": "blocking"
+        }
+      }
+    ]
+  }
+}

@@ -1,5 +1,17 @@
 # Recorded agent results
 
-Status: planned fixture area.
+Status: S1 offline suites for the two pilot role modules. Every fixture is **synthetic**: a hand-written response that exercises request assembly and result parsing. No fixture is recorded from a model, so none can satisfy real-model execution acceptance (OQ-03 §6). A recorded fixture arrives only with a real run of the delegated runner, and the label then changes to `recorded`.
 
-Label fixtures as recorded or synthetic. Include malformed, refused, denied, timeout, and identity-mismatch outcomes. These cannot satisfy real-model execution acceptance. Skill cases in `packages/agents/evals/<skill>/fixtures/dataset.json` reference recorded or synthetic responses here by path; none are recorded before S1.
+| Path | Contents |
+| --- | --- |
+| `context.pilot.json` | The shared context of the suites: the AAPL instrument mapping, the information cutoff of the development window, the withheld validation and holdout windows (V and H) and the path of the frozen S1 pilot cohort policy in `fixtures/protocol/valid`. |
+| `strategy-formulation/<id>.json` | Proposer cases: a valid controlled revision (entry only and exit only), a revision that changes both rules, an operator outside the permitted set, unresolved entries, a result above 512 KiB and one at the limit, a response that names dates inside the withheld windows, evidence inside them, wrong or omitted rule changes, a wrong parent hash, a missing parent hash, an unknown field, prose instead of JSON, a cited method, a seed translation and a new family. |
+| `strategy-critique/<id>.json` | Critic cases: one valid completion for each of the eleven categories of OQ-03 §4, a candidate with a causal leak, an empty finding set, an unknown category, an approval field, a model-set `finding_source`, references that the request does not hold, an unregistered subject, run metrics as evidence and evidence inside a withheld window. |
+
+A fixture holds a request recipe, an optional expectation about request assembly (`assembly`), one response (`response`, `response_text` or `response_pad`) and the expected outcome (`expect`). The recipes name an S0 seed strategy in `fixtures/s0/strategies` and the edits to apply, so a fixture does not repeat an 11 KB strategy. The expected values are written by hand from the S0 fixtures, which declare the changes of each variant against its parent and are proved against Rust, and from the synthetic finding-treatment policy (`packages/agents/evals/fixture-policy.json`). The loader and the runner are in `packages/agents/dev`; `pnpm --filter @openquant/agents run eval:fixture` runs every case, and `packages/agents/test/suites.test.ts` runs them in `pnpm verify`.
+
+Evaluation cases in `packages/agents/evals/<skill>/fixtures/dataset.json` link a fixture here through `recorded_responses` where the fixture matches the case exactly.
+
+## Agreement with the Rust lineage check
+
+The leaf-difference fixtures (`valid-revision-*`, `revision-scope-both`, `operator-outside-set`, `rule-changes-*`) state the declared changes and the change scope that the TypeScript parse computes. The Rust validation job recomputes the same difference and scope (`validation-result/1`). The shared S0 seed fixtures pin the first and the entry or exit classification of the second; the other pairs here are the cases on which the two implementations must agree when the Rust lineage check lands.

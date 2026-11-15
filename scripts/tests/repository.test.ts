@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, cpSync, copyFileSync, rmSync, readFileSync, readdirSync, writeFileSync, readlinkSync, symlinkSync, renameSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { delimiter, relative, resolve, sep } from 'node:path';
 import { root, checkRepository, paths, isIgnored, credentialErrors } from '../repository.ts';
@@ -219,10 +220,26 @@ const criticProcedure = `${agents}/src/skills/strategy-critique/procedure.md`;
 const fixturePolicy = `${agents}/evals/fixture-policy.json`;
 const proposerCases = `${agents}/evals/strategy-formulation/fixtures/dataset.json`;
 const criticCases = `${agents}/evals/strategy-critique/fixtures/dataset.json`;
+const manifestFile = `${agents}/bundle.manifest.json`;
+const agentFixtures = 'fixtures/agent-results';
 function editJson(base: string, path: string, change: (value: any) => void) {
   edit(base,path,(text)=>{ const value = JSON.parse(text); change(value); return JSON.stringify(value,null,2)+'\n'; });
 }
 function chanSource(value: any) { return value.sources.find((source: any)=>source.id==='chan-algorithmic-trading'); }
+// Edit a bundle file and record its new SHA-256 in the manifest, so a test sees the rule it targets and not the hash drift.
+function bundleEdit(base: string, path: string, change: (text: string) => string) {
+  edit(base,`${agents}/${path}`,change);
+  const digest = `sha256:${createHash('sha256').update(readFileSync(resolve(base,`${agents}/${path}`))).digest('hex')}`;
+  editJson(base,manifestFile,(value)=>{ value.files.find((file: any)=>file.path===path).sha256 = digest; });
+}
+// List one more file in the manifest with its real digest, keeping the paths sorted.
+function listInManifest(base: string, path: string, content = 'Content.\n') {
+  const absolute = resolve(base,`${agents}/${path}`);
+  const outside = path.startsWith('/') || /^[A-Za-z]:/.test(path) || path.includes('\\') || path.split('/').includes('..');
+  if (!outside) { mkdirSync(resolve(absolute,'..'),{recursive:true}); if (!existsSync(absolute)) writeFileSync(absolute,content); }
+  const digest = `sha256:${createHash('sha256').update(outside ? content : readFileSync(absolute)).digest('hex')}`;
+  editJson(base,manifestFile,(value)=>{ value.files.push({ path, sha256: digest }); value.files.sort((a: any,b: any)=>a.path<b.path?-1:a.path>b.path?1:0); });
+}
 
 test('unlisted agent assets fail the layout allowlist',()=>mutated((base)=>writeFileSync(resolve(base,`${agents}/src/extra.md`),'Extra\n'),/Unexpected agent asset: packages\/agents\/src\/extra\.md/));
 test('a missing method note fails',()=>mutated((base)=>rmSync(resolve(base,chanNote)),/Missing agent asset: packages\/agents\/src\/methods\/chan-algorithmic-trading\.md/));
@@ -242,19 +259,30 @@ test('rule categories must come from OQ-03',()=>mutated((base)=>edit(base,chanNo
 test('rule IDs must stay in sequence',()=>mutated((base)=>edit(base,chanNote,(t)=>t.replace('| `CHAN-02` |','| `CHAN-20` |')),/Rule CHAN-20 is out of sequence/));
 test('rule pages must exist in the recorded summary',()=>mutated((base)=>editJson(base,sourcesPath,(value)=>{ chanSource(value).summary.pages = 1; }),/Invalid summary page for CHAN-/));
 test('summary digests must be SHA-256 values',()=>mutated((base)=>editJson(base,sourcesPath,(value)=>{ chanSource(value).summary.sha256 = 'unknown'; }),/Invalid summary digest: chan-algorithmic-trading/));
-test('runtime assets cannot reference evaluation cases',()=>mutated((base)=>edit(base,criticProcedure,(t)=>t+'\nCompare SC-01.\n'),/Runtime asset references evaluation material/));
+test('runtime assets cannot reference evaluation cases',()=>mutated((base)=>bundleEdit(base,'src/skills/strategy-critique/procedure.md',(t)=>t+'\nCompare SC-01.\n'),/Runtime asset references evaluation material/));
 test('runtime assets cannot contain links',()=>mutated((base)=>edit(base,chanNote,(t)=>t+'\n[OQ-03](../../../../docs/specs/03-model-backed-execution-spec.md)\n'),/Runtime asset contains a link/));
 test('agent assets reject blockquotes',()=>mutated((base)=>edit(base,chanNote,(t)=>t+'\n> Quoted source text.\n'),/Blockquote not allowed/));
-test('procedures cannot cite unknown rules',()=>mutated((base)=>edit(base,proposerProcedure,(t)=>t+'\nSee `CHAN-99`.\n'),/Unknown rule reference CHAN-99/));
-test('the critic category table must match OQ-03',()=>mutated((base)=>edit(base,criticProcedure,(t)=>t.replace(/^\| `operational_risk` \|.*\n/m,'')),/Critic procedure categories differ from OQ-03 §4: missing \[operational_risk\]/));
+test('the critic category table must match OQ-03',()=>mutated((base)=>bundleEdit(base,'src/skills/strategy-critique/procedure.md',(t)=>t.replace(/^\| `operational_risk` \|.*\n/m,'')),/Critic procedure categories differ from OQ-03 §4: missing \[operational_risk\]/));
 test('a new OQ-03 category requires the agent assets to change',()=>mutated((base)=>edit(base,'docs/specs/03-model-backed-execution-spec.md',(t)=>t.replace(/^(\| `method_advice` \|.*\n)/m,'$1| `new_category` | Example. |\n')),/Fixture policy categories differ from OQ-03 §4: missing \[new_category\]/));
 test('the fixture policy must stay synthetic',()=>mutated((base)=>editJson(base,fixturePolicy,(value)=>{ value.synthetic = false; }),/Fixture policy must be marked synthetic/));
-test('blocking treatments cannot escalate',()=>mutated((base)=>editJson(base,fixturePolicy,(value)=>{ value.treatments.causal_leakage.escalate_when = ['required_evidence']; }),/Blocking treatment cannot escalate: causal_leakage/));
+test('blocking treatments cannot escalate',()=>mutated((base)=>editJson(base,fixturePolicy,(value)=>{ value.treatments.causal_leakage.EVALUATING_TO_PAPER.escalate_when = ['required_evidence']; }),/Blocking treatment cannot escalate: causal_leakage/));
+test('the fixture policy has one treatment per category and lifecycle transition, and S1 blocks none at DRAFT_TO_EVALUATING',()=>{
+  mutated((base)=>editJson(base,fixturePolicy,(value)=>{ delete value.treatments.causal_leakage.DRAFT_TO_EVALUATING; }),/Fixture policy needs one treatment per transition \[DRAFT_TO_EVALUATING, EVALUATING_TO_PAPER\] for causal_leakage/);
+  mutated((base)=>editJson(base,fixturePolicy,(value)=>{ value.treatments.hypothesis_assumption = { default: 'advisory' }; }),/Fixture policy needs one treatment per transition .* for hypothesis_assumption/);
+  mutated((base)=>editJson(base,fixturePolicy,(value)=>{ value.transitions = ['DRAFT_TO_EVALUATING']; }),/Fixture policy transitions must be exactly \[DRAFT_TO_EVALUATING, EVALUATING_TO_PAPER\]/);
+  mutated((base)=>editJson(base,fixturePolicy,(value)=>{ value.treatments.causal_leakage.DRAFT_TO_EVALUATING.default = 'blocking'; }),/No finding category blocks DRAFT_TO_EVALUATING in S1: causal_leakage/);
+  mutated((base)=>editJson(base,fixturePolicy,(value)=>{ value.treatments.portfolio_fit.DRAFT_TO_EVALUATING.escalate_when = ['required_evidence']; }),/No finding category blocks DRAFT_TO_EVALUATING in S1: portfolio_fit/);
+});
 test('fresh cases must record consumption',()=>mutated((base)=>editJson(base,criticCases,(value)=>{ delete value.cases.find((item: any)=>item.split==='fresh').consumed; }),/consumed is required for fresh cases/));
-test('finding treatment must follow the fixture policy',()=>mutated((base)=>editJson(base,criticCases,(value)=>{
-  const finding = value.cases.flatMap((item: any)=>item.expected.findings).find((item: any)=>item.treatment==='blocking');
-  finding.treatment = 'advisory';
-}),/treatment for [a-z_]+ differs from fixture policy/));
+test('finding treatment must follow the fixture policy for each transition',()=>{
+  const flip = (transition: string) => (base: string) => editJson(base,criticCases,(value)=>{
+    const finding = value.cases.flatMap((item: any)=>item.expected.findings).find((item: any)=>item.treatment[transition]==='blocking');
+    finding.treatment[transition] = 'advisory';
+  });
+  mutated(flip('EVALUATING_TO_PAPER'),/treatment for [a-z_]+ at EVALUATING_TO_PAPER differs from fixture policy/);
+  mutated((base)=>editJson(base,criticCases,(value)=>{ value.cases.flatMap((item: any)=>item.expected.findings)[0].treatment.DRAFT_TO_EVALUATING = 'blocking'; }),/treatment for [a-z_]+ at DRAFT_TO_EVALUATING differs from fixture policy/);
+  mutated((base)=>editJson(base,criticCases,(value)=>{ value.cases.flatMap((item: any)=>item.expected.findings)[0].treatment = 'blocking'; }),/Invalid case SC-\d{2} in .*: expected\.findings\.treatment/);
+});
 test('cases cannot permit tools before S3',()=>mutated((base)=>editJson(base,proposerCases,(value)=>{ value.cases[0].permitted_tools = ['tool:market-snapshot@1']; }),/permits tools before S3/));
 test('required critic defects stay covered',()=>mutated((base)=>editJson(base,criticCases,(value)=>{
   value.cases = value.cases.filter((item: any)=>!item.covers.includes('same_close_signal_fill'));
@@ -280,18 +308,122 @@ test('every finding category stays covered',()=>mutated((base)=>editJson(base,cr
 }),/Uncovered finding category in .*: operational_risk/));
 const roleSchema = `${agents}/schemas/strategy-critique.result.schema.json`;
 test('the role schemas are exactly the five listed files',()=>{
-  mutated((base)=>writeFileSync(resolve(base,`${agents}/schemas/extra.schema.json`),'{}\n'),/Unexpected agent asset: packages\/agents\/schemas\/extra\.schema\.json/);
+  mutated((base)=>writeFileSync(resolve(base,`${agents}/schemas/extra.schema.json`),'{}\n'),/Shipped file is not listed in the bundle manifest: packages\/agents\/schemas\/extra\.schema\.json/);
   mutated((base)=>rmSync(resolve(base,`${agents}/schemas/role-common.schema.json`)),/Missing agent asset: packages\/agents\/schemas\/role-common\.schema\.json/);
   mutated((base)=>writeFileSync(resolve(base,roleSchema),'{\n'),/Invalid JSON in packages\/agents\/schemas\/strategy-critique\.result\.schema\.json/);
 });
 test('the link and blockquote rules read Markdown only',()=>{
   const errors = mutationErrors((base)=>{
     editJson(base,sourcesPath,(value)=>{ value.description = `${value.description} Pattern [a](b).`; });
-    editJson(base,roleSchema,(value)=>{ value.description = 'Matches [a](b) and > c.'; });
+    bundleEdit(base,'schemas/strategy-critique.result.schema.json',(t)=>{ const value = JSON.parse(t); value.description = 'Matches [a](b) and > c.'; return JSON.stringify(value,null,2)+'\n'; });
   });
   assert.ok(!errors.some((error)=>error.includes(sourcesPath) || error.includes(roleSchema)),errors.join('\n'));
   mutated((base)=>edit(base,`${agents}/schemas/README.md`,(t)=>`${t}\n> Quoted schema text.\n`),/Blockquote not allowed in agent asset packages\/agents\/schemas\/README\.md/);
-  mutated((base)=>edit(base,proposerProcedure,(t)=>`${t}\n[OQ-03](../../../../../docs/specs/03-model-backed-execution-spec.md)\n`),/Runtime asset contains a link: packages\/agents\/src\/skills\/strategy-formulation\/procedure\.md/);
+  mutated((base)=>bundleEdit(base,'src/skills/strategy-formulation/procedure.md',(t)=>`${t}\n[OQ-03](../../../../../docs/specs/03-model-backed-execution-spec.md)\n`),/Runtime asset contains a link: packages\/agents\/src\/skills\/strategy-formulation\/procedure\.md/);
+});
+
+// The behaviour-bundle manifest (OQ-03 section 3): an exact allowlist of paths and content hashes.
+test('the baseline repository passes the bundle manifest check, and an edit that records its hash does too',()=>{
+  const errors = mutationErrors((base)=>bundleEdit(base,'src/skills/strategy-formulation/procedure.md',(t)=>`${t}\nOne more sentence.\n`));
+  assert.deepEqual(errors.filter((error)=>/bundle|Bundle|manifest/.test(error)),[],errors.join('\n'));
+});
+test('a missing or unreadable manifest fails',()=>{
+  mutated((base)=>rmSync(resolve(base,manifestFile)),/Missing agent asset: packages\/agents\/bundle\.manifest\.json/);
+  mutated((base)=>writeFileSync(resolve(base,manifestFile),'{\n'),/Invalid JSON in packages\/agents\/bundle\.manifest\.json/);
+  mutated((base)=>writeFileSync(resolve(base,manifestFile),'[]\n'),/bundle manifest: the manifest is not an object/);
+});
+test('the manifest has exactly the reviewed keys, format, skills and an empty method list',()=>{
+  mutated((base)=>editJson(base,manifestFile,(value)=>{ value.extra = true; }),/Bundle manifest keys must be exactly \[derived, files, format, id, methods, skills, version\]/);
+  mutated((base)=>editJson(base,manifestFile,(value)=>{ value.format = 'openquant-agent-bundle/2'; }),/Bundle manifest format must be openquant-agent-bundle\/1/);
+  mutated((base)=>editJson(base,manifestFile,(value)=>{ value.methods = ['CHAN-01']; }),/Bundle manifest methods must be an empty list: the baseline bundle adopts no method note/);
+  mutated((base)=>editJson(base,manifestFile,(value)=>{ value.skills.reverse(); }),/Bundle manifest skills must be exactly \[strategy-formulation, strategy-critique\], in this order/);
+  mutated((base)=>editJson(base,manifestFile,(value)=>{ value.skills[0].procedure = 'src/skills/other/procedure.md'; }),/Invalid bundle manifest skill: strategy-formulation/);
+});
+test('a listed file that is missing fails',()=>mutated((base)=>rmSync(resolve(base,roleSchema)),/Bundle file is missing: packages\/agents\/schemas\/strategy-critique\.result\.schema\.json/));
+test('a shipped file whose content drifted from its recorded hash fails',()=>{
+  mutated((base)=>edit(base,proposerProcedure,(t)=>`${t}\nOne more sentence.\n`),/Bundle file changed after the manifest recorded it: packages\/agents\/src\/skills\/strategy-formulation\/procedure\.md; run pnpm --filter @openquant\/agents run bundle:update/);
+  mutated((base)=>editJson(base,roleSchema,(value)=>{ value.description = 'Changed.'; }),/Bundle file changed after the manifest recorded it: packages\/agents\/schemas\/strategy-critique\.result\.schema\.json/);
+  mutated((base)=>editJson(base,manifestFile,(value)=>{ value.files[0].sha256 = 'sha256:short'; }),/Bundle file has no SHA-256 digest: schemas\/role-common\.schema\.json/);
+});
+test('an unlisted file among the shipped files fails',()=>{
+  mutated((base)=>writeFileSync(resolve(base,`${agents}/src/skills/strategy-critique/notes.md`),'Notes.\n'),/Shipped file is not listed in the bundle manifest: packages\/agents\/src\/skills\/strategy-critique\/notes\.md/);
+  mutated((base)=>writeFileSync(resolve(base,`${agents}/src/skills/strategy-critique/expected.json`),'{}\n'),/Shipped file is not listed in the bundle manifest: packages\/agents\/src\/skills\/strategy-critique\/expected\.json/);
+  mutated((base)=>{ mkdirSync(resolve(base,`${agents}/schemas/sub`)); writeFileSync(resolve(base,`${agents}/schemas/sub/inner.json`),'{}\n'); },/Shipped file is not listed in the bundle manifest: packages\/agents\/schemas\/sub\/inner\.json/);
+  mutated((base)=>writeFileSync(resolve(base,`${agents}/src/skills/strategy-critique/helper.ts`),'export const x = 1;\n'),/Shipped file is not listed in the bundle manifest: packages\/agents\/src\/skills\/strategy-critique\/helper\.ts/);
+});
+test('the manifest cannot list an evaluation file, an expected answer, a development script, a method note or a private snapshot',()=>{
+  const cases: [string, string, RegExp][] = [
+    ['evals/fixture-policy.json','{}\n',/Bundle file is an evaluation file: evals\/fixture-policy\.json/],
+    ['fixtures/agent-results/context.pilot.json','{}\n',/Bundle file is an evaluation file: fixtures\/agent-results\/context\.pilot\.json/],
+    ['src/skills/strategy-critique/expected.json','{}\n',/Bundle file is an expected answer: src\/skills\/strategy-critique\/expected\.json/],
+    ['schemas/expected-findings.schema.json','{}\n',/Bundle file is an expected answer: schemas\/expected-findings\.schema\.json/],
+    ['dev/eval-fixtures.ts','export {};\n',/Bundle file is a development script: dev\/eval-fixtures\.ts/],
+    ['tools/generate.ts','export {};\n',/Bundle file is a development script: tools\/generate\.ts/],
+    ['test/bundle.test.ts','export {};\n',/Bundle file is a development script: test\/bundle\.test\.ts/],
+    ['src/index.ts','export {};\n',/Bundle file is a development script: src\/index\.ts/],
+    ['src/methods/sources.json','{}\n',/Bundle file is a method note, which the baseline bundle does not adopt: src\/methods\/sources\.json/],
+    ['src/methods/chan-algorithmic-trading.md','Note.\n',/Bundle file is a method note/],
+    ['src/skills/strategy-critique/private-snapshot.md','Snapshot.\n',/Bundle file is a private snapshot: src\/skills\/strategy-critique\/private-snapshot\.md/],
+    ['schemas/licensed.schema.json','{}\n',/Bundle file is a private snapshot: schemas\/licensed\.schema\.json/],
+    ['README.md','Readme.\n',/Bundle file is not a procedure or a role schema: README\.md/],
+    ['package.json','{}\n',/Bundle file is not a procedure or a role schema: package\.json/],
+  ];
+  for (const [path,content,expected] of cases) mutated((base)=>listInManifest(base,path,content),expected);
+});
+test('the manifest cannot list a path outside the package or a path twice, and its paths stay sorted',()=>{
+  mutated((base)=>listInManifest(base,'../api-contracts/README.md','Readme.\n'),/Bundle file is not a canonical path inside the package: \.\.\/api-contracts\/README\.md/);
+  mutated((base)=>listInManifest(base,'schemas/../README.md','Readme.\n'),/Bundle file is not a canonical path inside the package: schemas\/\.\.\/README\.md/);
+  mutated((base)=>listInManifest(base,'/etc/hostname','host\n'),/Bundle file is not a relative path: \/etc\/hostname/);
+  mutated((base)=>listInManifest(base,'C:/Windows/win.ini','x\n'),/Bundle file is not a relative path: C:\/Windows\/win\.ini/);
+  mutated((base)=>listInManifest(base,'schemas\\role-common.schema.json','x\n'),/Bundle file is not a relative path/);
+  mutated((base)=>editJson(base,manifestFile,(value)=>{ value.files.push(structuredClone(value.files[0])); }),/Bundle manifest files must be sorted by path, each path once/);
+  mutated((base)=>editJson(base,manifestFile,(value)=>{ value.files.reverse(); }),/Bundle manifest files must be sorted by path, each path once/);
+});
+test('the derived entries name the result contracts with a digest',()=>{
+  mutated((base)=>editJson(base,manifestFile,(value)=>{ value.derived.pop(); }),/Bundle manifest derived entries must name the result contracts \[strategy-formulation\.result\/1, strategy-critique\.result\/1\]/);
+  mutated((base)=>editJson(base,manifestFile,(value)=>{ value.derived[0].sha256 = 'sha256:short'; }),/Bundle manifest derived entries must name the result contracts/);
+});
+test('procedures cite no method rule, no draft marker and no unknown front matter',()=>{
+  mutated((base)=>bundleEdit(base,'src/skills/strategy-formulation/procedure.md',(t)=>`${t}\nSee CHAN-07.\n`),/Procedure cites a method rule, which the baseline bundle does not adopt: packages\/agents\/src\/skills\/strategy-formulation\/procedure\.md: CHAN-07/);
+  mutated((base)=>bundleEdit(base,'src/skills/strategy-critique/procedure.md',(t)=>t.replace('bundle: baseline','status: draft')),/Invalid procedure metadata: packages\/agents\/src\/skills\/strategy-critique\/procedure\.md/);
+  mutated((base)=>bundleEdit(base,'src/skills/strategy-critique/procedure.md',(t)=>t.replace('## Method selection','## Method choice')),/Procedure sections differ from/);
+});
+test('the Output section of a procedure must name every field of its result schema',()=>{
+  const drop = (field: string) => (t: string) => { const at = t.indexOf('\n## Output\n'); return t.slice(0,at)+t.slice(at).replace(`\`${field}\``,field); };
+  mutated((base)=>bundleEdit(base,'src/skills/strategy-formulation/procedure.md',drop('no_parent')),/Procedure Output section does not describe the result field `no_parent`: packages\/agents\/src\/skills\/strategy-formulation\/procedure\.md/);
+  mutated((base)=>bundleEdit(base,'src/skills/strategy-critique/procedure.md',drop('affected_elements')),/Procedure Output section does not describe the result field `affected_elements`/);
+  mutated((base)=>bundleEdit(base,'schemas/strategy-critique.result.schema.json',(t)=>{ const value = JSON.parse(t); value.$defs.CritiqueFinding.properties.confidence = { type: 'string' }; return JSON.stringify(value,null,2)+'\n'; }),/Procedure Output section does not describe the result field `confidence`/);
+});
+test('files in the explicitly listed non-bundle directories are accepted, and any other file is not',()=>{
+  const errors = mutationErrors((base)=>{
+    for (const path of ['src/helper.ts','src/nested/helper.ts','test/extra.test.ts','test/support/helper.ts','tools/extra.ts','dev/extra.ts']) {
+      mkdirSync(resolve(base,agents,path,'..'),{recursive:true});
+      writeFileSync(resolve(base,agents,path),'export {};\n');
+    }
+  });
+  assert.ok(!errors.some((error)=>/agent asset/i.test(error)),errors.join('\n'));
+  for (const path of ['scratch/notes.md','test/data.json','tools/run.js','dev/notes.md','evals/extra.json','evals/strategy-critique/notes.md','src/skills/helper.ts','src/methods/helper.ts','docs/note.md']) {
+    mutated((base)=>{ mkdirSync(resolve(base,agents,path,'..'),{recursive:true}); writeFileSync(resolve(base,agents,path),'x\n'); },new RegExp(`Unexpected agent asset: packages/agents/${path.replaceAll('.','\\.')}`));
+  }
+});
+
+// The offline agent fixtures: labelled synthetic responses (OQ-03 section 6).
+test('agent fixtures are labelled synthetic and sit in their suite',()=>{
+  const fixture = `${agentFixtures}/strategy-critique/empty-findings.json`;
+  mutated((base)=>editJson(base,fixture,(value)=>{ value.label = 'recorded'; }),/Agent fixture must be labelled synthetic until a real model has produced it: fixtures\/agent-results\/strategy-critique\/empty-findings\.json/);
+  mutated((base)=>editJson(base,`${agentFixtures}/context.pilot.json`,(value)=>{ value.label = 'recorded'; }),/Agent fixture must be labelled synthetic .*: fixtures\/agent-results\/context\.pilot\.json/);
+  mutated((base)=>editJson(base,fixture,(value)=>{ value.id = 'other'; }),/Agent fixture suite and id must match its path/);
+  mutated((base)=>editJson(base,fixture,(value)=>{ value.suite = 'strategy-formulation'; }),/Agent fixture suite and id must match its path/);
+  mutated((base)=>editJson(base,fixture,(value)=>{ delete value.purpose; }),/Agent fixture states no purpose/);
+  mutated((base)=>editJson(base,fixture,(value)=>{ value.response_text = 'x'; }),/Agent fixture needs a refusal and no response, or exactly one response and an expectation/);
+  mutated((base)=>editJson(base,fixture,(value)=>{ delete value.expect; }),/Agent fixture needs a refusal and no response, or exactly one response and an expectation/);
+  mutated((base)=>writeFileSync(resolve(base,`${agentFixtures}/strategy-critique/stray.txt`),'x\n'),/Unexpected agent fixture: fixtures\/agent-results\/strategy-critique\/stray\.txt/);
+  mutated((base)=>{ mkdirSync(resolve(base,`${agentFixtures}/other-suite`)); writeFileSync(resolve(base,`${agentFixtures}/other-suite/x.json`),'{}\n'); },/Unexpected agent fixture: fixtures\/agent-results\/other-suite\/x\.json/);
+});
+test('a case links only responses that exist, in its own suite',()=>{
+  mutated((base)=>editJson(base,criticCases,(value)=>{ value.cases[0].recorded_responses = [`${agentFixtures}/strategy-critique/missing.json`]; }),/untracked recorded response fixtures\/agent-results\/strategy-critique\/missing\.json/);
+  mutated((base)=>editJson(base,criticCases,(value)=>{ value.cases[0].recorded_responses = [`${agentFixtures}/strategy-formulation/valid-revision-entry.json`]; }),/references a response of another suite/);
+  mutated((base)=>editJson(base,criticCases,(value)=>{ value.cases[0].recorded_responses = ['packages/agents/README.md']; }),/untracked recorded response packages\/agents\/README\.md/);
 });
 
 // S0: Rust verification, fixtures and protocol rules.
@@ -897,7 +1029,7 @@ const contractsManifest = 'packages/api-contracts/ts/package.json';
 function workspaceMutation(change: (directory: string) => void, expected: RegExp) {
   const temporary = mkdtempSync(resolve(tmpdir(),'openquant-workspace-'));
   try {
-    const kept = (file: string) => file.startsWith('packages/api-contracts/ts/') || file.startsWith('apps/api/') || file.startsWith('scripts/workspace/') || ['package.json','pnpm-workspace.yaml','tsconfig.base.json','biome.json'].includes(file);
+    const kept = (file: string) => file.startsWith('packages/api-contracts/ts/') || file.startsWith('apps/api/') || file.startsWith('packages/agents/') || file.startsWith('scripts/workspace/') || ['package.json','pnpm-workspace.yaml','tsconfig.base.json','biome.json'].includes(file);
     for (const file of paths(root).filter(kept)) { mkdirSync(resolve(temporary,file,'..'),{recursive:true}); copyFileSync(resolve(root,file),resolve(temporary,file)); }
     assert.deepEqual(workspaceErrors(temporary,new Set(paths(temporary))),[],'the small copy passes before the change');
     change(temporary);
@@ -961,8 +1093,10 @@ test('C8: test sources cannot skip, focus or postpone a test, and sources cannot
 
 // C9 and U0: the workspace packages and the workspace test files are literal lists in scripts/s0.ts.
 test('C9: the reviewer\'s empty workspace fails: pnpm-workspace.yaml must list exactly the expected packages',()=>{
-  mutated((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - packages/api-contracts/ts\n','  - packages/none-yet\n')),/pnpm-workspace\.yaml must list exactly these packages, one per line, in this order: packages\/api-contracts\/ts, apps\/api; found packages\/none-yet, apps\/api/);
-  workspaceMutation((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - packages/api-contracts/ts\n','  - packages/api-contracts/ts\n  - packages/agents\n')),/found packages\/api-contracts\/ts, packages\/agents, apps\/api/);
+  mutated((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - packages/api-contracts/ts\n','  - packages/none-yet\n')),/pnpm-workspace\.yaml must list exactly these packages, one per line, in this order: packages\/api-contracts\/ts, apps\/api, packages\/agents; found packages\/none-yet, apps\/api, packages\/agents/);
+  workspaceMutation((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - apps/api\n','  - packages/agents\n  - apps/api\n')),/found packages\/api-contracts\/ts, packages\/agents, apps\/api, packages\/agents/);
+  workspaceMutation((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - packages/agents\n','  - packages/agents\n  - packages/other\n')),/found packages\/api-contracts\/ts, apps\/api, packages\/agents, packages\/other/);
+  workspaceMutation((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - packages/agents\n','')),/found packages\/api-contracts\/ts, apps\/api$/);
   workspaceMutation((base)=>editJson(base,contractsManifest,(value)=>{ value.name = '@openquant/other'; }),/package\.json must be named @openquant\/api-contracts/);
   assert.equal(workspacePackageList('packages: [packages/api-contracts/ts]\n'),undefined);
   assert.deepEqual(workspacePackageList('# list\npackages:\n  # one\n  - a\n\n  - b\nother: x\n  - c\n'),['a','b']);

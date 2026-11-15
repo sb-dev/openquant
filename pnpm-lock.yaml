@@ -46,6 +46,28 @@ importers:
         specifier: 5.1.0
         version: 5.1.0(@types/node@24.19.2)(vite@8.3.8(@types/node@24.19.2)(esbuild@0.28.2)(yaml@2.9.1))
 
+  packages/agents:
+    dependencies:
+      '@openquant/api-contracts':
+        specifier: workspace:*
+        version: link:../api-contracts/ts
+    devDependencies:
+      '@types/node':
+        specifier: 24.19.2
+        version: 24.19.2
+      ajv:
+        specifier: 8.20.0
+        version: 8.20.0
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.1.0
+        version: 5.1.0(@types/node@24.19.2)(vite@8.3.8(@types/node@24.19.2)(esbuild@0.28.2)(yaml@2.9.1))
+
   packages/api-contracts/ts:
     devDependencies:
       '@types/node':

@@ -1,0 +1,86 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-formulation",
+  "id": "operator-outside-set",
+  "purpose": "A revision that replaces the simple mean of the trend filter with an exponential mean, an operator outside the permitted set. The declared change is exact, so parsing completes with the OPERATOR_NOT_PERMITTED blocker at the operator; the Rust core would reject it as UNSUPPORTED_OPERATOR.",
+  "covers": [
+    "unsupported_operator"
+  ],
+  "request": {
+    "subject": {
+      "proposal_kind": "controlled_revision",
+      "parent": {
+        "seed": "seed-1-rsi30-breakeven-off"
+      }
+    },
+    "evidence": [
+      {
+        "id": "ev-d-finding-1",
+        "kind": "finding",
+        "content": "Development-window per-stock finding: seed entries often followed a decision bar that closed below the previous close on heavy volume."
+      }
+    ]
+  },
+  "response": {
+    "schema_version": "strategy-formulation.result/1",
+    "proposal_kind": "controlled_revision",
+    "parent_hash": {
+      "$digest_of": {
+        "seed": "seed-1-rsi30-breakeven-off"
+      }
+    },
+    "strategy": {
+      "$strategy": {
+        "seed": "seed-1-rsi30-breakeven-off",
+        "edits": [
+          {
+            "op": "replace",
+            "path": "/definition/indicators/0/expr/op",
+            "value": "operator:ema@1"
+          }
+        ]
+      }
+    },
+    "source_refs": [
+      "ev-d-finding-1"
+    ],
+    "rule_changes": [
+      {
+        "path": "/definition/indicators/0/expr/op",
+        "from": "operator:sma@1",
+        "to": "operator:ema@1"
+      }
+    ],
+    "claims": {
+      "rationale": "The recorded weakness threshold admits entries that the development-window finding describes.",
+      "expected_effect": "Entries change in the direction of the finding; evaluation can contradict this, so an adverse or inconclusive comparison against the parent stays possible.",
+      "invalidation_conditions": [
+        "Signal and trade counts do not move in the stated direction against the parent in the development window."
+      ],
+      "requested_tests": [
+        "The registered comparison against the parent under the frozen policy."
+      ]
+    },
+    "unresolved": [],
+    "method_refs": []
+  },
+  "expect": {
+    "outcome": "completion",
+    "blockers": [
+      {
+        "code": "OPERATOR_NOT_PERMITTED",
+        "pointer": "/definition/indicators/0/expr/op"
+      }
+    ],
+    "revision": {
+      "scope": "ENTRY",
+      "computed_changes": [
+        {
+          "path": "/definition/indicators/0/expr/op",
+          "from": "operator:sma@1",
+          "to": "operator:ema@1"
+        }
+      ]
+    }
+  }
+}

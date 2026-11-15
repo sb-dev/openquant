@@ -1,0 +1,49 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-formulation",
+  "id": "valid-new-family",
+  "purpose": "A new family: no parent, no rule changes, built from permitted operators. It carries no source references.",
+  "covers": [
+    "valid_new_family"
+  ],
+  "request": {
+    "subject": {
+      "proposal_kind": "new_family"
+    },
+    "evidence": [
+      {
+        "id": "ev-d-finding-1",
+        "kind": "finding",
+        "content": "Development-window per-stock finding: seed entries often followed a decision bar that closed below the previous close on heavy volume."
+      }
+    ]
+  },
+  "response": {
+    "schema_version": "strategy-formulation.result/1",
+    "proposal_kind": "new_family",
+    "no_parent": true,
+    "strategy": {
+      "$strategy": {
+        "seed": "seed-5-rsi40-breakeven-off-data-only"
+      }
+    },
+    "source_refs": [],
+    "rule_changes": [],
+    "claims": {
+      "rationale": "A continuation idea built only from permitted operators; it draws on the exploration budget.",
+      "expected_effect": "A different entry timing from the seed family; evaluation can contradict this.",
+      "invalidation_conditions": [
+        "Signal and trade counts do not move in the stated direction against the parent in the development window."
+      ],
+      "requested_tests": [
+        "The registered comparison against the parent under the frozen policy."
+      ]
+    },
+    "unresolved": [],
+    "method_refs": []
+  },
+  "expect": {
+    "outcome": "completion",
+    "blockers": []
+  }
+}

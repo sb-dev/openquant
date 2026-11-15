@@ -1,0 +1,63 @@
+{
+  "label": "synthetic",
+  "suite": "strategy-critique",
+  "id": "source-uncertainty-no-executable-rule",
+  "purpose": "The same category with no affected definition element: the finding stays advisory under the policy.",
+  "covers": [
+    "category:source_uncertainty"
+  ],
+  "request": {
+    "subject": {
+      "artefact": {
+        "seed": "seed-2-rsi32-breakeven-off"
+      }
+    },
+    "evidence": [
+      {
+        "id": "ev-note-1",
+        "kind": "hypothesis",
+        "content": "Earlier hypothesis note: the weakness threshold of 32 admits entries that threshold 30 misses."
+      },
+      {
+        "id": "ev-required-manifest",
+        "kind": "source",
+        "content": "Dataset manifest of the frozen snapshot: coverage is complete through 2023-12-29."
+      }
+    ]
+  },
+  "required_evidence": [
+    "ev-required-manifest"
+  ],
+  "response": {
+    "schema_version": "strategy-critique.result/1",
+    "findings": [
+      {
+        "category": "source_uncertainty",
+        "description": "The rationale presents a method attribution as verified, although the supplied note records no check against a primary source.",
+        "method_refs": [],
+        "evidence_refs": [
+          "ev-note-1"
+        ],
+        "location": {
+          "area": "rationale"
+        },
+        "affected_elements": []
+      }
+    ]
+  },
+  "expect": {
+    "outcome": "completion",
+    "empty_is_not_pass": false,
+    "findings": [
+      {
+        "category": "source_uncertainty",
+        "area": "rationale",
+        "affected_elements": [],
+        "treatment": {
+          "DRAFT_TO_EVALUATING": "advisory",
+          "EVALUATING_TO_PAPER": "advisory"
+        }
+      }
+    ]
+  }
+}

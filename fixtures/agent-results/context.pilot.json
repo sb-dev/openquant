@@ -1,0 +1,30 @@
+{
+  "label": "synthetic",
+  "purpose": "The fixed context of the offline agent suites: the AAPL instrument mapping and information cutoff of the development window, the withheld validation and holdout windows of the pilot evaluation plan, and the frozen S1 pilot cohort policy by path. Every value is synthetic test data, not provider data.",
+  "scope": {
+    "instrument_id": "alpaca:11111111-2222-4333-8444-555555555555",
+    "symbol": "AAPL",
+    "provider": "alpaca",
+    "provider_asset_id": "11111111-2222-4333-8444-555555555555",
+    "effective_from": "2022-01-03"
+  },
+  "cutoff": "2023-12-29T23:00:00Z",
+  "provider_capabilities": [
+    "provider:alpaca/daily_bars@1",
+    "provider:alpaca/corporate_actions@1",
+    "provider:alpaca/calendar@1"
+  ],
+  "holdout_exclusions": [
+    {
+      "window": "VALIDATION",
+      "range": { "start": "2024-01-02", "end": "2024-12-31" },
+      "label": "historical window within model training period"
+    },
+    {
+      "window": "HOLDOUT",
+      "range": { "start": "2025-01-02", "end": "2025-12-31" },
+      "label": "historical window within model training period"
+    }
+  ],
+  "evaluation_policy_path": "fixtures/protocol/valid/cohort-policy.s1-pilot.json"
+}

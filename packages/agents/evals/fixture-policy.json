@@ -1,17 +1,104 @@
 {
   "synthetic": true,
-  "purpose": "Synthetic finding-treatment policy for offline pilot evaluation cases only. It is not a registered evaluation policy (OQ-02 §§3.1 and 3.6) and grants no gate, promotion or approval.",
+  "purpose": "Synthetic finding-treatment policy for offline pilot evaluation cases only. It is not a registered evaluation policy (OQ-02 §§3.1 and 3.6) and grants no gate, promotion or approval. Each category has one row per lifecycle transition, as the cohort policy has (OQ-02 §4). In S1 no category blocks DRAFT_TO_EVALUATING. EVALUATING_TO_PAPER keeps the rows of the earlier fixture policy, including the escalation conditions that the pilot cohort policy does not use, so that the offline cases exercise the escalation rule.",
+  "transitions": [
+    "DRAFT_TO_EVALUATING",
+    "EVALUATING_TO_PAPER"
+  ],
   "treatments": {
-    "hypothesis_assumption": { "default": "advisory" },
-    "data_quality_alignment": { "default": "blocking" },
-    "causal_leakage": { "default": "blocking" },
-    "execution_accounting_assumption": { "default": "blocking" },
-    "search_overfitting": { "default": "blocking" },
-    "policy_mismatch": { "default": "blocking" },
-    "portfolio_fit": { "default": "advisory" },
-    "operational_risk": { "default": "advisory" },
-    "source_uncertainty": { "default": "advisory", "escalate_when": ["affects_executable_rule"] },
-    "missing_evidence": { "default": "advisory", "escalate_when": ["required_evidence"] },
-    "method_advice": { "default": "advisory" }
+    "hypothesis_assumption": {
+      "DRAFT_TO_EVALUATING": {
+        "default": "advisory"
+      },
+      "EVALUATING_TO_PAPER": {
+        "default": "advisory"
+      }
+    },
+    "data_quality_alignment": {
+      "DRAFT_TO_EVALUATING": {
+        "default": "advisory"
+      },
+      "EVALUATING_TO_PAPER": {
+        "default": "blocking"
+      }
+    },
+    "causal_leakage": {
+      "DRAFT_TO_EVALUATING": {
+        "default": "advisory"
+      },
+      "EVALUATING_TO_PAPER": {
+        "default": "blocking"
+      }
+    },
+    "execution_accounting_assumption": {
+      "DRAFT_TO_EVALUATING": {
+        "default": "advisory"
+      },
+      "EVALUATING_TO_PAPER": {
+        "default": "blocking"
+      }
+    },
+    "search_overfitting": {
+      "DRAFT_TO_EVALUATING": {
+        "default": "advisory"
+      },
+      "EVALUATING_TO_PAPER": {
+        "default": "blocking"
+      }
+    },
+    "policy_mismatch": {
+      "DRAFT_TO_EVALUATING": {
+        "default": "advisory"
+      },
+      "EVALUATING_TO_PAPER": {
+        "default": "blocking"
+      }
+    },
+    "portfolio_fit": {
+      "DRAFT_TO_EVALUATING": {
+        "default": "advisory"
+      },
+      "EVALUATING_TO_PAPER": {
+        "default": "advisory"
+      }
+    },
+    "operational_risk": {
+      "DRAFT_TO_EVALUATING": {
+        "default": "advisory"
+      },
+      "EVALUATING_TO_PAPER": {
+        "default": "advisory"
+      }
+    },
+    "source_uncertainty": {
+      "DRAFT_TO_EVALUATING": {
+        "default": "advisory"
+      },
+      "EVALUATING_TO_PAPER": {
+        "default": "advisory",
+        "escalate_when": [
+          "affects_executable_rule"
+        ]
+      }
+    },
+    "missing_evidence": {
+      "DRAFT_TO_EVALUATING": {
+        "default": "advisory"
+      },
+      "EVALUATING_TO_PAPER": {
+        "default": "advisory",
+        "escalate_when": [
+          "required_evidence"
+        ]
+      }
+    },
+    "method_advice": {
+      "DRAFT_TO_EVALUATING": {
+        "default": "advisory"
+      },
+      "EVALUATING_TO_PAPER": {
+        "default": "advisory"
+      }
+    }
   }
 }

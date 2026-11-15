@@ -149,7 +149,9 @@
       ],
       "input": "Synthetic proposer response for a mission whose request carries a registered parent version and its hash. The output declares proposal_kind controlled_revision with a complete definition, rule_changes for one entry threshold, rationale, expected effect, invalidation conditions and requested tests, but omits both parent_hash and no_parent.",
       "frozen_context": "Request: registered parent hash, daily seed policy, frozen watchlist, cutoff, holdout exclusions for the withheld final segment, an evidence pack holding the parent version, and supplied method set KAUFMAN-17 and LDP-08. The response is synthetic and built for this case; no recorded dependency response exists.",
-      "recorded_responses": [],
+      "recorded_responses": [
+        "fixtures/agent-results/strategy-formulation/missing-parent-hash.json"
+      ],
       "permitted_tools": [],
       "expected": {
         "dispatch": "dispatched",
@@ -749,7 +751,9 @@
       ],
       "input": "Mission asks for a controlled revision of a registered seed-family version. One authorised per-stock finding selected for the context pack describes a member's price behaviour through sessions inside the final holdout that the frozen policy withholds.",
       "frozen_context": "Registered policy lists the final holdout segment in holdout exclusions; it is unconsumed. Evidence pack as selected: the parent version and hash plus the offending per-stock finding. Cutoff fixed. Supplied method set: KAUFMAN-19, ARONSON-11.",
-      "recorded_responses": [],
+      "recorded_responses": [
+        "fixtures/agent-results/strategy-formulation/holdout-evidence-overlap.json"
+      ],
       "permitted_tools": [],
       "expected": {
         "dispatch": "blocked_before_dispatch",

@@ -1,0 +1,30 @@
+{
+  "name": "@openquant/agents",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Proposer and critic role modules: static registry, request assembly, result parsing and the behaviour bundle",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "node tools/generate.ts",
+    "bundle:update": "node tools/update-manifest.ts",
+    "eval:fixture": "node tools/generate.ts && node dev/eval-fixtures.ts",
+    "typecheck": "node tools/generate.ts && tsc -p tsconfig.json && tsc -p tsconfig.test.json",
+    "lint": "biome check --error-on-warnings src test tools dev",
+    "test": "node tools/generate.ts && vitest run --reporter=default --reporter=./test-reporter.ts",
+    "build": "node tools/generate.ts && tsc -p tsconfig.json && node tools/bundle-check.ts"
+  },
+  "dependencies": {
+    "@openquant/api-contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "ajv": "8.20.0",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  }
+}
