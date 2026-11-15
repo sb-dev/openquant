@@ -1,0 +1,13 @@
+{
+  "id": "B-10",
+  "title": "A dividend on the buy session pays nothing; a later one pays on the shares held",
+  "kind": "benchmark",
+  "source": "s0:X-09a",
+  "covers": [
+    "no entitlement on the buy session"
+  ],
+  "input": "input.json",
+  "metric_scale": 6,
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

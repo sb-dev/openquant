@@ -1,0 +1,20 @@
+{
+  "id": "M-12",
+  "title": "A fixed fee of 19.90 and 0.05 bps on a capital of 4999.50",
+  "kind": "metrics",
+  "source": "s0:X-03",
+  "covers": [
+    "fee rounding",
+    "non-round capital"
+  ],
+  "context": {
+    "run_id": "run-s1-fixture",
+    "window": "DEVELOPMENT",
+    "scenario": "BASE",
+    "currency": "USD",
+    "metric_scale": 6
+  },
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "scored_check": "the engine's daily equity and positions value equal the S0 expectation"
+}

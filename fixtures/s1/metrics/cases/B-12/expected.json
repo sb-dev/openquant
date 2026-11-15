@@ -1,0 +1,18 @@
+{
+  "schema": "s1-metrics-expected/1",
+  "case": "B-12",
+  "origin": {
+    "kind": "oracle",
+    "oracle": "oracle.py",
+    "oracle_sha256": "8e515204bde1db71554ed15cd845f136bc5c46cb764280f76fb5ecdce861ad53",
+    "note": "Derived from the input with exact rational arithmetic."
+  },
+  "expect": {
+    "status": "INSUFFICIENT",
+    "reason_includes": [
+      "SD-1",
+      "2026-01-13",
+      "not supported"
+    ]
+  }
+}

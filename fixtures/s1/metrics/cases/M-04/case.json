@@ -1,0 +1,21 @@
+{
+  "id": "M-04",
+  "title": "Four closed trades: STOP, TARGET, GAP_STOP and GAP_TARGET",
+  "kind": "metrics",
+  "source": "s0:X-08",
+  "covers": [
+    "gap slippage",
+    "fixed fees summed",
+    "trade count"
+  ],
+  "context": {
+    "run_id": "run-s1-fixture",
+    "window": "DEVELOPMENT",
+    "scenario": "BASE",
+    "currency": "USD",
+    "metric_scale": 6
+  },
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "scored_check": "the engine's daily equity and positions value equal the S0 expectation"
+}

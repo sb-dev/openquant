@@ -1,0 +1,20 @@
+{
+  "id": "M-11",
+  "title": "A long run: 94 scored sessions, one position opened late and never closed",
+  "kind": "metrics",
+  "source": "s0:SEM-04",
+  "covers": [
+    "exposure over many sessions",
+    "open position at the end"
+  ],
+  "context": {
+    "run_id": "run-s1-fixture",
+    "window": "DEVELOPMENT",
+    "scenario": "BASE",
+    "currency": "USD",
+    "metric_scale": 6
+  },
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "scored_check": "the engine's daily equity and positions value equal the S0 expectation"
+}

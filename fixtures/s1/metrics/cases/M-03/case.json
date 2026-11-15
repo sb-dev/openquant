@@ -1,0 +1,22 @@
+{
+  "id": "M-03",
+  "title": "A split and a dividend inside the holding period, three trades, costs and withholding",
+  "kind": "metrics",
+  "source": "s0:R-01",
+  "covers": [
+    "split",
+    "dividend",
+    "costs",
+    "turnover over several round trips"
+  ],
+  "context": {
+    "run_id": "run-s1-fixture",
+    "window": "DEVELOPMENT",
+    "scenario": "BASE",
+    "currency": "USD",
+    "metric_scale": 6
+  },
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "scored_check": "the engine's daily equity and positions value equal the S0 expectation"
+}

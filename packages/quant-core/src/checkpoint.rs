@@ -7,7 +7,7 @@
 
 use std::collections::BTreeSet;
 
-use openquant_contracts::generated as g;
+use openquant_contracts::{digest_bytes, generated as g};
 
 use crate::{
     data::ActionKind,
@@ -164,6 +164,40 @@ impl Run {
         })
     }
 
+    /// Restore state from the stored bytes of a checkpoint, after checking their content hash.
+    ///
+    /// The Worker stores a checkpoint by content hash and never parses it (OQ-05 section 7).
+    /// The batch host that fetches it checks the hash first, because the consistency checks of
+    /// `restore` cannot detect an edit that keeps the state consistent. A body whose digest is
+    /// not `expected` is never parsed, so a damaged body, a truncated one, one whose whitespace
+    /// changed and one that is a different checkpoint all stop here. Only then does the strict
+    /// parse and `restore` run.
+    ///
+    /// # Errors
+    /// `CHECKPOINT_MISMATCH` when the digest of `bytes` is not `expected`. The failure code of the
+    /// contract layer (`SCHEMA_VIOLATION` for bytes that are not UTF-8 or not a checkpoint,
+    /// `INVALID_DECIMAL`, `UNSUPPORTED_SCHEMA_VERSION`) for a body whose hash matches and whose
+    /// content is not a valid checkpoint. Then every error of [`Run::restore`].
+    pub fn restore_stored(&self, bytes: &[u8], expected: &str) -> Result<State> {
+        let actual = digest_bytes(bytes);
+        if actual != expected {
+            return Err(Failure::new(
+                FailureCode::CheckpointMismatch,
+                format!(
+                    "stored checkpoint content hash {actual} differs from the expected {expected}"
+                ),
+            ));
+        }
+        let text = std::str::from_utf8(bytes).map_err(|_| {
+            Failure::new(
+                FailureCode::SchemaViolation,
+                "stored checkpoint is not UTF-8 text".to_owned(),
+            )
+        })?;
+        let checkpoint: g::Checkpoint = openquant_contracts::parse(text)?;
+        self.restore(&checkpoint)
+    }
+
     /// Restore state from a checkpoint after checking every bound identity.
     ///
     /// # Errors
@@ -285,7 +319,7 @@ impl Run {
     /// intermediate ledger lines, fills and signal records, and the daily positions. A checkpoint whose
     /// edits keep all of the above consistent is not detected here. Beyond these consistency
     /// checks, integrity of a stored checkpoint relies on the content hash it is stored with
-    /// (docs/specs/05, R2), which is not part of S0.
+    /// (docs/specs/05, R2). [`Run::restore_stored`] checks that hash before it parses the bytes.
     fn validate_state(&self, state: &State) -> Result<()> {
         let (cursor_index, phase) = match &state.next {
             Some(cursor) => (

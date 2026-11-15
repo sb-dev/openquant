@@ -1,0 +1,13 @@
+{
+  "id": "B-12",
+  "title": "An unsupported corporate action makes the benchmark unavailable",
+  "kind": "benchmark",
+  "source": "s0:C-06",
+  "covers": [
+    "unsupported action"
+  ],
+  "input": "s0:C-06",
+  "metric_scale": 6,
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

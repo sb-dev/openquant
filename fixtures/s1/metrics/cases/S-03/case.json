@@ -1,0 +1,12 @@
+{
+  "id": "S-03",
+  "title": "The first scored session loses: the drawdown peak is the initial capital",
+  "kind": "series",
+  "covers": [
+    "first-session loss",
+    "peak includes E0"
+  ],
+  "series": "series.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "S-05",
+  "title": "Exposure as a mean of 1/3, 1/6 and 1/7",
+  "kind": "series",
+  "covers": [
+    "non-terminating exposure"
+  ],
+  "series": "series.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "S-06b",
+  "title": "Half-even rounding at a tie of the sixth digit",
+  "kind": "series",
+  "covers": [
+    "half-even tie"
+  ],
+  "series": "series.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

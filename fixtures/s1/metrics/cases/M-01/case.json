@@ -1,0 +1,23 @@
+{
+  "id": "M-01",
+  "title": "A winning run: one TARGET trade under a fixed fee",
+  "kind": "metrics",
+  "source": "s0:X-09a",
+  "covers": [
+    "winning run",
+    "fees",
+    "drawdown",
+    "exposure",
+    "buy-and-hold"
+  ],
+  "context": {
+    "run_id": "run-s1-fixture",
+    "window": "DEVELOPMENT",
+    "scenario": "BASE",
+    "currency": "USD",
+    "metric_scale": 6
+  },
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "scored_check": "the engine's daily equity and positions value equal the S0 expectation"
+}

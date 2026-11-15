@@ -4,13 +4,17 @@
 //! One validator and one evaluator serve every Strategy Definition. Threshold and break-even
 //! variants are differences in the definitions, never in this code.
 
+pub mod audit;
+pub mod benchmark;
 mod checkpoint;
 pub mod data;
+pub mod exact;
 pub mod execution;
 pub mod format;
 pub mod identity;
 mod insufficient;
 pub mod interfaces;
+pub mod metrics;
 pub mod model;
 pub mod numeric;
 pub mod operators;

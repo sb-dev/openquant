@@ -1,0 +1,63 @@
+{
+  "schema": "s1-metrics-expected/1",
+  "case": "M-09",
+  "origin": {
+    "kind": "oracle",
+    "oracle": "oracle.py",
+    "oracle_sha256": "8e515204bde1db71554ed15cd845f136bc5c46cb764280f76fb5ecdce861ad53",
+    "note": "Derived from the S0 journal of the case with exact rational arithmetic."
+  },
+  "expect": {
+    "window": {
+      "start": "2026-01-08",
+      "end": "2026-01-16"
+    },
+    "strategy": {
+      "net_return": "0.026400",
+      "max_drawdown": "0.000000",
+      "worst_session_return": "0.000000",
+      "turnover": "0.583200",
+      "trade_count": 1,
+      "scored_session_count": 7,
+      "fees": "3.00",
+      "gap_slippage": "0.00",
+      "total_cost": "3.00",
+      "exposure": "0.112364"
+    },
+    "benchmarks": {
+      "buy_and_hold": {
+        "status": "COMPUTED",
+        "entry_session": "2026-01-08",
+        "quantity": "49",
+        "net_return": "0.166400",
+        "max_drawdown": "0.000200",
+        "excess_return": "-0.140000"
+      },
+      "cash": {
+        "net_return": "0.000000",
+        "excess_return": "0.026400"
+      }
+    },
+    "outcome": "COMPLETED",
+    "series": {
+      "equity": [
+        "5000.00",
+        "5000.00",
+        "5026.00",
+        "5053.00",
+        "5079.00",
+        "5105.00",
+        "5132.00"
+      ],
+      "positions_value": [
+        "0.00",
+        "0.00",
+        "945.00",
+        "972.00",
+        "0.00",
+        "1026.00",
+        "1053.00"
+      ]
+    }
+  }
+}

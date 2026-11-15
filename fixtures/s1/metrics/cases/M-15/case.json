@@ -1,0 +1,19 @@
+{
+  "id": "M-15",
+  "title": "Ratio scale 0: every ratio rounds to a whole number and never to -0",
+  "kind": "metrics",
+  "source": "s0:X-08",
+  "covers": [
+    "metric_scale 0"
+  ],
+  "context": {
+    "run_id": "run-s1-fixture",
+    "window": "DEVELOPMENT",
+    "scenario": "BASE",
+    "currency": "USD",
+    "metric_scale": 0
+  },
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "scored_check": "the engine's daily equity and positions value equal the S0 expectation"
+}

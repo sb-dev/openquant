@@ -1,0 +1,20 @@
+{
+  "id": "M-05",
+  "title": "A gap-through-stop exit with a fee in basis points",
+  "kind": "metrics",
+  "source": "s0:X-05",
+  "covers": [
+    "gap slippage reconstructed against the open",
+    "fee rounding up"
+  ],
+  "context": {
+    "run_id": "run-s1-fixture",
+    "window": "DEVELOPMENT",
+    "scenario": "BASE",
+    "currency": "USD",
+    "metric_scale": 6
+  },
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "scored_check": "the engine's daily equity and positions value equal the S0 expectation"
+}

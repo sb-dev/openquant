@@ -1,0 +1,21 @@
+{
+  "id": "M-08",
+  "title": "A dividend paid at the ex-date before the open, a closed trade and a re-entry",
+  "kind": "metrics",
+  "source": "s0:C-04a",
+  "covers": [
+    "dividend payment",
+    "re-entry",
+    "open position at the end"
+  ],
+  "context": {
+    "run_id": "run-s1-fixture",
+    "window": "DEVELOPMENT",
+    "scenario": "BASE",
+    "currency": "USD",
+    "metric_scale": 6
+  },
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "scored_check": "the engine's daily equity and positions value equal the S0 expectation"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "M-02",
+  "title": "A losing run: one STOP trade, whose loss is also the worst session and the drawdown",
+  "kind": "metrics",
+  "source": "s0:X-09b",
+  "covers": [
+    "losing run",
+    "negative return"
+  ],
+  "context": {
+    "run_id": "run-s1-fixture",
+    "window": "DEVELOPMENT",
+    "scenario": "BASE",
+    "currency": "USD",
+    "metric_scale": 6
+  },
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "scored_check": "the engine's daily equity and positions value equal the S0 expectation"
+}

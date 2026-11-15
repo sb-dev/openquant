@@ -1,0 +1,11 @@
+{
+  "id": "S-07a",
+  "title": "Ratio scale 12",
+  "kind": "series",
+  "covers": [
+    "scale 12"
+  ],
+  "series": "series.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

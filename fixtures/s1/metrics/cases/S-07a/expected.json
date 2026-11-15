@@ -1,0 +1,16 @@
+{
+  "schema": "s1-metrics-expected/1",
+  "case": "S-07a",
+  "origin": {
+    "kind": "oracle",
+    "oracle": "oracle.py",
+    "oracle_sha256": "8e515204bde1db71554ed15cd845f136bc5c46cb764280f76fb5ecdce861ad53",
+    "note": "Derived from the series with exact rational arithmetic."
+  },
+  "expect": {
+    "net_return": "0.333333333333",
+    "max_drawdown": "0.000000000000",
+    "worst_session_return": "0.333333333333",
+    "exposure": "0.250000000000"
+  }
+}

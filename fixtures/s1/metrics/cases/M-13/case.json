@@ -1,0 +1,19 @@
+{
+  "id": "M-13",
+  "title": "A gap-stop exit in a 64-session run",
+  "kind": "metrics",
+  "source": "s0:DEF-02-v4",
+  "covers": [
+    "gap slippage in a long run"
+  ],
+  "context": {
+    "run_id": "run-s1-fixture",
+    "window": "DEVELOPMENT",
+    "scenario": "BASE",
+    "currency": "USD",
+    "metric_scale": 6
+  },
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "scored_check": "the engine's daily equity and positions value equal the S0 expectation"
+}

@@ -1,0 +1,18 @@
+{
+  "initial_capital": "300",
+  "metric_scale": 6,
+  "points": [
+    {
+      "equity": "300",
+      "positions_value": "100"
+    },
+    {
+      "equity": "600",
+      "positions_value": "100"
+    },
+    {
+      "equity": "700",
+      "positions_value": "100"
+    }
+  ]
+}

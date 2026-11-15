@@ -1,0 +1,16 @@
+{
+  "schema": "s1-metrics-expected/1",
+  "case": "B-09",
+  "origin": {
+    "kind": "oracle",
+    "oracle": "oracle.py",
+    "oracle_sha256": "8e515204bde1db71554ed15cd845f136bc5c46cb764280f76fb5ecdce861ad53",
+    "note": "Derived from the input with exact rational arithmetic."
+  },
+  "expect": {
+    "status": "INSUFFICIENT",
+    "reason_includes": [
+      "no session of the scored window has a bar"
+    ]
+  }
+}

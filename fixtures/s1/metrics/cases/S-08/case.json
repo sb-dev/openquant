@@ -1,0 +1,12 @@
+{
+  "id": "S-08",
+  "title": "250 sessions: exposure over a denominator far beyond 128 bits",
+  "kind": "series",
+  "covers": [
+    "bignum exposure",
+    "250 sessions"
+  ],
+  "series": "series.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

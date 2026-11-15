@@ -1,0 +1,11 @@
+{
+  "id": "S-02",
+  "title": "A flat series: no return, no drawdown, no move",
+  "kind": "series",
+  "covers": [
+    "flat series"
+  ],
+  "series": "series.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

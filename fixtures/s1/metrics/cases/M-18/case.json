@@ -1,0 +1,19 @@
+{
+  "id": "M-18",
+  "title": "An INSUFFICIENT outcome (unsupported valuation) has no metrics",
+  "kind": "metrics",
+  "source": "s0:I-07",
+  "covers": [
+    "INSUFFICIENT outcome",
+    "halt"
+  ],
+  "context": {
+    "run_id": "run-s1-fixture",
+    "window": "DEVELOPMENT",
+    "scenario": "BASE",
+    "currency": "USD",
+    "metric_scale": 6
+  },
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

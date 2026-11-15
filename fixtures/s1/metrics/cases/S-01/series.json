@@ -1,0 +1,34 @@
+{
+  "initial_capital": "100",
+  "metric_scale": 6,
+  "points": [
+    {
+      "equity": "110",
+      "positions_value": "0"
+    },
+    {
+      "equity": "99",
+      "positions_value": "0"
+    },
+    {
+      "equity": "110",
+      "positions_value": "0"
+    },
+    {
+      "equity": "99",
+      "positions_value": "0"
+    },
+    {
+      "equity": "120",
+      "positions_value": "0"
+    },
+    {
+      "equity": "108",
+      "positions_value": "0"
+    },
+    {
+      "equity": "120",
+      "positions_value": "0"
+    }
+  ]
+}

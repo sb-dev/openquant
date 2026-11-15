@@ -142,7 +142,7 @@ const MAX_LOT_STEPS: usize = 8;
 ///
 /// The fee rounds up, so the cost is monotone in the quantity. A division estimates the answer;
 /// exact checks then move it to the true maximum, so a rounded quotient cannot change the lot.
-fn quantity_for(run: &Run, cap: Decimal, open: Decimal) -> Result<Decimal> {
+pub(crate) fn quantity_for(run: &Run, cap: Decimal, open: Decimal) -> Result<Decimal> {
     let policy = &run.input.policy;
     let lot = policy.lot_size;
     let budget = exact_sub(cap, policy.fixed_fee)?;
