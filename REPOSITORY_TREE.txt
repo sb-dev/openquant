@@ -2141,7 +2141,6 @@ fixtures/s1/metrics/cases/S-08/case.json
 fixtures/s1/metrics/cases/S-08/derivation.md
 fixtures/s1/metrics/cases/S-08/expected.json
 fixtures/s1/metrics/cases/S-08/series.json
-fixtures/s1/metrics/oracle/__pycache__/oracle.cpython-313.pyc
 fixtures/s1/metrics/oracle/oracle.py
 fixtures/s1/metrics/policies/offline-pass.json
 infra/README.md

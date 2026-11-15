@@ -1,6 +1,6 @@
 # Shared Rust numerical library
 
-Status: S0 implemented — offline seed evaluation on synthetic data. S1 adds the derived evidence of one run and one candidate: exact metrics, the buy-and-hold benchmark, the two audits, the cohort gates, lineage and the stored-checkpoint hash check, under a separate method identity. Crate `openquant-core`. The connected competition is not implemented: no job, route or service calls this evidence yet. Joint watchlist evaluation (S4) and live execution are not implemented.
+Status: S0 implemented — offline seed evaluation on synthetic data. S1 adds the derived evidence of one run and one candidate: exact metrics, the buy-and-hold benchmark, the two audits, the cohort gates, lineage and the stored-checkpoint hash check, under a separate method identity. Crate `openquant-core`. The `engine-batch` jobs in `apps/engine` call this evidence. The connected competition is not implemented. Joint watchlist evaluation (S4) and live execution are not implemented.
 
 Signals, simulation, accounting, portfolio, risk, and metrics. This is a library, not a set of separate services. Verify numerical semantics using independent fixtures.
 

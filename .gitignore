@@ -6,6 +6,8 @@ coverage/
 .turbo/
 *.tsbuildinfo
 .cache/
+__pycache__/
+*.pyc
 .wrangler/
 .DS_Store
 *.log
