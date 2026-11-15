@@ -172,8 +172,7 @@ export class FakeApi implements ApiClient {
         schema_version: 'attempt-claim/1',
         form: 'grant',
         attempt: request.attempt,
-        granted_at: '2026-11-15T10:00:00Z',
-        lease_expires_at: '2026-11-15T10:20:00Z',
+        ...leaseFromNow(),
         capability: { token: CAPABILITY },
       },
     };
@@ -415,4 +414,11 @@ export function isAlive(pid: number): boolean {
   } catch {
     return true;
   }
+}
+
+/** A lease granted now for twenty minutes: the runner ends an attempt at its lease, so a fixed date would expire. */
+export function leaseFromNow(): { granted_at: string; lease_expires_at: string } {
+  const now = Date.now();
+  const stamp = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
+  return { granted_at: stamp(now), lease_expires_at: stamp(now + 20 * 60_000) };
 }

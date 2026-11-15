@@ -5,7 +5,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from 'node:net';
 import { canonicalJson, parseContract } from '@openquant/api-contracts';
 import { sha256Bytes } from '../../src/text.ts';
-import { API_TOKEN, CAPABILITY } from './world.ts';
+import { API_TOKEN, CAPABILITY, leaseFromNow } from './world.ts';
 
 export interface Seen {
   readonly method: string;
@@ -100,8 +100,7 @@ export async function startControlApi(): Promise<ControlApi> {
           schema_version: 'attempt-claim/1',
           form: 'grant',
           attempt: parsed.value.attempt,
-          granted_at: '2026-11-15T10:00:00Z',
-          lease_expires_at: '2026-11-15T10:20:00Z',
+          ...leaseFromNow(),
           capability: { token: CAPABILITY },
         }),
         { 'content-type': 'application/json' },
