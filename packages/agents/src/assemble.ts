@@ -34,7 +34,9 @@ export type RefusalCode =
   | 'DUPLICATE_EVIDENCE_ID'
   | 'PARENT_HASH_MISMATCH'
   | 'STRATEGY_HASH_MISMATCH'
-  | 'EVIDENCE_NOT_PERMITTED';
+  | 'EVIDENCE_NOT_PERMITTED'
+  | 'REQUEST_NOT_CANONICAL'
+  | 'METHODS_MISMATCH';
 
 export interface Refusal {
   readonly code: RefusalCode;
@@ -140,6 +142,45 @@ async function finish<R>(
   };
 }
 
+async function formulationRefusals(parsed: StrategyFormulationRequest): Promise<Refusal[]> {
+  const refusals = sharedRefusals(parsed.context, parsed.evidence_refs);
+  const { subject } = parsed;
+  if (subject.proposal_kind === 'controlled_revision') {
+    const actual = await digest(asJson(subject.parent));
+    if (actual !== subject.parent_hash) {
+      refusals.push({
+        code: 'PARENT_HASH_MISMATCH',
+        detail: 'parent_hash is not the digest of the registered parent artefact',
+        pointer: '/subject/parent_hash',
+      });
+    }
+  }
+  return refusals;
+}
+
+async function critiqueRefusals(parsed: StrategyCritiqueRequest): Promise<Refusal[]> {
+  const refusals = sharedRefusals(parsed.context, parsed.evidence_refs);
+  const actual = await digest(asJson(parsed.subject.strategy));
+  if (actual !== parsed.subject.strategy_hash) {
+    refusals.push({
+      code: 'STRATEGY_HASH_MISMATCH',
+      detail:
+        'strategy_hash is not the digest of the registered strategy artefact; an unregistered draft is never critiqued',
+      pointer: '/subject/strategy_hash',
+    });
+  }
+  parsed.evidence_refs.forEach((item, index) => {
+    if (item.kind === 'evaluation_metrics') {
+      refusals.push({
+        code: 'EVIDENCE_NOT_PERMITTED',
+        detail: `evidence ${item.id} holds evaluation metrics; critique precedes evaluation`,
+        pointer: `/evidence_refs/${index}/kind`,
+      });
+    }
+  });
+  return refusals;
+}
+
 /**
  * Assemble the request of the proposer. `supplied_methods` comes from the bundle module, never from the caller: the
  * baseline bundle supplies none. A controlled revision names the registered parent by the digest of its artefact.
@@ -158,21 +199,7 @@ export async function assembleFormulationRequest(
     'strategy-formulation.request',
     'strategy-formulation',
     request,
-    async (parsed) => {
-      const refusals = sharedRefusals(parsed.context, parsed.evidence_refs);
-      const { subject } = parsed;
-      if (subject.proposal_kind === 'controlled_revision') {
-        const actual = await digest(asJson(subject.parent));
-        if (actual !== subject.parent_hash) {
-          refusals.push({
-            code: 'PARENT_HASH_MISMATCH',
-            detail: 'parent_hash is not the digest of the registered parent artefact',
-            pointer: '/subject/parent_hash',
-          });
-        }
-      }
-      return refusals;
-    },
+    formulationRefusals,
   );
 }
 
@@ -189,26 +216,76 @@ export async function assembleCritiqueRequest(input: CritiqueInput): Promise<Ass
     evidence_refs: input.evidence,
     supplied_methods: SUPPLIED_METHODS,
   };
-  return finish<StrategyCritiqueRequest>('strategy-critique.request', 'strategy-critique', request, async (parsed) => {
-    const refusals = sharedRefusals(parsed.context, parsed.evidence_refs);
-    const actual = await digest(asJson(parsed.subject.strategy));
-    if (actual !== parsed.subject.strategy_hash) {
-      refusals.push({
-        code: 'STRATEGY_HASH_MISMATCH',
-        detail:
-          'strategy_hash is not the digest of the registered strategy artefact; an unregistered draft is never critiqued',
-        pointer: '/subject/strategy_hash',
-      });
-    }
-    parsed.evidence_refs.forEach((item, index) => {
-      if (item.kind === 'evaluation_metrics') {
-        refusals.push({
-          code: 'EVIDENCE_NOT_PERMITTED',
-          detail: `evidence ${item.id} holds evaluation metrics; critique precedes evaluation`,
-          pointer: `/evidence_refs/${index}/kind`,
-        });
-      }
+  return finish<StrategyCritiqueRequest>('strategy-critique.request', 'strategy-critique', request, critiqueRefusals);
+}
+
+function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
+  return left.byteLength === right.byteLength && left.every((byte, index) => byte === right[index]);
+}
+
+interface RequestOf {
+  readonly 'strategy-formulation.request': StrategyFormulationRequest;
+  readonly 'strategy-critique.request': StrategyCritiqueRequest;
+}
+
+export type RequestContractName = keyof RequestOf;
+
+/**
+ * Check a stored request the way assembly would have built it. The runner calls this on the artefact that the
+ * dispatch names: the host that executes a request does not trust that an earlier step assembled it. The request
+ * must satisfy its schema, be the canonical text that assembly writes, carry the supplied methods of the bundle module
+ * and nothing else, and pass every refusal of assembly: holdout exclusions that name V and H, the operators of the
+ * frozen policy, unique evidence ids, no date inside a withheld window in the evidence, the digest of the registered
+ * parent or subject, and no run metrics for the critic. A refusal is a value.
+ */
+export async function verifyRequest<C extends RequestContractName>(
+  contract: C,
+  bytes: Uint8Array,
+): Promise<Assembly<RequestOf[C]>> {
+  const skill = contract === 'strategy-formulation.request' ? 'strategy-formulation' : 'strategy-critique';
+  const limit = skillEntry(skill)?.limits.request_bytes ?? 0;
+  if (bytes.byteLength > limit) {
+    return refuse({
+      code: 'REQUEST_TOO_LARGE',
+      detail: `the request is ${bytes.byteLength} bytes; the limit is ${limit}`,
     });
-    return refusals;
-  });
+  }
+  const parsed = parseRole(contract, bytes);
+  if (!parsed.ok) return refuse({ code: 'REQUEST_INVALID', detail: parsed.diagnostic });
+  const request = parsed.value as RequestOf[C];
+  const refusals: Refusal[] = [];
+  let text: string | undefined;
+  try {
+    text = canonicalJson(request);
+  } catch (error) {
+    if (!(error instanceof CanonicalError)) throw error;
+    refusals.push({ code: 'REQUEST_INVALID', detail: error.message });
+  }
+  if (text !== undefined && !sameBytes(utf8Bytes(text), bytes)) {
+    refusals.push({
+      code: 'REQUEST_NOT_CANONICAL',
+      detail: 'the stored request is not the canonical text that request assembly writes',
+    });
+  }
+  if (!jsonEqual(request.supplied_methods, SUPPLIED_METHODS)) {
+    refusals.push({
+      code: 'METHODS_MISMATCH',
+      detail: 'the request supplies other methods than the behaviour bundle supplies',
+      pointer: '/supplied_methods',
+    });
+  }
+  refusals.push(
+    ...(contract === 'strategy-formulation.request'
+      ? await formulationRefusals(request as StrategyFormulationRequest)
+      : await critiqueRefusals(request as StrategyCritiqueRequest)),
+  );
+  if (refusals.length > 0 || text === undefined) return { ok: false, refusals };
+  return {
+    ok: true,
+    request,
+    text,
+    artefact: { digest: await digestBytes(bytes), media_type: 'application/json', size_bytes: bytes.byteLength },
+    instructions: PROCEDURES[skill],
+    bundle_hash: BUNDLE_HASH,
+  };
 }

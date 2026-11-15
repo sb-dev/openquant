@@ -2,8 +2,12 @@
 // OQ-05 section 4).
 //
 // The attempt is already claimed when it gets here. In order: execution enabled, the installed bundle, the pinned
-// executor version, the request artefact (its digest, its schema and the dispatch checks that the envelope cannot
-// make), the executor, the shared validator on its output, the upload of the validated role output, and the result.
+// executor version, the request artefact (its digest, then the request checks of assembly in `@openquant/agents`:
+// schema, canonical text, supplied methods, holdout exclusions that name V and H, operators of the frozen policy,
+// evidence and hashes; then the dispatch checks that the envelope cannot make), the executor, the shared validator on
+// its output (references, exact rule changes, and the two blockers that the host does not accept: an operator
+// outside the permitted set and a date inside a withheld window), the upload of the validated role output, and the
+// result.
 //
 // What is left for fencing and retry: a runner failure is not an execution outcome (OQ-03 section 5). When the
 // runner cannot read the request, cannot upload, loses its lease, or hits an internal error, it posts nothing and the
@@ -14,13 +18,13 @@ import {
   checkDispatch,
   type DispatchViolation,
   parseCritiqueResult,
-  parseFormulationResult,
-  parseRole,
+  parseFormulationForHost,
   RESULT_SCHEMAS,
   ROLE_BODY_LIMIT,
   type StrategyCritiqueRequest,
   type StrategyFormulationRequest,
   skillEntry,
+  verifyRequest,
 } from '@openquant/agents';
 import {
   type AgentAttemptResult,
@@ -203,10 +207,18 @@ export async function runAttempt(
     const contract = requestContractOf(dispatch);
     if (contract === undefined)
       return await deny('CAPABILITY_UNSUPPORTED', 'the dispatch names a request contract that no role module serves');
-    const parsed = parseRole(contract, bytes);
-    if (!parsed.ok)
-      return await deny('CAPABILITY_DENIED', `the request does not satisfy its schema: ${parsed.diagnostic}`);
-    const request = parsed.value as StrategyFormulationRequest | StrategyCritiqueRequest;
+    // The request is verified the way assembly would have built it: this host does not trust that an earlier step
+    // assembled the artefact that the API stored.
+    const verified = await verifyRequest(contract, bytes);
+    if (!verified.ok) {
+      const [refusal] = verified.refusals;
+      const more = verified.refusals.length > 1 ? ` (and ${verified.refusals.length - 1} more)` : '';
+      return await deny(
+        'CAPABILITY_DENIED',
+        `the stored request is not a request that assembly builds: ${refusal?.code}: ${refusal?.detail}${more}`,
+      );
+    }
+    const request: StrategyFormulationRequest | StrategyCritiqueRequest = verified.request;
     const violations = checkDispatch(dispatch, {
       request,
       artefact: { digest: actualDigest, media_type: MEDIA_TYPE, size_bytes: bytes.byteLength },
@@ -229,7 +241,7 @@ export async function runAttempt(
       timeoutMs: bounds.timeout_seconds * 1000,
       outputLimitBytes: bounds.output_limit_bytes,
       budgetUsd: bounds.cost_reservation.amount,
-      systemPrompt: instructionsFor(skill.id),
+      systemPrompt: instructionsFor(skill.id, verified.instructions),
       request: bytes,
       resultSchema: RESULT_SCHEMAS[skill.result_contract.replace(/\/1$/, '') as keyof typeof RESULT_SCHEMAS],
       signal,
@@ -244,7 +256,7 @@ export async function runAttempt(
     if (end.kind !== 'output') return { posted: false, why: 'internal_error', detail: 'unreachable execution end' };
     const validated =
       skill.id === 'strategy-formulation'
-        ? parseFormulationResult(request as StrategyFormulationRequest, end.text)
+        ? parseFormulationForHost(request as StrategyFormulationRequest, end.text)
         : parseCritiqueResult(request as StrategyCritiqueRequest, end.text);
     if (!validated.ok) {
       return await finish(

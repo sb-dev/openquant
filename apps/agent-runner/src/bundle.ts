@@ -18,11 +18,12 @@ export const MANIFEST_FILE = 'bundle.manifest.json';
  * The instructions of the executor for one role module: its procedure, and the result schema that the procedure's
  * Output section refers to, both from the built-in bundle module. The executor sees the schema in the prompt whether or
  * not the additional `--json-schema` guard is on, because the guard is not verified (README, spike). The text is a
- * function of the bundle alone, so the bundle hash binds it.
+ * function of the bundle alone, so the bundle hash binds it. The procedure is the one that request assembly returns
+ * with a verified request (`verifyRequest`), which reads the same bundle module; a test holds the two to each other.
  */
-export function instructionsFor(skill: keyof typeof PROCEDURES): string {
+export function instructionsFor(skill: keyof typeof PROCEDURES, procedure: string = PROCEDURES[skill]): string {
   const schema = RESULT_SCHEMAS[`${skill}.result`];
-  return `${PROCEDURES[skill].trimEnd()}
+  return `${procedure.trimEnd()}
 
 ## Result schema
 

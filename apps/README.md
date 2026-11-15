@@ -1,6 +1,6 @@
 # Applications
 
-Directories reserve ownership until their checkpoint. The agent runner is implemented for S1 and tested with a fake executor; nothing here is deployed.
+Directories reserve ownership until their checkpoint. The agent runner is implemented for S1 and tested with a fake executor, and its evaluation harness (`pnpm agents:eval`) refuses a real-model run without the owner's key and an explicit opt-in; nothing here is deployed.
 
 | Path | Purpose | First checkpoint |
 | --- | --- | --- |

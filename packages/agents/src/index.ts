@@ -24,6 +24,8 @@ export {
   type FormulationInput,
   type Refusal,
   type RefusalCode,
+  type RequestContractName,
+  verifyRequest,
 } from './assemble.ts';
 export {
   DIAGNOSTIC_LIMIT,
@@ -56,6 +58,8 @@ export {
   type Blocker,
   type BlockerCode,
   type FormulationParse,
+  HOST_REFUSED_BLOCKERS,
+  parseFormulationForHost,
   parseFormulationResult,
   type RevisionFacts,
 } from './parse-formulation.ts';

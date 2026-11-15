@@ -535,6 +535,7 @@ apps/agent-runner/src/runner.ts
 apps/agent-runner/src/server.ts
 apps/agent-runner/src/text.ts
 apps/agent-runner/test-reporter.ts
+apps/agent-runner/test/agents-eval.test.ts
 apps/agent-runner/test/api-client.test.ts
 apps/agent-runner/test/attempt.test.ts
 apps/agent-runner/test/bundle.test.ts
@@ -544,12 +545,15 @@ apps/agent-runner/test/config.test.ts
 apps/agent-runner/test/e2e.test.ts
 apps/agent-runner/test/executor.test.ts
 apps/agent-runner/test/hygiene.test.ts
+apps/agent-runner/test/outcomes.test.ts
 apps/agent-runner/test/process-tree.test.ts
 apps/agent-runner/test/runner.test.ts
 apps/agent-runner/test/server.test.ts
+apps/agent-runner/test/suites.test.ts
 apps/agent-runner/test/support/control-api.ts
 apps/agent-runner/test/support/fake-claude.mjs
 apps/agent-runner/test/support/world.ts
+apps/agent-runner/tools/agents-eval.ts
 apps/agent-runner/tools/bundle.ts
 apps/agent-runner/tsconfig.json
 apps/agent-runner/tsconfig.test.json
@@ -2284,6 +2288,7 @@ packages/agents/test/assemble.test.ts
 packages/agents/test/bundle.test.ts
 packages/agents/test/contract.test.ts
 packages/agents/test/dispatch.test.ts
+packages/agents/test/host-rules.test.ts
 packages/agents/test/leaf-diff.test.ts
 packages/agents/test/parse-critique.test.ts
 packages/agents/test/parse-formulation.test.ts

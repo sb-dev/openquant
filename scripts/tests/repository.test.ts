@@ -426,6 +426,17 @@ test('a case links only responses that exist, in its own suite',()=>{
   mutated((base)=>editJson(base,criticCases,(value)=>{ value.cases[0].recorded_responses = ['packages/agents/README.md']; }),/untracked recorded response packages\/agents\/README\.md/);
 });
 
+// The evaluation command `pnpm agents:eval` (OQ-06 section 7): the root script generates the bundle module, then runs the
+// harness of the agent runner, which is a tracked file. A change of the script, or no harness, fails the checks.
+test('the agents:eval root script runs the generator and then the tracked harness',()=>{
+  const script = 'node packages/agents/tools/generate.ts && node apps/agent-runner/tools/agents-eval.ts';
+  assert.equal(JSON.parse(readFileSync(resolve(root,'package.json'),'utf8')).scripts['agents:eval'],script);
+  assert.equal(expectedRootScripts['agents:eval'],script);
+  for (const file of ['packages/agents/tools/generate.ts','apps/agent-runner/tools/agents-eval.ts']) assert.ok(existsSync(resolve(root,file)),file);
+  workspaceMutation((base)=>editJson(base,'package.json',(value)=>{ value.scripts['agents:eval'] = 'node apps/agent-runner/tools/agents-eval.ts --mode live'; }),/^package\.json must have exactly these scripts/);
+  workspaceMutation((base)=>editJson(base,'package.json',(value)=>{ delete value.scripts['agents:eval']; }),/^package\.json must have exactly these scripts/);
+});
+
 // S0: Rust verification, fixtures and protocol rules.
 import { reportErrors, reportSections, caseSections, s0Rows, expectedCargoCommands, cargoCommandErrors, verifyDriverErrors, rustModuleErrors, withoutComments, expectedTypescriptCommands, typescriptCommandErrors, typescriptModuleErrors, environmentModuleErrors, spawnEnvironmentErrors, verifyModuleErrors, codeLines, workspacePackageList, workspaceTestFiles, workspaceErrors, scanSource, topLevelCode, topLevelErrors, ciVariableErrors, guardedModules, parseToml, cargoManifestErrors, pnpmWorkspaceErrors, expectedRootScripts, hookScript } from '../s0.ts';
 import { isRemovedVariable, stepEnvironment } from '../environment.ts';

@@ -13,6 +13,7 @@
     "verify": "node scripts/verify.ts",
     "verify:repository": "node scripts/check-repository.ts",
     "verify:contracts": "pnpm --filter @openquant/api-contracts run test:parity",
+    "agents:eval": "node packages/agents/tools/generate.ts && node apps/agent-runner/tools/agents-eval.ts",
     "test": "node --test scripts/tests/repository.test.ts",
     "generate:spec-index": "node scripts/generate-spec-index.ts",
     "generate:tree": "node scripts/generate-repository-tree.ts"
