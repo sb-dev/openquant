@@ -27,21 +27,14 @@ import type { DispatchKind } from './work.ts';
 export const LEASE_GRACE_SECONDS = 60;
 
 /** The result routes: a late submission to one of them shows that the worker reached its end. */
-const RESULT_ROUTES = [
-  'attempts.retrieval-result',
-  'attempts.validation-result',
-  'attempts.evaluation-submission',
-  'attempts.gate-report',
-  'attempts.agent-result',
-];
-
 /**
  * The concurrency slots of one host class (dispatch destination) that the attempts of a mission hold (OQ-05 section 4;
  * decision D22: lease expiry releases nothing until termination is confirmed). An attempt holds its slot from its claim
  * until it completes (its result or failure report commits) or its worker is known to have stopped. The end of its
  * lease is not that: an attempt that is CLAIMED with an expired lease, LEASE_EXPIRED or cancelled while claimed keeps
  * its slot while its reservation is RESERVED, that is until the termination probe confirms that the host stopped
- * (confirmTermination), unless its late result was refused and recorded after the lease ended or the cancellation.
+ * (confirmTermination). A refused late request is not termination evidence: it may be malformed, and the worker may
+ * still run, so it frees nothing.
  */
 export async function heldSlots(
   tx: Queryable,
@@ -59,13 +52,8 @@ export async function heldSlots(
       WHERE COALESCE(r.mission_id, j.mission_id) = $1
         AND (a.status = 'CLAIMED'
              OR ((a.status = 'LEASE_EXPIRED' OR (a.status = 'CANCELLED' AND a.claimed_at IS NOT NULL))
-                 AND rv.status = 'RESERVED'
-                 AND NOT EXISTS (
-                   SELECT 1 FROM audit_events e
-                    WHERE e.subject = a.attempt_id AND e.event_type = 'attempt.late_submission_rejected'
-                      AND e.occurred_at >= LEAST(l.expires_at, a.ended_at)
-                      AND (e.detail->>'route' = ANY($3::text[]) OR e.detail->>'action' IN ('submit', 'complete', 'fail')))))`,
-    [missionId, destination, RESULT_ROUTES],
+                 AND rv.status = 'RESERVED'))`,
+    [missionId, destination],
   );
   return rows[0]?.held ?? 0;
 }

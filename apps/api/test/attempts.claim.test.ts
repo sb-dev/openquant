@@ -425,7 +425,7 @@ describe('the concurrency limit of the cohort policy', () => {
     }
   });
 
-  it('frees the slot of an expired attempt once its late result was refused and recorded; the reservation stays', async () => {
+  it('keeps the slot of an expired attempt when a late, malformed result is refused; only the probe frees it', async () => {
     const started = await startedFlow();
     try {
       const claimed = await claim(started, started.retrieve.attemptId);
@@ -433,11 +433,13 @@ describe('the concurrency limit of the cohort policy', () => {
       started.world.testApp.clock.set(new Date(Date.parse(claimed.leaseExpiresAt) + 1000));
       await recover(started, running);
       expect(await held()).toBe(1);
-      // The worker reached its end and submitted: the result is refused (a retry owns the job) and recorded.
+      // A late, malformed request is refused and recorded, but it is no evidence that the worker stopped.
       const late = await submit(started, claimed, 'retrieval-result', { schema_version: 'retrieval-result/1' });
       expect(await errorCode(late)).toBe('STALE_OWNERSHIP');
-      expect(await held()).toBe(0);
+      expect(await held()).toBe(1);
       expect(await reservationOf(started, claimed.attemptId)).toBe('RESERVED');
+      await recover(started, stopped);
+      expect(await held()).toBe(0);
     } finally {
       await started.world.drop();
     }
