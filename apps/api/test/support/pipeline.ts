@@ -52,6 +52,16 @@ export async function failedCritique(world: World, slot: string, outcome: 'refus
   return { status: 'NO_VALID_RESULT', outcome, attempts };
 }
 
+/** A proposer run of a revision slot that ended without a proposal: its attempt was refused, which is never retried. */
+export async function proposerEnded(world: World, slot: string, configuration: string) {
+  const job = await startAgentJob(world, { slot, role: 'PROPOSER', configuration });
+  const claimed = await claim(world, job.attemptId);
+  if (!claimed.ok) throw claimed.failure;
+  const failed = await fail(world, job.attemptId, { kind: 'AGENT_OUTCOME', outcome: 'refusal' });
+  if (!failed.ok) throw failed.failure;
+  return job;
+}
+
 export function decisionPayload(world: World, slot: string, strategyHash: string, critique: Doc, outcome: string): Doc {
   return {
     kind: 'record_evaluation_decision',

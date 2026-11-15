@@ -14,7 +14,14 @@ import {
   treatmentOf,
 } from '../src/domain/findings.ts';
 import { finishRuns } from './support/attempts.ts';
-import { completedCritique, decide, decisionPayload, failedCritique, missionRevision } from './support/pipeline.ts';
+import {
+  completedCritique,
+  decide,
+  decisionPayload,
+  failedCritique,
+  missionRevision,
+  proposerEnded,
+} from './support/pipeline.ts';
 import { ids, sha } from './support/seed.ts';
 import {
   actorOf,
@@ -676,6 +683,9 @@ describe('freeze_candidates', () => {
   it('cannot freeze twice: the second freeze finds the holdout runs', async () => {
     const world = await pipeline({ versions: ['seed'] });
     await evaluated(world, ['seed']);
+    // The two revision slots are terminal: their proposers ended without a proposal (OQ-02 section 4).
+    await proposerEnded(world, 'rev-a', 'proposer-a');
+    await proposerEnded(world, 'rev-b', 'proposer-b');
     const slots = [
       { trial_slot: 'seed', status: 'EVALUATING', strategy_hash: world.records.seedDigest },
       { trial_slot: 'rev-a', status: 'NOT_EVALUATED', reason: 'NO_REGISTERED_VERSION' },

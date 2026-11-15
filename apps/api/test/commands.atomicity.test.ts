@@ -10,7 +10,14 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { type CommandOutcome, executeCommand } from '../src/commands/runner.ts';
 import type { Database, Queryable } from '../src/db/database.ts';
 import { claim, finishRuns } from './support/attempts.ts';
-import { completedCritique, decide, decisionPayload, failedCritique, missionRevision } from './support/pipeline.ts';
+import {
+  completedCritique,
+  decide,
+  decisionPayload,
+  failedCritique,
+  missionRevision,
+  proposerEnded,
+} from './support/pipeline.ts';
 import { sha } from './support/seed.ts';
 import {
   type ActorName,
@@ -233,6 +240,9 @@ describe('a failure after any write leaves nothing of the command behind', () =>
     const critique = await completedCritique(world, 'seed');
     await decide(world, 'seed', 'APPROVED', critique);
     await finishRuns(world, 'seed');
+    // The revision slots are terminal when their proposers ended without a proposal (OQ-02 section 4).
+    await proposerEnded(world, 'rev-a', 'proposer-a');
+    await proposerEnded(world, 'rev-b', 'proposer-b');
     const request = world.command(
       {
         kind: 'freeze_candidates',

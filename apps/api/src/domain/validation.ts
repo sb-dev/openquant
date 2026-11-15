@@ -7,10 +7,12 @@
 
 import type { StrategyArtefact, ValidationResult } from '@openquant/api-contracts';
 import { canonicalJson, digest } from '@openquant/api-contracts';
+import { writeAudit } from '../audit.ts';
 import type { Queryable } from '../db/database.ts';
 import { ApiFailure } from '../errors.ts';
 import { completeAttempt, type Guarded, type WorkContext } from './attempts.ts';
 import { currentRelease, loadPolicy } from './documents.ts';
+import { describePolicyDiagnostics, type PolicyDiagnostic, policyDiagnostics } from './policy-fit.ts';
 import { claimedExecutable, loadCited, sameExecutable } from './refs.ts';
 import { durationUsage, openResult, repeatOutcome } from './results.ts';
 import { artefactRef, storeDocument } from './store.ts';
@@ -27,6 +29,22 @@ export async function requireRelease(tx: Queryable, environment: string) {
     throw mismatch(
       `No release identity is recorded for ${environment}: the engine and method of a result cannot be verified.`,
     );
+  }
+  return release;
+}
+
+/**
+ * The release, once the executable that claimed an attempt is one of the executables that it lists (OQ-05 section 4:
+ * the running engine and executor identity are verified before an official result is committed).
+ */
+export async function requireReleasedExecutable(
+  tx: Queryable,
+  environment: string,
+  executable: { readonly name: string; readonly version: string; readonly digest: string },
+) {
+  const release = await requireRelease(tx, environment);
+  if (!release.executables.some((entry) => sameExecutable(entry, executable))) {
+    throw mismatch('The executable that claimed this attempt is not one of the executables of the recorded release.');
   }
   return release;
 }
@@ -103,6 +121,9 @@ export async function acceptValidationResult(
   const policy = await loadPolicy(tx, env, mission.policy_id, mission.policy_revision);
   if (policy === undefined) throw new Error(`The policy of mission ${mission.mission_id} is missing.`);
   const outcome = result.outcome;
+  // The cohort policy bounds a draft that Rust reports VALID (it is not told the bounds): a draft that breaks them
+  // registers nothing and its trial is INVALID, with the diagnostics for the next proposer attempt.
+  let violations: PolicyDiagnostic[] = [];
   if (outcome.status === 'VALID') {
     // A seed has no parent and is version 1; a revision names its parent in the draft, and its declared changes are
     // the leaf difference that Rust computed (lineage, OQ-02 section 3.1).
@@ -135,6 +156,7 @@ export async function acceptValidationResult(
       draft.version,
     ]);
     if (taken.rows.length > 0) throw mismatch('This version of the strategy is registered already.');
+    violations = policyDiagnostics(draft, policy.document);
   }
 
   const stored = await storeDocument(tx, env, 'validation-result', result, principalId);
@@ -155,7 +177,7 @@ export async function acceptValidationResult(
   if (trialId === undefined)
     throw new Error(`The draft ${job.draft_digest} has no DRAFTED trial in ${job.trial_slot}.`);
   const now = env.clock();
-  if (outcome.status === 'VALID') {
+  if (outcome.status === 'VALID' && violations.length === 0) {
     await tx.query(
       `INSERT INTO strategy_versions (strategy_hash, strategy_id, version, parent_hash, mission_id, registered_at)
        VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -188,10 +210,13 @@ export async function acceptValidationResult(
     );
     return { ok: true, value: 'REGISTERED' };
   }
-  const reason = outcome.diagnostics
-    .map((entry) => `${entry.code}${entry.pointer === '' ? '' : ` at ${entry.pointer}`}`)
-    .join('; ')
-    .slice(0, 1000);
+  const reason =
+    outcome.status === 'INVALID'
+      ? outcome.diagnostics
+          .map((entry) => `${entry.code}${entry.pointer === '' ? '' : ` at ${entry.pointer}`}`)
+          .join('; ')
+          .slice(0, 1000)
+      : describePolicyDiagnostics(violations);
   assertTransition('trial', 'DRAFTED', 'INVALID');
   await tx.query(`UPDATE trials SET status = 'INVALID', reason = $2 WHERE trial_id = $1`, [trialId, reason]);
   await tx.query(
@@ -199,5 +224,15 @@ export async function acceptValidationResult(
      VALUES ($1, $2, $3, $4, 'INVALID', $5)`,
     [work.id, attempt.attempt_id, stored.ref.digest, job.draft_digest, now],
   );
+  if (violations.length > 0) {
+    // Rust said VALID and the cohort policy says otherwise: startValidation checks the draft before it dispatches, so
+    // this is a job that predates the check, or a policy that changed. It is recorded.
+    await writeAudit(tx, now, {
+      eventType: 'trial.policy_violation',
+      actor: principalId,
+      subject: mission.mission_id,
+      detail: { trial_slot: job.trial_slot, draft_digest: job.draft_digest, diagnostics: violations.length },
+    });
+  }
   return { ok: true, value: 'INVALID' };
 }

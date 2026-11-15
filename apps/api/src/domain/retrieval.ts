@@ -17,6 +17,7 @@ import { claimedExecutable, dispatchOf, loadCited, requestRefOf, sameExecutable 
 import { countUsage, durationUsage, openResult, repeatOutcome } from './results.ts';
 import { findMission, type MissionRow } from './rows.ts';
 import { storeDocument } from './store.ts';
+import { requireReleasedExecutable } from './validation.ts';
 
 function mismatch(message: string): ApiFailure {
   return new ApiFailure('IDENTITY_MISMATCH', message);
@@ -121,6 +122,7 @@ export async function acceptRetrievalResult(
   if (!sameExecutable(result.executable, executable)) {
     throw mismatch('The result comes from another executable than the one that claimed this attempt.');
   }
+  await requireReleasedExecutable(tx, env.environment, executable);
   const usage = usageOf(result);
   const outcome = result.outcome;
 

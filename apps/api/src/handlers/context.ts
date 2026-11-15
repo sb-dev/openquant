@@ -3,6 +3,7 @@
 
 import type { ContractName, ContractTypes } from '@openquant/api-contracts';
 import type { Caller } from '../auth/authenticate.ts';
+import type { Queryable } from '../db/database.ts';
 import type { RequestContext } from '../env.ts';
 import type { RouteSpec } from '../manifest.ts';
 
@@ -25,6 +26,13 @@ export interface HandlerContext extends RequestContext {
 }
 
 export type Handler = (context: HandlerContext) => Promise<Response>;
+
+/**
+ * What a route does with a submission from an attempt whose lease ended, besides the typed refusal that the route layer
+ * answers (LEASE_EXPIRED or STALE_OWNERSHIP). It runs in the transaction that records the refusal and never changes the
+ * answer: if it throws, only the refusal is recorded. The body is the one that the route's contract parsed.
+ */
+export type LateHandler = (tx: Queryable, context: HandlerContext) => Promise<void>;
 
 export function json(status: number, value: unknown): Response {
   return new Response(JSON.stringify(value), {

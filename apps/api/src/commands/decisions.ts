@@ -6,7 +6,10 @@
 //                                reservations and outbox entries, in one transaction. A DEFERRED Decision writes none.
 //   freeze_candidates            once every trial slot is terminal: the holdout runs of every candidate in EVALUATING,
 //                                with their reservations and outbox entries, in one transaction. With no candidate in
-//                                EVALUATING it writes no run and the mission concludes NO_ELIGIBLE_CANDIDATE.
+//                                EVALUATING it writes no run and the mission concludes NO_ELIGIBLE_CANDIDATE. A slot is
+//                                listed NOT_EVALUATED only when nothing of it is in flight (no DRAFTED trial, no open
+//                                validate job, no open proposer run), and NO_REGISTERED_VERSION on a revision slot also
+//                                needs its revision budget used or a proposer run that ended without a proposal.
 
 import type { FreezeCandidates, RecordEvaluationDecision } from '@openquant/api-contracts';
 import { writeAudit } from '../audit.ts';
@@ -57,15 +60,66 @@ interface SlotRow {
   trial_slot: string;
   slot_kind: 'SEED' | 'REVISION';
   parent_slot: string | null;
+  configuration_id: string | null;
   terminal_reason: string | null;
 }
 
 async function trialSlots(tx: Queryable, missionId: string): Promise<SlotRow[]> {
   const { rows } = await tx.query<SlotRow>(
-    'SELECT trial_slot, slot_kind, parent_slot, terminal_reason FROM trial_slots WHERE mission_id = $1 ORDER BY trial_slot FOR UPDATE',
+    'SELECT trial_slot, slot_kind, parent_slot, configuration_id, terminal_reason FROM trial_slots WHERE mission_id = $1 ORDER BY trial_slot FOR UPDATE',
     [missionId],
   );
   return rows;
+}
+
+/**
+ * What of a slot is still in flight, as a phrase, or undefined when nothing is: a proposal that entered validation and
+ * has no verdict (a DRAFTED trial), a validate job that is open, or a proposer run of the slot's configuration that is
+ * open. Such a slot is not terminal (OQ-02 section 4): its proposal can still register a Strategy Version.
+ */
+async function inFlight(tx: Queryable, missionId: string, slot: SlotRow): Promise<string | undefined> {
+  const drafted = await tx.query(
+    `SELECT 1 FROM trials WHERE mission_id = $1 AND trial_slot = $2 AND status = 'DRAFTED' LIMIT 1`,
+    [missionId, slot.trial_slot],
+  );
+  if (drafted.rows.length > 0) return 'a proposal is DRAFTED and its validation has not ended';
+  const validating = await tx.query(
+    `SELECT 1 FROM jobs WHERE mission_id = $1 AND trial_slot = $2 AND kind = 'validate' AND status IN ('QUEUED', 'RUNNING') LIMIT 1`,
+    [missionId, slot.trial_slot],
+  );
+  if (validating.rows.length > 0) return 'a validate job of the slot is open';
+  const proposing = await tx.query(
+    `SELECT 1 FROM jobs WHERE mission_id = $1 AND kind = 'agent' AND agent_role = 'PROPOSER' AND status IN ('QUEUED', 'RUNNING')
+        AND (trial_slot = $2 OR configuration_id = $3) LIMIT 1`,
+    [missionId, slot.trial_slot, slot.configuration_id],
+  );
+  if (proposing.rows.length > 0) return 'a proposer run of the slot is open';
+  return undefined;
+}
+
+/**
+ * Whether no version can still come for a revision slot: its revision budget is used (the proposals that ended INVALID
+ * or DISCARDED equal revisions_per_proposer), or its proposer run ended without a proposal (the latest proposer run of
+ * the slot FAILED). A proposer run that COMPLETED made a proposal, which has still to be validated.
+ */
+async function revisionsEnded(
+  tx: Queryable,
+  missionId: string,
+  slot: SlotRow,
+  revisionsPerProposer: number,
+): Promise<{ readonly ended: boolean; readonly spent: number }> {
+  const spent = await tx.query<{ spent: number }>(
+    `SELECT count(*)::int AS spent FROM trials WHERE mission_id = $1 AND trial_slot = $2 AND status IN ('INVALID', 'DISCARDED')`,
+    [missionId, slot.trial_slot],
+  );
+  const used = spent.rows[0]?.spent ?? 0;
+  if (used >= revisionsPerProposer) return { ended: true, spent: used };
+  const latest = await tx.query<{ status: string }>(
+    `SELECT status FROM jobs WHERE mission_id = $1 AND kind = 'agent' AND agent_role = 'PROPOSER'
+        AND (trial_slot = $2 OR configuration_id = $3) ORDER BY created_at DESC, job_id DESC LIMIT 1`,
+    [missionId, slot.trial_slot, slot.configuration_id],
+  );
+  return { ended: latest.rows[0]?.status === 'FAILED', spent: used };
 }
 
 /** Write the planned runs of one trial slot that a step writes, each with its attempt, reservation and outbox entry. */
@@ -427,6 +481,10 @@ export const freezeCandidates: Applier<FreezeCandidates> = async (context, paylo
     if (decided?.outcome === 'APPROVED') {
       throw reject('POLICY_VIOLATION', `The slot ${entry.trial_slot} has an APPROVED Decision: it is evaluated.`);
     }
+    const open = await inFlight(tx, mission.mission_id, row);
+    if (open !== undefined) {
+      throw reject('POLICY_VIOLATION', `The slot ${entry.trial_slot} is not terminal: ${open}.`);
+    }
     const registered = await tx.query(
       `SELECT 1 FROM trials WHERE mission_id = $1 AND trial_slot = $2 AND status = 'REGISTERED'`,
       [mission.mission_id, entry.trial_slot],
@@ -444,6 +502,17 @@ export const freezeCandidates: Applier<FreezeCandidates> = async (context, paylo
         'POLICY_VIOLATION',
         `The reason ${entry.reason} is not what the records show for the slot ${entry.trial_slot}.`,
       );
+    }
+    if (entry.reason === 'NO_REGISTERED_VERSION' && row.slot_kind === 'REVISION') {
+      const left = await revisionsEnded(tx, mission.mission_id, row, budget.revisions_per_proposer);
+      if (!left.ended) {
+        throw reject(
+          'POLICY_VIOLATION',
+          `The reason NO_REGISTERED_VERSION is not what the records show for the slot ${entry.trial_slot}: the slot is not terminal, ` +
+            `because ${left.spent} of its ${budget.revisions_per_proposer} revision proposals ended INVALID or DISCARDED ` +
+            'and its proposer run has not ended without a proposal.',
+        );
+      }
     }
     notEvaluated.push({ trial_slot: entry.trial_slot, reason: entry.reason });
   }

@@ -568,6 +568,7 @@ apps/api/src/domain/locks.ts
 apps/api/src/domain/missions.ts
 apps/api/src/domain/outcomes.ts
 apps/api/src/domain/plan.ts
+apps/api/src/domain/policy-fit.ts
 apps/api/src/domain/refs.ts
 apps/api/src/domain/rejection.ts
 apps/api/src/domain/results.ts
@@ -604,6 +605,7 @@ apps/api/test/bootstrap.test.ts
 apps/api/test/bundle.test.ts
 apps/api/test/commands.atomicity.test.ts
 apps/api/test/commands.decisions.test.ts
+apps/api/test/commands.freeze.test.ts
 apps/api/test/commands.missions.test.ts
 apps/api/test/commands.registrations.test.ts
 apps/api/test/commands.routes.test.ts
@@ -621,12 +623,17 @@ apps/api/test/identity-routes.test.ts
 apps/api/test/migrations.test.ts
 apps/api/test/object-store.test.ts
 apps/api/test/outbox.test.ts
+apps/api/test/policy.fit.test.ts
+apps/api/test/reconcile.unreconciled.test.ts
 apps/api/test/recovery.test.ts
+apps/api/test/release.required.test.ts
 apps/api/test/releases.test.ts
+apps/api/test/results.agents.limit.test.ts
 apps/api/test/results.agents.test.ts
 apps/api/test/results.evaluation.test.ts
 apps/api/test/results.retrieval.test.ts
 apps/api/test/results.scan.test.ts
+apps/api/test/results.validation.policy.test.ts
 apps/api/test/results.validation.test.ts
 apps/api/test/route-layer.test.ts
 apps/api/test/semantic-invalid.test.ts

@@ -1,9 +1,11 @@
 // The claim of an attempt (OQ-05 section 4, "Attempt PENDING: Claim with attempt-claim/1"). A worker that received a
 // dispatch message claims its attempt through the guarded API before it executes anything. The claim:
 //
-//   - is refused when research execution is off, when the service principal is not the host that the message was
-//     dispatched to (a batch credential cannot claim agent work and the reverse), when the executable is not one of the
-//     recorded release, and when the mission's concurrency limit of the cohort policy is reached;
+//   - is refused when research execution is off, when the environment has no recorded release (EXECUTION_DISABLED: no
+//     executable can be verified, for any kind of work and for agent attempts), when the service principal is not the
+//     host that the message was dispatched to (a batch credential cannot claim agent work and the reverse), when the
+//     executable is not one of the recorded release, and when the mission's concurrency limit of the cohort policy is
+//     reached;
 //   - takes a lease that lasts the attempt timeout of the cohort policy plus a short grace, so that the host's own timeout
 //     ends the work before the lease does (the lease is separate from any queue receipt);
 //   - returns an attempt-scoped capability that expires with the lease: a token signed with the application key whose
@@ -62,6 +64,18 @@ export async function grantClaim(
       failure: new ApiFailure('EXECUTION_DISABLED', 'Research execution is disabled in this environment.'),
     };
   }
+  // The release identity is what an executable is verified against (OQ-05 sections 4 and 11). With none recorded no
+  // executable can be told from another, so nothing is claimed: a switch of the deployment, like the one above.
+  const release = await currentRelease(tx, env.environment);
+  if (release === undefined) {
+    return {
+      ok: false,
+      failure: new ApiFailure(
+        'EXECUTION_DISABLED',
+        `No release identity is recorded for ${env.environment}: no work is claimed until the deployment records one.`,
+      ),
+    };
+  }
   const attemptId = request.attempt.attempt_id;
   const located = await locate(tx, attemptId);
   if (located === undefined) return { ok: false, failure: new ApiFailure('NOT_FOUND', 'The attempt does not exist.') };
@@ -76,9 +90,7 @@ export async function grantClaim(
   }
   const policy = await loadPolicy(tx, env, mission.policy_id, mission.policy_revision);
   if (policy === undefined) throw new Error(`The policy of mission ${mission.mission_id} is missing.`);
-  const release = await currentRelease(tx, env.environment);
   if (
-    release !== undefined &&
     !release.executables.some(
       (entry) =>
         entry.name === request.executable.name &&

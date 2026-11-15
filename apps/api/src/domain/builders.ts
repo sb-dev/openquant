@@ -12,7 +12,10 @@
 
 import type { ArtefactRef, JobDispatch } from '@openquant/api-contracts';
 import { validateContract } from '@openquant/api-contracts';
+import { writeAudit } from '../audit.ts';
 import type { Queryable } from '../db/database.ts';
+import type { ApiEnv } from '../env.ts';
+import { ApiFailure } from '../errors.ts';
 import { openAttempt, type WorkContext } from './attempts.ts';
 import {
   type Binding,
@@ -23,8 +26,11 @@ import {
 } from './dispatch.ts';
 import { loadPolicy } from './documents.ts';
 import { blockMission } from './missions.ts';
+import { describePolicyDiagnostics, type PolicyDiagnostic, policyDiagnostics } from './policy-fit.ts';
+import { loadCited } from './refs.ts';
 import { findMission, loadMissionBudget, lockMission, type MissionRow } from './rows.ts';
 import { artefactRef } from './store.ts';
+import { assertTransition } from './transitions.ts';
 import { insertJob, type Work } from './work.ts';
 
 function timestamp(date: Date): string {
@@ -196,7 +202,35 @@ export const allBuilders: DispatchBuilders = {
 
 export type Started =
   | { readonly ok: true; readonly jobId: string; readonly attemptId: string; readonly ownershipRevision: number }
-  | { readonly ok: false; readonly reason: string };
+  | {
+      readonly ok: false;
+      readonly reason: string;
+      /**
+       * Set when the draft breaks the cohort policy: the proposal is recorded as an INVALID trial with these diagnostics
+       * (the next proposer attempt reads them) and no job, attempt or reservation is written.
+       */
+      readonly diagnostics?: readonly PolicyDiagnostic[];
+    };
+
+/**
+ * The violations of the cohort policy in a stored draft. A draft that is not recorded, or that does not parse as a
+ * strategy artefact, has none here: the Rust validator answers INVALID for it.
+ */
+async function policyViolations(
+  tx: Queryable,
+  env: Pick<ApiEnv, 'objects'>,
+  draftDigest: string,
+  policy: Parameters<typeof policyDiagnostics>[1],
+): Promise<PolicyDiagnostic[]> {
+  const ref = await artefactRef(tx, draftDigest);
+  if (ref === undefined) return [];
+  try {
+    return policyDiagnostics(await loadCited(tx, env, 'strategy-artefact', ref, 'draft'), policy);
+  } catch (error) {
+    if (error instanceof ApiFailure) return [];
+    throw error;
+  }
+}
 
 /**
  * Start the validation of a draft in a mission: the proposal's trial row (DRAFTED), a validate job and its first
@@ -214,12 +248,20 @@ export async function startValidation(
     slot_kind: 'SEED' | 'REVISION';
     draft_digest: string | null;
     parent_slot: string | null;
-  }>('SELECT slot_kind, draft_digest, parent_slot FROM trial_slots WHERE mission_id = $1 AND trial_slot = $2', [
-    mission.mission_id,
-    input.trialSlot,
-  ]);
+    terminal_reason: string | null;
+  }>(
+    'SELECT slot_kind, draft_digest, parent_slot, terminal_reason FROM trial_slots WHERE mission_id = $1 AND trial_slot = $2',
+    [mission.mission_id, input.trialSlot],
+  );
   const planned = slot.rows[0];
   if (planned === undefined) return { ok: false, reason: `The plan has no trial slot ${input.trialSlot}.` };
+  // A terminal slot takes no further proposal (OQ-02 section 4): freeze_candidates or a Decision closed it.
+  if (planned.terminal_reason !== null) {
+    return {
+      ok: false,
+      reason: `The slot ${input.trialSlot} is terminal (${planned.terminal_reason}): no further proposal enters validation for it.`,
+    };
+  }
   // Lineage (OQ-02 section 3.1): the seed slot validates the seed draft and has no parent; a revision slot validates a
   // controlled revision of the registered seed, so its parent is the Strategy Version registered for the parent slot.
   if (planned.slot_kind === 'SEED') {
@@ -260,18 +302,34 @@ export async function startValidation(
     'SELECT COALESCE(MAX(proposal_ordinal), 0)::int + 1 AS next FROM trials WHERE mission_id = $1 AND trial_slot = $2',
     [mission.mission_id, input.trialSlot],
   );
+  const trialId = ctx.env.ids.next('trial');
   await tx.query(
     `INSERT INTO trials (trial_id, mission_id, trial_slot, proposal_ordinal, draft_digest, created_at)
      VALUES ($1, $2, $3, $4, $5, $6)`,
-    [
-      ctx.env.ids.next('trial'),
-      mission.mission_id,
-      input.trialSlot,
-      ordinal.rows[0]?.next,
-      input.draftDigest,
-      ctx.env.clock(),
-    ],
+    [trialId, mission.mission_id, input.trialSlot, ordinal.rows[0]?.next, input.draftDigest, ctx.env.clock()],
   );
+  // The registered cohort policy bounds the draft before any job runs for it (OQ-02 section 4 step 2): Rust is not told
+  // the bounds. A proposal that breaks them is an INVALID trial whose diagnostics go to the next proposer attempt. It
+  // used one of the proposals of the slot, and no validate job, attempt or reservation is written for it.
+  const policy = await loadPolicy(tx, ctx.env, mission.policy_id, mission.policy_revision);
+  if (policy === undefined) throw new Error(`The policy of mission ${mission.mission_id} is missing.`);
+  const violations = await policyViolations(tx, ctx.env, input.draftDigest, policy.document);
+  if (violations.length > 0) {
+    const reason = describePolicyDiagnostics(violations);
+    assertTransition('trial', 'DRAFTED', 'INVALID');
+    await tx.query(`UPDATE trials SET status = 'INVALID', reason = $2 WHERE trial_id = $1`, [trialId, reason]);
+    await writeAudit(tx, ctx.env.clock(), {
+      eventType: 'trial.policy_violation',
+      actor: ctx.actorId,
+      subject: mission.mission_id,
+      detail: { trial_slot: input.trialSlot, draft_digest: input.draftDigest, diagnostics: violations.length },
+    });
+    return {
+      ok: false,
+      reason: `The draft breaks the cohort policy and is not validated: ${reason}`.slice(0, 1000),
+      diagnostics: violations,
+    };
+  }
   const job = await insertJob(tx, ctx.env, {
     missionId: mission.mission_id,
     kind: 'validate',

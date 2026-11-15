@@ -361,9 +361,10 @@ export async function recordRetrievalAndPlan(world: World): Promise<PlannedWorld
 }
 
 /** A recorded release identity for the environment: the engine and method that evaluation requests require. */
-export async function recordRelease(world: World): Promise<Doc> {
+export async function recordRelease(world: World, edit?: (release: Doc) => void): Promise<Doc> {
   const release = structuredClone(fixture('release-manifest.staging.json')) as Doc;
   release.environment = world.testApp.env.environment;
+  edit?.(release);
   await world.sql(
     `INSERT INTO release_records (environment, source_commit, manifest_digest, migration_level, document, recorded_by, recorded_at)
      VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)`,
@@ -378,6 +379,16 @@ export async function recordRelease(world: World): Promise<Doc> {
     ],
   );
   return release;
+}
+
+/**
+ * An environment with no recorded release. A release record is immutable by design, so this is a test device: the
+ * immutability trigger is off for the one DELETE. It stands for a result that arrives where no release is recorded.
+ */
+export async function removeReleases(world: World): Promise<void> {
+  await world.sql('ALTER TABLE release_records DISABLE TRIGGER release_records_immutable');
+  await world.sql('DELETE FROM release_records');
+  await world.sql('ALTER TABLE release_records ENABLE TRIGGER release_records_immutable');
 }
 
 export const SLOTS = { seed: 'seed', revA: 'rev-a', revB: 'rev-b' } as const;

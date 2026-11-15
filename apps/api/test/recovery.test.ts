@@ -108,6 +108,7 @@ describe('a worker that died', () => {
       failed: 0,
       waiting: 0,
       terminationsConfirmed: 0,
+      reconciled: 0,
       dispatch: { ...zero, sent: 1 },
       errors: 0,
     });
@@ -126,6 +127,7 @@ describe('a worker that died', () => {
       failed: 0,
       waiting: 0,
       terminationsConfirmed: 0,
+      reconciled: 0,
       dispatch: { ...zero, sent: 1 },
       errors: 0,
     });
@@ -180,6 +182,7 @@ describe('a worker that died', () => {
       failed: 0,
       waiting: 0,
       terminationsConfirmed: 0,
+      reconciled: 0,
       dispatch: zero,
       errors: 0,
     });
@@ -503,6 +506,7 @@ describe('a pass that meets a failure', () => {
       failed: 0,
       waiting: 0,
       terminationsConfirmed: 0,
+      reconciled: 0,
       dispatch: { ...zero, delivered: 1 },
       errors: 1,
     });
