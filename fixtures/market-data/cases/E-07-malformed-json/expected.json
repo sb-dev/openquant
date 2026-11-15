@@ -1,0 +1,31 @@
+{
+  "schema": "market-expected/1",
+  "case": "E-07-malformed-json",
+  "origin": {
+    "kind": "oracle",
+    "oracle": "oracle/oracle.py",
+    "oracle_sha256": "sha256:d1ca09fbbd4f3160e44ca08988456f6c84b0e2af4dd9d2e87d829d747c4dc926"
+  },
+  "expect": {
+    "requests": 1,
+    "calls": [
+      {
+        "sequence": 1,
+        "operation": "asset",
+        "started_at": "2026-11-14T10:00:00Z",
+        "http_status": 200,
+        "error": "MALFORMED_RESPONSE",
+        "retry_after_seconds": null
+      }
+    ],
+    "sleeps": [],
+    "outcome": "error",
+    "error": {
+      "code": "MALFORMED_RESPONSE",
+      "class": "MALFORMED_RESPONSE",
+      "retryable": false,
+      "retry_after_seconds": null,
+      "reason_contains": "invalid JSON"
+    }
+  }
+}

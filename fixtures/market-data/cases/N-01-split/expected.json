@@ -1,0 +1,366 @@
+{
+  "schema": "market-expected/1",
+  "case": "N-01-split",
+  "origin": {
+    "kind": "oracle",
+    "oracle": "oracle/oracle.py",
+    "oracle_sha256": "sha256:d1ca09fbbd4f3160e44ca08988456f6c84b0e2af4dd9d2e87d829d747c4dc926"
+  },
+  "expect": {
+    "requests": 4,
+    "calls": [
+      {
+        "sequence": 1,
+        "operation": "asset",
+        "started_at": "2026-11-14T10:00:00Z",
+        "http_status": 200,
+        "error": null,
+        "retry_after_seconds": null
+      },
+      {
+        "sequence": 2,
+        "operation": "calendar",
+        "started_at": "2026-11-14T10:00:00Z",
+        "http_status": 200,
+        "error": null,
+        "retry_after_seconds": null
+      },
+      {
+        "sequence": 3,
+        "operation": "daily_bars",
+        "started_at": "2026-11-14T10:00:00Z",
+        "http_status": 200,
+        "error": null,
+        "retry_after_seconds": null
+      },
+      {
+        "sequence": 4,
+        "operation": "corporate_actions",
+        "started_at": "2026-11-14T10:00:00Z",
+        "http_status": 200,
+        "error": null,
+        "retry_after_seconds": null
+      }
+    ],
+    "sleeps": [],
+    "outcome": "snapshot",
+    "manifest": {
+      "schema_version": "dataset-manifest/1",
+      "dataset": {
+        "id": "alpaca-synth-1day-raw-sip-20240226-20240308",
+        "version": "c982eafe8f768f0f8",
+        "source": "PROVIDER",
+        "licence": "Synthetic Alpaca-shaped values on an invented instrument, generated for this repository under Apache-2.0. Not provider data."
+      },
+      "instrument": {
+        "instrument_id": "alpaca:00000000-0000-4000-8000-000000000001",
+        "symbol": "SYNTH",
+        "provider": "alpaca",
+        "provider_asset_id": "00000000-0000-4000-8000-000000000001",
+        "effective_from": "2023-01-02"
+      },
+      "source": {
+        "provider": "alpaca",
+        "feed": "SIP",
+        "adapter": {
+          "name": "alpaca",
+          "version": "1"
+        },
+        "transformation": {
+          "name": "alpaca-daily-normaliser",
+          "version": "1",
+          "digest": "sha256:6572ba391c9c0c19c6a556a8df02829f3236c737045d70de532871839cf85113"
+        },
+        "executable": {
+          "name": "engine-batch",
+          "version": "0.0.0",
+          "digest": "sha256:f8f58b36bc8d386a8530d3d599bfb0c1b404a2b513d3b377602b8db575678d69"
+        },
+        "profile": {
+          "id": "synth-us-daily-sip",
+          "revision": 1,
+          "digest": "sha256:8e6ecf0c1da66dd7c08022f68d805f6d94373ef3ac03cf7ff78a7461740b281f"
+        }
+      },
+      "semantics": {
+        "feed": "SIP",
+        "timeframe": "1Day",
+        "adjustment": "RAW",
+        "session_basis": "REGULAR_HOURS",
+        "currency": "USD",
+        "minimum_end_age_minutes": 15,
+        "bar_availability": {
+          "rule": "SESSION_CLOSE_PLUS_DELAY",
+          "delay_minutes": 120
+        },
+        "split_availability": {
+          "provider_field": "declaration_date",
+          "available_at": "EFFECTIVE_SESSION_OPEN",
+          "evidence": "DECLARED_BEFORE_EFFECTIVE_SESSION",
+          "when_unevidenced": "BLOCK_PROFILE"
+        },
+        "dividend_availability": {
+          "provider_field": "declaration_date",
+          "available_at": "EFFECTIVE_SESSION_OPEN",
+          "evidence": "DECLARED_BEFORE_EFFECTIVE_SESSION",
+          "when_unevidenced": "BLOCK_PROFILE"
+        },
+        "dividend_payment": {
+          "provider_field": "payable_date",
+          "payment_session": "PAYABLE_DATE",
+          "payment_phase": "AFTER_CLOSE",
+          "when_unmatched": "BLOCK_PROFILE"
+        }
+      },
+      "coverage": {
+        "requested": {
+          "start": "2024-02-26",
+          "end": "2024-03-08"
+        },
+        "completeness": "COMPLETE",
+        "bar_count": 10,
+        "missing_sessions": [],
+        "returned": {
+          "start": "2024-02-26",
+          "end": "2024-03-08"
+        }
+      },
+      "retrieval": {
+        "job_id": "job-synth-retrieve-0001",
+        "attempt_id": "att-synth-retrieve-0001-1",
+        "request_digest": "sha256:4c5aacdc56bc055758d2017c651c9d56bba127acb6a728ff370291d92e972682",
+        "retrieved_at": "2026-11-14T10:00:00Z"
+      },
+      "content": {
+        "calendar": [
+          {
+            "session": "2024-02-26",
+            "open_at": "2024-02-26T14:30:00Z",
+            "close_at": "2024-02-26T21:00:00Z"
+          },
+          {
+            "session": "2024-02-27",
+            "open_at": "2024-02-27T14:30:00Z",
+            "close_at": "2024-02-27T21:00:00Z"
+          },
+          {
+            "session": "2024-02-28",
+            "open_at": "2024-02-28T14:30:00Z",
+            "close_at": "2024-02-28T21:00:00Z"
+          },
+          {
+            "session": "2024-02-29",
+            "open_at": "2024-02-29T14:30:00Z",
+            "close_at": "2024-02-29T21:00:00Z"
+          },
+          {
+            "session": "2024-03-01",
+            "open_at": "2024-03-01T14:30:00Z",
+            "close_at": "2024-03-01T21:00:00Z"
+          },
+          {
+            "session": "2024-03-04",
+            "open_at": "2024-03-04T14:30:00Z",
+            "close_at": "2024-03-04T21:00:00Z"
+          },
+          {
+            "session": "2024-03-05",
+            "open_at": "2024-03-05T14:30:00Z",
+            "close_at": "2024-03-05T21:00:00Z"
+          },
+          {
+            "session": "2024-03-06",
+            "open_at": "2024-03-06T14:30:00Z",
+            "close_at": "2024-03-06T21:00:00Z"
+          },
+          {
+            "session": "2024-03-07",
+            "open_at": "2024-03-07T14:30:00Z",
+            "close_at": "2024-03-07T21:00:00Z"
+          },
+          {
+            "session": "2024-03-08",
+            "open_at": "2024-03-08T14:30:00Z",
+            "close_at": "2024-03-08T21:00:00Z"
+          }
+        ],
+        "bars": [
+          {
+            "session": "2024-02-26",
+            "open": "400",
+            "high": "401.5",
+            "low": "398.75",
+            "close": "400.5",
+            "volume": "1000000",
+            "event_time": "2024-02-26T21:00:00Z",
+            "available_at": "2024-02-26T23:00:00Z"
+          },
+          {
+            "session": "2024-02-27",
+            "open": "401",
+            "high": "402.5",
+            "low": "399.75",
+            "close": "401.5",
+            "volume": "1010000",
+            "event_time": "2024-02-27T21:00:00Z",
+            "available_at": "2024-02-27T23:00:00Z"
+          },
+          {
+            "session": "2024-02-28",
+            "open": "402",
+            "high": "403.5",
+            "low": "400.75",
+            "close": "402.5",
+            "volume": "1020000",
+            "event_time": "2024-02-28T21:00:00Z",
+            "available_at": "2024-02-28T23:00:00Z"
+          },
+          {
+            "session": "2024-02-29",
+            "open": "403",
+            "high": "404.5",
+            "low": "401.75",
+            "close": "403.5",
+            "volume": "1030000",
+            "event_time": "2024-02-29T21:00:00Z",
+            "available_at": "2024-02-29T23:00:00Z"
+          },
+          {
+            "session": "2024-03-01",
+            "open": "404",
+            "high": "405.5",
+            "low": "402.75",
+            "close": "404.5",
+            "volume": "1040000",
+            "event_time": "2024-03-01T21:00:00Z",
+            "available_at": "2024-03-01T23:00:00Z"
+          },
+          {
+            "session": "2024-03-04",
+            "open": "100",
+            "high": "101.5",
+            "low": "98.75",
+            "close": "100.5",
+            "volume": "1000000",
+            "event_time": "2024-03-04T21:00:00Z",
+            "available_at": "2024-03-04T23:00:00Z"
+          },
+          {
+            "session": "2024-03-05",
+            "open": "100.25",
+            "high": "101.75",
+            "low": "99",
+            "close": "100.75",
+            "volume": "1010000",
+            "event_time": "2024-03-05T21:00:00Z",
+            "available_at": "2024-03-05T23:00:00Z"
+          },
+          {
+            "session": "2024-03-06",
+            "open": "100.5",
+            "high": "102",
+            "low": "99.25",
+            "close": "101",
+            "volume": "1020000",
+            "event_time": "2024-03-06T21:00:00Z",
+            "available_at": "2024-03-06T23:00:00Z"
+          },
+          {
+            "session": "2024-03-07",
+            "open": "100.75",
+            "high": "102.25",
+            "low": "99.5",
+            "close": "101.25",
+            "volume": "1030000",
+            "event_time": "2024-03-07T21:00:00Z",
+            "available_at": "2024-03-07T23:00:00Z"
+          },
+          {
+            "session": "2024-03-08",
+            "open": "101",
+            "high": "102.5",
+            "low": "99.75",
+            "close": "101.5",
+            "volume": "1040000",
+            "event_time": "2024-03-08T21:00:00Z",
+            "available_at": "2024-03-08T23:00:00Z"
+          }
+        ],
+        "corporate_actions": [
+          {
+            "kind": "SPLIT",
+            "action_id": "split-synth-2024-03-04",
+            "effective_session": "2024-03-04",
+            "available_at": "2024-03-04T14:30:00Z",
+            "ratio_new": 4,
+            "ratio_old": 1
+          }
+        ],
+        "unplanned_events": [],
+        "action_evidence": [
+          {
+            "action_id": "split-synth-2024-03-04",
+            "provider_record_id": "ca-0001",
+            "provider_field": "declaration_date",
+            "provider_value": "2024-02-28"
+          }
+        ]
+      },
+      "source_responses": [
+        {
+          "sequence": 1,
+          "operation": "provider:alpaca/asset@1",
+          "received_at": "2026-11-14T10:00:00Z",
+          "content_digest": "sha256:183a695bb721f7f480959b869a0ed47649a57a6fe00108407a7198d9146229e0",
+          "stored": {
+            "digest": "sha256:183a695bb721f7f480959b869a0ed47649a57a6fe00108407a7198d9146229e0",
+            "media_type": "application/json",
+            "size_bytes": 226
+          }
+        },
+        {
+          "sequence": 2,
+          "operation": "provider:alpaca/calendar@1",
+          "received_at": "2026-11-14T10:00:00Z",
+          "content_digest": "sha256:2298e1e398abb30e3420f5a9f0db1898a5f54b94ec51958cf06726f3d5f16f03",
+          "stored": {
+            "digest": "sha256:2298e1e398abb30e3420f5a9f0db1898a5f54b94ec51958cf06726f3d5f16f03",
+            "media_type": "application/json",
+            "size_bytes": 6283
+          }
+        },
+        {
+          "sequence": 3,
+          "operation": "provider:alpaca/daily_bars@1",
+          "received_at": "2026-11-14T10:00:00Z",
+          "content_digest": "sha256:a3d7e017d13e84a374b9773d83361bf88a39e43b56b9e8afe28cab7da73d7581",
+          "stored": {
+            "digest": "sha256:a3d7e017d13e84a374b9773d83361bf88a39e43b56b9e8afe28cab7da73d7581",
+            "media_type": "application/json",
+            "size_bytes": 1148
+          }
+        },
+        {
+          "sequence": 4,
+          "operation": "provider:alpaca/corporate_actions@1",
+          "received_at": "2026-11-14T10:00:00Z",
+          "content_digest": "sha256:d0bf636380290403719f1cbe91ddd0562fef819452daf0ecdf7170909d1f3494",
+          "stored": {
+            "digest": "sha256:d0bf636380290403719f1cbe91ddd0562fef819452daf0ecdf7170909d1f3494",
+            "media_type": "application/json",
+            "size_bytes": 285
+          }
+        }
+      ],
+      "constraints": {
+        "redistribution": "NOT_PERMITTED",
+        "raw_retention": "RETAIN",
+        "terms_ref": "docs/reference/service-providers.md#alpaca"
+      }
+    },
+    "digest": "sha256:3b57959e067799a19d82b63e0958c2775032c9fb71dd29b0fa9717a8d8461093",
+    "price_scale": 2,
+    "money_scale": 2,
+    "overflow_evidence_required": false
+  }
+}

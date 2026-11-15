@@ -1,0 +1,8 @@
+{
+ "corporate_actions": {
+  "forward_splits": [
+    {"id":"ca-0011","symbol":"SYNTH","new_rate":3,"old_rate":2,"process_date":"2024-04-15","ex_date":"2024-04-15","record_date":"2024-04-15","payable_date":"2024-04-15","declaration_date":"2024-04-03"}
+  ]
+ },
+ "next_page_token": null
+}

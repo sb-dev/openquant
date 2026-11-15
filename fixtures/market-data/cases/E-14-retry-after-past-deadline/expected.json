@@ -1,0 +1,30 @@
+{
+  "schema": "market-expected/1",
+  "case": "E-14-retry-after-past-deadline",
+  "origin": {
+    "kind": "oracle",
+    "oracle": "oracle/oracle.py",
+    "oracle_sha256": "sha256:d1ca09fbbd4f3160e44ca08988456f6c84b0e2af4dd9d2e87d829d747c4dc926"
+  },
+  "expect": {
+    "requests": 1,
+    "calls": [
+      {
+        "sequence": 1,
+        "operation": "asset",
+        "started_at": "2026-11-14T10:00:00Z",
+        "http_status": 429,
+        "error": "RATE_LIMITED",
+        "retry_after_seconds": 1200
+      }
+    ],
+    "sleeps": [],
+    "outcome": "error",
+    "error": {
+      "code": "RATE_LIMITED",
+      "class": "RATE_LIMITED",
+      "retryable": true,
+      "retry_after_seconds": 1200
+    }
+  }
+}
