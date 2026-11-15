@@ -1,0 +1,13 @@
+{
+  "id": "B-11",
+  "title": "A split and a dividend on one ex-date: the dividend counts the shares held before the split",
+  "kind": "benchmark",
+  "source": "s0:C-05",
+  "covers": [
+    "split and dividend on one day"
+  ],
+  "input": "s0:C-05",
+  "metric_scale": 6,
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

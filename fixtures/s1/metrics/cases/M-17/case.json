@@ -1,0 +1,18 @@
+{
+  "id": "M-17",
+  "title": "A FAILED outcome (INVALID_LEVEL) has no metrics",
+  "kind": "metrics",
+  "source": "s0:G-07a",
+  "covers": [
+    "FAILED outcome"
+  ],
+  "context": {
+    "run_id": "run-s1-fixture",
+    "window": "DEVELOPMENT",
+    "scenario": "BASE",
+    "currency": "USD",
+    "metric_scale": 6
+  },
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

@@ -1,0 +1,13 @@
+{
+  "id": "B-02",
+  "title": "A 2-for-1 split inside the window doubles the quantity",
+  "kind": "benchmark",
+  "source": "s0:C-01a",
+  "covers": [
+    "split"
+  ],
+  "input": "s0:C-01a",
+  "metric_scale": 6,
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

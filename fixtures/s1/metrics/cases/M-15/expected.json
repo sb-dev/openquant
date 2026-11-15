@@ -1,0 +1,95 @@
+{
+  "schema": "s1-metrics-expected/1",
+  "case": "M-15",
+  "origin": {
+    "kind": "oracle",
+    "oracle": "oracle.py",
+    "oracle_sha256": "8e515204bde1db71554ed15cd845f136bc5c46cb764280f76fb5ecdce861ad53",
+    "note": "Derived from the S0 journal of the case with exact rational arithmetic."
+  },
+  "expect": {
+    "window": {
+      "start": "2026-01-08",
+      "end": "2026-02-09"
+    },
+    "strategy": {
+      "net_return": "0",
+      "max_drawdown": "0",
+      "worst_session_return": "0",
+      "turnover": "2",
+      "trade_count": 4,
+      "scored_session_count": 23,
+      "fees": "8.00",
+      "gap_slippage": "9.24",
+      "total_cost": "17.24",
+      "exposure": "0"
+    },
+    "benchmarks": {
+      "buy_and_hold": {
+        "status": "COMPUTED",
+        "entry_session": "2026-01-08",
+        "quantity": "99",
+        "net_return": "0",
+        "max_drawdown": "0",
+        "excess_return": "0"
+      },
+      "cash": {
+        "net_return": "0",
+        "excess_return": "0"
+      }
+    },
+    "outcome": "COMPLETED",
+    "series": {
+      "equity": [
+        "5000.00",
+        "5000.00",
+        "4999.00",
+        "4922.00",
+        "4922.00",
+        "4922.00",
+        "4922.00",
+        "4922.00",
+        "4921.00",
+        "5120.00",
+        "5120.00",
+        "5120.00",
+        "5120.00",
+        "5120.00",
+        "5119.00",
+        "5024.76",
+        "5024.76",
+        "5024.76",
+        "5024.76",
+        "5024.76",
+        "5023.76",
+        "5242.76",
+        "5242.76"
+      ],
+      "positions_value": [
+        "0.00",
+        "0.00",
+        "950.00",
+        "0.00",
+        "0.00",
+        "0.00",
+        "0.00",
+        "0.00",
+        "960.00",
+        "0.00",
+        "0.00",
+        "0.00",
+        "0.00",
+        "0.00",
+        "1008.00",
+        "0.00",
+        "0.00",
+        "0.00",
+        "0.00",
+        "0.00",
+        "968.00",
+        "0.00",
+        "0.00"
+      ]
+    }
+  }
+}

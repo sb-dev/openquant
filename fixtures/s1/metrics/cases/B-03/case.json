@@ -1,0 +1,14 @@
+{
+  "id": "B-03",
+  "title": "A dividend paid inside the window and one paid after its end",
+  "kind": "benchmark",
+  "source": "s0:C-03",
+  "covers": [
+    "dividend paid inside",
+    "dividend paid after the end"
+  ],
+  "input": "input.json",
+  "metric_scale": 6,
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

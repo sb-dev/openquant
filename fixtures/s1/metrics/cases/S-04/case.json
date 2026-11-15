@@ -1,0 +1,11 @@
+{
+  "id": "S-04",
+  "title": "Every session rises: the worst session return is positive",
+  "kind": "series",
+  "covers": [
+    "positive worst session"
+  ],
+  "series": "series.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

@@ -1,0 +1,13 @@
+{
+  "id": "B-09",
+  "title": "No session of the scored window has a bar",
+  "kind": "benchmark",
+  "source": "s0:X-09a",
+  "covers": [
+    "no bar in the window"
+  ],
+  "input": "input.json",
+  "metric_scale": 6,
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

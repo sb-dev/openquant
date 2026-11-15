@@ -1,0 +1,13 @@
+{
+  "id": "B-06",
+  "title": "A 3-for-2 split on an odd quantity leaves a fractional share count",
+  "kind": "benchmark",
+  "source": "s0:C-01a",
+  "covers": [
+    "fractional entitlement"
+  ],
+  "input": "input.json",
+  "metric_scale": 6,
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

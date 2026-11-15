@@ -1,0 +1,19 @@
+{
+  "id": "M-07",
+  "title": "A split and a dividend on the same ex-date; the dividend uses the quantity before the split",
+  "kind": "metrics",
+  "source": "s0:C-05",
+  "covers": [
+    "split and dividend on one day"
+  ],
+  "context": {
+    "run_id": "run-s1-fixture",
+    "window": "DEVELOPMENT",
+    "scenario": "BASE",
+    "currency": "USD",
+    "metric_scale": 6
+  },
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "scored_check": "the engine's daily equity and positions value equal the S0 expectation"
+}

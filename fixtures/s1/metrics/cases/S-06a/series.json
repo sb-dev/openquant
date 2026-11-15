@@ -1,0 +1,10 @@
+{
+  "initial_capital": "10000000",
+  "metric_scale": 6,
+  "points": [
+    {
+      "equity": "10000015",
+      "positions_value": "0"
+    }
+  ]
+}

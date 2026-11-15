@@ -1,0 +1,14 @@
+{
+  "id": "B-01",
+  "title": "Buy and hold at the first scored open under a fixed fee",
+  "kind": "benchmark",
+  "source": "s0:X-09a",
+  "covers": [
+    "simple buy and hold",
+    "fee in the lot search"
+  ],
+  "input": "s0:X-09a",
+  "metric_scale": 6,
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

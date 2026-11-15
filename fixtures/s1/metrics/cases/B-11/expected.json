@@ -1,0 +1,25 @@
+{
+  "schema": "s1-metrics-expected/1",
+  "case": "B-11",
+  "origin": {
+    "kind": "oracle",
+    "oracle": "oracle.py",
+    "oracle_sha256": "8e515204bde1db71554ed15cd845f136bc5c46cb764280f76fb5ecdce861ad53",
+    "note": "Derived from the input with exact rational arithmetic."
+  },
+  "expect": {
+    "status": "COMPUTED",
+    "entry_session": "2026-01-08",
+    "quantity": "50",
+    "equities": [
+      "5000.00",
+      "5050.00",
+      "5000.00",
+      "5050.00",
+      "5200.00",
+      "5250.00"
+    ],
+    "net_return": "0.050000",
+    "max_drawdown": "0.009901"
+  }
+}

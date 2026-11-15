@@ -8,7 +8,7 @@ use openquant_contracts::generated as g;
 
 use super::accounting::ledger;
 use crate::{
-    data::{Action, ActionKind},
+    data::{Action, ActionKind, Policy},
     format::{ident, session_date, wire_cursor},
     interfaces::MarketEvent,
     model::{Failure, FailureCode, Result, Unit},
@@ -181,6 +181,24 @@ fn apply_split(run: &Run, state: &mut State, action: &Action, new: u64, old: u64
     Ok(())
 }
 
+/// The cash entitlement of `held` shares to `amount_per_share`: gross amount less withholding,
+/// rounded down to the money grid.
+///
+/// The benchmark of derived evidence reads the same rule through this function, so that a
+/// buy-and-hold position is credited exactly as the evaluator credits a held one.
+pub(crate) fn dividend_entitlement(
+    policy: &Policy,
+    held: Decimal,
+    amount_per_share: Decimal,
+) -> Result<Decimal> {
+    let gross = exact_mul(held, amount_per_share)?;
+    let kept = exact_sub(
+        Decimal::ONE,
+        exact_bps_of(Decimal::ONE, policy.withholding_bps)?,
+    )?;
+    Ok(floor_to(exact_mul(gross, kept)?, policy.money_scale))
+}
+
 /// Record the entitlement of an ordinary cash dividend as a receivable on the ex-date.
 fn record_dividend(
     run: &Run,
@@ -198,13 +216,7 @@ fn record_dividend(
     else {
         return Err(Failure::internal("dividend handler received another kind"));
     };
-    let policy = &run.input.policy;
-    let gross = exact_mul(held_before, *amount_per_share)?;
-    let kept = exact_sub(
-        Decimal::ONE,
-        exact_bps_of(Decimal::ONE, policy.withholding_bps)?,
-    )?;
-    let amount = floor_to(exact_mul(gross, kept)?, policy.money_scale);
+    let amount = dividend_entitlement(&run.input.policy, held_before, *amount_per_share)?;
     if amount <= Decimal::ZERO {
         notes.push(format!(
             "{}: no entitlement (held {held_before} before the ex-date)",

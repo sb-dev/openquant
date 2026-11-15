@@ -1,0 +1,20 @@
+{
+  "id": "M-09",
+  "title": "The lead's hand-derived smoke case",
+  "kind": "metrics",
+  "source": "s0:F0-smoke",
+  "covers": [
+    "smoke case derived by hand",
+    "open position at the end"
+  ],
+  "context": {
+    "run_id": "run-s1-fixture",
+    "window": "DEVELOPMENT",
+    "scenario": "BASE",
+    "currency": "USD",
+    "metric_scale": 6
+  },
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "scored_check": "the engine's daily equity and positions value equal the S0 expectation"
+}

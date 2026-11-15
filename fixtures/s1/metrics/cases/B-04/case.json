@@ -1,0 +1,14 @@
+{
+  "id": "B-04",
+  "title": "The first scored session has no bar: the buy is the next session's open",
+  "kind": "benchmark",
+  "source": "s0:X-09a",
+  "covers": [
+    "no bar at the first scored session",
+    "confirmed halt"
+  ],
+  "input": "input.json",
+  "metric_scale": 6,
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

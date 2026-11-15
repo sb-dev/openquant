@@ -1,0 +1,19 @@
+{
+  "id": "M-14",
+  "title": "Ratio scale 12",
+  "kind": "metrics",
+  "source": "s0:R-01",
+  "covers": [
+    "metric_scale 12"
+  ],
+  "context": {
+    "run_id": "run-s1-fixture",
+    "window": "DEVELOPMENT",
+    "scenario": "BASE",
+    "currency": "USD",
+    "metric_scale": 12
+  },
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "scored_check": "the engine's daily equity and positions value equal the S0 expectation"
+}

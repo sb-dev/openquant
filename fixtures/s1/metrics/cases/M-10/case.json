@@ -1,0 +1,21 @@
+{
+  "id": "M-10",
+  "title": "A run that never trades: every figure is zero and the benchmark is computed",
+  "kind": "metrics",
+  "source": "s0:ENT-02-v1",
+  "covers": [
+    "no trade",
+    "zero turnover",
+    "zero exposure"
+  ],
+  "context": {
+    "run_id": "run-s1-fixture",
+    "window": "DEVELOPMENT",
+    "scenario": "BASE",
+    "currency": "USD",
+    "metric_scale": 6
+  },
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "scored_check": "the engine's daily equity and positions value equal the S0 expectation"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "S-01",
+  "title": "Drawdown ties: an equal peak, an equal trough and an equal depth from a different peak",
+  "kind": "series",
+  "covers": [
+    "drawdown ties"
+  ],
+  "series": "series.json",
+  "expected": "expected.json",
+  "derivation": "derivation.md"
+}

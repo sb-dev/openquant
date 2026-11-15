@@ -1,0 +1,21 @@
+{
+  "id": "M-06",
+  "title": "A dividend entitled in the run and paid inside it; the position is open at the end",
+  "kind": "metrics",
+  "source": "s0:C-03",
+  "covers": [
+    "dividend receivable",
+    "open position at the end",
+    "trade not counted"
+  ],
+  "context": {
+    "run_id": "run-s1-fixture",
+    "window": "DEVELOPMENT",
+    "scenario": "BASE",
+    "currency": "USD",
+    "metric_scale": 6
+  },
+  "expected": "expected.json",
+  "derivation": "derivation.md",
+  "scored_check": "the engine's daily equity and positions value equal the S0 expectation"
+}
