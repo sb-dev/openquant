@@ -12,7 +12,9 @@ export const REQUIRED_EXCLUSIONS = ['VALIDATION', 'HOLDOUT'] as const;
 
 /**
  * Why a list of exclusions does not do its job: V and H must each be named exactly once and no window twice. With
- * the cohort policy at hand, each exclusion must also repeat its window's label and lie inside its scored dates.
+ * the cohort policy at hand, each exclusion must also repeat its window's label and lie inside its scored dates, and a
+ * V or H exclusion must cover the whole protected window: a narrower range would leave dates of the window out of the
+ * date screen (OQ-02 section 3.3).
  */
 export function exclusionIssues(exclusions: readonly HoldoutExclusion[], policy?: CohortPolicy): string[] {
   const issues: string[] = [];
@@ -37,9 +39,35 @@ export function exclusionIssues(exclusions: readonly HoldoutExclusion[], policy?
       issues.push(`the ${exclusion.window} exclusion repeats another label than the policy`);
     if (exclusion.range.start < rule.scored.start || exclusion.range.end > rule.scored.end) {
       issues.push(`the ${exclusion.window} exclusion lies outside the scored dates of the policy window`);
+    } else if (
+      exclusion.window !== 'DEVELOPMENT' &&
+      (!edgeGapFits(rule.scored.start, exclusion.range.start) || !edgeGapFits(exclusion.range.end, rule.scored.end))
+    ) {
+      issues.push(`the ${exclusion.window} exclusion does not cover the scored dates of the policy window`);
     }
   }
   return issues;
+}
+
+/**
+ * Whether the dates from `from` up to but not including `to` can all lie outside the sessions of the window.
+ *
+ * An exclusion holds the resolved scored sessions of its window (the evaluation plan), and the policy holds the
+ * calendar-date bounds that they resolve against. The request carries the policy but not the trading calendar, so the
+ * uncovered edge between the two may hold weekend days and at most one weekday, an exchange holiday next to the
+ * window bound (2024-01-01 before the first session 2024-01-02). Any wider gap omits sessions of the window.
+ */
+function edgeGapFits(from: string, to: string): boolean {
+  const start = Date.parse(`${from}T00:00:00Z`);
+  const end = Date.parse(`${to}T00:00:00Z`);
+  if (Number.isNaN(start) || Number.isNaN(end)) return false;
+  let weekdays = 0;
+  for (let day = start; day < end; day += 86_400_000) {
+    const weekday = new Date(day).getUTCDay();
+    if (weekday !== 0 && weekday !== 6) weekdays += 1;
+    if (weekdays > 1) return false;
+  }
+  return true;
 }
 
 // A calendar date written year first: YYYY-MM-DD, YYYY/MM/DD or the compact YYYYMMDD, with one separator throughout.

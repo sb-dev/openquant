@@ -28,6 +28,33 @@ function withContext(context: RoleContext, change: (copy: RoleContext) => void):
   return copy;
 }
 
+// A V or H exclusion that leaves sessions of its policy window out of the date screen, and a date in the part that it
+// leaves out. The policy windows are 2024-01-01 to 2024-12-31 (V) and 2025-01-01 to 2025-12-31 (H); the full
+// exclusions start at the first sessions 2024-01-02 and 2025-01-02.
+const NARROWED: readonly (readonly ['VALIDATION' | 'HOLDOUT', string, string, string])[] = [
+  ['VALIDATION', '2024-07-01', '2024-12-31', '2024-03-15'],
+  ['VALIDATION', '2024-01-02', '2024-12-27', '2024-12-30'],
+  ['HOLDOUT', '2025-12-31', '2025-12-31', '2025-01-02'],
+  ['HOLDOUT', '2025-01-03', '2025-12-31', '2025-01-02'],
+];
+
+function narrowed(context: RoleContext, window: string, start: string, end: string): RoleContext {
+  return withContext(context, (copy) => {
+    const exclusion = copy.holdout_exclusions.find((item) => item.window === window);
+    if (!exclusion) throw new Error(`the request names no ${window} exclusion`);
+    exclusion.range = { start, end };
+  });
+}
+
+const evidenceDated = (date: string): EvidenceItem[] => [
+  {
+    ...FINDING,
+    record_digest: `sha256:${'c'.repeat(64)}`,
+    recorded_at: '2023-12-29T22:00:00Z',
+    content: `Seen on ${date}.`,
+  },
+];
+
 describe('a proposer request for a controlled revision', () => {
   test('is bound by the digest of its canonical text, its size and its media type', async () => {
     const assembly = await assembleFormulationRequest(await revisionInput());
@@ -209,6 +236,19 @@ describe('refusals of a proposer request', () => {
     ]);
   });
 
+  test.each(NARROWED)(
+    'a %s exclusion narrowed to %s..%s is refused, with evidence dated %s in the omitted part',
+    async (window, start, end, date) => {
+      const input = await revisionInput({ evidence: evidenceDated(date) });
+      const context = narrowed(input.context, window, start, end);
+      const assembly = await assembleFormulationRequest({ ...input, context });
+      expect(await codes(assembly)).toEqual(['HOLDOUT_EXCLUSIONS_INVALID']);
+      expect(!assembly.ok && assembly.refusals[0]?.detail).toBe(
+        `the ${window} exclusion does not cover the scored dates of the policy window`,
+      );
+    },
+  );
+
   test('operators that are not the policy operators are refused', async () => {
     const input = await revisionInput();
     const context = withContext(input.context, (copy) => {
@@ -314,6 +354,18 @@ describe('a critic request', () => {
     const evidence = [{ ...(input.evidence[0] as EvidenceItem), content: 'Seen on 2025-06-02.' }];
     expect(await codes(await assembleCritiqueRequest({ ...input, evidence }))).toEqual(['HOLDOUT_OVERLAP']);
   });
+
+  test.each(NARROWED)(
+    'a %s exclusion narrowed to %s..%s is refused, with evidence dated %s in the omitted part',
+    async (window, start, end, date) => {
+      const input = await critiqueRequestInput();
+      const evidence = [{ ...(input.evidence[0] as EvidenceItem), content: `Seen on ${date}.` }];
+      const context = narrowed(input.context, window, start, end);
+      expect(await codes(await assembleCritiqueRequest({ ...input, context, evidence }))).toEqual([
+        'HOLDOUT_EXCLUSIONS_INVALID',
+      ]);
+    },
+  );
 
   test('supplies no method', async () => {
     const assembly = await assembleCritiqueRequest(await critiqueRequestInput());

@@ -9,7 +9,7 @@ import {
 } from '@openquant/agents';
 import type { AgentAttemptResult, AgentDispatch, AttemptClaimGrant } from '@openquant/api-contracts';
 import { validateContract } from '@openquant/api-contracts';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { applyEdits, proposedForm, seedArtefact } from '../../../packages/agents/dev/world.ts';
 import { sha256Text, stable } from '../../../packages/agents/test/support/oracle.ts';
 import {
@@ -24,7 +24,7 @@ import {
 } from '../../../packages/agents/test/support/requests.ts';
 import { type AttemptDeps, runAttempt } from '../src/attempt.ts';
 import { instructionsFor } from '../src/bundle.ts';
-import { execute } from '../src/executor.ts';
+import { type ExecutionFacts, type ExecutionRequest, execute } from '../src/executor.ts';
 import { sha256Bytes } from '../src/text.ts';
 import {
   API_TOKEN,
@@ -47,6 +47,20 @@ import {
 } from './support/world.ts';
 
 afterEach(cleanup);
+
+/** What a fake executor reports for a run that started. */
+const STARTED: ExecutionFacts = {
+  executorVersion: '2.1.325',
+  sessionId: undefined,
+  model: undefined,
+  provider: undefined,
+  effort: undefined,
+  costUsd: undefined,
+  inputTokens: undefined,
+  outputTokens: undefined,
+  durationMs: 1,
+  started: true,
+};
 
 interface Context {
   readonly world: World;
@@ -540,6 +554,76 @@ describe('failures of the runner are not outcomes', () => {
     const context = await setup(reply({}), { world: { apiOptions: { input: apiFailure(409, 'LEASE_EXPIRED') } } });
     expect(await go(context)).toMatchObject({ posted: false, why: 'lease_lost' });
     expect(context.world.api.results).toEqual([]);
+  });
+
+  it('starts nothing and posts nothing when the lease expired before the executor could start', async () => {
+    const context = await setup(reply(await revisionOutput()));
+    // The grant runs to 10:20. The input read takes 21 minutes, so the lease is gone before the executor starts.
+    let clock = Date.UTC(2026, 10, 15, 10, 0, 0);
+    const fetchInput = context.world.api.fetchInput.bind(context.world.api);
+    context.world.api.fetchInput = async (...args) => {
+      clock += 21 * 60_000;
+      return fetchInput(...args);
+    };
+    const calls: ExecutionRequest[] = [];
+    const deps: AttemptDeps = {
+      ...context.deps,
+      now: () => clock,
+      execute: async (request) => {
+        calls.push(request);
+        throw new Error('the executor must not start');
+      },
+    };
+    const end = await runAttempt(context.dispatch, grantFor(context.dispatch), deps, new AbortController().signal);
+    expect(end).toEqual({ posted: false, why: 'lease_lost', detail: 'the lease expired before the executor started' });
+    expect(calls).toEqual([]);
+    expect(context.world.api.events).toEqual(['fetch']);
+    expect(context.world.api.results).toEqual([]);
+  });
+
+  it('ends the executor at the lease expiry, not at the full timeout, and posts nothing', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      // A timeout of one hour, and a lease that ends five minutes after the executor starts at 10:15.
+      const context = await setup(reply(await revisionOutput()), { dispatch: { timeoutSeconds: 3600 } });
+      let started!: () => void;
+      const running = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      let seen: ExecutionRequest | undefined;
+      let killed = false;
+      const deps: AttemptDeps = {
+        ...context.deps,
+        now: () => Date.UTC(2026, 10, 15, 10, 15, 0),
+        execute: (request) => {
+          seen = request;
+          started();
+          return new Promise((resolve) => {
+            request.signal?.addEventListener('abort', () => {
+              killed = true;
+              resolve({ kind: 'cancelled', diagnostic: 'the process tree was ended', facts: STARTED });
+            });
+          });
+        },
+      };
+      const end = runAttempt(context.dispatch, grantFor(context.dispatch), deps, new AbortController().signal);
+      await running;
+      expect(seen?.timeoutMs).toBe(5 * 60_000);
+      await vi.advanceTimersByTimeAsync(5 * 60_000 - 1);
+      expect(killed).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(killed).toBe(true);
+      expect(seen?.signal?.reason).toBe('lease_expired');
+      expect(await end).toEqual({
+        posted: false,
+        why: 'lease_lost',
+        detail: 'the lease expired while the executor ran; it was ended',
+      });
+      expect(context.world.api.results).toEqual([]);
+      expect(context.logs.join('\n')).toContain('"stage":"during_execution"');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not post a completion whose output could not be stored', async () => {

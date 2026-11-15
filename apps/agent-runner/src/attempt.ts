@@ -83,6 +83,9 @@ const NO_FACTS: ExecutionFacts = {
 
 const MEDIA_TYPE = 'application/json';
 
+/** The longest delay that a Node timer keeps; a longer one fires at once. */
+const MAX_TIMER_MS = 2_147_483_647;
+
 /** The reason of the denied capability for each violation that the dispatch checks find. */
 const DENIAL_OF: Readonly<Record<DispatchViolation['code'], DeniedReason>> = {
   SKILL_NOT_REGISTERED: 'CAPABILITY_UNSUPPORTED',
@@ -236,22 +239,45 @@ export async function runAttempt(
       );
     }
 
-    // 5. The executor.
+    // 5. The executor, inside the lease. The claim and the input read may have used up part of the lease, so the
+    // run ends at the earlier of the lease expiry and the configured timeout from its start, and an expired lease
+    // starts nothing. A run ended by the lease posts nothing, like any other lost lease (OQ-03 section 5).
     const skill = skillEntry(dispatch.identity.skill.id);
     if (skill === undefined) return await deny('CAPABILITY_UNSUPPORTED', 'the skill is not registered');
-    const end = await deps.execute({
-      sessionId: dispatch.identity.session_id,
-      profile: executor.profile,
-      timeoutMs: bounds.timeout_seconds * 1000,
-      outputLimitBytes: bounds.output_limit_bytes,
-      budgetUsd: bounds.cost_reservation.amount,
-      systemPrompt: instructionsFor(skill.id, verified.instructions),
-      request: bytes,
-      resultSchema: RESULT_SCHEMAS[skill.result_contract.replace(/\/1$/, '') as keyof typeof RESULT_SCHEMAS],
-      signal,
-    });
+    const leaseEndsAtMs = Date.parse(grant.lease_expires_at);
+    const launchAtMs = deps.now();
+    if (!(launchAtMs < leaseEndsAtMs)) {
+      log('lease_expired', { attempt: attemptId, stage: 'before_execution' });
+      return { posted: false, why: 'lease_lost', detail: 'the lease expired before the executor started' };
+    }
+    const deadlineMs = Math.min(leaseEndsAtMs, launchAtMs + bounds.timeout_seconds * 1000);
+    const lease = new AbortController();
+    const leaseTimer = setTimeout(
+      () => lease.abort('lease_expired'),
+      Math.min(leaseEndsAtMs - launchAtMs, MAX_TIMER_MS),
+    );
+    let end: ExecutionEnd;
+    try {
+      end = await deps.execute({
+        sessionId: dispatch.identity.session_id,
+        profile: executor.profile,
+        timeoutMs: deadlineMs - launchAtMs,
+        outputLimitBytes: bounds.output_limit_bytes,
+        budgetUsd: bounds.cost_reservation.amount,
+        systemPrompt: instructionsFor(skill.id, verified.instructions),
+        request: bytes,
+        resultSchema: RESULT_SCHEMAS[skill.result_contract.replace(/\/1$/, '') as keyof typeof RESULT_SCHEMAS],
+        signal: AbortSignal.any([signal, lease.signal]),
+      });
+    } finally {
+      clearTimeout(leaseTimer);
+    }
     if (signal.aborted && signal.reason === 'shutdown') {
       return { posted: false, why: 'shutdown', detail: 'the runner is shutting down; the attempt is left for fencing' };
+    }
+    if (lease.signal.aborted) {
+      log('lease_expired', { attempt: attemptId, stage: 'during_execution' });
+      return { posted: false, why: 'lease_lost', detail: 'the lease expired while the executor ran; it was ended' };
     }
 
     // 6. The role output goes through the shared validator, then is stored, then is named in the result.
