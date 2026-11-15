@@ -30,6 +30,7 @@ use std::{
     },
 };
 
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use openquant_contracts::{
     AnyContract, Envelope, canonical::digest_bytes, canonical_json, parse, parse_json, validate,
 };
@@ -174,6 +175,9 @@ pub struct Accepted {
 struct Message {
     id: String,
     body: Value,
+    /// What the pull serves instead of the default: the `CF-Content-Type` (none: no metadata entry)
+    /// and the body.
+    served: Option<(Option<String>, Value)>,
     visible_at: i64,
     lease: Option<String>,
     attempts: u32,
@@ -225,8 +229,6 @@ pub struct World {
     pub accepted: Vec<Accepted>,
     pub lease_seconds: i64,
     pub execution_enabled: bool,
-    /// Serve the message body as a JSON object instead of a string.
-    pub body_as_object: bool,
     pub seen: Vec<Seen>,
     pub provider: VecDeque<ProviderStep>,
     hooks: Vec<Hook>,
@@ -313,7 +315,6 @@ impl World {
             accepted: Vec::new(),
             lease_seconds: 660,
             execution_enabled: true,
-            body_as_object: false,
             seen: Vec::new(),
             provider: VecDeque::new(),
             hooks: Vec::new(),
@@ -370,11 +371,19 @@ impl World {
                 claims: 0,
             },
         );
+        self.enqueue_raw(dispatch.clone())
+    }
+
+    /// Put a message that is not a dispatch on the queue. Like every message, it is served as a
+    /// Cloudflare pull serves a `json` message: its canonical JSON text in base64, with
+    /// `metadata["CF-Content-Type"]` `json`.
+    pub fn enqueue_raw(&mut self, body: Value) -> String {
         let id = format!("msg-{}", self.next_message);
         self.next_message += 1;
         self.queue.push(Message {
             id: id.clone(),
-            body: dispatch.clone(),
+            body,
+            served: None,
             visible_at: self.time.epoch(),
             lease: None,
             attempts: 0,
@@ -383,19 +392,17 @@ impl World {
         id
     }
 
-    /// Put a message that is not a dispatch on the queue.
-    pub fn enqueue_raw(&mut self, body: Value) -> String {
-        let id = format!("msg-{}", self.next_message);
-        self.next_message += 1;
-        self.queue.push(Message {
-            id: id.clone(),
-            body,
-            visible_at: self.time.epoch(),
-            lease: None,
-            attempts: 0,
-            acked: false,
-        });
-        id
+    /// Serve message `id` with this content type (`None`: no metadata entry) and this body
+    /// instead of the base64 `json` form.
+    pub fn serve_as(&mut self, id: &str, content_type: Option<&str>, body: Value) {
+        let message = self.queue.iter_mut().find(|m| m.id == id).expect("message");
+        message.served = Some((content_type.map(str::to_owned), body));
+    }
+
+    /// The canonical JSON text of the body of message `id`.
+    pub fn message_text(&self, id: &str) -> String {
+        let message = self.queue.iter().find(|m| m.id == id).expect("message");
+        canonical_json(&message.body).unwrap()
     }
 
     /// Messages that are still on the queue (not acknowledged).
@@ -669,14 +676,24 @@ impl World {
                 message.lease = Some(lease.clone());
                 message.visible_at = now + visibility;
                 message.attempts += 1;
-                let text = canonical_json(&message.body).unwrap();
+                let (content_type, body) = message.served.clone().unwrap_or_else(|| {
+                    let text = canonical_json(&message.body).unwrap();
+                    (
+                        Some("json".to_owned()),
+                        Value::String(BASE64.encode(text.as_bytes())),
+                    )
+                });
+                let metadata = content_type.map_or_else(
+                    || json!({}),
+                    |content_type| json!({"CF-Content-Type": content_type}),
+                );
                 messages.push(json!({
                     "id": message.id,
                     "lease_id": lease,
-                    "body": if self.body_as_object { message.body.clone() } else { Value::String(text) },
+                    "body": body,
                     "attempts": message.attempts,
                     "timestamp_ms": now * 1000,
-                    "metadata": {},
+                    "metadata": metadata,
                 }));
             }
             self.next_lease = lease_counter;

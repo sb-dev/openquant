@@ -8,12 +8,19 @@
 //! The request and response shapes below are the ones Cloudflare's HTTP-pull documentation is
 //! reported to give. They are reported facts, not verified here: no call to Cloudflare was made
 //! and no credential exists. The deployment probe (P6) confirms them, and so the response is read
-//! leniently: unknown fields are ignored, and the message body may be a string or a JSON value.
+//! leniently: unknown fields are ignored.
+//!
+//! The message body is decoded by its content type, as the pull-consumer documentation states
+//! (<https://developers.cloudflare.com/queues/configuration/pull-consumers/>, 1 July 2026): `json`
+//! and `bytes` bodies arrive base64-encoded (RFC 4648), `text` as a plain string, and `v8` cannot
+//! be decoded by a pull consumer. The documentation's example carries the content type in
+//! `metadata["CF-Content-Type"]`; that location is from the example only.
 
 use std::{fmt, time::Duration};
 
+use base64::Engine as _;
 use serde::Deserialize;
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 use super::{
     egress::{Auth, CLOUDFLARE_HOST, Egress, EgressError, Refusal, Request, Target},
@@ -21,17 +28,83 @@ use super::{
     wire::{Method, WireError},
 };
 
+/// Why a pulled message body could not be decoded to text. The message is a poison message.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Undecodable {
+    /// The content type is `v8`, unknown or missing: a pull consumer cannot decode it.
+    UnsupportedEncoding { content_type: Option<String> },
+    /// The body does not fit its content type: not a string, not strict base64, or not UTF-8.
+    Malformed {
+        content_type: String,
+        why: &'static str,
+    },
+}
+
+impl Undecodable {
+    /// The reason code of the poison message.
+    #[must_use]
+    pub const fn code(&self) -> &'static str {
+        match self {
+            Self::UnsupportedEncoding { .. } => "UNSUPPORTED_QUEUE_ENCODING",
+            Self::Malformed { .. } => "MALFORMED_QUEUE_BODY",
+        }
+    }
+
+    /// The content type as the queue named it, shortened and escaped for a log line.
+    #[must_use]
+    pub fn content_type(&self) -> String {
+        match self {
+            Self::UnsupportedEncoding { content_type: None } => "(none)".to_owned(),
+            Self::UnsupportedEncoding {
+                content_type: Some(name),
+            }
+            | Self::Malformed {
+                content_type: name, ..
+            } => name
+                .chars()
+                .take(32)
+                .collect::<String>()
+                .escape_debug()
+                .to_string(),
+        }
+    }
+}
+
+/// Decode a pulled body by its content type: `json` and `bytes` are standard base64 with padding,
+/// `text` is the string itself. The result is text; it is untrusted until it parses.
+fn decode_body(content_type: Option<&str>, body: &Value) -> Result<String, Undecodable> {
+    let Some(kind @ ("json" | "bytes" | "text")) = content_type else {
+        return Err(Undecodable::UnsupportedEncoding {
+            content_type: content_type.map(str::to_owned),
+        });
+    };
+    let malformed = |why| Undecodable::Malformed {
+        content_type: kind.to_owned(),
+        why,
+    };
+    let Value::String(text) = body else {
+        return Err(malformed("the body is not a string"));
+    };
+    if kind == "text" {
+        return Ok(text.clone());
+    }
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(text)
+        .map_err(|_| malformed("the body is not standard base64"))?;
+    String::from_utf8(bytes).map_err(|_| malformed("the decoded body is not UTF-8"))
+}
+
 /// One pulled message. It is consumed by [`CloudflareQueue::ack`] or [`CloudflareQueue::retry`].
 #[derive(Clone)]
 pub struct Delivery {
     id: String,
     lease_id: Secret,
-    body: String,
+    body: Result<String, Undecodable>,
     attempts: u32,
 }
 
 impl Delivery {
-    /// A delivery. The queue client builds these from a pull; a test queue builds them too.
+    /// A delivery whose body is already text. The queue client builds its own from a pull.
     #[must_use]
     pub fn new(
         id: impl Into<String>,
@@ -42,7 +115,7 @@ impl Delivery {
         Self {
             id: id.into(),
             lease_id: Secret::new(lease_id),
-            body: body.into(),
+            body: Ok(body.into()),
             attempts,
         }
     }
@@ -53,10 +126,12 @@ impl Delivery {
         &self.id
     }
 
-    /// The message body as text. It is untrusted until it parses as `job-dispatch/1`.
-    #[must_use]
-    pub fn body(&self) -> &str {
-        &self.body
+    /// The message body decoded to text. It is untrusted until it parses as `job-dispatch/1`.
+    ///
+    /// # Errors
+    /// [`Undecodable`] when the body could not be decoded by its content type.
+    pub fn body(&self) -> Result<&str, &Undecodable> {
+        self.body.as_deref()
     }
 
     /// How many times the queue has delivered the message, this delivery included.
@@ -71,7 +146,7 @@ impl fmt::Debug for Delivery {
         f.debug_struct("Delivery")
             .field("id", &self.id)
             .field("attempts", &self.attempts)
-            .field("body_bytes", &self.body.len())
+            .field("body_bytes", &self.body.as_ref().map(String::len))
             .finish_non_exhaustive()
     }
 }
@@ -133,9 +208,12 @@ struct PullResult {
 struct PulledMessage {
     id: String,
     lease_id: String,
+    #[serde(default)]
     body: Value,
     #[serde(default)]
     attempts: u32,
+    #[serde(default)]
+    metadata: Map<String, Value>,
 }
 
 /// The consumer of one queue, over an [`Egress`].
@@ -215,23 +293,23 @@ impl<'a> CloudflareQueue<'a> {
             ));
         }
         let messages = envelope.result.map(|r| r.messages).unwrap_or_default();
-        messages
+        // A body that cannot be decoded fails its own message, not the pull: the worker gives it
+        // back as a poison message.
+        Ok(messages
             .into_iter()
             .map(|message| {
-                let text = match message.body {
-                    Value::String(text) => text,
-                    other => serde_json::to_string(&other).map_err(|e| {
-                        QueueError::Malformed(format!("cannot read a message body: {e}"))
-                    })?,
-                };
-                Ok(Delivery::new(
-                    message.id,
-                    message.lease_id,
-                    text,
-                    message.attempts,
-                ))
+                let content_type = message
+                    .metadata
+                    .get("CF-Content-Type")
+                    .and_then(Value::as_str);
+                Delivery {
+                    body: decode_body(content_type, &message.body),
+                    id: message.id,
+                    lease_id: Secret::new(message.lease_id),
+                    attempts: message.attempts,
+                }
             })
-            .collect()
+            .collect())
     }
 
     fn settle(&self, body: &Value) -> Result<(), QueueError> {
@@ -281,5 +359,65 @@ mod tests {
         );
         assert_eq!(delivery.id(), "m1");
         assert_eq!(delivery.attempts(), 2);
+    }
+
+    const TEXT: &str = r#"{"schema_version":"job-dispatch/1"}"#;
+
+    fn b64(bytes: &[u8]) -> Value {
+        Value::String(base64::engine::general_purpose::STANDARD.encode(bytes))
+    }
+
+    #[test]
+    fn json_and_bytes_bodies_are_base64_and_a_text_body_is_plain() {
+        for kind in ["json", "bytes"] {
+            assert_eq!(
+                decode_body(Some(kind), &b64(TEXT.as_bytes())).as_deref(),
+                Ok(TEXT)
+            );
+        }
+        assert_eq!(
+            decode_body(Some("text"), &Value::String(TEXT.to_owned())).as_deref(),
+            Ok(TEXT)
+        );
+        // A json body that is the plain JSON text is not base64 and is not read as if it were.
+        let error = decode_body(Some("json"), &Value::String(TEXT.to_owned())).unwrap_err();
+        assert_eq!(error.code(), "MALFORMED_QUEUE_BODY");
+    }
+
+    #[test]
+    fn a_body_that_is_not_strict_base64_utf8_or_a_string_is_malformed() {
+        // URL-safe alphabet, missing padding, padding inside, whitespace, non-zero trailing bits.
+        for text in ["e30-", "e30", "e3=0", "e3 0", "e31="] {
+            let error = decode_body(Some("json"), &Value::String(text.to_owned())).unwrap_err();
+            assert_eq!(error.code(), "MALFORMED_QUEUE_BODY", "{text}");
+        }
+        assert_eq!(
+            decode_body(Some("json"), &b64(&[0xff, 0xfe, b'{'])),
+            Err(Undecodable::Malformed {
+                content_type: "json".to_owned(),
+                why: "the decoded body is not UTF-8",
+            })
+        );
+        let error = decode_body(Some("json"), &json!({"schema_version": "job-dispatch/1"}));
+        assert_eq!(error.unwrap_err().code(), "MALFORMED_QUEUE_BODY");
+    }
+
+    #[test]
+    fn v8_unknown_and_missing_content_types_are_unsupported() {
+        for content_type in [Some("v8"), Some("JSON"), Some("xml"), None] {
+            let error = decode_body(content_type, &b64(TEXT.as_bytes())).unwrap_err();
+            assert_eq!(
+                error,
+                Undecodable::UnsupportedEncoding {
+                    content_type: content_type.map(str::to_owned),
+                }
+            );
+            assert_eq!(error.code(), "UNSUPPORTED_QUEUE_ENCODING");
+        }
+        // The content type is untrusted: shortened and escaped before it reaches a log line.
+        let long = "x\n".repeat(40);
+        let error = decode_body(Some(&long), &Value::Null).unwrap_err();
+        assert!(!error.content_type().contains('\n'));
+        assert!(error.content_type().len() <= 64);
     }
 }

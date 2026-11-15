@@ -3,8 +3,9 @@
 //!
 //! The order is the point of this module.
 //!
-//! 1. A pulled message is parsed as `job-dispatch/1`. Anything else is a poison message that the
-//!    worker gives back with a long delay and never acknowledges.
+//! 1. A pulled message body is decoded by its content type and parsed as `job-dispatch/1`.
+//!    Anything else is a poison message that the worker gives back with a long delay and never
+//!    acknowledges.
 //! 2. The attempt is claimed through `attempt-claim/1` before any input is read. The claim, not the
 //!    queue lease, decides who may produce the official result. A claim is refused for an attempt
 //!    that is claimed elsewhere, terminal or fenced: the message has no purpose any more, because
@@ -97,8 +98,10 @@ pub enum Handled {
     NotClaimable { code: String, acked: bool },
     /// The claim was refused for another reason. The message was given back with a delay.
     ClaimRefused { code: String, retried: bool },
-    /// The body is not a `job-dispatch/1`. The message was given back with a long delay.
-    Poison { retried: bool },
+    /// The body cannot be decoded (`UNSUPPORTED_QUEUE_ENCODING`, `MALFORMED_QUEUE_BODY`) or is
+    /// not a `job-dispatch/1` (the contract failure code). The message was given back with a long
+    /// delay.
+    Poison { code: String, retried: bool },
     /// The message is for another environment. It was given back with a delay.
     WrongEnvironment { retried: bool },
 }
@@ -282,16 +285,31 @@ impl Worker {
         queue: &CloudflareQueue<'_>,
         delivery: Delivery,
     ) -> Result<Handled, WorkerError> {
-        let dispatch: g::JobDispatch = match parse(delivery.body()) {
-            Ok(dispatch) => dispatch,
-            Err(error) => {
+        let text = match delivery.body() {
+            Ok(text) => text,
+            Err(undecodable) => {
+                // The log names the content type, never the body.
+                let code = undecodable.code().to_owned();
                 self.say(&format!(
-                    "message {} is not a job-dispatch/1 ({}): given back",
+                    "message {} has a body that cannot be decoded ({code}, content type {}): \
+                     given back",
                     delivery.id(),
-                    error.failure_code()
+                    undecodable.content_type()
                 ));
                 let retried = self.give_back(queue, delivery, POISON_DELAY);
-                return Ok(Handled::Poison { retried });
+                return Ok(Handled::Poison { code, retried });
+            }
+        };
+        let dispatch: g::JobDispatch = match parse(text) {
+            Ok(dispatch) => dispatch,
+            Err(error) => {
+                let code = error.failure_code().to_string();
+                self.say(&format!(
+                    "message {} is not a job-dispatch/1 ({code}): given back",
+                    delivery.id()
+                ));
+                let retried = self.give_back(queue, delivery, POISON_DELAY);
+                return Ok(Handled::Poison { code, retried });
             }
         };
         if dispatch.environment.to_string() != self.config.environment {
@@ -302,9 +320,13 @@ impl Worker {
             let retried = self.give_back(queue, delivery, CONFIG_DELAY);
             return Ok(Handled::WrongEnvironment { retried });
         }
-        let Ok(dispatch_digest) = payload_digest(&dispatch) else {
-            let retried = self.give_back(queue, delivery, POISON_DELAY);
-            return Ok(Handled::Poison { retried });
+        let dispatch_digest = match payload_digest(&dispatch) {
+            Ok(digest) => digest,
+            Err(error) => {
+                let code = error.failure_code().to_string();
+                let retried = self.give_back(queue, delivery, POISON_DELAY);
+                return Ok(Handled::Poison { code, retried });
+            }
         };
 
         // One egress per job: its own budgets, over the shared policy and wire.
