@@ -9,10 +9,12 @@
 //! gate, a missing credential and an empty snapshot are all results, never abandoned jobs, so
 //! the run that depends on them is blocked with a reason instead of waiting.
 
+use std::cell::RefCell;
+
 use openquant_contracts::{Envelope, generated as g, payload_digest, validate};
 use serde_json::{Value, json};
 
-use super::{Abandoned, CancelToken, JSON_MEDIA_TYPE, JobContext, JobResult, Submitted, clip};
+use super::{Abandoned, JSON_MEDIA_TYPE, JobContext, JobResult, Submitted, clip};
 use crate::{
     batch::{
         api::ResultRoute,
@@ -35,11 +37,47 @@ pub const ADAPTER_VERSION: &str = "1";
 const PROVIDER: &str = "alpaca";
 
 /// Tells the retrieval to stop when the attempt was lost.
-struct Lost<'a>(&'a CancelToken);
+///
+/// The retrieval asks before every provider request, retries and pages included. Each question is
+/// the job's liveness probe ([`JobContext::heartbeat`]): it fails at once when an earlier call
+/// marked the attempt lost or the lease is about to end, and once every
+/// [`super::PROBE_INTERVAL_SECONDS`] it reads the request again, which an attempt that was
+/// cancelled, fenced or expired cannot do. Without it a retrieval makes no API call until its first
+/// upload, so a lost attempt would go on spending the provider budget until then.
+struct Lost<'a> {
+    cx: &'a JobContext<'a>,
+    probe_digest: &'a str,
+    /// Why the probe stopped the retrieval, for the job to return.
+    stopped: RefCell<Option<Abandoned>>,
+}
+
+impl<'a> Lost<'a> {
+    fn new(cx: &'a JobContext<'a>, probe_digest: &'a str) -> Self {
+        Self {
+            cx,
+            probe_digest,
+            stopped: RefCell::new(None),
+        }
+    }
+
+    /// The abandonment that stopped the retrieval, once.
+    fn take(&self) -> Option<Abandoned> {
+        self.stopped.borrow_mut().take()
+    }
+}
 
 impl Cancellation for Lost<'_> {
     fn is_cancelled(&self) -> bool {
-        self.0.is_cancelled()
+        if self.stopped.borrow().is_some() {
+            return true;
+        }
+        match self.cx.heartbeat(self.probe_digest) {
+            Ok(()) => false,
+            Err(abandoned) => {
+                *self.stopped.borrow_mut() = Some(abandoned);
+                true
+            }
+        }
     }
 }
 
@@ -188,7 +226,7 @@ pub fn run(cx: &JobContext<'_>, inputs: &g::RetrieveJobInputs) -> JobResult {
     let adapter = AlpacaAdapter::new(cx.egress, credentials);
     let clock = TimeClock(cx.time);
     let sleeper = TimeSleeper(cx.time);
-    let lost = Lost(cx.cancel);
+    let lost = Lost::new(cx, request_digest);
     let mut calls = CallContext::new(limits, &clock, &sleeper, &lost);
     let outcome = retrieve_snapshot(
         &permit,
@@ -198,6 +236,11 @@ pub fn run(cx: &JobContext<'_>, inputs: &g::RetrieveJobInputs) -> JobResult {
         &mut calls,
     );
     let requests = u32::try_from(calls.requests_made()).unwrap_or(u32::MAX);
+    // A probe that found the attempt lost stopped the retrieval: nothing is reported or uploaded,
+    // and the job ends with the reason the probe found.
+    if let Some(stopped) = lost.take() {
+        return Err(stopped);
+    }
     if cx.cancel.is_cancelled() {
         return Err(Abandoned::Cancelled);
     }

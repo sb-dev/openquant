@@ -20,7 +20,7 @@ mod market_support;
 
 use std::collections::VecDeque;
 
-use batch_support::{Action, Harness, ProviderStep, data::*, worker_handled};
+use batch_support::{Action, Harness, ProviderStep, World, data::*, worker_handled};
 use market_support::{Case, Reply, indexed_case_ids};
 use openquant_contracts::canonical::digest_bytes;
 use openquant_engine::{
@@ -458,21 +458,99 @@ fn a_request_that_the_egress_allowlist_would_refuse_never_reaches_the_provider()
     );
 }
 
+/// Seconds between two liveness probes of a job: the README of the engine says that a running job
+/// reads an input of its attempt every 20 seconds.
+const PROBE_SECONDS: i64 = 20;
+
+/// The provider requests that were sent at or after the request on which the attempt was lost.
+/// The request that carries the hook is answered after the attempt was lost, so it counts.
+fn requests_after(world: &World, lost_at_request: usize) -> usize {
+    world
+        .provider_requests()
+        .saturating_sub(lost_at_request - 1)
+}
+
 #[test]
 fn a_cancelled_retrieval_stops_and_submits_nothing() {
     let case = Case::load("N-09-pages");
     let harness = open_harness(&case);
-    // The mission is cancelled while the second provider request is answered. The next API call
-    // finds it, and the retrieval makes no further provider request.
-    harness.world().on("provider", 2, Action::CancelAttempts);
+    // The mission is cancelled while the second provider request is answered, and the probe
+    // interval has passed when the retrieval prepares the third. The retrieval reads an input of
+    // its attempt between provider requests, finds the cancellation there and sends no more than
+    // two provider requests after it (the case needs seven), and uploads nothing.
+    {
+        let mut world = harness.world();
+        world.on("provider", 2, Action::CancelAttempts);
+        world.on("provider", 2, Action::Advance(PROBE_SECONDS));
+    }
     let job = harness.enqueue_retrieve(&case.request, "cancel");
     let handled = worker_handled(&harness.poll(), &job.message);
-    let Handled::Abandoned { .. } = handled else {
+    let Handled::Abandoned { reason } = handled else {
         panic!("{handled:?}");
     };
+    assert!(reason.contains("the attempt was cancelled"), "{reason}");
     let world = harness.world();
     assert!(world.accepted.is_empty());
     assert!(!world.is_acked(&job.message));
+    let after = requests_after(&world, 2);
+    assert!(
+        after <= 2,
+        "{after} provider requests after the cancellation, of 7 scripted"
+    );
+    assert_eq!(
+        world.requests_with("attempts.artefact"),
+        0,
+        "no upload is attempted by a cancelled retrieval"
+    );
+}
+
+#[test]
+fn a_fenced_retrieval_stops_and_submits_nothing() {
+    let case = Case::load("N-09-pages");
+    let harness = open_harness(&case);
+    // A newer attempt of the same work exists from the second provider request on. Recovery would
+    // run it at the same time as this one, so this one must stop at its next probe.
+    {
+        let mut world = harness.world();
+        world.on("provider", 2, Action::FenceAttempts);
+        world.on("provider", 2, Action::Advance(PROBE_SECONDS));
+    }
+    let job = harness.enqueue_retrieve(&case.request, "fence");
+    let handled = worker_handled(&harness.poll(), &job.message);
+    let Handled::Abandoned { reason } = handled else {
+        panic!("{handled:?}");
+    };
+    assert!(reason.contains("STALE_OWNERSHIP"), "{reason}");
+    let world = harness.world();
+    assert!(world.accepted.is_empty());
+    assert!(!world.is_acked(&job.message));
+    let after = requests_after(&world, 2);
+    assert!(
+        after <= 2,
+        "{after} provider requests after the attempt was fenced, of 7 scripted"
+    );
+    assert_eq!(world.requests_with("attempts.artefact"), 0);
+}
+
+#[test]
+fn a_live_retrieval_probes_its_attempt_no_more_than_once_per_interval() {
+    // The probe reads an input of the attempt. Without a clock that moves, a retrieval of seven
+    // provider requests reads the request once (at the start) and uploads at the end: it must not
+    // read an input before each provider request.
+    let case = Case::load("N-09-pages");
+    let harness = open_harness(&case);
+    let job = harness.enqueue_retrieve(&case.request, "live");
+    assert!(matches!(
+        worker_handled(&harness.poll(), &job.message),
+        Handled::Completed { acked: true, .. }
+    ));
+    let world = harness.world();
+    assert_eq!(world.provider_requests(), 7);
+    assert_eq!(
+        world.requests_with("attempts.input"),
+        1,
+        "only the request itself is read while the clock does not move"
+    );
 }
 
 #[test]

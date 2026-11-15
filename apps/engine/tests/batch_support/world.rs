@@ -102,6 +102,9 @@ pub enum Action {
     Crash,
     /// Every attempt of the world is cancelled by the mission.
     CancelAttempts,
+    /// Every claimed attempt of the world is fenced: a newer attempt of the same work exists, so
+    /// late calls get `STALE_OWNERSHIP`.
+    FenceAttempts,
     /// The clock moves forward.
     Advance(i64),
     /// The request is lost: the wire fails with this error and nothing is handled.
@@ -549,6 +552,17 @@ impl World {
                         if attempt.state == AttemptState::Claimed {
                             attempt.state = AttemptState::Cancelled;
                         }
+                    }
+                }
+                Action::FenceAttempts => {
+                    let claimed: Vec<String> = self
+                        .attempts
+                        .iter()
+                        .filter(|(_, attempt)| attempt.state == AttemptState::Claimed)
+                        .map(|(id, _)| id.clone())
+                        .collect();
+                    for id in claimed {
+                        self.fence(&id);
                     }
                 }
                 Action::Advance(seconds) => self.time.advance(seconds),
