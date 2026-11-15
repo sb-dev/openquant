@@ -29,7 +29,8 @@ pub enum ContractError {
     /// At most 20 violations, then one entry without a pointer that stands for all later ones and
     /// is decimal-grammar only if every one of them is. The listing stops for a document beyond
     /// the structural limits, such as one with more than 4,096 values: it holds the limit it
-    /// exceeds, which is never decimal-grammar, then its first violation.
+    /// exceeds, then one generic entry that says the schema rejected the document. Neither is
+    /// decimal-grammar, so the code is `SCHEMA_VIOLATION`.
     #[error("payload violates the schema at {} location(s)", .0.len())]
     Schema(Vec<SchemaViolation>),
     #[error("invalid decimal {value:?}: {reason}")]

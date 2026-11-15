@@ -1718,6 +1718,41 @@
       "contract": "evaluation-input",
       "expect": "schema_invalid",
       "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/valid/api-error.maximal-listing.json",
+      "contract": "api-error",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/invalid/api-error.violations-22.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/api-error.pointer-1025.json",
+      "contract": "api-error",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/command.create-mission-amount-leading-zero.json",
+      "contract": "command",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/agent-attempt-result.cost-amount-exponent.json",
+      "contract": "agent-attempt-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/cohort-policy.cost-stress-multiplier-negative-leading-zero.json",
+      "contract": "cohort-policy",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
     }
   ]
 }

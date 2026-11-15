@@ -592,6 +592,7 @@ fixtures/benchmark-packs/README.md
 fixtures/example-packs/README.md
 fixtures/market-data/README.md
 fixtures/protocol/README.md
+fixtures/protocol/invalid/agent-attempt-result.cost-amount-exponent.json
 fixtures/protocol/invalid/agent-attempt-result.input-hash-malformed.json
 fixtures/protocol/invalid/agent-attempt-result.missing-provider.json
 fixtures/protocol/invalid/agent-attempt-result.negative-cost.json
@@ -611,6 +612,7 @@ fixtures/protocol/invalid/api-error.long-key-duplicate-wrong-version.json
 fixtures/protocol/invalid/api-error.long-key-nested.json
 fixtures/protocol/invalid/api-error.long-key-top-level.json
 fixtures/protocol/invalid/api-error.long-key-wrong-version.json
+fixtures/protocol/invalid/api-error.pointer-1025.json
 fixtures/protocol/invalid/api-error.unknown-code.json
 fixtures/protocol/invalid/api-error.unknown-field.json
 fixtures/protocol/invalid/api-error.value-bound-duplicate-key-escaped.json
@@ -633,6 +635,7 @@ fixtures/protocol/invalid/api-error.value-bound-wrong-version-at-4097.json
 fixtures/protocol/invalid/api-error.value-bound-wrong-version-last.json
 fixtures/protocol/invalid/api-error.value-bound-wrong-version.json
 fixtures/protocol/invalid/api-error.version-2.json
+fixtures/protocol/invalid/api-error.violations-22.json
 fixtures/protocol/invalid/api-error.wrong-version-duplicate-key.json
 fixtures/protocol/invalid/api-error.wrong-version-float.json
 fixtures/protocol/invalid/api-error.wrong-version-unsafe-integer.json
@@ -671,6 +674,7 @@ fixtures/protocol/invalid/checkpoint.version-2.json
 fixtures/protocol/invalid/cohort-policy.automatic-paper-promotion.json
 fixtures/protocol/invalid/cohort-policy.cost-stress-multiplier-below-one.json
 fixtures/protocol/invalid/cohort-policy.cost-stress-multiplier-exponent.json
+fixtures/protocol/invalid/cohort-policy.cost-stress-multiplier-negative-leading-zero.json
 fixtures/protocol/invalid/cohort-policy.cost-stress-multiplier-one.json
 fixtures/protocol/invalid/cohort-policy.fee-decimal-exponent.json
 fixtures/protocol/invalid/cohort-policy.gate-listed-twice.json
@@ -682,6 +686,7 @@ fixtures/protocol/invalid/cohort-policy.unknown-finding-category.json
 fixtures/protocol/invalid/cohort-policy.version-2.json
 fixtures/protocol/invalid/command.applied-without-record.json
 fixtures/protocol/invalid/command.budget-decimal-exponent.json
+fixtures/protocol/invalid/command.create-mission-amount-leading-zero.json
 fixtures/protocol/invalid/command.create-mission-negative-allowance.json
 fixtures/protocol/invalid/command.create-mission-period-ref.json
 fixtures/protocol/invalid/command.deferred-with-result.json
@@ -805,6 +810,7 @@ fixtures/protocol/manifest.json
 fixtures/protocol/valid/agent-attempt-result.completion.json
 fixtures/protocol/valid/agent-attempt-result.timeout.json
 fixtures/protocol/valid/agent-dispatch.proposer.json
+fixtures/protocol/valid/api-error.maximal-listing.json
 fixtures/protocol/valid/api-error.schema-violation.json
 fixtures/protocol/valid/api-error.stale-ownership.json
 fixtures/protocol/valid/attempt-claim.claim.json
@@ -1377,6 +1383,7 @@ packages/api-contracts/rust/src/limits.rs
 packages/api-contracts/rust/src/schema.rs
 packages/api-contracts/rust/src/strict.rs
 packages/api-contracts/rust/tests/contracts.rs
+packages/api-contracts/rust/tests/envelope_limits.rs
 packages/api-contracts/rust/tests/exact.rs
 packages/api-contracts/rust/tests/protocol.rs
 packages/api-contracts/rust/tests/registry.rs
@@ -1416,6 +1423,7 @@ packages/api-contracts/ts/src/result.ts
 packages/api-contracts/ts/src/strict-json.ts
 packages/api-contracts/ts/src/validate.ts
 packages/api-contracts/ts/test-reporter.ts
+packages/api-contracts/ts/test/api-error.test.ts
 packages/api-contracts/ts/test/bundle.test.ts
 packages/api-contracts/ts/test/canonical.test.ts
 packages/api-contracts/ts/test/errors.test.ts
@@ -1425,6 +1433,7 @@ packages/api-contracts/ts/test/manifest.test.ts
 packages/api-contracts/ts/test/memory.test.ts
 packages/api-contracts/ts/test/parity-compare.test.ts
 packages/api-contracts/ts/test/parity.test.ts
+packages/api-contracts/ts/test/patterns.test.ts
 packages/api-contracts/ts/test/result.test.ts
 packages/api-contracts/ts/test/routes.test.ts
 packages/api-contracts/ts/test/strict-json.test.ts
@@ -1435,6 +1444,8 @@ packages/api-contracts/ts/test/support/error-bound.ts
 packages/api-contracts/ts/test/support/error-shape.ts
 packages/api-contracts/ts/test/support/manifest.ts
 packages/api-contracts/ts/test/support/parity.ts
+packages/api-contracts/ts/test/support/regex-probe.ts
+packages/api-contracts/ts/test/support/scaling.ts
 packages/api-contracts/ts/test/support/schema-text.ts
 packages/api-contracts/ts/test/validate.test.ts
 packages/api-contracts/ts/test/value-bound.test.ts

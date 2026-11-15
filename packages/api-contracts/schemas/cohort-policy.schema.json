@@ -94,7 +94,7 @@
     },
     "StressMultiplier": {
       "title": "StressMultiplier",
-      "description": "A Decimal greater than 1, so the stress scenario raises costs. A malformed decimal is INVALID_DECIMAL; a well-formed value of 1 or less is SCHEMA_VIOLATION.",
+      "description": "A Decimal greater than 1, so the stress scenario raises costs. A well-formed value of 1 or less is SCHEMA_VIOLATION. A malformed decimal is INVALID_DECIMAL only when it is the document's only kind of violation: not inside a failing oneOf, and not when it starts with '-', which also fails the sign rule of this type. Otherwise it is SCHEMA_VIOLATION (OQ-05 section 7).",
       "type": "string",
       "allOf": [{ "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" }, { "not": { "pattern": "^(?:-.*|0(?:\\.[0-9]+)?|1(?:\\.0+)?)$" } }]
     },

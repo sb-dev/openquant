@@ -3,12 +3,16 @@
 //! The JSON Schema validator's `iter_errors` costs memory in proportion to the violations in the
 //! document, even when the caller reads only the first few: about 4 KiB for an empty object that
 //! misses ten required properties, however few bytes that object takes on the wire. A payload
-//! under the byte limit can hold millions of such objects.
+//! under the byte limit can hold millions of such objects. `validate` costs the same when a `oneOf`
+//! fails: it collects and copies the errors of every branch before it returns the first one.
 //!
-//! [`crate::validate`] therefore asks the validator for one error first, which decides validity
-//! at any size, and only a document that stays under these limits goes on to the full pass. A
-//! document beyond a limit reports that limit, then its first violation: the listing stopped, and
-//! the code is `SCHEMA_VIOLATION`, even when that violation is a decimal-grammar one.
+//! [`crate::validate`] therefore decides validity first with `is_valid`, which collects no error
+//! and so costs no memory in proportion to the violations, at any size. Only a document that stays
+//! under these limits goes on to the full pass. A document beyond a limit reports that limit and
+//! one generic entry that says the schema rejected it, never the first violation, because finding
+//! the first violation is what costs the memory: the listing stopped, and the code is
+//! `SCHEMA_VIOLATION`. The TypeScript layer may add its first violation instead of the generic
+//! entry. The violation lists of the runtimes are not compared, only their codes and digests.
 //!
 //! [`MAX_NODES`] is the limit that bounds the full pass. The TypeScript layer applies the same
 //! limit, so both runtimes give the same code (`packages/api-contracts/ts/src/limits.ts`). There
@@ -22,7 +26,7 @@
 //! The value limit is per document, not per contract. A schema-valid evaluation input, result or
 //! checkpoint can hold more than [`MAX_NODES`] values (4,000 ledger entries alone hold about
 //! 36,000). Such a document is accepted when it is valid. When it is invalid, it reports
-//! `SCHEMA_VIOLATION` with the first violation.
+//! `SCHEMA_VIOLATION` with the limit it exceeds and the generic entry.
 //!
 //! Object keys have no limit here. The TypeScript layer refuses a key whose text is longer than
 //! 256 bytes before it decodes it, after the version check, to keep a Worker's parse within memory
@@ -35,7 +39,7 @@
 //! and protocol fixtures pin a long key at the top level, nested, before another version tag and
 //! repeated.
 //!
-//! The depth limit does not protect the first-error pass. That pass recurses over the depth of a
+//! The depth limit does not protect the validity pass. That pass recurses over the depth of a
 //! recursive schema such as an expression. A [`serde_json::Value`] built by hand and nested
 //! about 2,000 levels deep can overflow the stack there. The strict text parser refuses depth
 //! above 128 first, so a document that comes from text is safe.

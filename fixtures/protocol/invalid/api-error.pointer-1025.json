@@ -1,0 +1,14 @@
+{
+  "schema_version": "api-error/1",
+  "code": "SCHEMA_VIOLATION",
+  "message": "The request body violates command/1 at 1 location.",
+  "state_changed": "NONE",
+  "retry_safe": false,
+  "diagnostic_ref": "diag-01JF3KA1Q0ZP",
+  "violations": [
+    {
+      "pointer": "/definition/indicators/10/expr/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/paramsa",
+      "message": "pointer one character past the maximum"
+    }
+  ]
+}

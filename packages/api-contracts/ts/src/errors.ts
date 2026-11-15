@@ -1,5 +1,6 @@
 // Contract errors and failure codes, mirroring packages/api-contracts/rust/src/error.rs.
 
+import type { ApiViolation } from '../dist/generated/types.ts';
 import type { StrictJsonErrorKind } from './strict-json.ts';
 
 /** The shared failure codes the contract layer reports. */
@@ -45,7 +46,8 @@ export class ContractError extends Error {
   /**
    * Schema violations. When the listing ran: at most 20, then one entry without a pointer that
    * stands for all later ones and is decimal-grammar only if every one of them is. When it stopped
-   * (listingStopped): the limit that stopped it, then, for a structural limit, the first violation.
+   * (listingStopped): the limit that stopped it, then, for a structural limit, the first violation
+   * (Rust gives one generic entry instead).
    */
   readonly violations: readonly SchemaViolation[];
   /**
@@ -70,4 +72,30 @@ export class ContractError extends Error {
     this.listingStopped = listingStopped;
     this.code = listingStopped ? 'SCHEMA_VIOLATION' : failureCode(kind, violations);
   }
+}
+
+/** The longest ApiViolation pointer and message, in characters (code points), as the schema states. */
+export const API_POINTER_MAX_LENGTH = 1024;
+export const API_MESSAGE_MAX_LENGTH = 1000;
+
+// Cut text to at most `maximum` code points, never inside a surrogate pair. A string of at most
+// `maximum` UTF-16 code units has at most that many code points and is returned as it is.
+function cut(text: string, maximum: number): string {
+  if (text.length <= maximum) return text;
+  const points = Array.from(text);
+  return points.length <= maximum ? text : points.slice(0, maximum).join('');
+}
+
+/**
+ * The `violations` of the `api-error/1` body for a rejected payload, or undefined when the error
+ * lists none (OQ-05 §7). The entries are the contract layer's listing, in order: at most 20 violations
+ * and one last entry, with an empty pointer, that counts the rest, so at most 21 entries. A pointer or a
+ * message longer than the schema maximum is cut to it. The decimal-grammar flag is not sent.
+ */
+export function apiViolations(error: ContractError): ApiViolation[] | undefined {
+  if (error.violations.length === 0) return undefined;
+  return error.violations.map(({ pointer, message }) => ({
+    pointer: cut(pointer, API_POINTER_MAX_LENGTH),
+    message: cut(message, API_MESSAGE_MAX_LENGTH),
+  }));
 }
