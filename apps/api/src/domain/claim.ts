@@ -5,7 +5,7 @@
 //     executable can be verified, for any kind of work and for agent attempts), when the service principal is not the
 //     host that the message was dispatched to (a batch credential cannot claim agent work and the reverse), when the
 //     executable is not one of the recorded release, and when the mission's concurrency limit of the cohort policy is
-//     reached;
+//     reached (heldSlots: a slot is held until the worker is known to have stopped, decision D22);
 //   - takes a lease that lasts the attempt timeout of the cohort policy plus a short grace, so that the host's own timeout
 //     ends the work before the lease does (the lease is separate from any queue receipt);
 //   - returns an attempt-scoped capability that expires with the lease: a token signed with the application key whose
@@ -25,6 +25,50 @@ import type { DispatchKind } from './work.ts';
 
 /** The lease outlasts the attempt timeout by this long, so a host that stops at its timeout can still submit. */
 export const LEASE_GRACE_SECONDS = 60;
+
+/** The result routes: a late submission to one of them shows that the worker reached its end. */
+const RESULT_ROUTES = [
+  'attempts.retrieval-result',
+  'attempts.validation-result',
+  'attempts.evaluation-submission',
+  'attempts.gate-report',
+  'attempts.agent-result',
+];
+
+/**
+ * The concurrency slots of one host class (dispatch destination) that the attempts of a mission hold (OQ-05 section 4;
+ * decision D22: lease expiry releases nothing until termination is confirmed). An attempt holds its slot from its claim
+ * until it completes (its result or failure report commits) or its worker is known to have stopped. The end of its
+ * lease is not that: an attempt that is CLAIMED with an expired lease, LEASE_EXPIRED or cancelled while claimed keeps
+ * its slot while its reservation is RESERVED, that is until the termination probe confirms that the host stopped
+ * (confirmTermination), unless its late result was refused and recorded after the lease ended or the cancellation.
+ */
+export async function heldSlots(
+  tx: Queryable,
+  missionId: string,
+  destination: 'BATCH_QUEUE' | 'AGENT_RUNNER',
+): Promise<number> {
+  const { rows } = await tx.query<{ held: number }>(
+    `SELECT count(*)::int AS held
+       FROM attempts a
+       JOIN outbox o ON o.attempt_id = a.attempt_id AND o.destination = $2
+       JOIN reservations rv ON rv.attempt_id = a.attempt_id
+       JOIN leases l ON l.attempt_id = a.attempt_id
+       LEFT JOIN runs r ON r.run_id = a.run_id
+       LEFT JOIN jobs j ON j.job_id = a.job_id
+      WHERE COALESCE(r.mission_id, j.mission_id) = $1
+        AND (a.status = 'CLAIMED'
+             OR ((a.status = 'LEASE_EXPIRED' OR (a.status = 'CANCELLED' AND a.claimed_at IS NOT NULL))
+                 AND rv.status = 'RESERVED'
+                 AND NOT EXISTS (
+                   SELECT 1 FROM audit_events e
+                    WHERE e.subject = a.attempt_id AND e.event_type = 'attempt.late_submission_rejected'
+                      AND e.occurred_at >= LEAST(l.expires_at, a.ended_at)
+                      AND (e.detail->>'route' = ANY($3::text[]) OR e.detail->>'action' IN ('submit', 'complete', 'fail')))))`,
+    [missionId, destination, RESULT_ROUTES],
+  );
+  return rows[0]?.held ?? 0;
+}
 
 function timestamp(date: Date): string {
   return `${date.toISOString().slice(0, 19)}Z`;
@@ -115,22 +159,13 @@ export async function grantClaim(
     expected === 'batch'
       ? policy.document.limits.concurrent_batch_attempts
       : policy.document.limits.concurrent_agent_attempts;
-  const live = await tx.query<{ live: number }>(
-    `SELECT count(*)::int AS live
-       FROM attempts a
-       JOIN leases l ON l.attempt_id = a.attempt_id AND l.status = 'HELD' AND l.expires_at > $3
-       JOIN outbox o ON o.attempt_id = a.attempt_id AND o.destination = $2
-       LEFT JOIN runs r ON r.run_id = a.run_id
-       LEFT JOIN jobs j ON j.job_id = a.job_id
-      WHERE a.status = 'CLAIMED' AND COALESCE(r.mission_id, j.mission_id) = $1`,
-    [mission.mission_id, dispatch.destination, now],
-  );
-  if (claimable && (live.rows[0]?.live ?? 0) >= limit) {
+  const held = await heldSlots(tx, mission.mission_id, dispatch.destination);
+  if (claimable && held >= limit) {
     return {
       ok: false,
       failure: new ApiFailure(
         'RATE_LIMITED',
-        `The mission already has ${limit} ${expected} attempts running: claim again later.`,
+        `The mission already has ${limit} ${expected} attempts that hold a slot: claim again later.`,
         {
           retrySafe: true,
         },

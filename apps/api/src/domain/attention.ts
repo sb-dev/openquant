@@ -19,3 +19,19 @@ export async function openAttention(
   );
   return itemId;
 }
+
+/** Whether an item with this subject is still OPEN or ACKNOWLEDGED. */
+export async function attentionOpen(tx: Queryable, subject: string): Promise<boolean> {
+  const { rows } = await tx.query(`SELECT 1 FROM attention_items WHERE subject = $1 AND status <> 'RESOLVED' LIMIT 1`, [
+    subject,
+  ]);
+  return rows.length > 0;
+}
+
+/** Resolve every item with this subject that is not resolved yet: what it reported has ended. */
+export async function resolveAttention(tx: Queryable, env: Pick<ApiEnv, 'clock'>, subject: string): Promise<void> {
+  await tx.query(
+    `UPDATE attention_items SET status = 'RESOLVED', resolved_at = $2 WHERE subject = $1 AND status <> 'RESOLVED'`,
+    [subject, env.clock()],
+  );
+}
