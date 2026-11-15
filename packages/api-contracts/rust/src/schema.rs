@@ -203,6 +203,16 @@ fn is_decimal_grammar(error: &ValidationError<'_>) -> bool {
     )
 }
 
+/// The entry for a rejection that has no violation of its own to show: the document is beyond a
+/// structural limit, so none was built. It is never decimal-grammar.
+fn rejected() -> SchemaViolation {
+    SchemaViolation {
+        pointer: String::new(),
+        message: "the schema rejected the document".to_owned(),
+        decimal_grammar: false,
+    }
+}
+
 fn violation(error: &ValidationError<'_>) -> SchemaViolation {
     SchemaViolation {
         pointer: error.instance_path().to_string(),
@@ -216,11 +226,7 @@ fn violation(error: &ValidationError<'_>) -> SchemaViolation {
 /// The marker entry that stands for the unlisted violations is decimal-grammar only when every
 /// one of them is. [`ContractError::failure_code`] therefore reads the same answer from the capped
 /// list as it would from the full one.
-fn collect(
-    validator: &Validator,
-    value: &Value,
-    first: &ValidationError<'_>,
-) -> Vec<SchemaViolation> {
+fn collect(validator: &Validator, value: &Value) -> Vec<SchemaViolation> {
     let mut listed = Vec::new();
     let mut omitted = 0_usize;
     let mut omitted_all_decimal = true;
@@ -233,8 +239,8 @@ fn collect(
         }
     }
     if listed.is_empty() {
-        // The first-error check rejected the document, so never turn that into success.
-        listed.push(violation(first));
+        // `is_valid` rejected the document, so never turn that into success.
+        listed.push(rejected());
     }
     if omitted > 0 {
         listed.push(SchemaViolation {
@@ -248,9 +254,12 @@ fn collect(
 
 /// Check the version tag, then validate the whole payload against its schema.
 ///
-/// A valid document costs one pass and no allocation. An invalid one is diagnosed in full only
-/// while it stays within the structural limits in the `limits` module. A larger one reports the
-/// limit it exceeds and its first violation, which is at most two [`SchemaViolation`]s.
+/// Validity is decided first, with the validator's `is_valid`, which collects no error. A valid
+/// document costs one pass and no allocation. An invalid one is diagnosed in full only while it
+/// stays within the structural limits in the `limits` module. A larger one reports the limit it
+/// exceeds and one generic entry that says the schema rejected it, which is two
+/// [`SchemaViolation`]s and the code `SCHEMA_VIOLATION`. No violation of a document beyond a limit
+/// is built, so the cost of rejecting it does not follow the number of its violations.
 ///
 /// The same steps apply to an engine contract and to an envelope. Each set has its own registry.
 ///
@@ -277,14 +286,16 @@ pub fn validate<C: ContractKind>(contract: C, value: &Value) -> Result<(), Contr
     let validator = validators
         .get(contract.schema_id())
         .ok_or_else(|| ContractError::Registry(format!("no validator for {contract:?}")))?;
-    // One error is cheap whatever the size of the document.
-    let Err(first) = validator.validate(value) else {
+    // `validate` returns its first error, and for a `oneOf` that fails it first collects the errors
+    // of every branch and copies each one. That costs memory in proportion to the violations under
+    // the `oneOf`, however few bytes they take. `is_valid` collects no error at all.
+    if validator.is_valid(value) {
         return Ok(());
-    };
-    if let Some(excess) = limits::first_excess(value) {
-        return Err(ContractError::Schema(vec![excess, violation(&first)]));
     }
-    Err(ContractError::Schema(collect(validator, value, &first)))
+    if let Some(excess) = limits::first_excess(value) {
+        return Err(ContractError::Schema(vec![excess, rejected()]));
+    }
+    Err(ContractError::Schema(collect(validator, value)))
 }
 
 #[cfg(test)]

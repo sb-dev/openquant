@@ -24,7 +24,7 @@
     },
     "JobStatus": {
       "title": "JobStatus",
-      "description": "Status of a retrieve, validate or assess job, and of an agent's logical run (OQ-05 section 4). An evaluate job is a run and uses RunStatus. QUEUED: an attempt exists and waits for its claim. RUNNING: an attempt holds a lease. COMPLETED: an attempt's result was accepted. A validate job is COMPLETED with a VALID or an INVALID result. A retrieve job is COMPLETED with COMPLETE, PARTIAL or NO_OBSERVATIONS coverage recorded; missing required data blocks the work that depends on it. An agent run is COMPLETED by a completion. FAILED: the attempt cap is exhausted or the failure is not retried. A retrieve job is FAILED after the bounded retry policy, which retries only transient failure classes. An agent run retries a timeout, a malformed result, a lease expiry or a runner crash within the attempt cap, and is FAILED at once after a refusal, a denied capability or an authentication failure. CANCELLED: cancellation ended the job or agent run.",
+      "description": "Status of a retrieve, validate or assess job, and of an agent's logical run (OQ-05 section 4). An evaluate job is a run and uses RunStatus. QUEUED: an attempt exists and waits for its claim, or the job waits for budget with no live attempt, after a retryable failure below the attempt cap that no budget can cover; the mission is then BLOCKED. RUNNING: an attempt holds a lease. COMPLETED: an attempt's result was accepted. A validate job is COMPLETED with a VALID or an INVALID result. A retrieve job is COMPLETED with COMPLETE, PARTIAL or NO_OBSERVATIONS coverage recorded; missing required data blocks the work that depends on it. An agent run is COMPLETED by a completion. FAILED: only when the attempt cap is exhausted or the failure is not retryable. A retrieve job is FAILED after the bounded retry policy, which retries only transient failure classes. An agent run retries a timeout, a malformed result, a lease expiry or a runner crash within the attempt cap, and is FAILED at once after a refusal, a denied capability or an authentication failure. CANCELLED: cancellation ended the job or agent run.",
       "type": "string",
       "enum": ["QUEUED", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"]
     },
@@ -54,7 +54,7 @@
     },
     "RunStatus": {
       "title": "RunStatus",
-      "description": "Run status (OQ-02 section 3.6). A completed run can contain failing gates.",
+      "description": "Run status (OQ-02 section 3.6). QUEUED: an attempt exists and waits for its claim, or the run waits for budget with no live attempt, after a retryable failure below the attempt cap that no budget can cover; the mission is then BLOCKED. RUNNING: an attempt holds a lease. COMPLETED: the run ended with an accepted result; a completed run can contain failing gates. FAILED: only when the attempt cap is exhausted or the failure is not retryable. CANCELLED: cancellation ended the run.",
       "type": "string",
       "enum": ["QUEUED", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"]
     },
@@ -181,7 +181,7 @@
     },
     "NonNegativeDecimal": {
       "title": "NonNegativeDecimal",
-      "description": "A Decimal that is zero or positive. A malformed decimal is INVALID_DECIMAL; a well-formed negative one is SCHEMA_VIOLATION. Every amount of money spent, reserved or allowed uses it, so no reported usage or budget value can be negative.",
+      "description": "A Decimal that is zero or positive. A well-formed negative one is SCHEMA_VIOLATION. A malformed decimal is INVALID_DECIMAL only when it is the document's only kind of violation: not inside a failing oneOf, such as in command/1 or agent-attempt-result/1, and not when it starts with '-', which also fails the sign rule of this type. Otherwise it is SCHEMA_VIOLATION (OQ-05 section 7). Every amount of money spent, reserved or allowed uses it, so no reported usage or budget value can be negative.",
       "type": "string",
       "allOf": [{ "$ref": "urn:openquant:schema:common:1#/$defs/Decimal" }, { "not": { "pattern": "^-" } }]
     },

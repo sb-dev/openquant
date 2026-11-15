@@ -8,6 +8,9 @@ export { contracts, DECIMAL_PATTERN, EXACT_MAX_LENGTH, EXACT_PATTERN } from '../
 export type * from '../dist/generated/types.ts';
 export { CanonicalError, canonicalJson, digest, digestBytes, type Sha256Digest } from './canonical.ts';
 export {
+  API_MESSAGE_MAX_LENGTH,
+  API_POINTER_MAX_LENGTH,
+  apiViolations,
   ContractError,
   type ContractErrorKind,
   type ContractFailureCode,
