@@ -3,6 +3,7 @@ packages:
   - packages/api-contracts/ts
   - apps/api
   - packages/agents
+  - apps/agent-runner
 
 # pnpm 11 installs, and can rewrite pnpm-lock.yaml, before `pnpm run` or `pnpm exec` when it finds the
 # install out of date. Verification never installs (OQ-06 section 1), so pnpm fails instead and says to install.

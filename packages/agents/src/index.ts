@@ -73,3 +73,9 @@ export {
   skillEntry,
   skillForRole,
 } from './registry.ts';
+export type {
+  StrategyCritiqueRequest,
+  StrategyCritiqueResult,
+  StrategyFormulationRequest,
+  StrategyFormulationResult,
+} from './types.ts';
