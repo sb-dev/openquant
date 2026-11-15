@@ -50,6 +50,17 @@ function safeList(path) {
   }
 }
 
+// The text of the result: one text for every run, or one per role module, chosen by the skill named in the system prompt.
+function resultText() {
+  if (scenario.resultByRole) {
+    const prompt = args.find((argument) => argument.startsWith('--system-prompt=')) ?? '';
+    for (const [skill, text] of Object.entries(scenario.resultByRole)) {
+      if (prompt.includes(`skill: ${skill}`)) return text;
+    }
+  }
+  return scenario.resultText ?? '';
+}
+
 function cliResult(overrides = {}) {
   const model = scenario.reportedModel ?? option('--model') ?? 'claude-opus-5-5';
   return {
@@ -62,10 +73,15 @@ function cliResult(overrides = {}) {
     total_cost_usd: 0.0123456,
     usage: { input_tokens: 10, cache_creation_input_tokens: 100, cache_read_input_tokens: 5, output_tokens: 20 },
     modelUsage: { [model]: { outputTokens: 20, provider: 'firstParty' } },
-    result: scenario.resultText ?? '',
+    result: resultText(),
     ...overrides,
     ...(scenario.report ?? {}),
   };
+}
+
+// A large write to a pipe is asynchronous: exit only once it has been flushed, or the runner reads a truncated result.
+function finish(text, code = 0) {
+  process.stdout.write(text, () => process.exit(code));
 }
 
 function behave(stdin) {
@@ -73,9 +89,8 @@ function behave(stdin) {
     case 'result': {
       const object = cliResult();
       for (const key of scenario.omit ?? []) delete object[key];
-      process.stdout.write(JSON.stringify(object));
       if (scenario.stderr) process.stderr.write(scenario.stderr);
-      process.exit(scenario.exitCode ?? 0);
+      finish(JSON.stringify(object), scenario.exitCode ?? 0);
       break;
     }
     case 'raw': {
@@ -86,13 +101,11 @@ function behave(stdin) {
     }
     case 'echo-stdin': {
       // The result text is the request itself: the runner must hand the exact bytes over on standard input.
-      process.stdout.write(JSON.stringify(cliResult({ result: stdin.toString('utf8') })));
-      process.exit(0);
+      finish(JSON.stringify(cliResult({ result: stdin.toString('utf8') })));
       break;
     }
     case 'dump-env': {
-      process.stdout.write(JSON.stringify(cliResult({ result: JSON.stringify({ env: { ...process.env } }) })));
-      process.exit(0);
+      finish(JSON.stringify(cliResult({ result: JSON.stringify({ env: { ...process.env } }) })));
       break;
     }
     case 'hang': {

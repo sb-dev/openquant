@@ -1,20 +1,38 @@
 import { readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { BUNDLE_HASH, RESULT_SCHEMAS } from '@openquant/agents';
+import {
+  BUNDLE_HASH,
+  PROCEDURES,
+  RESULT_SCHEMAS,
+  type StrategyCritiqueRequest,
+  type StrategyFormulationRequest,
+} from '@openquant/agents';
 import type { AgentAttemptResult, AgentDispatch, AttemptClaimGrant } from '@openquant/api-contracts';
 import { validateContract } from '@openquant/api-contracts';
 import { afterEach, describe, expect, it } from 'vitest';
+import { applyEdits, proposedForm, seedArtefact } from '../../../packages/agents/dev/world.ts';
 import { sha256Text, stable } from '../../../packages/agents/test/support/oracle.ts';
-import { critiqueOutput, finding, revisionOutput } from '../../../packages/agents/test/support/requests.ts';
+import {
+  BREAK_EVEN,
+  claims,
+  critiqueOutput,
+  finding,
+  revisionOutput,
+  SEED_FOUR,
+  SEED_ONE,
+  THRESHOLD,
+} from '../../../packages/agents/test/support/requests.ts';
 import { type AttemptDeps, runAttempt } from '../src/attempt.ts';
 import { instructionsFor } from '../src/bundle.ts';
 import { execute } from '../src/executor.ts';
 import { sha256Bytes } from '../src/text.ts';
 import {
   API_TOKEN,
+  type Assembled,
   apiFailure,
   CAPABILITY,
   cleanup,
+  craftedRequest,
   critiqueRequest,
   DISPATCH_TOKEN,
   type DispatchOptions,
@@ -24,6 +42,7 @@ import {
   MODEL_KEY,
   makeWorld,
   type Scenario,
+  storedRequest,
   type World,
 } from './support/world.ts';
 
@@ -38,6 +57,8 @@ interface Context {
 
 interface Setup {
   role?: 'proposer' | 'critic';
+  /** A stored request to use instead of the one that assembly builds. */
+  assembled?: Assembled<StrategyFormulationRequest | StrategyCritiqueRequest>;
   dispatch?: DispatchOptions;
   world?: Parameters<typeof makeWorld>[1];
   storeRequest?: boolean;
@@ -45,7 +66,8 @@ interface Setup {
 }
 
 async function setup(scenario: Scenario, options: Setup = {}): Promise<Context> {
-  const assembled = options.role === 'critic' ? await critiqueRequest() : await formulationRequest();
+  const assembled =
+    options.assembled ?? (options.role === 'critic' ? await critiqueRequest() : await formulationRequest());
   const world = makeWorld(scenario, options.world);
   if (options.storeRequest !== false) world.api.store(assembled.bytes);
   const base = dispatchFor(assembled, { role: options.role ?? 'proposer', ...options.dispatch });
@@ -585,5 +607,191 @@ describe('the scratch space', () => {
       await go(context);
       expect(readdirSync(context.world.scratchRoot)).toEqual([]);
     }
+  });
+});
+
+describe('a stored request that request assembly would not have built', () => {
+  // The API stores the request that assembly returned. The runner does not trust that: it runs the checks of assembly
+  // again on the bytes it was given, before the dispatch checks and long before an executor starts.
+  // The members that the cases change, as both roles share them (the two request types do not intersect).
+  interface Loose {
+    context: { holdout_exclusions: { window: string }[]; operators: { permitted: unknown[] } };
+    supplied_methods: unknown[];
+    evidence_refs: { content: string; kind: string }[];
+    subject: { proposal_kind?: string; parent_hash?: string; strategy_hash?: string };
+  }
+  type Craft = (copy: Loose) => void;
+  const cases: readonly [string, 'proposer' | 'critic', Craft, string][] = [
+    [
+      'a document that is valid JSON of the schema and not the canonical text of assembly',
+      'proposer',
+      () => undefined,
+      'REQUEST_NOT_CANONICAL',
+    ],
+    [
+      'exclusions that do not name the validation window',
+      'proposer',
+      (copy) => {
+        copy.context.holdout_exclusions = copy.context.holdout_exclusions.filter(
+          (item) => item.window !== 'VALIDATION',
+        );
+      },
+      'HOLDOUT_EXCLUSIONS_INVALID',
+    ],
+    [
+      'permitted operators that are not the operators of the frozen policy',
+      'critic',
+      (copy) => {
+        copy.context.operators.permitted.pop();
+      },
+      'OPERATORS_MISMATCH',
+    ],
+    [
+      'a method that the bundle does not supply',
+      'proposer',
+      (copy) => {
+        copy.supplied_methods.push({
+          id: 'm-1',
+          rule_origin: 'primary_checked',
+          category: 'method_advice',
+          scope: 'seed',
+        });
+      },
+      'METHODS_MISMATCH',
+    ],
+    [
+      'evidence that names a day inside the holdout window',
+      'critic',
+      (copy) => {
+        for (const item of copy.evidence_refs) item.content = 'The weak week of 2025-03-14.';
+      },
+      'HOLDOUT_OVERLAP',
+    ],
+    [
+      'a parent hash that is not the digest of the parent',
+      'proposer',
+      (copy) => {
+        if (copy.subject.proposal_kind === 'controlled_revision') copy.subject.parent_hash = `sha256:${'0'.repeat(64)}`;
+      },
+      'PARENT_HASH_MISMATCH',
+    ],
+    [
+      'an unregistered draft: a strategy hash that is not the digest of the strategy',
+      'critic',
+      (copy) => {
+        copy.subject.strategy_hash = `sha256:${'f'.repeat(64)}`;
+      },
+      'STRATEGY_HASH_MISMATCH',
+    ],
+    [
+      'run metrics as critic evidence',
+      'critic',
+      (copy) => {
+        for (const item of copy.evidence_refs) item.kind = 'evaluation_metrics';
+      },
+      'EVIDENCE_NOT_PERMITTED',
+    ],
+  ];
+
+  for (const [name, role, craft, code] of cases) {
+    it(`denies ${name} with the refusal ${code}, and starts nothing`, async () => {
+      const base = role === 'critic' ? await critiqueRequest() : await formulationRequest();
+      let assembled: Assembled<StrategyFormulationRequest | StrategyCritiqueRequest>;
+      if (code === 'REQUEST_NOT_CANONICAL') {
+        // The same document, pretty-printed: it satisfies the schema, but it is not what assembly writes.
+        assembled = storedRequest(base.request, Buffer.from(JSON.stringify(base.request, null, 2), 'utf8'));
+      } else {
+        assembled = await craftedRequest<StrategyFormulationRequest | StrategyCritiqueRequest>(base, (copy) =>
+          craft(copy as unknown as Loose),
+        );
+      }
+      const context = await setup(reply(role === 'critic' ? critiqueOutput() : await revisionOutput()), {
+        role,
+        assembled,
+      });
+      expect(await go(context)).toEqual({ posted: true, outcome: 'denied_capability', reason: 'CAPABILITY_DENIED' });
+      const result = posted(context);
+      const diagnostic = result.outcome.outcome === 'denied_capability' ? result.outcome.diagnostic : '';
+      expect(diagnostic).toContain(`not a request that assembly builds: ${code}`);
+      // Not even the version probe ran, and nothing was stored: the executor was never asked.
+      expect(context.world.cli.calls()).toEqual([]);
+      expect(context.world.api.events).toEqual(['fetch', 'post']);
+      expect(result.usage.cost).toMatchObject({ label: 'observed', amount: '0' });
+    });
+  }
+
+  it('counts the further refusals and names only the first', async () => {
+    const base = await formulationRequest();
+    const assembled = await craftedRequest(base, (copy) => {
+      copy.context.holdout_exclusions = [];
+      copy.context.operators.permitted.pop();
+    });
+    const context = await setup(reply(await revisionOutput()), { assembled });
+    await go(context);
+    const result = posted(context);
+    expect(result.outcome.outcome === 'denied_capability' && result.outcome.diagnostic).toMatch(/\(and \d+ more\)/);
+  });
+
+  it('builds the executor instructions from the procedure that the verified request carries', async () => {
+    const context = await setup(reply(await revisionOutput()));
+    await go(context);
+    const args = context.world.cli.calls().find((entry) => entry.kind === 'run')?.args ?? [];
+    expect(args).toContain(
+      `--system-prompt=${instructionsFor('strategy-formulation', PROCEDURES['strategy-formulation'])}`,
+    );
+  });
+});
+
+describe('output that is valid JSON of the schema and still did not follow its request', () => {
+  const operatorEdit = [{ op: 'replace' as const, path: '/definition/indicators/0/expr/op', value: 'operator:ema@1' }];
+
+  it('is a malformed result with REFERENCE_INVALID when it uses an operator outside the permitted set', async () => {
+    const output = await revisionOutput({
+      strategy: applyEdits(proposedForm(seedArtefact(SEED_ONE)), operatorEdit),
+      rule_changes: [{ path: '/definition/indicators/0/expr/op', from: 'operator:sma@1', to: 'operator:ema@1' }],
+    });
+    const context = await setup(reply(output));
+    expect(await go(context)).toEqual({ posted: true, outcome: 'malformed_result', reason: 'REFERENCE_INVALID' });
+    const result = posted(context);
+    expect(result.outcome.outcome === 'malformed_result' && result.outcome.diagnostic).toContain(
+      'OPERATOR_NOT_PERMITTED at /definition/indicators/0/expr/op',
+    );
+    expect(context.world.api.artefacts.size).toBe(0);
+    // The model ran and was paid: the usage is the executor's report.
+    expect(result.usage.cost).toMatchObject({ label: 'estimated' });
+  });
+
+  it('is a malformed result with REFERENCE_INVALID when it names a day inside the validation or holdout window', async () => {
+    const output = await revisionOutput({ claims: { ...claims, rationale: 'It avoids 2024-08-05 and 2025-04-07.' } });
+    const context = await setup(reply(output));
+    expect(await go(context)).toEqual({ posted: true, outcome: 'malformed_result', reason: 'REFERENCE_INVALID' });
+    const result = posted(context);
+    expect(result.outcome.outcome === 'malformed_result' && result.outcome.diagnostic).toMatch(
+      /2 refused blocker\(s\): HOLDOUT_REFERENCE/,
+    );
+    expect(context.world.api.artefacts.size).toBe(0);
+  });
+
+  it('is still a completion when the revision changes both rules and an entry is unresolved: they are notices for the next proposal', async () => {
+    const output = await revisionOutput({
+      strategy: proposedForm(seedArtefact(SEED_FOUR)),
+      rule_changes: [
+        { path: THRESHOLD, from: '30', to: '32' },
+        { path: BREAK_EVEN, from: '[]', to: 'break_even' },
+      ],
+      unresolved: [{ id: 'u1', element: THRESHOLD, question: 'Which close is meant?' }],
+    });
+    const context = await setup(reply(output));
+    expect(await go(context)).toEqual({ posted: true, outcome: 'completion' });
+    expect(context.world.api.artefacts.size).toBe(1);
+  });
+
+  it('keeps the exact rule-change check for a revision whose declared changes are not the difference', async () => {
+    const output = await revisionOutput({
+      strategy: proposedForm(seedArtefact(SEED_FOUR)),
+      rule_changes: [{ path: THRESHOLD, from: '30', to: '32' }],
+    });
+    const context = await setup(reply(output));
+    expect(await go(context)).toEqual({ posted: true, outcome: 'malformed_result', reason: 'RULE_CHANGES_MISMATCH' });
   });
 });

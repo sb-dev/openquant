@@ -10,6 +10,8 @@ Status: S1 offline suites for the two pilot role modules. Every fixture is **syn
 
 A fixture holds a request recipe, an optional expectation about request assembly (`assembly`), one response (`response`, `response_text` or `response_pad`) and the expected outcome (`expect`). The recipes name an S0 seed strategy in `fixtures/s0/strategies` and the edits to apply, so a fixture does not repeat an 11 KB strategy. The expected values are written by hand from the S0 fixtures, which declare the changes of each variant against its parent and are proved against Rust, and from the synthetic finding-treatment policy (`packages/agents/evals/fixture-policy.json`). The loader and the runner are in `packages/agents/dev`; `pnpm --filter @openquant/agents run eval:fixture` runs every case, and `packages/agents/test/suites.test.ts` runs them in `pnpm verify`.
 
+`apps/agent-runner/test/suites.test.ts` runs every fixture through the real runner (dispatch, claim, request verification, a fake executor that answers with the labelled response, the shared validator, the stored output and the posted result). Two things differ from the role-module suites, and the test states both: a request that assembly refuses is denied before an executor starts (`denied_capability`), and a completion with an operator outside the permitted set or a date inside a withheld window (`operator-outside-set`, `holdout-leak-attempt`) is a `malformed_result` with `REFERENCE_INVALID`, because the host refuses it. A fixture is still synthetic: it proves the code path, not a model.
+
 Evaluation cases in `packages/agents/evals/<skill>/fixtures/dataset.json` link a fixture here through `recorded_responses` where the fixture matches the case exactly.
 
 ## Agreement with the Rust lineage check

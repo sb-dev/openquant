@@ -4,9 +4,15 @@
 // any of them is malformed: the attempt is retried within its cap and the host keeps no part of the output. A result
 // that passes is a completion, and may still carry blockers. A blocker is an early, non-authoritative notice that the
 // application will refuse to register the proposal: an unresolved entry, a revision that is not an entry-only or
-// exit-only change, an operator outside the permitted set, and a date inside a withheld window. It never turns a
-// completion into a malformed result and it replaces none of the later checks: the API checks scope, bounds and
-// lineage, and the Rust core checks operators, types, units and lookback (OQ-03 section 3, OQ-02 section 4).
+// exit-only change, an operator outside the permitted set, and a date inside a withheld window. `parseFormulationResult`
+// never turns a completion into a malformed result and replaces none of the later checks: the API checks scope, bounds
+// and lineage, and the Rust core checks operators, types, units and lookback (OQ-03 section 3, OQ-02 section 4).
+//
+// The agent runner applies one more rule before it stores a result (`parseFormulationForHost`): a completion with an
+// operator outside the permitted set or a date inside a withheld window is not accepted as the output of the attempt.
+// It is a malformed result with the diagnostic of the first blocker, and the attempt is retried within its cap. The
+// other blockers stay notices: a revision that is not an entry-only or exit-only change, and an unresolved entry, are
+// diagnostics for the next proposal (OQ-02 section 3.1, OQ-05 section 4), not failures of the attempt.
 //
 // Worker-safe: no Node module.
 
@@ -42,6 +48,17 @@ export type FormulationParse =
   | Malformed;
 
 const OPERATOR_KEY = 'op';
+
+/**
+ * The blockers that the agent runner does not accept in a completion. The permitted operators and the withheld windows
+ * are part of the frozen request (OQ-03 section 4): a proposal that uses an operator outside the set, or names a date
+ * inside V or H, did not follow its own request. The reason of the malformed result is REFERENCE_INVALID: the
+ * operator or the date is not one that the request permits.
+ */
+export const HOST_REFUSED_BLOCKERS: ReadonlySet<BlockerCode> = new Set<BlockerCode>([
+  'OPERATOR_NOT_PERMITTED',
+  'HOLDOUT_REFERENCE',
+]);
 
 // Every operator of every expression of the proposed strategy, with the pointer of its `op` member.
 function operatorsIn(value: JsonValue, pointer = '', out: { pointer: string; op: string }[] = []) {
@@ -177,4 +194,23 @@ function blockersOf(
     blockers.push({ code: 'HOLDOUT_REFERENCE', detail: `the proposal mentions ${date}, inside a withheld window` });
   }
   return blockers;
+}
+
+/**
+ * `parseFormulationResult` and then the rule of the agent runner: a completion that carries a blocker of
+ * `HOST_REFUSED_BLOCKERS` is a malformed result. The diagnostic names the first three of those blockers.
+ */
+export function parseFormulationForHost(
+  request: StrategyFormulationRequest,
+  output: string | Uint8Array,
+): FormulationParse {
+  const parsed = parseFormulationResult(request, output);
+  if (!parsed.ok) return parsed;
+  const refused = parsed.blockers.filter((blocker) => HOST_REFUSED_BLOCKERS.has(blocker.code));
+  if (refused.length === 0) return parsed;
+  const listed = refused
+    .slice(0, 3)
+    .map((blocker) => `${blocker.code}${blocker.pointer ? ` at ${blocker.pointer}` : ''}: ${blocker.detail}`)
+    .join('; ');
+  return malformed('REFERENCE_INVALID', `${refused.length} refused blocker(s): ${listed}`);
 }

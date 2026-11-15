@@ -1,9 +1,9 @@
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { BUNDLE_HASH } from '@openquant/agents';
+import { join, relative, sep } from 'node:path';
+import { BUNDLE_HASH, FILES } from '@openquant/agents';
 import { canonicalJson, validateContract } from '@openquant/api-contracts';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { revisionOutput } from '../../../packages/agents/test/support/requests.ts';
@@ -15,6 +15,7 @@ import { bundleRunner } from '../tools/bundle.ts';
 import { type ControlApi, startControlApi } from './support/control-api.ts';
 import {
   API_TOKEN,
+  agentsRoot,
   CAPABILITY,
   cleanup,
   DISPATCH_TOKEN,
@@ -24,6 +25,7 @@ import {
   installFakeCli,
   MODEL_KEY,
   makeWorld,
+  repositoryRoot,
   scratch,
   until,
 } from './support/world.ts';
@@ -196,6 +198,97 @@ describe('the built runner, started as a program', () => {
     }
     expect(runner.stderr()).toContain('"execution_enabled":false');
     expect(runner.stderr()).not.toContain(API_TOKEN);
+  });
+
+  it('ships exactly the manifest and the files it lists in dist/bundle, and no evaluation, expected-answer or development file', () => {
+    const listed = ['bundle.manifest.json', ...FILES.map((file) => file.path)].sort();
+    const found: string[] = [];
+    const walk = (directory: string): void => {
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const path = join(directory, entry.name);
+        if (entry.isDirectory()) walk(path);
+        else found.push(relative(join(built, 'bundle'), path).split(sep).join('/'));
+      }
+    };
+    walk(join(built, 'bundle'));
+    expect(found.sort()).toEqual(listed);
+    // The classes that must never ship, by name: whatever the manifest says, none of them is in the directory.
+    for (const path of found) {
+      expect(path).not.toMatch(
+        /(^|\/)(evals?|test|tests|dev|tools|methods|snapshots?)(\/|$)|expected|\.test\.|dataset|fixture/i,
+      );
+    }
+    expect(found).toHaveLength(8);
+  });
+
+  it('holds no evaluation case, fixture id or draft method note in the runner module', () => {
+    const module = readFileSync(join(built, 'agent-runner.mjs'), 'utf8');
+    const ids = ['strategy-critique', 'strategy-formulation'].flatMap((skill) =>
+      (
+        JSON.parse(readFileSync(join(agentsRoot, 'evals', skill, 'fixtures', 'dataset.json'), 'utf8')) as {
+          cases: { id: string }[];
+        }
+      ).cases.map((item) => item.id),
+    );
+    expect(ids.length).toBeGreaterThanOrEqual(39);
+    for (const id of ids) expect(module).not.toContain(`"${id}"`);
+    for (const suite of ['strategy-critique', 'strategy-formulation']) {
+      for (const name of readdirSync(join(repositoryRoot, 'fixtures/agent-results', suite))) {
+        expect(module).not.toContain(name.replace(/\.json$/, '.json'));
+      }
+    }
+    for (const name of readdirSync(join(agentsRoot, 'src/methods')).filter((entry) => entry.endsWith('.md'))) {
+      expect(module).not.toContain(name);
+    }
+    expect(module).not.toContain('fixture-policy');
+  });
+
+  it('records a bundle mismatch for an installed bundle with an extra file, and for a dispatch that names another bundle, and starts no executor', async () => {
+    const api = await controlApi();
+    const assembled = await formulationRequest();
+    api.inputs.set(sha256Bytes(assembled.bytes), assembled.bytes);
+    const cli = installFakeCli({ behaviour: 'result', resultText: JSON.stringify(await revisionOutput()) });
+    // An installed copy of the bundle with one file that the manifest does not list.
+    const tampered = join(scratch('oq-e2e-bundle-'), 'bundle');
+    cpSync(join(built, 'bundle'), tampered, { recursive: true });
+    mkdirSync(join(tampered, 'evals'), { recursive: true });
+    writeFileSync(join(tampered, 'evals', 'expected.json'), '{"expected":"answer"}');
+    const runner = await startBundle({
+      AGENT_RUNNER_ENVIRONMENT: 'STAGING',
+      AGENT_RUNNER_ENABLED: 'true',
+      AGENT_RUNNER_DISPATCH_TOKEN: DISPATCH_TOKEN,
+      AGENT_RUNNER_API_TOKEN: API_TOKEN,
+      AGENT_RUNNER_API_BASE_URL: `http://127.0.0.1:${api.port}`,
+      AGENT_RUNNER_EXECUTOR_PATH: cli.path,
+      AGENT_RUNNER_EXECUTOR_VERSION: '2.1.325',
+      AGENT_RUNNER_BUNDLE_DIR: tampered,
+      AGENT_RUNNER_SCRATCH_DIR: join(scratch('oq-e2e-scratch-'), 'scratch'),
+      ANTHROPIC_API_KEY: MODEL_KEY,
+    });
+    try {
+      for (const [attempt, bundleHash] of [
+        ['attempt-extra-file', undefined],
+        ['attempt-other-hash', `sha256:${'9'.repeat(64)}`],
+      ] as const) {
+        const dispatch = dispatchFor(assembled, { attempt, ...(bundleHash ? { bundleHash } : {}) });
+        const response = await fetch(`http://127.0.0.1:${runner.port}/v1/agent-attempts`, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${DISPATCH_TOKEN}` },
+          body: canonicalJson(dispatch),
+        });
+        expect(response.status).toBe(202);
+      }
+      await until(() => api.results.length === 2);
+      for (const result of api.results as { outcome: { outcome: string; reason: string; diagnostic: string } }[]) {
+        expect(result.outcome).toMatchObject({ outcome: 'denied_capability', reason: 'BUNDLE_MISMATCH' });
+      }
+      expect((api.results[0] as { outcome: { diagnostic: string } }).outcome.diagnostic).toContain(
+        'evals/expected.json is in the bundle directory and not in the manifest',
+      );
+    } finally {
+      expect(await runner.stop()).toBe(0);
+    }
+    expect(cli.calls()).toEqual([]);
   });
 
   it('runs a real attempt end to end with a fake executor, from the staged bundle and a scrubbed child environment', async () => {

@@ -21,6 +21,7 @@ import type {
   AttemptClaimGrant,
   AttemptClaimRequest,
 } from '@openquant/api-contracts';
+import { stable } from '../../../../packages/agents/test/support/oracle.ts';
 import { critiqueRequestInput, revisionInput } from '../../../../packages/agents/test/support/requests.ts';
 import { type ApiClient, type ApiFailure, type ApiFailureCode, type ApiResult, failure } from '../../src/api-client.ts';
 import { stageBundle } from '../../src/bundle.ts';
@@ -61,6 +62,8 @@ export interface Scenario {
   readonly version?: string;
   readonly versionExit?: number;
   readonly resultText?: string;
+  /** One result text per role module (`strategy-formulation`, `strategy-critique`), chosen by the system prompt. */
+  readonly resultByRole?: Readonly<Record<string, string>>;
   readonly report?: Record<string, unknown>;
   readonly omit?: readonly string[];
   readonly reportedModel?: string;
@@ -240,6 +243,28 @@ export async function critiqueRequest(): Promise<Assembled<StrategyCritiqueReque
   const assembly = await assembleCritiqueRequest(await critiqueRequestInput());
   if (!assembly.ok) throw new Error(`the critic request was refused: ${JSON.stringify(assembly.refusals)}`);
   return { request: assembly.request, bytes: Buffer.from(assembly.text, 'utf8'), artefact: assembly.artefact };
+}
+
+/** A stored request: the bytes, and the artefact reference that a dispatch would name for them. */
+export function storedRequest<R>(request: R, bytes: Uint8Array): Assembled<R> {
+  return {
+    request,
+    bytes,
+    artefact: { digest: sha256Bytes(bytes), media_type: 'application/json', size_bytes: bytes.byteLength },
+  };
+}
+
+/**
+ * A request that request assembly would have refused or never written: the assembled request with one change, in
+ * canonical text written by the independent serialiser of the package tests.
+ */
+export async function craftedRequest<R extends StrategyFormulationRequest | StrategyCritiqueRequest>(
+  base: Assembled<R>,
+  change: (copy: R) => void,
+): Promise<Assembled<R>> {
+  const copy = structuredClone(base.request);
+  change(copy);
+  return storedRequest(copy, Buffer.from(stable(copy), 'utf8'));
 }
 
 export interface DispatchOptions {
