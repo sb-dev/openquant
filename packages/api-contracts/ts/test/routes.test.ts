@@ -6,12 +6,16 @@ import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import {
   type ContractFailureCode,
+  type ContractName,
   contracts,
+  DECIMAL_PATTERN,
+  EXACT_PATTERN,
   isContractName,
   MAX_PAYLOAD_BYTES,
+  parseContract,
   workerBodyLimit,
 } from '../src/index.ts';
-import { repositoryRoot } from './support/manifest.ts';
+import { fixturesDir, readManifest, repositoryRoot } from './support/manifest.ts';
 
 interface Body {
   readonly kind: string;
@@ -159,6 +163,104 @@ describe('official run values are served as contract bodies', () => {
       ['uncertainty', 'limitation'],
     ]) {
       expect(at(root, path), path.join('/')).not.toEqual([]);
+    }
+  });
+});
+
+// OQ-05 §7: a malformed decimal is INVALID_DECIMAL only when it is the document's only kind of
+// violation. Under a failing oneOf the other branches add violations, so the code is
+// SCHEMA_VIOLATION. A route therefore lists INVALID_DECIMAL only when its request contract has a
+// decimal field that no oneOf lies above: command/1, for one, has a oneOf root and never gives it.
+describe('INVALID_DECIMAL in the route manifest', () => {
+  type Schema = Record<string, unknown>;
+  const bundle = JSON.parse(readFileSync(resolve(contractsDir, 'ts/dist/generated/bundle.json'), 'utf8')) as {
+    $defs: Record<string, Schema>;
+  };
+  const refName = (schema: Schema) =>
+    typeof schema.$ref === 'string' ? schema.$ref.replace('#/$defs/', '') : undefined;
+
+  // True when a Decimal or Exact value can be reached from the contract without a oneOf or anyOf on the way.
+  function reachesDecimal(schema: Schema, seen: Set<string> = new Set()): boolean {
+    const name = refName(schema);
+    if (name === 'Decimal' || name === 'Exact') return true;
+    if (name !== undefined) {
+      if (seen.has(name)) return false;
+      seen.add(name);
+      if (reachesDecimal(bundle.$defs[name] ?? {}, seen)) return true;
+    }
+    const children: Schema[] = [
+      ...((schema.allOf as Schema[] | undefined) ?? []),
+      ...Object.values((schema.properties as Record<string, Schema> | undefined) ?? {}),
+    ];
+    for (const key of ['items', 'additionalProperties'] as const) {
+      const child = schema[key];
+      if (typeof child === 'object' && child !== null) children.push(child as Schema);
+    }
+    return children.some((child) => reachesDecimal(child, seen));
+  }
+
+  const MALFORMED = ['1e5', '01.5', 'abc'];
+  const decimal = new RegExp(DECIMAL_PATTERN, 'u');
+  const exact = new RegExp(EXACT_PATTERN, 'u');
+
+  // The codes that the contract layer gives when one decimal-shaped string of a valid fixture of the
+  // contract is replaced by a malformed one, for each such string in turn.
+  function codesOfMutations(contract: ContractName): Set<string> {
+    const codes = new Set<string>();
+    const walk = (root: unknown, node: unknown): void => {
+      if (typeof node !== 'object' || node === null) return;
+      const holder = node as Record<string, unknown>;
+      for (const key of Object.keys(holder)) {
+        const value = holder[key];
+        if (typeof value === 'string' && (decimal.test(value) || exact.test(value))) {
+          for (const text of MALFORMED) {
+            holder[key] = text;
+            const result = parseContract(contract, JSON.stringify(root));
+            if (!result.ok) codes.add(result.error.code);
+          }
+          holder[key] = value;
+        } else {
+          walk(root, value);
+        }
+      }
+    };
+    for (const entry of readManifest().entries) {
+      if (entry.contract !== contract || entry.expect !== 'valid') continue;
+      const document = JSON.parse(readFileSync(resolve(fixturesDir, entry.path), 'utf8')) as unknown;
+      walk(document, document);
+    }
+    return codes;
+  }
+
+  const requestContracts = [
+    ...new Set(manifest.routes.flatMap((route) => (route.request.contract ? [route.request.contract] : []))),
+  ].filter(isContractName);
+  const reaches = new Map(
+    requestContracts.map((name) => [name, reachesDecimal({ $ref: `#/$defs/${contracts[name].typeName}` })]),
+  );
+
+  test('a route lists it exactly when its request contract has a decimal that no oneOf lies above', () => {
+    expect(requestContracts).toContain('command');
+    expect(requestContracts).toContain('agent-dispatch');
+    expect(reaches.get('command')).toBe(false);
+    expect(reaches.get('agent-dispatch')).toBe(true);
+    for (const route of manifest.routes) {
+      const name = route.request.contract;
+      const listed = route.errors.includes('INVALID_DECIMAL');
+      if (name === undefined || !isContractName(name)) expect(listed, route.id).toBe(false);
+      else expect(listed, `${route.id} (${name})`).toBe(reaches.get(name));
+    }
+  });
+
+  test('a malformed decimal in a valid body of a request contract gives INVALID_DECIMAL exactly when the manifest lists it', () => {
+    for (const name of requestContracts) {
+      const codes = codesOfMutations(name);
+      // Every other code is SCHEMA_VIOLATION: a mutation never changes the version tag.
+      expect(
+        [...codes].filter((code) => code !== 'INVALID_DECIMAL' && code !== 'SCHEMA_VIOLATION'),
+        name,
+      ).toEqual([]);
+      expect(codes.has('INVALID_DECIMAL'), name).toBe(reaches.get(name));
     }
   });
 });

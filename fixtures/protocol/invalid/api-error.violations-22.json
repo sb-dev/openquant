@@ -1,0 +1,98 @@
+{
+  "schema_version": "api-error/1",
+  "code": "SCHEMA_VIOLATION",
+  "message": "The request body violates command/1 at 22 locations.",
+  "state_changed": "NONE",
+  "retry_safe": false,
+  "diagnostic_ref": "diag-01JF3KA1Q0ZP",
+  "violations": [
+    {
+      "pointer": "/definition/indicators/10/expr/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/params",
+      "message": "/definition/indicators/10/expr/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/args/0/arg"
+    },
+    {
+      "pointer": "/payload/mission/candidates/1/amount",
+      "message": "/payload/mission/candidates/1/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/2/amount",
+      "message": "/payload/mission/candidates/2/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/3/amount",
+      "message": "/payload/mission/candidates/3/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/4/amount",
+      "message": "/payload/mission/candidates/4/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/5/amount",
+      "message": "/payload/mission/candidates/5/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/6/amount",
+      "message": "/payload/mission/candidates/6/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/7/amount",
+      "message": "/payload/mission/candidates/7/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/8/amount",
+      "message": "/payload/mission/candidates/8/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/9/amount",
+      "message": "/payload/mission/candidates/9/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/10/amount",
+      "message": "/payload/mission/candidates/10/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/11/amount",
+      "message": "/payload/mission/candidates/11/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/12/amount",
+      "message": "/payload/mission/candidates/12/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/13/amount",
+      "message": "/payload/mission/candidates/13/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/14/amount",
+      "message": "/payload/mission/candidates/14/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/15/amount",
+      "message": "/payload/mission/candidates/15/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/16/amount",
+      "message": "/payload/mission/candidates/16/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/17/amount",
+      "message": "/payload/mission/candidates/17/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/18/amount",
+      "message": "/payload/mission/candidates/18/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/mission/candidates/19/amount",
+      "message": "/payload/mission/candidates/19/amount must match pattern \"^(?:0(?:\\.[0-9]+)?|-?[1-9][0-9]*(?:\\.[0-9]+)?|-0\\.0*[1-9][0-9]*)$\""
+    },
+    {
+      "pointer": "/payload/extra",
+      "message": "one entry too many"
+    },
+    {
+      "pointer": "",
+      "message": "44 further violation(s) not listed"
+    }
+  ]
+}

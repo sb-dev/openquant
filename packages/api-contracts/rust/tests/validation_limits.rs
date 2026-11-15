@@ -51,10 +51,12 @@ fn two_hundred_thousand_empty_bars_are_a_typed_error_within_a_time_bound() {
     );
     assert_eq!(error.failure_code(), FailureCode::SchemaViolation);
     let violations = violations_of(error);
-    // The limit that was exceeded, then the first schema violation. No full pass ran.
+    // The limit that was exceeded, then the generic entry. No violation was built.
     assert_eq!(violations.len(), 2, "{violations:?}");
     assert_eq!(violations[0].pointer, "/instruments/0/bars");
     assert!(violations[0].message.contains("items"), "{violations:?}");
+    assert!(violations[1].pointer.is_empty(), "{violations:?}");
+    assert!(violations[1].message.contains("rejected"), "{violations:?}");
     assert!(
         violations.iter().all(|v| v.message.len() <= 1100),
         "messages must not echo the payload"
@@ -220,7 +222,7 @@ fn input_with_decimal_errors(sessions: usize, events: usize) -> Value {
 
 /// S1 P1 lowered the value limit of the listing from 20,000 to 4,096. An invalid engine input of
 /// 4,097 to 20,000 values whose only violations are decimal-grammar ones therefore reports
-/// `SCHEMA_VIOLATION` with its first violation, not `INVALID_DECIMAL`. The S1 pilot log records the
+/// `SCHEMA_VIOLATION` with the limit and a generic entry, not `INVALID_DECIMAL`. The S1 pilot log records the
 /// change, and the `evaluation-input.*-decimals-at-409*` protocol fixtures pin the same boundary in
 /// both runtimes.
 #[test]
@@ -241,12 +243,14 @@ fn decimal_errors_are_classified_up_to_4096_values_and_not_past_them() {
     let error = validate(Contract::EvaluationInput, &past_limit).unwrap_err();
     assert_eq!(error.failure_code(), FailureCode::SchemaViolation);
     let violations = violations_of(error);
-    // The limit, then the first violation, which is a decimal-grammar one.
+    // The limit, then the generic entry. The malformed decimals are not listed, and neither entry
+    // is decimal-grammar.
     assert_eq!(violations.len(), 2, "{violations:?}");
     assert!(!violations[0].decimal_grammar, "{violations:?}");
     assert!(
         violations[0].message.contains("4096 values"),
         "{violations:?}"
     );
-    assert!(violations[1].decimal_grammar, "{violations:?}");
+    assert!(!violations[1].decimal_grammar, "{violations:?}");
+    assert!(violations[1].message.contains("rejected"), "{violations:?}");
 }

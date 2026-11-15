@@ -11,7 +11,7 @@ import { byContract as allErrorValidators } from '../dist/generated/validators-a
 import { type ContractName, contracts, isContractName, parseContract } from '../src/index.ts';
 import { MAX_NODES } from '../src/limits.ts';
 import { MAX_REPORTED_VIOLATIONS } from '../src/validate.ts';
-import { appendErrorsInPlace, BUNDLE_ID } from '../tools/generate.ts';
+import { appendErrorsInPlace, BUNDLE_ID, linearPattern } from '../tools/generate.ts';
 import { countedValidators } from './support/counted-validators.ts';
 import { errorBound } from './support/error-bound.ts';
 import { bundleDefs, errorShape, errorShapeText } from './support/error-shape.ts';
@@ -246,7 +246,11 @@ describe('the generated validators append errors in place', () => {
   });
 
   test('the errors, and their order, equal those of Ajv compiled at run time without the rewrite', () => {
-    const bundle = JSON.parse(readFileSync(resolve(here, '../dist/generated/bundle.json'), 'utf8'));
+    // The reference runs the same patterns as the generated validators: this test is about the
+    // append rewrite, and test/patterns.test.ts about the pattern rewrite.
+    const bundle = JSON.parse(readFileSync(resolve(here, '../dist/generated/bundle.json'), 'utf8'), (key, value) =>
+      key === 'pattern' && typeof value === 'string' ? linearPattern(value) : value,
+    );
     const ajv = new Ajv2020({ strict: true, allErrors: true, unicodeRegExp: true, inlineRefs: false });
     ajv.addSchema(bundle);
     const project = (

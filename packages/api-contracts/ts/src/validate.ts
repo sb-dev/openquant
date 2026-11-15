@@ -16,12 +16,15 @@
 // 6. the schema, with the first-error validator, which decides validity at any size. A valid
 //    document stops here;
 // 7. an invalid document beyond the structural limits (limits.ts), such as one with more than
-//    MAX_NODES (4,096) values, is not listed: it reports the limit, then its first violation, marks
-//    the listing as stopped (ContractError.listingStopped) and is SCHEMA_VIOLATION;
+//    MAX_NODES (4,096) values, is not listed: it reports the limit, then its first violation (Rust
+//    reports one generic entry instead), marks the listing as stopped (ContractError.listingStopped)
+//    and is SCHEMA_VIOLATION;
 // 8. otherwise the all-errors validator lists the violations, 20 and a counted rest, at a cost
 //    bounded by MAX_NODES (limits.ts). The code is INVALID_DECIMAL when every violation is a failure
 //    of the Decimal or Exact pattern (an Exact text longer than 80 characters fails maxLength, which
-//    is SCHEMA_VIOLATION), and SCHEMA_VIOLATION otherwise (error.rs).
+//    is SCHEMA_VIOLATION), and SCHEMA_VIOLATION otherwise (error.rs). A malformed decimal is
+//    therefore INVALID_DECIMAL only when it is the document's only kind of violation: not inside a
+//    failing oneOf, and, in a constrained decimal type, not when it starts with '-'.
 //
 // The value bound limits what the parse builds. It is the larger of the most values a document
 // valid against the contract's schema can hold (tools/generate.ts derives it from the closed objects
@@ -32,7 +35,9 @@
 // recursive (an Expr tree) has no such maximum and no bound.
 //
 // The Worker byte limit (`workerBodyLimit`) keeps a Worker's parse within memory: with the value
-// bound for most contracts, and alone for the others. The API applies it before it parses a body
+// bound for most contracts, and alone for the others. It bounds memory, not CPU time: the time of
+// the schema checks follows from the patterns, which the generated validators run in linear time
+// (tools/generate.ts, test/patterns.test.ts). The API applies the limit before it parses a body
 // (routes/v1.json, OQ-05 §7). parseContract itself accepts the 16 MiB that Rust accepts.
 //
 // Semantic rules stay in Rust: the Exact canonical form, decimal range and scale, operator types and
@@ -44,6 +49,7 @@ import {
   contracts,
   DECIMAL_PATTERN,
   EXACT_PATTERN,
+  PATTERN_SCHEMA_TEXT,
 } from '../dist/generated/contracts.ts';
 import { byContract as allErrorValidators } from '../dist/generated/validators-all.js';
 import { byContract as firstErrorValidators, type ValidatorError } from '../dist/generated/validators-first.js';
@@ -81,8 +87,12 @@ function violation(error: ValidatorError | undefined): SchemaViolation {
   };
 }
 
+// The validators run the Decimal and Exact patterns in an equivalent linear form (tools/generate.ts),
+// so the pattern of an error is mapped back to the schema text before it is compared.
 function isDecimalGrammar(error: ValidatorError): boolean {
-  const pattern = error.keyword === 'pattern' ? error.params.pattern : undefined;
+  const emitted = error.keyword === 'pattern' ? error.params.pattern : undefined;
+  const pattern =
+    typeof emitted === 'string' && Object.hasOwn(PATTERN_SCHEMA_TEXT, emitted) ? PATTERN_SCHEMA_TEXT[emitted] : emitted;
   return pattern === DECIMAL_PATTERN || pattern === EXACT_PATTERN;
 }
 

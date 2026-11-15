@@ -8,9 +8,15 @@
 // - types.ts: TypeScript types (json-schema-to-typescript);
 // - contracts.ts: the contract table, the type map and the decimal grammar constants. Each contract
 //   carries maxValues, the most JSON values a document valid against it can hold (null when the
-//   schema gives no finite bound); the parser's value bound derives from it (src/validate.ts);
+//   schema gives no finite bound); the parser's value bound derives from it (src/validate.ts). It also
+//   holds PATTERN_SCHEMA_TEXT, which maps each pattern a validator runs back to the schema text it
+//   replaces (below);
 // - validators-first.js and validators-all.js: Ajv standalone ESM validators that stop at the first
 //   error or report all errors, with their .d.ts files.
+//
+// The validators run the patterns of the schemas with one rewrite (linearPattern): the third
+// alternative of the Decimal and Exact patterns backtracks quadratically in V8, so it is emitted in an
+// equivalent unambiguous form. The schemas, which common.schema.json pins by SHA-256, are unchanged.
 //
 // Nothing generated is committed. Writes are atomic and skip unchanged files, so parallel runs are safe.
 
@@ -267,6 +273,43 @@ export function maxValues(defs: JsonObject, schema: Json, stack: readonly string
   return bound;
 }
 
+// The third alternative of the Decimal and Exact patterns of common.schema.json, a negative value
+// below one. Its two [0-9]* around [1-9] overlap, so a long digit string that ends in a character the
+// pattern refuses (-0.111...1x) makes V8 try every split of the digits: time quadratic in the length.
+const QUADRATIC_ALTERNATIVE = String.raw`-0\.[0-9]*[1-9][0-9]*`;
+// The same strings, with one way to match each: the zeros before the first non-zero digit, that
+// digit, then any digits. src/validate.ts compares the pattern of an error with the schema text again.
+const LINEAR_ALTERNATIVE = String.raw`-0\.0*[1-9][0-9]*`;
+/** Pattern text known to backtrack super-linearly in V8. No generated validator may hold any. */
+const KNOWN_SUPER_LINEAR = [QUADRATIC_ALTERNATIVE];
+
+/** The pattern a validator runs in place of a schema pattern: the same strings, in linear time. */
+export function linearPattern(pattern: string): string {
+  return pattern.split(QUADRATIC_ALTERNATIVE).join(LINEAR_ALTERNATIVE);
+}
+
+// The schema with every pattern rewritten by linearPattern.
+function withLinearPatterns(schema: Json): Json {
+  if (Array.isArray(schema)) return schema.map(withLinearPatterns);
+  if (!isObject(schema)) return schema;
+  return Object.fromEntries(
+    Object.entries(schema).map(([key, value]) => [
+      key,
+      key === 'pattern' && typeof value === 'string' ? linearPattern(value) : withLinearPatterns(value),
+    ]),
+  );
+}
+
+/** Each pattern that a validator runs in place of a schema pattern, mapped back to the schema text. */
+function patternSchemaText(bundle: Bundle): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const pattern of [bundle.decimalPattern, bundle.exactPattern]) {
+    const linear = linearPattern(pattern);
+    if (linear !== pattern) out[linear] = pattern;
+  }
+  return out;
+}
+
 const standaloneCode = standaloneModule.default;
 const CODE_POINT_LENGTH = /require\("ajv\/dist\/runtime\/ucs2length"\)\.default/g;
 const SCHEMA_MAPS = new Set(['properties', '$defs']);
@@ -323,7 +366,7 @@ export function validatorModule(bundle: Bundle, allErrors: boolean): string {
     unicodeRegExp: true,
     inlineRefs: false,
   });
-  ajv.addSchema(withoutAnnotations(bundle.document) as JsonObject);
+  ajv.addSchema(withLinearPatterns(withoutAnnotations(bundle.document)) as JsonObject);
   const exports = Object.fromEntries(bundle.contracts.map((c) => [c.typeName, `${BUNDLE_ID}#/$defs/${c.typeName}`]));
   let code = standaloneCode(ajv, exports).replace(/^"use strict";/, '');
   // maxLength counts code points. Ajv emits a require() of its runtime helper; inline an equivalent.
@@ -331,6 +374,12 @@ export function validatorModule(bundle: Bundle, allErrors: boolean): string {
   code = appendErrorsInPlace(code);
   if (/\brequire\s*\(/.test(code)) fail('a generated validator still requires a CommonJS module');
   if (/\bnew Function\b|\beval\s*\(/.test(code)) fail('a generated validator compiles code at run time');
+  for (const pattern of KNOWN_SUPER_LINEAR) {
+    // The validators embed a pattern as the text of a JSON string.
+    if (code.includes(JSON.stringify(pattern).slice(1, -1))) {
+      fail(`a generated validator still holds the super-linear pattern ${pattern}`);
+    }
+  }
   const table = bundle.contracts.map((c) => `  ${JSON.stringify(c.name)}: ${c.typeName},`).join('\n');
   return [
     `// ${BANNER}`,
@@ -396,6 +445,8 @@ export function contractsModule(bundle: Bundle): string {
     `export const EXACT_PATTERN = ${JSON.stringify(bundle.exactPattern)};`,
     '/** The longest Exact text (maxLength of Exact). */',
     `export const EXACT_MAX_LENGTH = ${bundle.exactMaxLength};`,
+    '/** Each pattern a validator runs in place of a schema pattern (linear time), mapped back to the schema text. */',
+    `export const PATTERN_SCHEMA_TEXT: Readonly<Record<string, string>> = ${JSON.stringify(patternSchemaText(bundle), null, 2)};`,
     '',
   ].join('\n');
 }

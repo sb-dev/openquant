@@ -3,9 +3,9 @@
 //
 // Validation first runs the first-error validator, which decides validity at any size. Only an
 // invalid document within these limits goes on to the all-errors validator, which lists its
-// violations. A document beyond a limit reports that limit, then its first violation: the listing
-// stopped (ContractError.listingStopped), and the code is SCHEMA_VIOLATION even when the first
-// violation is a decimal-grammar one.
+// violations. A document beyond a limit reports that limit, then its first violation (Rust reports one
+// generic entry instead): the listing stopped (ContractError.listingStopped), and the code is
+// SCHEMA_VIOLATION even when the first violation is a decimal-grammar one.
 //
 // The listing costs memory in proportion to the errors Ajv creates, and one value can carry up to
 // 34 of them (test/support/error-bound.ts derives the most for each contract from the schemas).

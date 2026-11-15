@@ -1,6 +1,6 @@
 {
   "schema": "api-route-manifest/1",
-  "note": "HTTP routes of the S1 API (host api) and the agent runner dispatch endpoint (host agent-runner). auth lists the credentials a route accepts; any one of them is enough. A contract body names a schema in packages/api-contracts/schemas by its short name; form selects one form of a two-form contract. A view body is an API-owned JSON document, such as a read model: it is not a cross-runtime contract and apps/api owns its shape. bytes is a raw artefact body addressed by its SHA-256 digest. max_body_bytes bounds a request body: the API refuses a larger one with LIMIT_EXCEEDED before it parses it. Every route with a request body declares it. For a contract body it is the contract's Worker byte limit (workerBodyLimit in packages/api-contracts/ts), at which the parse of every body that the memory test measures stays within half of a Worker isolate's memory in Node 24 (OQ-05 section 7). A bytes body may reach the 16 MiB strict-JSON limit; the API hashes and stores it without parsing it. When an evaluation-submission cites an evaluation-result/1, the API scans that result before it commits it (scanEvaluationResult, within RESULT_SCAN_LIMIT of 8 MiB): strict JSON and the array, object, string and key limits of OQ-05 section 7 over the whole document, but not the value limit, the schema over its head, and the bindings of the head to the request and the submission. A larger result fails the submission with LIMIT_EXCEEDED (OQ-05 sections 4 and 7). Every error body is the api-error contract. common_errors apply to every route in addition to its own errors. The internal commands record_evaluation_decision and freeze_candidates have no route. runs.metrics and runs.result return the committed official evaluation-metrics/1 and evaluation-result/1 of one run unchanged, served from storage by content hash, with NOT_FOUND while none is committed: a FAILED or INSUFFICIENT run has no metrics, and a run that ended before the core prepared it has no result. Clients show these official values and never recompute them (OQ-04 section 5, OQ-05 section 7).",
+  "note": "HTTP routes of the S1 API (host api) and the agent runner dispatch endpoint (host agent-runner). auth lists the credentials a route accepts; any one of them is enough. A contract body names a schema in packages/api-contracts/schemas by its short name; form selects one form of a two-form contract. A view body is an API-owned JSON document, such as a read model: it is not a cross-runtime contract and apps/api owns its shape. bytes is a raw artefact body addressed by its SHA-256 digest. max_body_bytes bounds a request body: the API refuses a larger one with LIMIT_EXCEEDED before it parses it. Every route with a request body declares it. For a contract body it is the contract's Worker byte limit (workerBodyLimit in packages/api-contracts/ts), at which the parse of every body that the memory test measures stays within half of a Worker isolate's memory in Node 24 (OQ-05 section 7). The limit bounds memory, not CPU time: the time of the schema checks follows from the patterns, which the generated validators run in linear time (OQ-05 section 7). A bytes body may reach the 16 MiB strict-JSON limit; the API hashes and stores it without parsing it. When an evaluation-submission cites an evaluation-result/1, the API scans that result before it commits it (scanEvaluationResult, within RESULT_SCAN_LIMIT of 8 MiB): strict JSON and the array, object, string and key limits of OQ-05 section 7 over the whole document, but not the value limit, the schema over its head, and the bindings of the head to the request and the submission. A larger result fails the submission with LIMIT_EXCEEDED (OQ-05 sections 4 and 7). Every error body is the api-error contract. A route lists INVALID_DECIMAL only when its request contract has a decimal field that no oneOf lies above: a malformed decimal is INVALID_DECIMAL only when it is the document's only kind of violation (OQ-05 section 7), so a decimal inside command/1, whose root is a oneOf, is SCHEMA_VIOLATION. common_errors apply to every route in addition to its own errors. The internal commands record_evaluation_decision and freeze_candidates have no route. runs.metrics and runs.result return the committed official evaluation-metrics/1 and evaluation-result/1 of one run unchanged, served from storage by content hash, with NOT_FOUND while none is committed: a FAILED or INSUFFICIENT run has no metrics, and a run that ended before the core prepared it has no result. Clients show these official values and never recompute them (OQ-04 section 5, OQ-05 section 7).",
   "version": "v1",
   "base_path": "/v1",
   "error_body": "api-error",
@@ -92,7 +92,7 @@
       "max_body_bytes": 524288,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "LIMIT_EXCEEDED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "LIMIT_EXCEEDED"]
     },
     {
       "id": "cohort-policies.register",
@@ -104,7 +104,7 @@
       "max_body_bytes": 524288,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "LIMIT_EXCEEDED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "LIMIT_EXCEEDED"]
     },
     {
       "id": "budgets.register",
@@ -116,7 +116,7 @@
       "max_body_bytes": 524288,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "LIMIT_EXCEEDED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "LIMIT_EXCEEDED"]
     },
     {
       "id": "seeds.register",
@@ -128,7 +128,7 @@
       "max_body_bytes": 524288,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "LIMIT_EXCEEDED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "REVISION_CONFLICT", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "LIMIT_EXCEEDED"]
     },
     {
       "id": "missions.create",
@@ -140,7 +140,7 @@
       "max_body_bytes": 524288,
       "response": { "kind": "contract", "contract": "command", "form": "status" },
       "success_status": 202,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "BUDGET_EXHAUSTED", "LIMIT_EXCEEDED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "COMMAND_ID_REUSED", "POLICY_VIOLATION", "BUDGET_EXHAUSTED", "LIMIT_EXCEEDED"]
     },
     {
       "id": "missions.run-now",
@@ -332,7 +332,7 @@
       "max_body_bytes": 4194304,
       "response": { "kind": "none" },
       "success_status": 204,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
     },
     {
       "id": "attempts.validation-result",
@@ -344,7 +344,7 @@
       "max_body_bytes": 4194304,
       "response": { "kind": "none" },
       "success_status": 204,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
     },
     {
       "id": "attempts.evaluation-submission",
@@ -356,7 +356,7 @@
       "max_body_bytes": 4194304,
       "response": { "kind": "none" },
       "success_status": 204,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
     },
     {
       "id": "attempts.gate-report",
@@ -368,7 +368,7 @@
       "max_body_bytes": 4194304,
       "response": { "kind": "none" },
       "success_status": 204,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
     },
     {
       "id": "attempts.agent-result",
@@ -380,7 +380,7 @@
       "max_body_bytes": 4194304,
       "response": { "kind": "none" },
       "success_status": 204,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
     },
     {
       "id": "runner.dispatch",
