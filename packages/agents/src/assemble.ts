@@ -98,7 +98,7 @@ function sharedRefusals(context: RoleContext, evidence: readonly EvidenceItem[])
       });
     }
     seen.add(item.id);
-    const dates = datesInExclusions(item.content, context.holdout_exclusions);
+    const dates = datesInExclusions(item.content, context.holdout_exclusions, context.evaluation_policy);
     if (dates.length > 0) {
       refusals.push({
         code: 'HOLDOUT_OVERLAP',

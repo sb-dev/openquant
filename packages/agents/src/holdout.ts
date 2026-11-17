@@ -55,7 +55,9 @@ export function exclusionIssues(exclusions: readonly HoldoutExclusion[], policy?
  * An exclusion holds the resolved scored sessions of its window (the evaluation plan), and the policy holds the
  * calendar-date bounds that they resolve against. The request carries the policy but not the trading calendar, so the
  * uncovered edge between the two may hold weekend days and at most one weekday, an exchange holiday next to the
- * window bound (2024-01-01 before the first session 2024-01-02). Any wider gap omits sessions of the window.
+ * window bound (2024-01-01 before the first session 2024-01-02). Any wider gap omits sessions of the window. The
+ * one weekday cannot be told from a session here, so the date screen does not rely on the exclusion bounds: it covers
+ * the whole policy window (`screenedRanges`).
  */
 function edgeGapFits(from: string, to: string): boolean {
   const start = Date.parse(`${from}T00:00:00Z`);
@@ -84,15 +86,44 @@ function isCalendarDate(year: number, month: number, day: number): boolean {
 }
 
 /**
- * The dates in `text` that fall inside any excluded range (the bounds are inclusive), each written as YYYY-MM-DD and
- * listed once. See `YEAR_FIRST_DATE` for the forms that are found and those that are not.
+ * The date ranges that the screen withholds: each exclusion, and for a V or H exclusion the whole scored range of its
+ * policy window as well. Request bounds alone could leave an edge date of the window out (OQ-02 section 3.3), so a
+ * date of the policy window is withheld even when it is an exchange holiday.
  */
-export function datesInExclusions(text: string, exclusions: readonly HoldoutExclusion[]): string[] {
+export function screenedRanges(
+  exclusions: readonly HoldoutExclusion[],
+  policy?: CohortPolicy,
+): { start: string; end: string }[] {
+  return exclusions.map(({ window, range }) => {
+    const rule = policy?.conditions.windows.windows.find((item) => item.role === window);
+    if (window === 'DEVELOPMENT' || rule === undefined) return { start: range.start, end: range.end };
+    return { start: earlierDate(range.start, rule.scored.start), end: laterDate(range.end, rule.scored.end) };
+  });
+}
+
+// ISO calendar dates compare as text. Math.min and Math.max would turn them into NaN.
+function earlierDate(a: string, b: string): string {
+  return [a, b].sort()[0] ?? a;
+}
+function laterDate(a: string, b: string): string {
+  return [a, b].sort()[1] ?? a;
+}
+
+/**
+ * The dates in `text` that fall inside any withheld range (`screenedRanges`; the bounds are inclusive), each written
+ * as YYYY-MM-DD and listed once. See `YEAR_FIRST_DATE` for the forms that are found and those that are not.
+ */
+export function datesInExclusions(
+  text: string,
+  exclusions: readonly HoldoutExclusion[],
+  policy?: CohortPolicy,
+): string[] {
+  const ranges = screenedRanges(exclusions, policy);
   const found: string[] = [];
   for (const [, year = '', , month = '', day = ''] of text.matchAll(YEAR_FIRST_DATE)) {
     if (!isCalendarDate(Number(year), Number(month), Number(day))) continue;
     const date = `${year}-${month}-${day}`;
-    if (exclusions.some((item) => date >= item.range.start && date <= item.range.end) && !found.includes(date)) {
+    if (ranges.some((range) => date >= range.start && date <= range.end) && !found.includes(date)) {
       found.push(date);
     }
   }

@@ -324,7 +324,7 @@ describe('blockers on a completion', () => {
     expect(blocked.ok && blocked.blockers.map((item) => item.code)).toEqual(['HOLDOUT_REFERENCE', 'HOLDOUT_REFERENCE']);
     const clear = parse(
       revision,
-      await revisionOutput({ claims: { ...claims, rationale: 'Seen until 2024-01-01 and from 2023-03-01.' } }),
+      await revisionOutput({ claims: { ...claims, rationale: 'Seen until 2023-12-31 and from 2023-03-01.' } }),
     );
     expect(clear.ok && clear.blockers).toEqual([]);
   });

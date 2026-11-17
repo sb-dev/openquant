@@ -242,7 +242,7 @@ describe('refusals of a proposer request', () => {
       const input = await revisionInput({ evidence: evidenceDated(date) });
       const context = narrowed(input.context, window, start, end);
       const assembly = await assembleFormulationRequest({ ...input, context });
-      expect(await codes(assembly)).toEqual(['HOLDOUT_EXCLUSIONS_INVALID']);
+      expect(await codes(assembly)).toEqual(['HOLDOUT_EXCLUSIONS_INVALID', 'HOLDOUT_OVERLAP']);
       expect(!assembly.ok && assembly.refusals[0]?.detail).toBe(
         `the ${window} exclusion does not cover the scored dates of the policy window`,
       );
@@ -279,7 +279,8 @@ describe('the date screen of the withheld windows', () => {
     ['the first session of the validation window', '2024-01-02', true],
     ['the last session of the holdout window', '2025-12-31', true],
     ['a date inside the validation window', '2024-07-04', true],
-    ['the day before the validation window starts', '2024-01-01', false],
+    ['an exchange holiday at the start of the validation policy window', '2024-01-01', true],
+    ['the day before the validation policy window starts', '2023-12-31', false],
     ['the last session of the development window', '2023-12-29', false],
     ['a date after the holdout window', '2026-01-02', false],
     ['an ISO timestamp inside the validation window', '2024-06-03T20:00:00Z', true],
@@ -289,11 +290,17 @@ describe('the date screen of the withheld windows', () => {
     ['a date with slashes', '2024/06/03', true],
     ['a compact date', '20240603', true],
     ['a compact timestamp', '20240603T200000Z', true],
-    ['a timestamp the day before the validation window', '2024-01-01T23:59:59Z', false],
+    ['a timestamp the day before the validation policy window', '2023-12-31T23:59:59Z', false],
     ['an eight-digit number that is no calendar date', '20241399', false],
   ])('%s', async (_name, date, refused) => {
     const input = await revisionInput({ evidence: evidenceWith(`The member closed lower on ${date}.`) });
     expect(await codes(await assembleFormulationRequest(input))).toEqual(refused ? ['HOLDOUT_OVERLAP'] : []);
+  });
+
+  test('an exclusion that omits one weekday at the window edge still withholds that date', async () => {
+    const input = await revisionInput({ evidence: evidenceWith('Observed held-out result on 2025-12-31.') });
+    const context = narrowed(input.context, 'HOLDOUT', '2025-01-02', '2025-12-30');
+    expect(await codes(await assembleFormulationRequest({ ...input, context }))).toEqual(['HOLDOUT_OVERLAP']);
   });
 
   test('a date in the record text is found wherever it stands, and one record is refused once per date', async () => {
@@ -363,9 +370,17 @@ describe('a critic request', () => {
       const context = narrowed(input.context, window, start, end);
       expect(await codes(await assembleCritiqueRequest({ ...input, context, evidence }))).toEqual([
         'HOLDOUT_EXCLUSIONS_INVALID',
+        'HOLDOUT_OVERLAP',
       ]);
     },
   );
+
+  test('an exclusion that omits one weekday at the window edge still withholds that date', async () => {
+    const input = await critiqueRequestInput();
+    const evidence = [{ ...(input.evidence[0] as EvidenceItem), content: 'Observed held-out result on 2025-12-31.' }];
+    const context = narrowed(input.context, 'HOLDOUT', '2025-01-02', '2025-12-30');
+    expect(await codes(await assembleCritiqueRequest({ ...input, context, evidence }))).toEqual(['HOLDOUT_OVERLAP']);
+  });
 
   test('supplies no method', async () => {
     const assembly = await assembleCritiqueRequest(await critiqueRequestInput());

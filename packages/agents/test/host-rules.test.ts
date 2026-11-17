@@ -233,7 +233,7 @@ describe('what a host does with the blockers of a proposal', () => {
     const result = parseFormulationResult(request, leaking);
     expect(codesOf(result)).toEqual(['HOLDOUT_REFERENCE', 'HOLDOUT_REFERENCE']);
     expect(result.ok && result.blockers[0]?.detail).toContain('2024-01-02');
-    const clear = JSON.stringify(await revisionOutput({ claims: { ...claims, rationale: 'Seen until 2024-01-01.' } }));
+    const clear = JSON.stringify(await revisionOutput({ claims: { ...claims, rationale: 'Seen until 2023-12-31.' } }));
     expect(codesOf(parseFormulationResult(request, clear))).toEqual([]);
   });
 
@@ -258,7 +258,7 @@ describe('what a host does with the blockers of a proposal', () => {
 
   test('an eight-digit number that is no calendar date and a timestamp before the windows are not notices', async () => {
     const request = await revisionRequest();
-    const rationale = 'Order 20241399, seen 2024-01-01T23:59:59Z.';
+    const rationale = 'Order 20241399, seen 2023-12-31T23:59:59Z.';
     const result = parseFormulationResult(
       request,
       JSON.stringify(await revisionOutput({ claims: { ...claims, rationale } })),
