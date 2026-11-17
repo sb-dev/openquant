@@ -96,12 +96,12 @@ describe('a VALID seed', () => {
     expect(await flow.world.sql('SELECT 1 FROM strategy_lineage')).toHaveLength(0);
     const [job] = await flow.world.sql<{ status: string }>('SELECT status FROM jobs WHERE job_id = $1', [work.jobId]);
     expect(job?.status).toBe('COMPLETED');
-    // 1840 ms round up to 2 of the 300 seconds that a validation reserves.
+    // 1840 ms round up to 2 of the 60 seconds that a validation reserves under the pilot policy.
     const [line] = await flow.world.sql<{ reserved: string; used: string }>(
       'SELECT reserved::text, used::text FROM reservation_lines WHERE attempt_id = $1',
       [work.attemptId],
     );
-    expect(line).toEqual({ reserved: '300.00000000', used: '2.00000000' });
+    expect(line).toEqual({ reserved: '60.00000000', used: '2.00000000' });
   });
 
   it('answers a redelivery with the stored outcome, and refuses another result from the same attempt', async () => {

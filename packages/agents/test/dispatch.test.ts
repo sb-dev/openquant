@@ -1,5 +1,5 @@
-// The dispatch checks that agent-dispatch/1 does not make: role, skill and request must match, the exclusions must
-// name V and H, and the bundle and executor profile must be the registered ones (OQ-03 section 4).
+// The dispatch checks beside agent-dispatch/1: role, skill and request must match (the schema ties them as well), the
+// exclusions must name V and H, and the bundle and executor profile must be the registered ones (OQ-03 section 4).
 
 import { type AgentDispatch, parseContract } from '@openquant/api-contracts';
 import { describe, expect, test } from 'vitest';
@@ -53,11 +53,11 @@ describe('a dispatch that matches its request', () => {
   });
 });
 
-describe('what the envelope schema accepts and the dispatch check refuses', () => {
-  test('the envelope accepts a critic skill with the proposer role', async () => {
+describe('what the dispatch check refuses, some of which the envelope schema refuses as well', () => {
+  test('the envelope refuses a critic skill with the proposer role (agent-dispatch/1 ties role, skill and request)', async () => {
     const { dispatch } = await proposerCase();
     dispatch.identity.skill = { id: 'strategy-critique', version: '1' };
-    expect(parseContract('agent-dispatch', JSON.stringify(dispatch)).ok).toBe(true);
+    expect(parseContract('agent-dispatch', JSON.stringify(dispatch)).ok).toBe(false);
   });
 
   test('a skill that serves another role', async () => {
@@ -178,7 +178,8 @@ describe('what the envelope schema accepts and the dispatch check refuses', () =
   test('an output limit above the 512 KiB that a role result is parsed within', async () => {
     const { dispatch, assembled } = await proposerCase();
     dispatch.execution.bounds.output_limit_bytes = 524_289;
-    expect(parseContract('agent-dispatch', JSON.stringify(dispatch)).ok).toBe(true);
+    // agent-dispatch/1 caps the limit at 524288 too; the check stays for a dispatch built without the schema.
+    expect(parseContract('agent-dispatch', JSON.stringify(dispatch)).ok).toBe(false);
     expect(codesOf(dispatch, assembled)).toEqual(['OUTPUT_LIMIT_TOO_HIGH']);
     dispatch.execution.bounds.output_limit_bytes = 524_288;
     expect(codesOf(dispatch, assembled)).toEqual([]);

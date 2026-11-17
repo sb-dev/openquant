@@ -9,17 +9,15 @@
 //     exact decimals;
 //   - the execution section is one that the registered execution policy supports (OQ-02 section 2.5).
 //
-// A violation is a diagnostic in the codes of validation-result/1 that fit: UNSUPPORTED_OPERATOR for an operator or
-// operator set that is not permitted, INVALID_PARAMETER for a value outside its bounds and for an execution request that
-// the policy does not support. The schema has no code for "the policy forbids this": that is a gap of the frozen contract,
-// so the detail of each diagnostic names the policy. A draft that has no violation is not thereby valid: Rust still
-// validates it.
+// A violation is a diagnostic of validation-result/1 with the code POLICY_VIOLATION: an operator or operator set that is
+// not permitted, a value outside its bounds, or an execution request that the policy does not support. The detail of
+// each diagnostic names the rule. A draft that has no violation is not thereby valid: Rust still validates it.
 
-import type { CohortPolicy, StrategyArtefact } from '@openquant/api-contracts';
+import type { CohortPolicy, StrategyArtefact, ValidationCode } from '@openquant/api-contracts';
 import { compareDecimal } from './decimal.ts';
 
 export interface PolicyDiagnostic {
-  readonly code: 'UNSUPPORTED_OPERATOR' | 'INVALID_PARAMETER';
+  readonly code: Extract<ValidationCode, 'POLICY_VIOLATION'>;
   /** A JSON Pointer into the strategy artefact. */
   readonly pointer: string;
   readonly detail: string;
@@ -65,7 +63,7 @@ export function policyDiagnostics(draft: StrategyArtefact, policy: CohortPolicy)
 
   if (draft.operator_set !== operators.operator_set) {
     add({
-      code: 'UNSUPPORTED_OPERATOR',
+      code: 'POLICY_VIOLATION',
       pointer: '/operator_set',
       detail: `The operator set ${draft.operator_set} is not the operator set ${operators.operator_set} of the cohort policy.`,
     });
@@ -76,7 +74,7 @@ export function policyDiagnostics(draft: StrategyArtefact, policy: CohortPolicy)
     const bounds = permitted.get(expr.op);
     if (bounds === undefined) {
       add({
-        code: 'UNSUPPORTED_OPERATOR',
+        code: 'POLICY_VIOLATION',
         pointer: `${pointer}/op`,
         detail: `The operator ${expr.op} is not permitted by the cohort policy.`,
       });
@@ -88,13 +86,13 @@ export function policyDiagnostics(draft: StrategyArtefact, policy: CohortPolicy)
         const where = `${pointer}/params/${bound.parameter}`;
         if (compareDecimal(text, bound.minimum) < 0) {
           add({
-            code: 'INVALID_PARAMETER',
+            code: 'POLICY_VIOLATION',
             pointer: where,
             detail: `The ${bound.parameter} ${text} of ${expr.op} is below the minimum ${bound.minimum} of the cohort policy.`,
           });
         } else if (compareDecimal(text, bound.maximum) > 0) {
           add({
-            code: 'INVALID_PARAMETER',
+            code: 'POLICY_VIOLATION',
             pointer: where,
             detail: `The ${bound.parameter} ${text} of ${expr.op} is above the maximum ${bound.maximum} of the cohort policy.`,
           });
@@ -108,7 +106,7 @@ export function policyDiagnostics(draft: StrategyArtefact, policy: CohortPolicy)
   const supported = SUPPORTED_EXECUTION[executionPolicy.id];
   if (supported === undefined) {
     add({
-      code: 'INVALID_PARAMETER',
+      code: 'POLICY_VIOLATION',
       pointer: '/definition/execution',
       detail: `The execution policy ${executionPolicy.id} of the cohort policy is not one whose execution requests this API knows.`,
     });
@@ -117,7 +115,7 @@ export function policyDiagnostics(draft: StrategyArtefact, policy: CohortPolicy)
       const requested = draft.definition.execution[field];
       if (requested !== supported[field]) {
         add({
-          code: 'INVALID_PARAMETER',
+          code: 'POLICY_VIOLATION',
           pointer: `/definition/execution/${field}`,
           detail: `The ${field} ${requested} is not the ${supported[field]} that the execution policy ${executionPolicy.id} supports.`,
         });

@@ -2,10 +2,18 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:openquant:schema:job-dispatch:1",
   "title": "JobDispatch",
-  "description": "Batch queue message for one job attempt (OQ-05 section 4). It holds references only, never datasets. The API writes it to the outbox in the transaction that creates the attempt and its reservation. The worker claims the attempt with the digest of this message before it fetches any input or does any work. A redelivered message cannot authorise a second official result. mission_id is absent only for a replay run, which belongs to no mission. Retrieve, validate and assess jobs always run inside a mission.",
+  "description": "Batch queue message for one job attempt (OQ-05 section 4). It holds references only, never datasets. The API writes it to the outbox in the transaction that creates the attempt and its reservation. The worker claims the attempt with the digest of this message before it fetches any input or does any work. A redelivered message cannot authorise a second official result. mission_id is absent only for a replay run, which belongs to no mission. Retrieve, validate and assess jobs always run inside a mission, so their dispatch requires mission_id.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "environment", "job_id", "attempt", "dispatched_at", "inputs"],
+  "not": {
+    "description": "A retrieve, validate or assess job without mission_id.",
+    "required": ["inputs"],
+    "properties": {
+      "inputs": { "type": "object", "required": ["kind"], "properties": { "kind": { "enum": ["retrieve", "validate", "assess"] } } },
+      "mission_id": { "not": {} }
+    }
+  },
   "properties": {
     "schema_version": { "type": "string", "enum": ["job-dispatch/1"] },
     "environment": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DeploymentEnvironment" },

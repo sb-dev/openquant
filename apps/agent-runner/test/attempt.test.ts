@@ -637,6 +637,7 @@ describe('failures of the runner are not outcomes', () => {
   it.each([
     ['LEASE_EXPIRED', 409],
     ['STALE_OWNERSHIP', 409],
+    ['ATTEMPT_NOT_CLAIMABLE', 409],
   ] as const)('a late completion rejected with %s ends the attempt and is not retried', async (code, status) => {
     const context = await setup(reply(await revisionOutput()), {
       world: { apiOptions: { result: apiFailure(status, code) } },
@@ -839,7 +840,7 @@ describe('a stored request that request assembly would not have built', () => {
 describe('output that is valid JSON of the schema and carries blockers', () => {
   const operatorEdit = [{ op: 'replace' as const, path: '/definition/indicators/0/expr/op', value: 'operator:ema@1' }];
 
-  it('is a completion with a logged notice when it uses an operator outside the permitted set: Rust validates it', async () => {
+  it('is a completion that carries the notice when it uses an operator outside the permitted set: Rust validates it', async () => {
     const output = await revisionOutput({
       strategy: applyEdits(proposedForm(seedArtefact(SEED_ONE)), operatorEdit),
       rule_changes: [{ path: '/definition/indicators/0/expr/op', from: 'operator:sma@1', to: 'operator:ema@1' }],
@@ -848,19 +849,31 @@ describe('output that is valid JSON of the schema and carries blockers', () => {
     expect(await go(context)).toEqual({ posted: true, outcome: 'completion' });
     const result = posted(context);
     expect(result.outcome.outcome).toBe('completion');
+    // agent-attempt-result/1 carries the notice beside the output, so the API stores it with the report.
+    expect(result.outcome.outcome === 'completion' && result.outcome.notices).toEqual([
+      {
+        code: 'OPERATOR_NOT_PERMITTED',
+        detail: 'operator:ema@1 is not a permitted operator (at /definition/indicators/0/expr/op)',
+      },
+    ]);
     // The draft is stored for the Rust core, whose INVALID diagnostics go to the next proposer attempt.
     expect(context.world.api.artefacts.size).toBe(1);
     expect(context.logs.join('\n')).toContain('"event":"result_notices","attempt":');
     expect(context.logs.join('\n')).toContain('"notices":"OPERATOR_NOT_PERMITTED"');
   });
 
-  it('is a completion with a logged notice when it names a day inside the validation or holdout window', async () => {
+  it('is a completion that carries the notices when it names a day inside the validation or holdout window', async () => {
     const output = await revisionOutput({
       claims: { ...claims, rationale: 'It avoids 2024-08-05T20:00:00Z and 2025-04-07.' },
     });
     const context = await setup(reply(output));
     expect(await go(context)).toEqual({ posted: true, outcome: 'completion' });
     expect(context.world.api.artefacts.size).toBe(1);
+    const result = posted(context);
+    expect(result.outcome.outcome === 'completion' && result.outcome.notices?.map((notice) => notice.code)).toEqual([
+      'HOLDOUT_REFERENCE',
+      'HOLDOUT_REFERENCE',
+    ]);
     expect(context.logs.join('\n')).toContain('"notices":"HOLDOUT_REFERENCE,HOLDOUT_REFERENCE"');
   });
 
@@ -876,6 +889,11 @@ describe('output that is valid JSON of the schema and carries blockers', () => {
     const context = await setup(reply(output));
     expect(await go(context)).toEqual({ posted: true, outcome: 'completion' });
     expect(context.world.api.artefacts.size).toBe(1);
+    const result = posted(context);
+    expect(result.outcome.outcome === 'completion' && result.outcome.notices?.map((notice) => notice.code)).toEqual([
+      'UNRESOLVED_ASSUMPTION',
+      'REVISION_SCOPE',
+    ]);
   });
 
   it('keeps the exact rule-change check for a revision whose declared changes are not the difference', async () => {

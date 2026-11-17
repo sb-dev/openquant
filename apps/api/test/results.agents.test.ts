@@ -481,6 +481,41 @@ describe('a proposer', () => {
     expect(line).toEqual({ configuration_id: 'proposer-a', used: '3.25000000' });
   });
 
+  it('that completes with notices has them stored with its report, and they change nothing else', async () => {
+    const work = await startAgent(flow, { slot: 'rev-a', role: 'PROPOSER', configuration: 'proposer-b' });
+    const claimed = await claim(flow, work.attemptId, 'runner', AGENT_RUNNER);
+    const { message } = await outboxOf(flow, work.attemptId);
+    const output = await upload(
+      flow,
+      claimed,
+      bytesOf({ schema_version: 'strategy-formulation.result/1', proposal_kind: 'controlled_revision', note: 1 }),
+    );
+    const notices = [
+      { code: 'OPERATOR_NOT_PERMITTED', detail: 'operator:ema@1 is not a permitted operator (at /definition/entry)' },
+      { code: 'HOLDOUT_REFERENCE', detail: 'the proposal mentions 2025-03-14, inside a withheld window' },
+    ];
+    const response = await submit(
+      flow,
+      claimed,
+      'agent-result',
+      agentResultDoc(claimed, message, {
+        outcome: 'completion',
+        output: { contract: 'strategy-formulation.result/1', artefact: output },
+        notices,
+      }),
+    );
+    expect(response.status).toBe(204);
+    const [linked] = await flow.world.sql<{ outcome: string; result_digest: string; output_digest: string }>(
+      'SELECT outcome, result_digest, output_digest FROM agent_results WHERE attempt_id = $1',
+      [work.attemptId],
+    );
+    expect(linked).toMatchObject({ outcome: 'completion', output_digest: output.digest });
+    const stored = (await flow.world.testApp.objects.get(linked?.result_digest as never)) as Uint8Array;
+    expect(JSON.parse(new TextDecoder().decode(stored)).outcome.notices).toEqual(notices);
+    const [job] = await flow.world.sql<{ status: string }>('SELECT status FROM jobs WHERE job_id = $1', [work.jobId]);
+    expect(job?.status).toBe('COMPLETED');
+  });
+
   it('is refused when the output names no proposal kind that is defined', async () => {
     const work = await startAgent(flow, { slot: 'rev-b', role: 'PROPOSER', configuration: 'proposer-b' });
     const claimed = await claim(flow, work.attemptId, 'runner', AGENT_RUNNER);

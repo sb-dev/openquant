@@ -6,6 +6,45 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "environment", "identity", "execution", "inputs", "result_route"],
+  "not": {
+    "description": "A role, role module and request contract that do not belong together. The proposer runs strategy-formulation with a strategy-formulation.request/1, and the critic runs strategy-critique with a strategy-critique.request/1.",
+    "anyOf": [
+      {
+        "required": ["identity"],
+        "properties": {
+          "identity": {
+            "type": "object",
+            "required": ["role", "skill"],
+            "properties": { "role": { "enum": ["proposer"] }, "skill": { "type": "object", "required": ["id"], "properties": { "id": { "enum": ["strategy-critique"] } } } }
+          }
+        }
+      },
+      {
+        "required": ["identity"],
+        "properties": {
+          "identity": {
+            "type": "object",
+            "required": ["role", "skill"],
+            "properties": { "role": { "enum": ["critic"] }, "skill": { "type": "object", "required": ["id"], "properties": { "id": { "enum": ["strategy-formulation"] } } } }
+          }
+        }
+      },
+      {
+        "required": ["identity", "inputs"],
+        "properties": {
+          "identity": { "type": "object", "required": ["role"], "properties": { "role": { "enum": ["proposer"] } } },
+          "inputs": { "type": "object", "required": ["request"], "properties": { "request": { "type": "object", "required": ["contract"], "properties": { "contract": { "enum": ["strategy-critique.request/1"] } } } } }
+        }
+      },
+      {
+        "required": ["identity", "inputs"],
+        "properties": {
+          "identity": { "type": "object", "required": ["role"], "properties": { "role": { "enum": ["critic"] } } },
+          "inputs": { "type": "object", "required": ["request"], "properties": { "request": { "type": "object", "required": ["contract"], "properties": { "contract": { "enum": ["strategy-formulation.request/1"] } } } } }
+        }
+      }
+    ]
+  },
   "properties": {
     "schema_version": { "type": "string", "enum": ["agent-dispatch/1"] },
     "environment": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DeploymentEnvironment" },
@@ -80,13 +119,13 @@
     },
     "AgentBounds": {
       "title": "AgentBounds",
-      "description": "cost_reservation was reserved before dispatch. An output above output_limit_bytes is a malformed result.",
+      "description": "cost_reservation was reserved before dispatch. output_limit_bytes bounds the UTF-8 bytes of the role result text; a longer result is a malformed result. It is at most 524288, the strategy-artefact/1 limit within which the API parses a role result. The executor's whole output has the host's own cap (OQ-03 section 4).",
       "type": "object",
       "additionalProperties": false,
       "required": ["timeout_seconds", "output_limit_bytes", "cost_reservation"],
       "properties": {
         "timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 86400 },
-        "output_limit_bytes": { "type": "integer", "minimum": 1, "maximum": 16777216 },
+        "output_limit_bytes": { "type": "integer", "minimum": 1, "maximum": 524288 },
         "cost_reservation": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/MoneyAmount" }
       }
     },

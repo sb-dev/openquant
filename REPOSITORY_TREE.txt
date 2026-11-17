@@ -1196,6 +1196,9 @@ fixtures/protocol/invalid/agent-attempt-result.cost-amount-exponent.json
 fixtures/protocol/invalid/agent-attempt-result.input-hash-malformed.json
 fixtures/protocol/invalid/agent-attempt-result.missing-provider.json
 fixtures/protocol/invalid/agent-attempt-result.negative-cost.json
+fixtures/protocol/invalid/agent-attempt-result.notice-unknown-code.json
+fixtures/protocol/invalid/agent-attempt-result.notices-empty.json
+fixtures/protocol/invalid/agent-attempt-result.notices-on-timeout.json
 fixtures/protocol/invalid/agent-attempt-result.output-on-timeout.json
 fixtures/protocol/invalid/agent-attempt-result.unknown-cost-as-zero-label.json
 fixtures/protocol/invalid/agent-attempt-result.unknown-field.json
@@ -1203,7 +1206,10 @@ fixtures/protocol/invalid/agent-attempt-result.unknown-outcome.json
 fixtures/protocol/invalid/agent-attempt-result.version-2.json
 fixtures/protocol/invalid/agent-dispatch.bundle-hash-malformed.json
 fixtures/protocol/invalid/agent-dispatch.cost-reservation-exponent.json
+fixtures/protocol/invalid/agent-dispatch.critic-with-formulation-skill.json
 fixtures/protocol/invalid/agent-dispatch.negative-reservation.json
+fixtures/protocol/invalid/agent-dispatch.output-limit-above-524288.json
+fixtures/protocol/invalid/agent-dispatch.proposer-with-critique-request.json
 fixtures/protocol/invalid/agent-dispatch.tool-granted.json
 fixtures/protocol/invalid/agent-dispatch.unknown-field.json
 fixtures/protocol/invalid/agent-dispatch.version-2.json
@@ -1271,6 +1277,7 @@ fixtures/protocol/invalid/checkpoint.strategy-hash-mismatch.json
 fixtures/protocol/invalid/checkpoint.unknown-cursor.json
 fixtures/protocol/invalid/checkpoint.unknown-state-field.json
 fixtures/protocol/invalid/checkpoint.version-2.json
+fixtures/protocol/invalid/cohort-policy.agent-output-limit-above-524288.json
 fixtures/protocol/invalid/cohort-policy.automatic-paper-promotion.json
 fixtures/protocol/invalid/cohort-policy.cost-stress-multiplier-below-one.json
 fixtures/protocol/invalid/cohort-policy.cost-stress-multiplier-exponent.json
@@ -1285,12 +1292,15 @@ fixtures/protocol/invalid/cohort-policy.unknown-field.json
 fixtures/protocol/invalid/cohort-policy.unknown-finding-category.json
 fixtures/protocol/invalid/cohort-policy.version-2.json
 fixtures/protocol/invalid/command.applied-without-record.json
+fixtures/protocol/invalid/command.approved-without-valid-critique.json
 fixtures/protocol/invalid/command.budget-decimal-exponent.json
 fixtures/protocol/invalid/command.create-mission-amount-leading-zero.json
 fixtures/protocol/invalid/command.create-mission-negative-allowance.json
 fixtures/protocol/invalid/command.create-mission-period-ref.json
+fixtures/protocol/invalid/command.deferred-with-completed-critique.json
 fixtures/protocol/invalid/command.deferred-with-result.json
 fixtures/protocol/invalid/command.freeze-unknown-slot-status.json
+fixtures/protocol/invalid/command.rejected-without-valid-critique.json
 fixtures/protocol/invalid/command.unknown-field.json
 fixtures/protocol/invalid/command.unknown-kind.json
 fixtures/protocol/invalid/command.version-2.json
@@ -1352,11 +1362,14 @@ fixtures/protocol/invalid/input.unknown-nested-field.json
 fixtures/protocol/invalid/input.unplanned-event-kind-unknown.json
 fixtures/protocol/invalid/input.version-2.json
 fixtures/protocol/invalid/input.version-missing.json
+fixtures/protocol/invalid/job-dispatch.assess-without-mission.json
 fixtures/protocol/invalid/job-dispatch.assess-without-plan.json
 fixtures/protocol/invalid/job-dispatch.inline-dataset.json
 fixtures/protocol/invalid/job-dispatch.request-digest-malformed.json
+fixtures/protocol/invalid/job-dispatch.retrieve-without-mission.json
 fixtures/protocol/invalid/job-dispatch.unknown-field.json
 fixtures/protocol/invalid/job-dispatch.unknown-kind.json
+fixtures/protocol/invalid/job-dispatch.validate-without-mission.json
 fixtures/protocol/invalid/job-dispatch.version-2.json
 fixtures/protocol/invalid/release-manifest.image-digest-malformed.json
 fixtures/protocol/invalid/release-manifest.source-commit-short.json
@@ -1407,8 +1420,10 @@ fixtures/protocol/invalid/validation-result.valid-scope-both.json
 fixtures/protocol/invalid/validation-result.valid-scope-outside.json
 fixtures/protocol/invalid/validation-result.version-2.json
 fixtures/protocol/manifest.json
+fixtures/protocol/valid/agent-attempt-result.completion-with-notices.json
 fixtures/protocol/valid/agent-attempt-result.completion.json
 fixtures/protocol/valid/agent-attempt-result.timeout.json
+fixtures/protocol/valid/agent-dispatch.critic.json
 fixtures/protocol/valid/agent-dispatch.proposer.json
 fixtures/protocol/valid/api-error.maximal-listing.json
 fixtures/protocol/valid/api-error.schema-violation.json
@@ -1426,6 +1441,7 @@ fixtures/protocol/valid/command.create-mission.json
 fixtures/protocol/valid/command.freeze-candidates-seed-not-evaluated.json
 fixtures/protocol/valid/command.freeze-candidates.json
 fixtures/protocol/valid/command.record-evaluation-decision-deferred.json
+fixtures/protocol/valid/command.record-evaluation-decision-rejected.json
 fixtures/protocol/valid/command.record-evaluation-decision-seed-deferred.json
 fixtures/protocol/valid/command.record-evaluation-decision.json
 fixtures/protocol/valid/command.register-budget.json
@@ -1463,6 +1479,7 @@ fixtures/protocol/valid/retrieval-result.complete.json
 fixtures/protocol/valid/retrieval-result.egress-refused.json
 fixtures/protocol/valid/retrieval-result.rate-limited.json
 fixtures/protocol/valid/validation-result.invalid-draft.json
+fixtures/protocol/valid/validation-result.policy-violation.json
 fixtures/protocol/valid/validation-result.revision-scope.json
 fixtures/protocol/valid/validation-result.valid-revision.json
 fixtures/protocol/valid/validation-result.valid-seed.json

@@ -2,12 +2,13 @@
 // configuration and the critic get the same limit, agent_output_limit_bytes, and an agent output above it is a
 // malformed result (decision D6: output overflow is malformed_result, with the reason OUTPUT_LIMIT_EXCEEDED of
 // agent-attempt-result/1). The API is the backstop of the runner's own cap, so it holds both roles to the registered
-// limit, with 512 KiB (the parse limit of a role output) as the ceiling. An over-limit completion is recorded as that
-// outcome and its attempt is settled: it is not left CLAIMED, and it is retried within the attempt cap like any
-// other malformed result.
+// limit, which cohort-policy/1 caps at 512 KiB, the parse limit of a role output. An over-limit completion is
+// recorded as that outcome and its attempt is settled: it is not left CLAIMED, and it is retried within the attempt
+// cap like any other malformed result.
 //
 // The sizes are the byte lengths of the canonical JSON that the test uploads; they are counted here, not read from src.
 
+import { validateContract } from '@openquant/api-contracts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   AGENT_RUNNER,
@@ -23,7 +24,7 @@ import {
   upload,
 } from './support/flow.ts';
 import { agentResultDoc, driveValidation } from './support/steps.ts';
-import type { Doc } from './support/world.ts';
+import { type Doc, fixture } from './support/world.ts';
 
 const LIMIT = 2048;
 
@@ -183,17 +184,25 @@ describe('an output above the limit of the policy', () => {
   }
 });
 
-describe('a limit above 512 KiB', () => {
+describe('a limit of 512 KiB, the parse limit of a role output', () => {
   const CEILING = 512 * 1024;
   let flow: Flow & Started;
   beforeAll(async () => {
-    flow = await limitedFlow(1024 * 1024);
+    flow = await limitedFlow(CEILING);
   });
   afterAll(async () => {
     await flow.world.drop();
   });
 
-  it('is held to the ceiling of 512 KiB, the parse limit of a role output, for the proposer', async () => {
+  it('is the most that a cohort policy can register: one byte more is not a cohort-policy/1', () => {
+    const policy = structuredClone(fixture('cohort-policy.s1-pilot.json')) as Doc;
+    policy.limits.agent_output_limit_bytes = CEILING;
+    expect(validateContract('cohort-policy', policy).ok).toBe(true);
+    policy.limits.agent_output_limit_bytes = CEILING + 1;
+    expect(validateContract('cohort-policy', policy).ok).toBe(false);
+  });
+
+  it('holds the proposer: an output of one byte more is malformed, one of the limit is a completion', async () => {
     const entry = roles[1] as (typeof roles)[number];
     const over = await report(flow, entry, entry.output(CEILING + 1));
     expect(over.response.status).toBe(204);

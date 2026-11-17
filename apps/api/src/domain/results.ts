@@ -18,8 +18,9 @@ export type ResultGate =
 /**
  * Decide what a submission from an attempt may do. `live`: the caller holds the current lease and ownership revision.
  * `repeat`: the attempt already completed with its result (the caller compares the stored digest with the body).
- * `rejected`: a late submission, which is recorded in this transaction and changes nothing else. A cancelled or failed
- * attempt has lost its lease, so it is LEASE_EXPIRED: ATTEMPT_NOT_CLAIMABLE is not in the error list of a result route.
+ * `rejected`: a late submission, which is recorded in this transaction and changes nothing else: STALE_OWNERSHIP,
+ * LEASE_EXPIRED, or ATTEMPT_NOT_CLAIMABLE for an attempt that is cancelled, failed, completed with no result of its own
+ * or still pending (OQ-05 section 4).
  */
 export async function openResult(
   tx: Queryable,
@@ -36,14 +37,8 @@ export async function openResult(
   if (ended && attempt.result_digest !== null && attempt.ownership_revision === ownershipRevision) {
     return { kind: 'repeat', located };
   }
-  let failure = await fenceFailure(tx, ctx.env, attempt, ownershipRevision);
+  const failure = await fenceFailure(tx, ctx.env, attempt, ownershipRevision);
   if (failure === undefined) return { kind: 'live', located };
-  if (failure.code === 'ATTEMPT_NOT_CLAIMABLE') {
-    failure = new ApiFailure(
-      'LEASE_EXPIRED',
-      `This attempt is ${attempt.status}: its lease has ended and no result can be committed from it.`,
-    );
-  }
   await recordRejection(tx, ctx, attempt, failure, 'submit');
   return { kind: 'rejected', failure };
 }

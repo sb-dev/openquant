@@ -16,7 +16,7 @@
     "version": "1",
     "digest": "sha256:7d57cee1b569f319d5587d03c0d6797faf48347bfff33fa1c070cb2e83ee02f5"
   },
-  "draft_digest": "sha256:9393e15001ca25d491d256c7743d29ab8cd3a67d6ee550821c6814ce32ceaaa1",
+  "draft_digest": "sha256:fb2dc5ebb09c2a62c3914fb67b098770086b2d8aaf44832ef3c6267ad0c31fb1",
   "parent_hash": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
   "outcome": {
     "status": "INVALID",

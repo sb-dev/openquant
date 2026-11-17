@@ -4,8 +4,8 @@
 //
 // A manifest is for one environment and states the migration level that the delivery job applied. Both must be those of
 // this API: a manifest of another environment, or one that claims a migration level that the database is not at, is not
-// recorded (IDENTITY_MISMATCH). The same manifest recorded twice is one record. The route lists REVISION_CONFLICT, but
-// its request carries no expected revision, so this route never answers it (README, open points).
+// recorded (IDENTITY_MISMATCH). The same manifest recorded twice is one record. Its request carries no expected
+// revision, so the route lists no REVISION_CONFLICT.
 
 import type { ReleaseManifest } from '@openquant/api-contracts';
 import { canonicalJson, digest } from '@openquant/api-contracts';

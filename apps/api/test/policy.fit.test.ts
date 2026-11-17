@@ -10,7 +10,7 @@
 //   exits:            const value 2 (stop args/1/args/0), const value 5 (target args/1/args/0)
 //   operator_set daily-long-only-seed@1; execution NEXT_OPEN, AFTER_CLOSE.
 
-import type { CohortPolicy, StrategyArtefact } from '@openquant/api-contracts';
+import { type CohortPolicy, type StrategyArtefact, validateContract } from '@openquant/api-contracts';
 import { describe, expect, it } from 'vitest';
 import { describePolicyDiagnostics, MAX_POLICY_DIAGNOSTICS, policyDiagnostics } from '../src/domain/policy-fit.ts';
 import { type Doc, fixture } from './support/world.ts';
@@ -29,25 +29,25 @@ describe('the seed draft against the pilot policy', () => {
 });
 
 describe('a parameter outside its bounds', () => {
-  it('above the maximum is INVALID_PARAMETER at the parameter, and only there', () => {
+  it('above the maximum is POLICY_VIOLATION at the parameter, and only there', () => {
     const p = policy();
     permission(p, 'operator:sma@1').parameter_bounds = [{ parameter: 'window', minimum: '1', maximum: '49' }];
     const found = check(draft(), p);
     expect(found).toEqual([
       {
-        code: 'INVALID_PARAMETER',
+        code: 'POLICY_VIOLATION',
         pointer: '/definition/indicators/0/expr/params/window',
         detail: 'The window 50 of operator:sma@1 is above the maximum 49 of the cohort policy.',
       },
     ]);
   });
 
-  it('below the minimum is INVALID_PARAMETER at the parameter, and only there', () => {
+  it('below the minimum is POLICY_VIOLATION at the parameter, and only there', () => {
     const p = policy();
     permission(p, 'operator:sma@1').parameter_bounds = [{ parameter: 'window', minimum: '21', maximum: '60' }];
     expect(check(draft(), p)).toEqual([
       {
-        code: 'INVALID_PARAMETER',
+        code: 'POLICY_VIOLATION',
         pointer: '/definition/indicators/1/expr/params/window',
         detail: 'The window 20 of operator:sma@1 is below the minimum 21 of the cohort policy.',
       },
@@ -100,19 +100,19 @@ describe('a parameter outside its bounds', () => {
 });
 
 describe('an operator that the policy does not permit', () => {
-  it('is UNSUPPORTED_OPERATOR at the operator, wherever it stands in the tree', () => {
+  it('is POLICY_VIOLATION at the operator, wherever it stands in the tree', () => {
     const p = policy();
     p.conditions.operators.permitted = p.conditions.operators.permitted.filter(
       (entry: Doc) => entry.operator !== 'operator:rsi_simple@1' && entry.operator !== 'operator:div@1',
     );
     expect(check(draft(), p)).toEqual([
       {
-        code: 'UNSUPPORTED_OPERATOR',
+        code: 'POLICY_VIOLATION',
         pointer: '/definition/indicators/2/expr/op',
         detail: 'The operator operator:rsi_simple@1 is not permitted by the cohort policy.',
       },
       expect.objectContaining({
-        code: 'UNSUPPORTED_OPERATOR',
+        code: 'POLICY_VIOLATION',
         pointer: '/definition/entry/rank/args/0/args/1/op',
       }),
     ]);
@@ -122,22 +122,22 @@ describe('an operator that the policy does not permit', () => {
     const d = draft();
     d.operator_set = 'daily-long-only-seed@2';
     expect(check(d, policy())).toEqual([
-      expect.objectContaining({ code: 'UNSUPPORTED_OPERATOR', pointer: '/operator_set' }),
+      expect.objectContaining({ code: 'POLICY_VIOLATION', pointer: '/operator_set' }),
     ]);
   });
 });
 
 describe('the execution section against the execution policy of the cohort', () => {
-  it('is INVALID_PARAMETER where the draft asks for a phase that daily-long-only-cash@1 does not support', () => {
+  it('is POLICY_VIOLATION where the draft asks for a phase that daily-long-only-cash@1 does not support', () => {
     const d = draft();
     d.definition.execution = { entry_fill: 'SAME_CLOSE', decision: 'BEFORE_OPEN' };
     expect(check(d, policy())).toEqual([
-      expect.objectContaining({ code: 'INVALID_PARAMETER', pointer: '/definition/execution/entry_fill' }),
-      expect.objectContaining({ code: 'INVALID_PARAMETER', pointer: '/definition/execution/decision' }),
+      expect.objectContaining({ code: 'POLICY_VIOLATION', pointer: '/definition/execution/entry_fill' }),
+      expect.objectContaining({ code: 'POLICY_VIOLATION', pointer: '/definition/execution/decision' }),
     ]);
   });
 
-  it('is INVALID_PARAMETER when the policy names an execution policy whose requests are not known', () => {
+  it('is POLICY_VIOLATION when the policy names an execution policy whose requests are not known', () => {
     const p = policy();
     p.conditions.execution_policy.id = 'daily-long-only-cash@2';
     expect(check(draft(), p)).toEqual([expect.objectContaining({ pointer: '/definition/execution' })]);
@@ -154,10 +154,23 @@ describe('the diagnostics of a draft', () => {
     }));
     const found = check(d, policy());
     expect(found).toHaveLength(MAX_POLICY_DIAGNOSTICS);
-    expect(found.every((entry) => entry.code === 'UNSUPPORTED_OPERATOR')).toBe(true);
+    expect(found.every((entry) => entry.code === 'POLICY_VIOLATION')).toBe(true);
     expect(describePolicyDiagnostics(found).length).toBeLessThanOrEqual(1000);
-    expect(
-      describePolicyDiagnostics(found).startsWith('UNSUPPORTED_OPERATOR at /definition/indicators/0/expr/op: '),
-    ).toBe(true);
+    expect(describePolicyDiagnostics(found).startsWith('POLICY_VIOLATION at /definition/indicators/0/expr/op: ')).toBe(
+      true,
+    );
+  });
+
+  it('are diagnostics of validation-result/1: POLICY_VIOLATION is one of its codes', () => {
+    const p = policy();
+    p.conditions.operators.permitted = p.conditions.operators.permitted.filter(
+      (entry: Doc) => entry.operator !== 'operator:rsi_simple@1',
+    );
+    permission(p, 'operator:sma@1').parameter_bounds = [{ parameter: 'window', minimum: '1', maximum: '49' }];
+    const found = check(draft(), p);
+    expect(found.map((entry) => entry.code)).toEqual(['POLICY_VIOLATION', 'POLICY_VIOLATION']);
+    const result = structuredClone(fixture('validation-result.valid-seed.json')) as Doc;
+    result.outcome = { status: 'INVALID', diagnostics: found };
+    expect(validateContract('validation-result', result).ok).toBe(true);
   });
 });

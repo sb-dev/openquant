@@ -23,7 +23,7 @@
       "cohort_policy": {
         "id": "s1-aapl-daily-swing",
         "revision": 1,
-        "digest": "sha256:da04f3c489c7804cf5bcf73cdfe617148d4917ff321e0a481530fef1a134edd3"
+        "digest": "sha256:a1871e4a24f7ab44cb98270216accc66f9e08b060c67e1b0de7438ab01baa2dd"
       },
       "budget": {
         "id": "staging-period-cap",

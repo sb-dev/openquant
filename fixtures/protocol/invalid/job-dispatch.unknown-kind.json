@@ -11,7 +11,7 @@
   "inputs": {
     "kind": "trade",
     "request": {
-      "digest": "sha256:c541e0e2aef3f73835cb0131584787bf146d4f129934c41779be8900cf9f4112",
+      "digest": "sha256:b5c516b60df21caf047b19fa6e94c7c5991a115f2543955e751e6b1fa17f29b1",
       "media_type": "application/json",
       "size_bytes": 2089
     }

@@ -31,6 +31,39 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["schema_version", "form", "command_id", "expected_revision", "issued_at", "payload"],
+      "not": {
+        "description": "A record_evaluation_decision whose outcome the critique evidence does not give: DEFERRED only when the critique ended without a valid result, and the reverse (OQ-02 section 4). The rule stands here, not in RecordEvaluationDecision, so that it adds no error to the payload value, which carries the most errors of any value of any contract (OQ-05 section 7).",
+        "anyOf": [
+          {
+            "required": ["payload"],
+            "properties": {
+              "payload": {
+                "type": "object",
+                "required": ["kind", "critique", "outcome"],
+                "properties": {
+                  "kind": { "enum": ["record_evaluation_decision"] },
+                  "critique": { "type": "object", "required": ["status"], "properties": { "status": { "enum": ["COMPLETED"] } } },
+                  "outcome": { "enum": ["DEFERRED"] }
+                }
+              }
+            }
+          },
+          {
+            "required": ["payload"],
+            "properties": {
+              "payload": {
+                "type": "object",
+                "required": ["kind", "critique", "outcome"],
+                "properties": {
+                  "kind": { "enum": ["record_evaluation_decision"] },
+                  "critique": { "type": "object", "required": ["status"], "properties": { "status": { "enum": ["NO_VALID_RESULT"] } } },
+                  "outcome": { "enum": ["APPROVED", "REJECTED"] }
+                }
+              }
+            }
+          }
+        ]
+      },
       "properties": {
         "schema_version": { "type": "string", "enum": ["command/1"] },
         "form": { "type": "string", "enum": ["request"] },
@@ -224,7 +257,7 @@
     },
     "RecordEvaluationDecision": {
       "title": "RecordEvaluationDecision",
-      "description": "Internal: the workflows service principal only. Records the policy-determined DRAFT to EVALUATING Decision for the candidate in one trial slot (OQ-02 section 4). outcome follows from critique and the policy: APPROVED when the critique gave a valid result and no finding blocks this transition, REJECTED when one does, DEFERRED when the critique ended without a valid result. That happens at once after an outcome that is not retried, or when the attempt cap is exhausted after retried failures. In S1 no finding category blocks this transition. Applying an APPROVED Decision writes the candidate's development and validation runs, their reservations and outbox entries in one transaction. A DEFERRED candidate is not evaluated.",
+      "description": "Internal: the workflows service principal only. Records the policy-determined DRAFT to EVALUATING Decision for the candidate in one trial slot (OQ-02 section 4). outcome follows from critique and the policy: APPROVED when the critique gave a valid result and no finding blocks this transition, REJECTED when one does, DEFERRED when the critique ended without a valid result. That happens at once after an outcome that is not retried, or when the attempt cap is exhausted after retried failures. In S1 no finding category blocks this transition. Applying an APPROVED Decision writes the candidate's development and validation runs, their reservations and outbox entries in one transaction. A DEFERRED candidate is not evaluated. The schema refuses DEFERRED with a COMPLETED critique, and APPROVED or REJECTED with a critique that ended without a valid result.",
       "type": "object",
       "additionalProperties": false,
       "required": ["kind", "mission_id", "plan_digest", "trial_slot", "strategy_hash", "critique", "outcome", "authority"],
