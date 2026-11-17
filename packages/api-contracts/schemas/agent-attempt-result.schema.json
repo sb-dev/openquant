@@ -72,13 +72,25 @@
     },
     "AgentCompletion": {
       "title": "AgentCompletion",
-      "description": "The role output passed the shared validator. output is the uploaded role result; the API parses it again before any guarded write.",
+      "description": "The role output passed the shared validator. output is the uploaded role result; the API parses it again before any guarded write. notices are the blockers that result parsing found in a proposal, in its order and at most 64; they are absent when it found none. A notice never makes the output malformed and decides nothing: the API and the Rust core decide registration (OQ-03 section 4).",
       "type": "object",
       "additionalProperties": false,
       "required": ["outcome", "output"],
       "properties": {
         "outcome": { "type": "string", "enum": ["completion"] },
-        "output": { "$ref": "#/$defs/RoleOutputRef" }
+        "output": { "$ref": "#/$defs/RoleOutputRef" },
+        "notices": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/AgentNotice" } }
+      }
+    },
+    "AgentNotice": {
+      "title": "AgentNotice",
+      "description": "An early, non-authoritative notice that the application will refuse to register a proposal. UNRESOLVED_ASSUMPTION: an entry of the unresolved list. REVISION_SCOPE: a revision that is not an entry-only or exit-only change. OPERATOR_NOT_PERMITTED: an operator outside the permitted set. HOLDOUT_REFERENCE: a date inside a withheld window. detail is bounded and free of credentials.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "detail"],
+      "properties": {
+        "code": { "type": "string", "enum": ["UNRESOLVED_ASSUMPTION", "REVISION_SCOPE", "OPERATOR_NOT_PERMITTED", "HOLDOUT_REFERENCE"] },
+        "detail": { "type": "string", "maxLength": 1000 }
       }
     },
     "RoleOutputRef": {

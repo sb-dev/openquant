@@ -111,7 +111,7 @@
     },
     "ValidationCode": {
       "title": "ValidationCode",
-      "description": "Strategy failure codes of the shared validator, plus the derived checks. LOOKBACK_EXCEEDS_WARMUP: the longest lookback is longer than the warm-up. LINEAGE_MISMATCH: the declared changes differ from the computed leaf difference. IDENTITY_MISMATCH: a hash does not match its artefact. REVISION_SCOPE: a revision is not a controlled revision: it has no change, its changes affect both the entry rule and the exit rules, or a change is outside a controlled revision (ChangeScope). pointer is the path of the first change outside a controlled revision, or empty; detail names the rules the changes affect.",
+      "description": "Strategy failure codes of the shared validator, plus the derived checks. LOOKBACK_EXCEEDS_WARMUP: the longest lookback is longer than the warm-up. LINEAGE_MISMATCH: the declared changes differ from the computed leaf difference. IDENTITY_MISMATCH: a hash does not match its artefact. REVISION_SCOPE: a revision is not a controlled revision: it has no change, its changes affect both the entry rule and the exit rules, or a change is outside a controlled revision (ChangeScope). pointer is the path of the first change outside a controlled revision, or empty; detail names the rules the changes affect. POLICY_VIOLATION: the draft breaks the cohort policy of its mission: an operator or operator set that the policy does not permit, a bounded parameter outside its bounds, or an execution request that the execution policy does not support. The API reports it when it checks scope and bounds (OQ-02 section 4); the Rust validator never reports it.",
       "type": "string",
       "enum": [
         "UNSUPPORTED_SCHEMA_VERSION",
@@ -124,7 +124,8 @@
         "IDENTITY_MISMATCH",
         "LOOKBACK_EXCEEDS_WARMUP",
         "LINEAGE_MISMATCH",
-        "REVISION_SCOPE"
+        "REVISION_SCOPE",
+        "POLICY_VIOLATION"
       ]
     }
   }

@@ -1,9 +1,9 @@
 ---
 id: OQ-02
 title: OpenQuant — Trading Domain and Evaluation
-version: 1.4.0
+version: 1.5.0
 status: canonical
-updated: 2026-11-14
+updated: 2026-11-17
 owns: strategy semantics, evaluation, lifecycle, portfolio, risk, A01–A18
 ---
 
@@ -225,7 +225,7 @@ An agent cannot inspect a final holdout before submitting its version. Once feed
 
 Historical data may already be represented in an LLM's training. A historical holdout is therefore not a complete defence against model contamination. Keep prospective paper evidence and record model provenance.
 
-In S1 the evaluation plan holds the H slots from the start (§3.1). Only the freeze step writes H runs, once every trial slot is terminal (§4). In S1 every agent request, proposer and critic, carries holdout exclusions that name V and H. Revision context holds D results and findings only. Revealing an H result writes a holdout-consumption record. Record each configured model's published knowledge cutoff, or record that the checked source does not state it (OQ-03 §2). Label every scored window that ends on or before the latest recorded cutoff of the mission's configured models, or for which a configured model's cutoff is unknown, "historical window within model training period". In the S1 pilot that is D, V and H. H keeps its holdout role, and V and H stay excluded from agent requests, but none of the three windows is free of possible model contamination.
+In S1 the evaluation plan holds the H slots from the start (§3.1). Only the freeze step writes H runs, once every trial slot is terminal (§4). In S1 every agent request, proposer and critic, carries holdout exclusions that name V and H. Revision context holds D results and findings only. Revealing an H result writes a holdout-consumption record. Record each configured model's published knowledge cutoff, or record that the checked source does not state it (OQ-03 §2). Label every scored window that starts on or before the latest recorded cutoff of the configured models, or any window when a configured model's cutoff is unknown, "historical window within model training period". A window that starts before a cutoff and ends after it is labelled, because its early sessions lie inside the training period. A cutoff stated only as a month counts as the last day of that month. In S1 the cohort policy carries the labels: the Steward derives them, when registering the policy, from the reported cutoffs of the models that the pilot record configures. In the S1 pilot that is D, V and H. H keeps its holdout role, and V and H stay excluded from agent requests, but none of the three windows is free of possible model contamination.
 
 ### 3.4 Live paper competition
 
@@ -260,11 +260,13 @@ Map each numerical outcome of the Rust core, and each submission that ends befor
 | Numerical outcome | Run status | Gates and follow-up |
 |---|---|---|
 | `COMPLETED` | `COMPLETED` | Assess gates from the run's metrics. |
-| `FAILED` with `INVALID_LEVEL` or an operator code (`UNSUPPORTED_OPERATOR`, `OPERATOR_TYPE_MISMATCH`, `OPERATOR_UNIT_MISMATCH`, `INVALID_PARAMETER`) | `FAILED` | Correctness `FAIL`. The defect belongs to the candidate. |
+| `FAILED` with `INVALID_LEVEL` or an operator code (`UNSUPPORTED_OPERATOR`, `OPERATOR_TYPE_MISMATCH`, `OPERATOR_UNIT_MISMATCH`, `INVALID_PARAMETER`) | `FAILED` | Definition validation `FAIL`. The defect belongs to the candidate. The other Correctness gates (deterministic replay, accounting reconciliation, signal and data timing) are dependent gates of the failed run. |
 | `FAILED` with `FUTURE_DATA`, `EVENT_OUT_OF_ORDER`, or an input, schema, identity, policy or checkpoint code | `FAILED` | Dependent gates `INSUFFICIENT`. The defect belongs to the platform; open an attention item. |
 | `FAILED` with `ARITHMETIC_OVERFLOW` | `FAILED` | Outside the engine domain. Dependent gates `INSUFFICIENT`. |
 | `INSUFFICIENT` with any code | `COMPLETED` | Dependent gates `INSUFFICIENT`. No metrics. |
 | `NOT_PREPARED`: the job ended before the core prepared a run, with a failure code | `FAILED` | Mapped by its failure code, as the `FAILED` rows above. No metrics. |
+
+A dependent gate is a gate that reads the run: its result, metrics, ledger or repeat. A failed run gives no such evidence, so each dependent gate is `INSUFFICIENT`. The S1 assessment (`packages/quant-core/src/gates.rs`) gives the reason code `RUN_FAILED`, or `OUTSIDE_ENGINE_DOMAIN` for `ARITHMETIC_OVERFLOW`, and `RUN_INSUFFICIENT` for an `INSUFFICIENT` outcome. Only definition validation is failed by a candidate defect: no gate reports a defect that its own evidence did not show.
 
 Worker death or lease expiry does not decide a run. Recovery fences a new attempt of the same run up to a declared attempt cap (OQ-05 §4). The run is `FAILED` only when the cap is exhausted or the failure is not retryable. A retryable failure below the cap that no budget can cover leaves the run `QUEUED` with no live attempt, waiting for budget, and the mission `BLOCKED` with the reason (OQ-05 §4). Cancellation gives `CANCELLED`.
 
@@ -297,7 +299,7 @@ Independent critique applies to a validated, registered `DRAFT` version and its 
 In S1 a proposal follows this order:
 
 1. Result parsing checks its structure, references and declared rule differences (OQ-03 §3).
-2. The API checks scope, bounds and lineage.
+2. The API checks scope, bounds and lineage. A draft outside the cohort policy (an operator or operator set it does not permit, a bounded parameter outside its bounds, an execution request its execution policy does not support) gets `POLICY_VIOLATION` diagnostics in the codes of `validation-result/1`, and no version is registered from it.
 3. Rust validation checks the draft by its draft digest, which is not a Strategy Version hash. It returns a validation result, recomputes the rule differences and requires the maximum lookback to fit the warm-up.
 4. Only then is the version registered as `DRAFT` with its Strategy Version hash.
 5. The candidate receives one critique, and the registered policy assigns treatment to its findings (table below).

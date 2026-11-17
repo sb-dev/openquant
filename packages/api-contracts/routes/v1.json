@@ -80,7 +80,7 @@
       "max_body_bytes": 4194304,
       "response": { "kind": "view", "view": "system-identity" },
       "success_status": 200,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "IDENTITY_MISMATCH", "REVISION_CONFLICT", "LIMIT_EXCEEDED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
     },
     {
       "id": "research-profiles.register",
@@ -332,7 +332,7 @@
       "max_body_bytes": 4194304,
       "response": { "kind": "none" },
       "success_status": 204,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "ATTEMPT_NOT_CLAIMABLE", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
     },
     {
       "id": "attempts.validation-result",
@@ -344,7 +344,7 @@
       "max_body_bytes": 4194304,
       "response": { "kind": "none" },
       "success_status": 204,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "ATTEMPT_NOT_CLAIMABLE", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
     },
     {
       "id": "attempts.evaluation-submission",
@@ -356,7 +356,7 @@
       "max_body_bytes": 4194304,
       "response": { "kind": "none" },
       "success_status": 204,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "ATTEMPT_NOT_CLAIMABLE", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
     },
     {
       "id": "attempts.gate-report",
@@ -368,7 +368,7 @@
       "max_body_bytes": 4194304,
       "response": { "kind": "none" },
       "success_status": 204,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "ATTEMPT_NOT_CLAIMABLE", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
     },
     {
       "id": "attempts.agent-result",
@@ -380,7 +380,7 @@
       "max_body_bytes": 4194304,
       "response": { "kind": "none" },
       "success_status": 204,
-      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
+      "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "NOT_FOUND", "STALE_OWNERSHIP", "LEASE_EXPIRED", "ATTEMPT_NOT_CLAIMABLE", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
     },
     {
       "id": "runner.dispatch",

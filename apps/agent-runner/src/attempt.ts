@@ -10,8 +10,8 @@
 //
 // A proposal with an operator outside the permitted set or a date inside a withheld window is still a completion. Skill
 // code does not repeat the Rust core's operator validation (OQ-03 section 3): the draft is stored, the Rust core
-// returns INVALID, and its diagnostics go to the next proposer attempt (OQ-02 section 4). The runner logs the blockers
-// as notices; agent-attempt-result/1 has no field for them, so the API computes them again from the stored output.
+// returns INVALID, and its diagnostics go to the next proposer attempt (OQ-02 section 4). The runner records the
+// blockers as the notices of the completion in agent-attempt-result/1 (at most 64), and logs their codes.
 //
 // What is left for fencing and retry: a runner failure is not an execution outcome (OQ-03 section 5). When the
 // runner cannot read the request, cannot upload, loses its lease, or hits an internal error, it posts nothing and the
@@ -83,6 +83,10 @@ const NO_FACTS: ExecutionFacts = {
 
 const MEDIA_TYPE = 'application/json';
 
+/** The most notices, and the longest notice detail in characters, that agent-attempt-result/1 carries. */
+const MAX_NOTICES = 64;
+const NOTICE_LIMIT = 1000;
+
 /** The longest delay that a Node timer keeps; a longer one fires at once. */
 const MAX_TIMER_MS = 2_147_483_647;
 
@@ -116,7 +120,7 @@ export async function runAttempt(
   const capability = grant.capability.token;
   const startedAtMs = deps.now();
   const secrets = [capability, config.dispatchToken, config.api.credential];
-  const say = (text: string) => diagnostic(text, secrets);
+  const say = (text: string, limit?: number) => diagnostic(text, secrets, limit);
 
   // Post one outcome. The result is checked with the shared validator first: the runner never sends an envelope
   // that the API would have to reject as malformed.
@@ -145,8 +149,13 @@ export async function runAttempt(
 
   const lost = (failure: ApiFailure, what: string): AttemptEnd => {
     log('api_refused', { attempt: attemptId, status: failure.status, code: failure.code });
-    if (failure.code === 'LEASE_EXPIRED' || failure.code === 'STALE_OWNERSHIP') {
-      // A late completion: the API rejects it and records the rejection, and nothing else changes.
+    if (
+      failure.code === 'LEASE_EXPIRED' ||
+      failure.code === 'STALE_OWNERSHIP' ||
+      failure.code === 'ATTEMPT_NOT_CLAIMABLE'
+    ) {
+      // A late completion: the API rejects it and records the rejection, and nothing else changes. The attempt lost its
+      // lease, a newer attempt owns the work, or the attempt was cancelled or has ended (OQ-05 section 4).
       return { posted: false, why: 'lease_lost', detail: `${what}: ${failure.code}` };
     }
     return {
@@ -294,12 +303,19 @@ export async function runAttempt(
         end.facts,
       );
     }
-    if ('blockers' in validated && validated.blockers.length > 0) {
-      // Non-fatal notices for the API and the next proposal; they never make the output malformed.
-      log('result_notices', {
-        attempt: attemptId,
-        notices: validated.blockers.map((blocker) => blocker.code).join(','),
-      });
+    // Non-fatal notices for the API and the next proposal; they never make the output malformed.
+    const notices =
+      'blockers' in validated
+        ? validated.blockers.slice(0, MAX_NOTICES).map((blocker) => ({
+            code: blocker.code,
+            detail: say(
+              blocker.pointer === undefined ? blocker.detail : `${blocker.detail} (at ${blocker.pointer})`,
+              NOTICE_LIMIT,
+            ),
+          }))
+        : [];
+    if (notices.length > 0) {
+      log('result_notices', { attempt: attemptId, notices: notices.map((notice) => notice.code).join(',') });
     }
     let text: string;
     try {
@@ -325,6 +341,7 @@ export async function runAttempt(
           contract: skill.result_contract,
           artefact: { digest: storedDigest, media_type: MEDIA_TYPE, size_bytes: stored.byteLength },
         },
+        ...(notices.length > 0 ? { notices } : {}),
       },
       end.facts,
     );

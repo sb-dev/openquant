@@ -35,10 +35,10 @@
     "cohort_policy": {
       "id": "s1-aapl-daily-swing",
       "revision": 1,
-      "digest": "sha256:da04f3c489c7804cf5bcf73cdfe617148d4917ff321e0a481530fef1a134edd3"
+      "digest": "sha256:a1871e4a24f7ab44cb98270216accc66f9e08b060c67e1b0de7438ab01baa2dd"
     },
     "suite_id": "s1-single-stock-suite",
-    "plan_digest": "sha256:bf71366fb6c488e67bc2e1055732258a4cb5a351d47e6498e5544edf9d5db5f5",
+    "plan_digest": "sha256:ad349bac50cfd89ad6c24ffe15406f1961c7ae1a094c3e22ba437265e59c34a7",
     "trial_slot": "rev-a",
     "run_slot": "rev-a.v.base",
     "window_role": "VALIDATION",

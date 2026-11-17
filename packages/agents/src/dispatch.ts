@@ -1,8 +1,9 @@
 // The checks that `agent-dispatch/1` does not make (OQ-03 section 4, OQ-05 section 4).
 //
-// The envelope is a schema: it cannot say that the role matches the skill, that the request it names is the request
-// the host assembled, that its holdout exclusions equal the request's and name V and H, or that the executor profile
-// is one the registry knows for the role. The runner calls this check before it starts an executor. A violation is
+// The envelope is a schema. It ties the role to its skill and request contract, and this check repeats that for a
+// dispatch built without the schema; the schema cannot say that the request it names is the request the host
+// assembled, that its holdout exclusions equal the request's and name V and H, or that the executor profile is one
+// the registry knows for the role. The runner calls this check before it starts an executor. A violation is
 // a denied capability or a bundle mismatch found before the executor starts (OQ-03 section 4); the runner maps it,
 // and nothing is dispatched. Worker-safe: no Node module.
 

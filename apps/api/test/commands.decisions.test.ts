@@ -467,8 +467,9 @@ describe('record_evaluation_decision: what is checked first', () => {
 
 describe('record_evaluation_decision: budgets that run out', () => {
   it('with the proposed 600-second evaluation timeout the third candidate cannot be reserved: BLOCKED, nothing written', async () => {
-    // The pilot proposes 600 seconds per evaluate attempt and 7,200 batch seconds per mission. Reserved up front,
-    // 600 (retrieval) + 3 x 5 x 600 = 9,600 does not fit: two candidates fit (600 + 2 x 3,000 = 6,600), the third does not.
+    // The pilot first proposed 600 seconds per evaluate attempt (P1.1 set 120) and 7,200 batch seconds per mission.
+    // Reserved up front, 600 (retrieval) + 3 x 5 x 600 = 9,600 does not fit: two candidates fit
+    // (600 + 2 x 3,000 = 6,600), the third does not.
     const world = await pipeline({ evaluateSeconds: 600 });
     for (const slot of ['seed', 'rev-a']) {
       const critique = await completedCritique(world, slot);

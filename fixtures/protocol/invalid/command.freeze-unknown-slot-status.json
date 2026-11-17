@@ -7,7 +7,7 @@
   "payload": {
     "kind": "freeze_candidates",
     "mission_id": "msn-aapl-0001",
-    "plan_digest": "sha256:bf71366fb6c488e67bc2e1055732258a4cb5a351d47e6498e5544edf9d5db5f5",
+    "plan_digest": "sha256:ad349bac50cfd89ad6c24ffe15406f1961c7ae1a094c3e22ba437265e59c34a7",
     "slots": [
       {
         "trial_slot": "seed",

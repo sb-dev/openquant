@@ -112,7 +112,7 @@
     },
     "WindowRule": {
       "title": "WindowRule",
-      "description": "One scored window rule. scored holds calendar-date bounds, not resolved sessions. label states what the window can claim (OQ-02 section 3.3): a window that ends on or before the latest knowledge cutoff of the configured models, or for which a configured model's cutoff is unknown, has the label 'historical window within model training period', whatever its role.",
+      "description": "One scored window rule. scored holds calendar-date bounds, not resolved sessions. label states what the window can claim (OQ-02 section 3.3). The Steward derives it when registering the policy, from the reported knowledge cutoffs of the configured models: a window that starts on or before the latest cutoff, or any window when a configured model's cutoff is unknown, has the label 'historical window within model training period', whatever its role. A cutoff stated only as a month counts as the last day of that month.",
       "type": "object",
       "additionalProperties": false,
       "required": ["role", "scored", "label"],
@@ -275,13 +275,13 @@
     },
     "ExecutionLimits": {
       "title": "ExecutionLimits",
-      "description": "Limits that the policy fixes. They are not budget values, and a mission cannot change them. Host-enforced limits per attempt and concurrency per mission. Every proposer configuration gets the same timeout and output limit. An agent output above agent_output_limit_bytes is a malformed result. artefact_limit_bytes bounds each uploaded batch artefact.",
+      "description": "Limits that the policy fixes. They are not budget values, and a mission cannot change them. Host-enforced limits per attempt and concurrency per mission. Every proposer configuration gets the same timeout and output limit. agent_output_limit_bytes bounds the UTF-8 bytes of an agent's role result text, and a longer result is a malformed result. It is at most 524288, the strategy-artefact/1 limit within which the API parses a role result (OQ-03 section 4, OQ-05 section 7). artefact_limit_bytes bounds each uploaded batch artefact.",
       "type": "object",
       "additionalProperties": false,
       "required": ["agent_timeout_seconds", "agent_output_limit_bytes", "artefact_limit_bytes", "job_timeouts", "concurrent_batch_attempts", "concurrent_agent_attempts"],
       "properties": {
         "agent_timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 86400 },
-        "agent_output_limit_bytes": { "type": "integer", "minimum": 1, "maximum": 16777216 },
+        "agent_output_limit_bytes": { "type": "integer", "minimum": 1, "maximum": 524288 },
         "artefact_limit_bytes": { "type": "integer", "minimum": 1, "maximum": 1073741824 },
         "job_timeouts": { "$ref": "#/$defs/JobTimeouts" },
         "concurrent_batch_attempts": { "type": "integer", "minimum": 1, "maximum": 64 },

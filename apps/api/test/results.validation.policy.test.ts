@@ -105,21 +105,21 @@ const cases: { label: string; edit: Edit; pointer: string; code: string; detail:
     label: 'a window above the maximum',
     edit: bounds('operator:sma@1', 'window', '1', '30'),
     pointer: '/definition/indicators/0/expr/params/window',
-    code: 'INVALID_PARAMETER',
+    code: 'POLICY_VIOLATION',
     detail: 'above the maximum',
   },
   {
     label: 'a window below the minimum',
     edit: bounds('operator:sma@1', 'window', '25', '60'),
     pointer: '/definition/indicators/1/expr/params/window',
-    code: 'INVALID_PARAMETER',
+    code: 'POLICY_VIOLATION',
     detail: 'below the minimum',
   },
   {
     label: 'an operator that the policy does not permit',
     edit: forbid('operator:rsi_simple@1'),
     pointer: '/definition/indicators/2/expr/op',
-    code: 'UNSUPPORTED_OPERATOR',
+    code: 'POLICY_VIOLATION',
     detail: 'not permitted',
   },
 ];
@@ -224,7 +224,7 @@ describe('a draft that breaks the cohort policy is not dispatched', () => {
       expect(refused.ok).toBe(false);
       if (refused.ok) return;
       expect(refused.diagnostics).toEqual([
-        expect.objectContaining({ code: 'INVALID_PARAMETER', pointer: '/definition/indicators/0/expr/params/window' }),
+        expect.objectContaining({ code: 'POLICY_VIOLATION', pointer: '/definition/indicators/0/expr/params/window' }),
       ]);
       expect(refused.diagnostics?.[0]?.detail).toContain(`${window}`);
     }

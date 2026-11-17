@@ -1753,6 +1753,104 @@
       "contract": "cohort-policy",
       "expect": "schema_invalid",
       "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/job-dispatch.validate-without-mission.json",
+      "contract": "job-dispatch",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/job-dispatch.retrieve-without-mission.json",
+      "contract": "job-dispatch",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/job-dispatch.assess-without-mission.json",
+      "contract": "job-dispatch",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/valid/agent-dispatch.critic.json",
+      "contract": "agent-dispatch",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/invalid/agent-dispatch.critic-with-formulation-skill.json",
+      "contract": "agent-dispatch",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/agent-dispatch.proposer-with-critique-request.json",
+      "contract": "agent-dispatch",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/agent-dispatch.output-limit-above-524288.json",
+      "contract": "agent-dispatch",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/cohort-policy.agent-output-limit-above-524288.json",
+      "contract": "cohort-policy",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/command.deferred-with-completed-critique.json",
+      "contract": "command",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/command.approved-without-valid-critique.json",
+      "contract": "command",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/command.rejected-without-valid-critique.json",
+      "contract": "command",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/valid/command.record-evaluation-decision-rejected.json",
+      "contract": "command",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/agent-attempt-result.completion-with-notices.json",
+      "contract": "agent-attempt-result",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/invalid/agent-attempt-result.notice-unknown-code.json",
+      "contract": "agent-attempt-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/agent-attempt-result.notices-empty.json",
+      "contract": "agent-attempt-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/agent-attempt-result.notices-on-timeout.json",
+      "contract": "agent-attempt-result",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/valid/validation-result.policy-violation.json",
+      "contract": "validation-result",
+      "expect": "valid"
     }
   ]
 }

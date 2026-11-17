@@ -1,0 +1,33 @@
+{
+  "schema_version": "command/1",
+  "form": "request",
+  "command_id": "cmd-wf-msn-aapl-0001-decision-rev-a",
+  "expected_revision": 3,
+  "issued_at": "2026-11-14T10:58:00Z",
+  "payload": {
+    "kind": "record_evaluation_decision",
+    "mission_id": "msn-aapl-0001",
+    "plan_digest": "sha256:ad349bac50cfd89ad6c24ffe15406f1961c7ae1a094c3e22ba437265e59c34a7",
+    "trial_slot": "rev-a",
+    "strategy_hash": "sha256:3b2b013c84fb0f64657822298593f8bc24a520c76023b8f18c61ee0e00abb046",
+    "critique": {
+      "status": "COMPLETED",
+      "attempt_id": "att-aapl-critique-a-1",
+      "result": {
+        "digest": "sha256:eb7b00625d3dd2a4e7c335268b8a55f4ac2b31df95d16b8a8a1658696a37d5f3",
+        "media_type": "application/json",
+        "size_bytes": 1003
+      }
+    },
+    "outcome": "REJECTED",
+    "authority": {
+      "cohort_policy": {
+        "id": "s1-aapl-daily-swing",
+        "revision": 1,
+        "digest": "sha256:a1871e4a24f7ab44cb98270216accc66f9e08b060c67e1b0de7438ab01baa2dd"
+      },
+      "policy_approval": "dec-cohort-s1-aapl-daily-swing-r1",
+      "mission_started_by": "principal-researcher-01"
+    }
+  }
+}

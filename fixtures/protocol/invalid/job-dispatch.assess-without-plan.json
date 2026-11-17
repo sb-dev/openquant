@@ -13,9 +13,9 @@
     "strategy_hash": "sha256:3b2b013c84fb0f64657822298593f8bc24a520c76023b8f18c61ee0e00abb046",
     "trial_slot": "rev-a",
     "cohort_policy": {
-      "digest": "sha256:da04f3c489c7804cf5bcf73cdfe617148d4917ff321e0a481530fef1a134edd3",
+      "digest": "sha256:a1871e4a24f7ab44cb98270216accc66f9e08b060c67e1b0de7438ab01baa2dd",
       "media_type": "application/json",
-      "size_bytes": 9994
+      "size_bytes": 9993
     },
     "validation": {
       "digest": "sha256:8fe0d2c0561737b5984c98cde9c83476e00c8f4069ab273ec4ad76c2c64ecfaf",

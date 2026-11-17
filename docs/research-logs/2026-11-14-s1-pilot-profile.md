@@ -83,7 +83,7 @@ The windows are rules with calendar-date bounds. They are resolved against the f
 - Warm-up: the 60 sessions immediately before each scored start (proposed, not a default). The seed's maximum lookback is 50 sessions (SMA50). Rust validation rejects a revision whose maximum lookback is above 60.
 - Each run: warm-up, scored range and any dividend payment sessions after the scored end, at most 400 sessions. Each window gives about 250 scored sessions, so each run is well inside the limit. A warm-up may overlap an earlier window's scored range; scored ranges do not overlap.
 - Each window is its own run with a fresh ledger, for the base case and the cost-stress case.
-- Each window ends before the June 2026 knowledge cutoff of `claude-opus-5-5`, and the cutoff of `claude-sonnet-5-5` is not yet confirmed. D, V and H are therefore all labelled "historical window within model training period" (OQ-02 section 3.3). H keeps its holdout role.
+- Each window starts (and ends) before the June 2026 knowledge cutoff of `claude-opus-5-5`, which counts as 2026-06-30, and the cutoff of `claude-sonnet-5-5` is not yet confirmed. D, V and H are therefore all labelled "historical window within model training period" (OQ-02 section 3.3). The Steward derives these labels from the cutoffs below when registering the cohort policy. H keeps its holdout role.
 
 ### Execution policy
 
@@ -179,9 +179,21 @@ The cohort policy fixes the execution limits below. The Researcher does not set 
 
 | Execution limit | Value |
 | --- | --- |
-| Per-attempt timeout | Agent attempt 15 minutes. Batch `retrieve` and `evaluate` 10 minutes; `validate` and `assess` 5 minutes. P3 replaces the batch values with the measured worst-case 400-session time plus a margin, and derives the lease and queue visibility from it. |
-| Output limit | Agent standard output 512 KiB; a longer output is a malformed result. Each uploaded batch artefact 8 MiB. The API scans a submitted `evaluation-result/1` within the same 8 MiB before commit (OQ-05 section 7); the largest result within the S0 limits measured 2,369,582 bytes. |
+| Per-attempt timeout | Agent attempt 15 minutes. Batch `retrieve` 600 seconds, `validate` 60, `evaluate` 120 and `assess` 120: the values that P3 derived from the measured worst-case 400-session job plus a margin (`PROPOSED_TIMEOUT_SECONDS` in `apps/engine/src/batch/config.rs`, timing table in `apps/engine/README.md`). The lease and the queue visibility derive from them. |
+| Output limit | Agent role result text 512 KiB (524,288 bytes); a longer result is a malformed result. The executor's whole standard output, the CLI wrapper around that text, has the host's own larger cap (OQ-03 section 4). Each uploaded batch artefact 8 MiB. The API scans a submitted `evaluation-result/1` within the same 8 MiB before commit (OQ-05 section 7); the largest result within the S0 limits measured 2,369,582 bytes. |
 | Concurrency | At most 2 batch attempts and 2 agent attempts at a time. |
+
+Changed in P1.1, awaiting owner approval: the batch timeouts above replace the proposed 10 minutes for `retrieve` and `evaluate` and 5 minutes for `validate` and `assess`. Each batch attempt reserves its timeout in batch compute seconds before dispatch and settles from the duration that the batch host measured. With 600 seconds per `evaluate` attempt, the 21 runs alone reserved 12,600 seconds, above the 7,200 seconds of the mission budget, so the mission could not reserve its own planned runs. With the new values the first attempts of every planned job reserve:
+
+| Job | Jobs | Seconds each | Seconds |
+| --- | --- | --- | --- |
+| `retrieve` | 1 | 600 | 600 |
+| `validate` | 5: the seed and up to 2 proposals per proposer configuration | 60 | 300 |
+| `evaluate` | 21 | 120 | 2,520 |
+| `assess` | 3: one per candidate | 120 | 360 |
+| Total | 30 | | 3,780 |
+
+3,780 seconds fit the 7,200. A settled attempt returns the rest of its reservation, so the remaining 3,420 seconds are what retries can reserve: for example 28 `evaluate` retries, or one `retrieve` retry and 23 `evaluate` retries. The cohort-policy fixtures carry the new values.
 
 The `agent-attempt-result/1` contract bounds diagnostic text to 2000 characters.
 

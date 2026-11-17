@@ -68,6 +68,6 @@ cargo run --locked -p openquant-contracts --bin contracts-report -- --out <dir>
 
 It writes `<dir>/report.json` (`contracts-report/1`). Each entry has the verdict, the failure code of a rejected payload and the canonical digest of an accepted one. It never runs core semantics, so a `semantic_invalid` fixture is accepted. It reads each fixture as bytes: bytes that are not UTF-8 are `SCHEMA_VIOLATION`.
 
-The bindings accept every schema-valid payload and sometimes more: typify ignores `not`, which several connected schemas use. The schema always runs before the binding. Every optional array has `minItems: 1`, because the bindings drop an empty optional array when they serialise, and the identity digest is computed from the binding.
+The bindings accept every schema-valid payload and sometimes more: typify does not enforce `not` rules, which several connected schemas use, and fails on some forms of them, so those rules use `not` and `anyOf` shapes that it accepts. The schema always runs before the binding. Every optional array has `minItems: 1`, because the bindings drop an empty optional array when they serialise, and the identity digest is computed from the binding.
 
 See [architecture](../../docs/specs/05-system-architecture-and-data-spec.md) and the [M1 guide](../../docs/guides/m1-watchlist-research.md).

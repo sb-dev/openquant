@@ -16,7 +16,7 @@
     "version": "1",
     "digest": "sha256:7d57cee1b569f319d5587d03c0d6797faf48347bfff33fa1c070cb2e83ee02f5"
   },
-  "draft_digest": "sha256:3b2b013c84fb0f64657822298593f8bc24a520c76023b8f18c61ee0e00abb046",
+  "draft_digest": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
   "outcome": {
     "status": "VALID",
     "max_lookback_sessions": 50,

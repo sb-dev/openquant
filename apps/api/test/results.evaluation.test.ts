@@ -353,12 +353,12 @@ describe('an accepted submission', () => {
       [run.runId],
     );
     expect(state).toEqual({ run: 'COMPLETED', attempt: 'COMPLETED', lease: 'RELEASED', reservation: 'SETTLED' });
-    // 41000 ms of the host's own duration are 41 seconds of the 600 reserved.
+    // 41000 ms of the host's own duration are 41 seconds of the 120 that the pilot policy's evaluate timeout reserves.
     const [line] = await flow.world.sql<{ reserved: string; used: string }>(
       'SELECT l.reserved::text, l.used::text FROM reservation_lines l WHERE l.attempt_id = $1',
       [run.attemptId],
     );
-    expect(line).toEqual({ reserved: '600.00000000', used: '41.00000000' });
+    expect(line).toEqual({ reserved: '120.00000000', used: '41.00000000' });
   });
 
   it('is served unchanged by the run routes: the bytes hash to the digests that the result records', async () => {
@@ -572,7 +572,7 @@ describe('a late submission, and the race with cancellation', () => {
     }
   });
 
-  it('is rejected after cancel_mission, and a result that committed first survives the cancellation', async () => {
+  it('is rejected after cancel_mission with ATTEMPT_NOT_CLAIMABLE, and a result that committed first survives the cancellation', async () => {
     const { started, planned } = await evaluating();
     try {
       const [first, second] = planned as [(typeof planned)[number], (typeof planned)[number]];
@@ -592,7 +592,7 @@ describe('a late submission, and the race with cancellation', () => {
       expect(cancelled.state).toBe('APPLIED');
       const rejected = await submit(started, pending, 'evaluation-submission', submission);
       expect(rejected.status).toBe(409);
-      expect(await errorCode(rejected)).toBe('LEASE_EXPIRED');
+      expect(await errorCode(rejected)).toBe('ATTEMPT_NOT_CLAIMABLE');
       const statuses = await started.world.sql<{ run_id: string; status: string }>(
         'SELECT run_id, status FROM runs WHERE run_id = ANY($1::text[]) ORDER BY run_id',
         [[first.runId, second.runId]],

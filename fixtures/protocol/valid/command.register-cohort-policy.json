@@ -565,9 +565,9 @@
         "artefact_limit_bytes": 8388608,
         "job_timeouts": {
           "retrieve_seconds": 600,
-          "validate_seconds": 300,
-          "evaluate_seconds": 600,
-          "assess_seconds": 300
+          "validate_seconds": 60,
+          "evaluate_seconds": 120,
+          "assess_seconds": 120
         },
         "concurrent_batch_attempts": 2,
         "concurrent_agent_attempts": 2
