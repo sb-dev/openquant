@@ -39,7 +39,9 @@ export function diagnostic(text: string, secrets: readonly string[] = [], limit 
     return code < 0x20 || code === 0x7f || (code >= 0x80 && code < 0xa0) ? ' ' : character;
   }).join('');
   clean = clean.replace(/ {2,}/g, ' ').trim();
-  return clean.length <= limit ? clean : `${clean.slice(0, limit - 3)}...`;
+  // Cut by code point, never inside a surrogate pair: a lone surrogate is not valid in a contract string.
+  const points = Array.from(clean);
+  return points.length <= limit ? clean : `${points.slice(0, limit - 3).join('')}...`;
 }
 
 /** A decimal string without an exponent for a non-negative finite number, as the `Decimal` pattern requires. */

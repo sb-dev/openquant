@@ -274,5 +274,8 @@ describe('text helpers', () => {
     expect(text).not.toContain('secretvalue');
     expect(diagnostic('x'.repeat(5000))).toHaveLength(2000);
     expect(diagnostic('x'.repeat(5000)).endsWith('...')).toBe(true);
+    const cut = diagnostic(`${'x'.repeat(4)}\u{1F600}${'y'.repeat(10)}`, [], 8);
+    expect(cut).toBe(`${'x'.repeat(4)}\u{1F600}...`);
+    expect(cut.isWellFormed()).toBe(true);
   });
 });

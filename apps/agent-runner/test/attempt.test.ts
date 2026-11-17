@@ -896,6 +896,24 @@ describe('output that is valid JSON of the schema and carries blockers', () => {
     ]);
   });
 
+  it('posts a completion when an unresolved question is cut next to a character outside the basic plane', async () => {
+    const question = `${'x'.repeat(199)}\u{1F600}?`;
+    const output = await revisionOutput({
+      strategy: proposedForm(seedArtefact(SEED_FOUR)),
+      rule_changes: [
+        { path: THRESHOLD, from: '30', to: '32' },
+        { path: BREAK_EVEN, from: '[]', to: 'break_even' },
+      ],
+      unresolved: [{ id: 'u1', element: THRESHOLD, question }],
+    });
+    const context = await setup(reply(output));
+    expect(await go(context)).toEqual({ posted: true, outcome: 'completion' });
+    const result = posted(context);
+    const notices = result.outcome.outcome === 'completion' ? (result.outcome.notices ?? []) : [];
+    expect(notices.map((notice) => notice.code)).toEqual(['UNRESOLVED_ASSUMPTION', 'REVISION_SCOPE']);
+    expect(notices.every((notice) => notice.detail.isWellFormed())).toBe(true);
+  });
+
   it('keeps the exact rule-change check for a revision whose declared changes are not the difference', async () => {
     const output = await revisionOutput({
       strategy: proposedForm(seedArtefact(SEED_FOUR)),
