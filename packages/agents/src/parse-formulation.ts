@@ -14,7 +14,16 @@
 
 import { type Malformed, malformed, parseRole } from './contract.ts';
 import { datesInExclusions } from './holdout.ts';
-import { asJson, asObject, isObject, type JsonValue, pointerToken, resolvePointer, stringValues } from './json.ts';
+import {
+  asJson,
+  asObject,
+  cutText,
+  isObject,
+  type JsonValue,
+  pointerToken,
+  resolvePointer,
+  stringValues,
+} from './json.ts';
 import { classifyScope, compareChanges, computeDifference, type DeclaredChange, type Scope } from './leaf-diff.ts';
 import type { StrategyFormulationRequest, StrategyFormulationResult } from './types.ts';
 
@@ -64,7 +73,7 @@ function operatorsIn(value: JsonValue, pointer = '', out: { pointer: string; op:
 function summary(changes: readonly DeclaredChange[]): string {
   return changes
     .slice(0, 3)
-    .map((change) => `${change.path} (${change.from.slice(0, 40)} to ${change.to.slice(0, 40)})`)
+    .map((change) => `${change.path} (${cutText(change.from, 40)} to ${cutText(change.to, 40)})`)
     .join('; ');
 }
 
@@ -156,7 +165,7 @@ function blockersOf(
   for (const [index, entry] of value.unresolved.entries()) {
     blockers.push({
       code: 'UNRESOLVED_ASSUMPTION',
-      detail: `${entry.id}: ${entry.question.slice(0, 200)}`,
+      detail: `${entry.id}: ${cutText(entry.question, 200)}`,
       pointer: entry.element === '' ? `/unresolved/${index}` : entry.element,
     });
   }
