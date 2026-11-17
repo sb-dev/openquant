@@ -37,7 +37,7 @@ export {
   type RoleParse,
 } from './contract.ts';
 export { checkDispatch, type DispatchRequest, type DispatchViolation, type DispatchViolationCode } from './dispatch.ts';
-export { datesInExclusions, exclusionIssues, REQUIRED_EXCLUSIONS } from './holdout.ts';
+export { datesInExclusions, exclusionIssues, REQUIRED_EXCLUSIONS, screenedRanges } from './holdout.ts';
 export {
   type ChangeComparison,
   classifyScope,

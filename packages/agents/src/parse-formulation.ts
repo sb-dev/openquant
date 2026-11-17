@@ -174,7 +174,11 @@ function blockersOf(
       blockers.push({ code: 'OPERATOR_NOT_PERMITTED', detail: `${op} is not a permitted operator`, pointer });
     }
   }
-  const dates = datesInExclusions(stringValues(asJson(value)).join('\n'), request.context.holdout_exclusions);
+  const dates = datesInExclusions(
+    stringValues(asJson(value)).join('\n'),
+    request.context.holdout_exclusions,
+    request.context.evaluation_policy,
+  );
   for (const date of dates) {
     blockers.push({ code: 'HOLDOUT_REFERENCE', detail: `the proposal mentions ${date}, inside a withheld window` });
   }
