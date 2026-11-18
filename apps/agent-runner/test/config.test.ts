@@ -87,6 +87,28 @@ describe('loadConfig', () => {
     expect(result.config.workerId).toBe('runner-one-2');
   });
 
+  it('names its Fly Machine in the worker name on Fly, for the termination probe of the API', () => {
+    const result = loadConfig({ ...minimal, FLY_MACHINE_ID: '148e272b0a1d2c' }, options);
+    if (!result.ok) throw new Error(result.errors.join('; '));
+    expect(result.config.workerId).toBe(`fly:148e272b0a1d2c:agent-runner-${process.pid}`);
+    // The name the API reads back (apps/api/src/fly-probe.ts) is a plain identifier of the claim.
+    expect(result.config.workerId).toMatch(/^fly:([0-9a-z]{1,32}):/);
+    expect(result.config.workerId).toMatch(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/);
+    // Off Fly the name stays the host name and process.
+    const local = loadConfig(minimal, options);
+    if (!local.ok) throw new Error(local.errors.join('; '));
+    expect(local.config.workerId).not.toMatch(/^fly:/);
+    // A Machine ID that cannot be one, and a second name on Fly, are refused.
+    for (const id of ['148E272B', '../x', 'a'.repeat(33), 'ab:cd']) {
+      expect(errorsOf({ ...minimal, FLY_MACHINE_ID: id }).join('\n'), id).toMatch(
+        /FLY_MACHINE_ID must be a Fly Machine ID/,
+      );
+    }
+    expect(
+      errorsOf({ ...minimal, FLY_MACHINE_ID: '148e272b0a1d2c', AGENT_RUNNER_WORKER_ID: 'runner-1' }).join('\n'),
+    ).toMatch(/AGENT_RUNNER_WORKER_ID cannot be set on a Fly Machine/);
+  });
+
   it('reports every problem at once', () => {
     const errors = errorsOf({});
     expect(errors.join('\n')).toMatch(/AGENT_RUNNER_ENVIRONMENT must be one of/);

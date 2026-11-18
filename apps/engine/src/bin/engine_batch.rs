@@ -26,6 +26,7 @@ Run the batch worker. The configuration comes from the environment:
 and, optionally, OPENQUANT_MARKET_RETRIEVAL (exactly `enabled` turns provider retrieval on),
 OPENQUANT_ALPACA_KEY_ID, OPENQUANT_ALPACA_SECRET, OPENQUANT_PROVIDER_EVIDENCE_FILE,
 OPENQUANT_CONCURRENCY (1 or 2), OPENQUANT_VISIBILITY_SECONDS and OPENQUANT_STOP_FILE.
+On a Fly Machine, FLY_MACHINE_ID (set by Fly) goes into the worker name of each claim.
 
   --check-config   read the configuration, print `configuration ok` and exit
   --help           print this text
@@ -112,7 +113,8 @@ fn main() -> ExitCode {
     ));
     let mut workers = Vec::new();
     for index in 0..concurrency {
-        let worker_id = format!("engine-batch-{}-{index}", std::process::id());
+        // On a Fly Machine the name carries FLY_MACHINE_ID, for the API's termination probe.
+        let worker_id = config.worker_id(std::process::id(), index);
         match Worker::new(
             config.clone(),
             wire.clone(),

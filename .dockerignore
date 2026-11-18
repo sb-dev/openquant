@@ -1,0 +1,31 @@
+# The build context of apps/engine/Dockerfile and apps/agent-runner/Dockerfile (both built from the repository root).
+# Local output, installed dependencies, history and documentation stay out, and so does every file that may hold a
+# credential, so no secret can reach an image layer. scripts/infrastructure.ts checks the credential entries.
+.git
+**/node_modules
+target
+**/dist
+**/.turbo
+**/coverage
+**/.cache
+**/.wrangler
+local-runs
+**/*.tsbuildinfo
+.claude
+.agents
+.github
+academy
+blog
+docs
+fixtures
+infra
+**/.env
+**/.env.*
+**/.dev.vars
+**/.dev.vars.*
+**/*.pem
+**/*.key
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfvars
+**/.terraform

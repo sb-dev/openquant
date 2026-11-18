@@ -9,6 +9,7 @@
 //   TOKEN_SIGNING_KEY  base64url of at least 32 random bytes: the HMAC key of access tokens and attempt capabilities
 //   AGENT_RUNNER_URL, AGENT_RUNNER_CREDENTIAL  the https base URL of the agent runner and the credential of the workflows
 //                      service principal; the scheduled dispatcher sends agent-dispatch/1 with them
+//   FLY_MACHINES_READ_TOKEN  a read-only Fly token for the Machines of both Fly apps; the termination probe uses it
 {
   "name": "openquant-api",
   "main": "src/worker.ts",
@@ -28,7 +29,13 @@
     "OPENQUANT_RESEARCH_EXECUTION": "disabled",
     // The pinned Claude Code CLI version that the agent runner runs (AGENT_RUNNER_EXECUTOR_VERSION of the runner). Every
     // agent-dispatch/1 names it, and the runner refuses another. 2.1.325 is the candidate of the pilot record.
-    "AGENT_EXECUTOR_VERSION": "2.1.325"
+    "AGENT_EXECUTOR_VERSION": "2.1.325",
+    // The Fly apps whose Machines the termination probe asks about (src/fly-probe.ts), such as
+    // openquant-staging-engine-batch and openquant-staging-agent-runner (infra/environments/staging.json). Empty here:
+    // the delivery job sets them per environment. With an empty name or no FLY_MACHINES_READ_TOKEN, recovery confirms
+    // no termination (decision D22).
+    "FLY_ENGINE_BATCH_APP": "",
+    "FLY_AGENT_RUNNER_APP": ""
   },
   "hyperdrive": [
     // Query caching is disabled on the Hyperdrive resource itself (OQ-05 section 1); Terraform creates it with

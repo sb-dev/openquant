@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { developmentSkillErrors } from './development-skills.ts';
 import { agentAssetErrors } from './agent-assets.ts';
+import { infrastructureErrors } from './infrastructure.ts';
 import { stepEnvironment } from './environment.ts';
 import { s0Errors } from './s0.ts';
 
@@ -233,6 +234,7 @@ export function checkRepository(base: string): string[] {
   if (errors.length) return errors;
   errors.push(...developmentSkillErrors(base,all));
   errors.push(...agentAssetErrors(base,all));
+  errors.push(...infrastructureErrors(base,all));
   errors.push(...s0Errors(base,all));
   for (const file of ['README.md','AGENTS.md','LICENSE','SECURITY.md','CONTRIBUTING.md','CODE_OF_CONDUCT.md','TRADEMARKS.md','CHANGELOG.md','REPOSITORY_TREE.txt','docs/specs/README.md','.github/workflows/ci.yml']) {
     if (!all.has(file)) errors.push(`Missing required file: ${file}`);

@@ -1,0 +1,64 @@
+{
+  "schema": "openquant-environment/1",
+  "environment": "STAGING",
+  "hosts": {
+    "cloudflare_api": "api.cloudflare.com",
+    "fly_machines_api": "api.machines.dev",
+    "market_data": "data.alpaca.markets",
+    "paper_trading": "paper-api.alpaca.markets",
+    "agent_runner": "openquant-staging-agent-runner.fly.dev"
+  },
+  "cloudflare": {
+    "worker": {
+      "config": "apps/api/wrangler.jsonc",
+      "variables": [
+        "OPENQUANT_ENVIRONMENT",
+        "OPENQUANT_RESEARCH_EXECUTION",
+        "AGENT_EXECUTOR_VERSION",
+        "FLY_ENGINE_BATCH_APP",
+        "FLY_AGENT_RUNNER_APP"
+      ],
+      "fly_apps": {
+        "FLY_ENGINE_BATCH_APP": "openquant-staging-engine-batch",
+        "FLY_AGENT_RUNNER_APP": "openquant-staging-agent-runner"
+      },
+      "secrets": ["TOKEN_SIGNING_KEY", "AGENT_RUNNER_URL", "AGENT_RUNNER_CREDENTIAL", "FLY_MACHINES_READ_TOKEN"]
+    },
+    "terraform": {
+      "directory": "infra/terraform",
+      "variables": [
+        "cloudflare_account_id",
+        "cloudflare_zone_id",
+        "artefacts_bucket_name",
+        "artefacts_bucket_location",
+        "batch_queue_name",
+        "hyperdrive_name",
+        "database_host",
+        "database_port",
+        "database_name",
+        "database_user",
+        "database_password",
+        "worker_name",
+        "api_route_pattern"
+      ],
+      "secret_variables": ["database_password"],
+      "credentials": ["CLOUDFLARE_API_TOKEN"]
+    }
+  },
+  "fly": {
+    "openquant-staging-engine-batch": {
+      "config": "infra/fly/openquant-staging-engine-batch.toml",
+      "dockerfile": "apps/engine/Dockerfile",
+      "settings": ["OPENQUANT_API_URL", "OPENQUANT_QUEUE_ACCOUNT_ID", "OPENQUANT_QUEUE_ID"],
+      "secrets": ["OPENQUANT_API_TOKEN", "OPENQUANT_QUEUE_TOKEN"],
+      "optional_secrets": ["OPENQUANT_ALPACA_KEY_ID", "OPENQUANT_ALPACA_SECRET"]
+    },
+    "openquant-staging-agent-runner": {
+      "config": "infra/fly/openquant-staging-agent-runner.toml",
+      "dockerfile": "apps/agent-runner/Dockerfile",
+      "settings": ["AGENT_RUNNER_API_BASE_URL"],
+      "secrets": ["AGENT_RUNNER_DISPATCH_TOKEN", "AGENT_RUNNER_API_TOKEN", "ANTHROPIC_API_KEY"],
+      "optional_secrets": []
+    }
+  }
+}

@@ -1,0 +1,32 @@
+# The staging batch host (OQ-05 sections 4 to 6; OQ-06 section 3): apps/engine/Dockerfile, deployed with pinned
+# flyctl by the delivery job as `flyctl deploy --config infra/fly/openquant-staging-engine-batch.toml --image
+# <registry>/<repository>@sha256:<digest>`. It pulls work from the Cloudflare queue over HTTPS and serves nothing:
+# there is no [http_service] and no [[services]], so the Machines have no public or private service and the Fly proxy
+# never stops them for lack of traffic (OQ-05 section 6: keep the batch consumer running).
+#
+# Non-secret settings that only the owner knows (the API origin and the queue identifiers) and the secrets are set on
+# the app, never here; infra/environments/staging.json names them. scripts/infrastructure.ts checks this file.
+
+app = "openquant-staging-engine-batch"
+# One explicit region (OQ-05 section 6). Proposed: Ashburn, Virginia, near the US-East market-data endpoints; the
+# owner confirms it against the Neon region before the first deployment.
+primary_region = "iad"
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[env]
+  OPENQUANT_ENVIRONMENT = "STAGING"
+  # Two attempts at once on one Machine (engine-batch accepts 1 or 2).
+  OPENQUANT_CONCURRENCY = "2"
+
+# Bounded native compute: two shared vCPUs for the two workers and 1 GB of memory. The root disk is scratch.
+[[vm]]
+  size = "shared-cpu-2x"
+  memory = "1gb"
+
+# A crash restarts the Machine a few times; a clean stop (exit 0) leaves it stopped, and so does a refused credential
+# that keeps failing. The termination probe of the API confirms a fenced attempt only once its Machine is stopped or
+# destroyed (apps/api/src/fly-probe.ts).
+[[restart]]
+  policy = "on-failure"
+  retries = 5

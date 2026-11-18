@@ -601,7 +601,7 @@ export function spawnEnvironmentErrors(file: string, source: string): string[] {
 // can exit early, change the environment of a step or replace a checked function. scripts/s0.ts, this guard, is held
 // to the same rule. scripts/environment.ts reads process.env and scripts/check-repository.ts sets the exit code; both
 // are checked whole against their reviewed code.
-export const verifyModules: readonly string[] = ['scripts/repository.ts', 'scripts/rust.ts', 'scripts/typescript.ts', 'scripts/development-skills.ts', 'scripts/agent-assets.ts', 'scripts/s0.ts'];
+export const verifyModules: readonly string[] = ['scripts/repository.ts', 'scripts/rust.ts', 'scripts/typescript.ts', 'scripts/development-skills.ts', 'scripts/agent-assets.ts', 'scripts/infrastructure.ts', 'scripts/s0.ts'];
 export function verifyModuleErrors(file: string, source: string): string[] {
   const code = scanSource(source).code;
   const errors: string[] = [];

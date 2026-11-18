@@ -78,6 +78,9 @@ describe('wrangler.jsonc', () => {
       'AGENT_RUNNER_URL',
       'ARTEFACTS',
       'BATCH_QUEUE',
+      'FLY_AGENT_RUNNER_APP',
+      'FLY_ENGINE_BATCH_APP',
+      'FLY_MACHINES_READ_TOKEN',
       'HYPERDRIVE',
       'OPENQUANT_ENVIRONMENT',
       'OPENQUANT_RESEARCH_EXECUTION',
@@ -121,6 +124,9 @@ describe('wrangler.jsonc', () => {
       OPENQUANT_ENVIRONMENT: 'DEVELOPMENT',
       OPENQUANT_RESEARCH_EXECUTION: 'disabled',
       AGENT_EXECUTOR_VERSION: '2.1.325',
+      // The termination probe's apps are unset in the file: the delivery job names them per environment.
+      FLY_ENGINE_BATCH_APP: '',
+      FLY_AGENT_RUNNER_APP: '',
     });
     expect(JSON.stringify(config)).not.toMatch(/postgres(?:ql)?:\/\/|oqk1\.|oqa1\.|sk-|Bearer /i);
     // A secret has its name in .dev.vars.example and an empty value, never a value.
@@ -128,7 +134,7 @@ describe('wrangler.jsonc', () => {
       read('.dev.vars.example')
         .split('\n')
         .filter((line) => /^[A-Z][A-Z0-9_]*=/.test(line)),
-    ).toEqual(['TOKEN_SIGNING_KEY=', 'AGENT_RUNNER_URL=', 'AGENT_RUNNER_CREDENTIAL=']);
+    ).toEqual(['TOKEN_SIGNING_KEY=', 'AGENT_RUNNER_URL=', 'AGENT_RUNNER_CREDENTIAL=', 'FLY_MACHINES_READ_TOKEN=']);
   });
 
   it('enables nodejs_compat for pg, a current compatibility date, and logs and traces', () => {

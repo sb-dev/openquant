@@ -1,0 +1,58 @@
+# The staging agent runner (OQ-03 sections 3 to 5; OQ-05 sections 4, 5 and 9; OQ-06 section 3):
+# apps/agent-runner/Dockerfile, deployed with pinned flyctl by the delivery job as `flyctl deploy --config
+# infra/fly/openquant-staging-agent-runner.toml --image <registry>/<repository>@sha256:<digest>`.
+#
+# The runner's one service is its dispatch endpoint (runner.dispatch and runner.cancel) on internal port 8080, behind
+# Fly's TLS. The Worker reaches it over authenticated HTTPS (OQ-05 section 5: no reliance on Fly private networking
+# from Cloudflare); every request needs the bearer secret AGENT_RUNNER_DISPATCH_TOKEN. The Machines run long attempts
+# with little inbound traffic, so the proxy never stops or starts them.
+#
+# Non-secret settings that only the owner knows (the API origin) and the secrets are set on the app, never here;
+# infra/environments/staging.json names them. scripts/infrastructure.ts checks this file.
+
+app = "openquant-staging-agent-runner"
+# One explicit region (OQ-05 section 6). Proposed, as for the batch host; the owner confirms it.
+primary_region = "iad"
+# On SIGTERM the runner ends every process tree and posts nothing, so recovery fences the attempts.
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[env]
+  AGENT_RUNNER_ENVIRONMENT = "STAGING"
+  # Execution stays off until the executor probe of OQ-06 section 4 passes; a disabled runner still claims and
+  # records denied_capability EXECUTION_DISABLED.
+  AGENT_RUNNER_ENABLED = "false"
+  # Every interface of the Machine, so that the Fly proxy reaches the service below.
+  AGENT_RUNNER_HOST = "0.0.0.0"
+  AGENT_RUNNER_PORT = "8080"
+  AGENT_RUNNER_MAX_CONCURRENT = "2"
+
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+  auto_stop_machines = "off"
+  auto_start_machines = false
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "requests"
+    soft_limit = 20
+    hard_limit = 25
+
+  [[services.tcp_checks]]
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "10s"
+
+# Two Claude Code processes at once (AGENT_RUNNER_MAX_CONCURRENT): two shared vCPUs and 2 GB of memory.
+[[vm]]
+  size = "shared-cpu-2x"
+  memory = "2gb"
+
+[[restart]]
+  policy = "on-failure"
+  retries = 5

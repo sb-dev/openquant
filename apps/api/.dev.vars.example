@@ -7,3 +7,6 @@ TOKEN_SIGNING_KEY=
 # service principal (the bootstrap command issues it). The scheduled dispatcher uses both; without them agent work is not sent.
 AGENT_RUNNER_URL=
 AGENT_RUNNER_CREDENTIAL=
+# FLY_MACHINES_READ_TOKEN: a read-only Fly token that can read the Machines of both Fly apps. With FLY_ENGINE_BATCH_APP and
+# FLY_AGENT_RUNNER_APP (wrangler.jsonc) it wires the termination probe; without it recovery confirms no termination.
+FLY_MACHINES_READ_TOKEN=

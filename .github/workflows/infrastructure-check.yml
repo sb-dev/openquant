@@ -1,0 +1,215 @@
+name: Infrastructure check
+
+# Build evidence for the images and the Terraform of infra/ (OQ-06 sections 2.1 and 3), on a runner that has Docker.
+# It is not part of the required `ci` aggregate of ci.yml: a path-filtered workflow must not decide the required check
+# (OQ-06 section 2.2). It uses no secret and no credential: nothing is pushed, planned, applied or deployed, and no
+# container reaches a network. Fly configuration validation needs a Fly login and runs in the delivery workflow.
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/infrastructure-check.yml
+      - infra/**
+      - .dockerignore
+      - apps/engine/Dockerfile
+      - apps/agent-runner/Dockerfile
+      - apps/engine/**
+      - apps/agent-runner/**
+      # The other build inputs of the two images.
+      - packages/api-contracts/**
+      - packages/quant-core/**
+      - packages/agents/**
+      - Cargo.toml
+      - Cargo.lock
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .node-version
+      - apps/api/wrangler.jsonc
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infrastructure-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  images:
+    name: Image build and start-up
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the engine-batch image
+        run: |
+          set -euo pipefail
+          echo '+ docker build --file apps/engine/Dockerfile --tag openquant-engine-batch:check .'
+          status=0
+          docker build --progress=plain --file apps/engine/Dockerfile --tag openquant-engine-batch:check . || status=$?
+          echo "exit code: $status"
+          test "$status" -eq 0
+      - name: Build the agent-runner image
+        run: |
+          set -euo pipefail
+          echo '+ docker build --file apps/agent-runner/Dockerfile --tag openquant-agent-runner:check .'
+          status=0
+          docker build --progress=plain --file apps/agent-runner/Dockerfile --tag openquant-agent-runner:check . || status=$?
+          echo "exit code: $status"
+          test "$status" -eq 0
+      # The configuration check of OQ-05 section 5 on the built image: a complete synthetic configuration reads (exit
+      # 0); the test-only loopback variables are refused by the release build at start (exit 2), naming the variable.
+      - name: Check the engine-batch configuration
+        run: |
+          set -euo pipefail
+          expect() {
+            local want=$1; shift
+            printf '+ %s\n' "$*"
+            local status=0
+            "$@" > "$RUNNER_TEMP/out.txt" 2>&1 || status=$?
+            cat "$RUNNER_TEMP/out.txt"
+            echo "exit code: $status (expected $want)"
+            test "$status" -eq "$want"
+          }
+          config=(
+            --env OPENQUANT_ENVIRONMENT=STAGING
+            --env OPENQUANT_API_URL=https://api.image-check.invalid
+            --env OPENQUANT_API_TOKEN=image-check-api-token-0000
+            --env OPENQUANT_QUEUE_ACCOUNT_ID=imagecheck
+            --env OPENQUANT_QUEUE_ID=imagecheck
+            --env OPENQUANT_QUEUE_TOKEN=image-check-queue-token-0000
+          )
+          expect 0 docker run --rm --network none "${config[@]}" openquant-engine-batch:check --check-config
+          grep -qx 'configuration ok' "$RUNNER_TEMP/out.txt"
+          loopback=(--env OPENQUANT_TEST_LOOPBACK_PORT=8443 --env OPENQUANT_TEST_LOOPBACK_ROOT=/tmp/root.der)
+          expect 0 docker run --rm --network none "${config[@]/STAGING/DEVELOPMENT}" openquant-engine-batch:check --check-config
+          expect 2 docker run --rm --network none "${config[@]/STAGING/DEVELOPMENT}" "${loopback[@]}" openquant-engine-batch:check --check-config
+          grep -q OPENQUANT_TEST_LOOPBACK "$RUNNER_TEMP/out.txt"
+          expect 2 docker run --rm --network none "${config[@]}" "${loopback[@]}" openquant-engine-batch:check --check-config
+          grep -q OPENQUANT_TEST_LOOPBACK "$RUNNER_TEMP/out.txt"
+      # The pinned executor, run with --version only and never with a prompt. The pin is AGENT_EXECUTOR_VERSION of
+      # apps/api/wrangler.jsonc, which the image also sets as AGENT_RUNNER_EXECUTOR_VERSION.
+      - name: Check the pinned Claude Code version
+        run: |
+          set -euo pipefail
+          pinned=$(sed -n 's/^ *"AGENT_EXECUTOR_VERSION": "\([0-9][0-9.]*\)",\{0,1\}$/\1/p' apps/api/wrangler.jsonc)
+          echo "pinned executor version: $pinned"
+          test -n "$pinned"
+          echo '+ docker run --rm --network none --entrypoint printenv openquant-agent-runner:check AGENT_RUNNER_EXECUTOR_VERSION'
+          configured=$(docker run --rm --network none --entrypoint printenv openquant-agent-runner:check AGENT_RUNNER_EXECUTOR_VERSION)
+          echo "$configured"
+          test "$configured" = "$pinned"
+          echo '+ docker run --rm --network none --env DISABLE_AUTOUPDATER=1 openquant-agent-runner:check claude --version'
+          status=0
+          version=$(docker run --rm --network none --env DISABLE_AUTOUPDATER=1 openquant-agent-runner:check claude --version) || status=$?
+          echo "$version"
+          echo "exit code: $status (expected 0)"
+          test "$status" -eq 0
+          case "$version" in "$pinned "*) ;; *) echo "expected Claude Code $pinned"; exit 1 ;; esac
+      # The runner starts with execution disabled and a synthetic configuration, without a network. It has no health
+      # route: Fly checks it with a TCP connection to port 8080 (infra/fly/openquant-staging-agent-runner.toml). The
+      # check opens that connection inside the container, then sends a dispatch without a credential, which the
+      # runner must refuse with 401 UNAUTHENTICATED before it reads the body. Then the runner is stopped with SIGTERM.
+      - name: Start and stop the agent runner
+        run: |
+          set -euo pipefail
+          start=(docker run --detach --name runner-check --network none
+            --env AGENT_RUNNER_ENVIRONMENT=STAGING
+            --env AGENT_RUNNER_ENABLED=false
+            --env AGENT_RUNNER_HOST=0.0.0.0
+            --env AGENT_RUNNER_PORT=8080
+            --env AGENT_RUNNER_DISPATCH_TOKEN=image-check-dispatch-token-00000000000000
+            --env AGENT_RUNNER_API_TOKEN=image-check-api-token-0000
+            --env AGENT_RUNNER_API_BASE_URL=https://api.image-check.invalid
+            openquant-agent-runner:check)
+          printf '+ %s\n' "${start[*]}"
+          status=0
+          "${start[@]}" || status=$?
+          echo "exit code: $status (expected 0)"
+          test "$status" -eq 0
+          listening=false
+          for _ in $(seq 1 30); do
+            logs=$(docker logs runner-check 2>&1)
+            if grep -q '"event":"listening"' <<< "$logs"; then listening=true; break; fi
+            test "$(docker inspect --format '{{.State.Running}}' runner-check)" = true || break
+            sleep 1
+          done
+          docker logs runner-check
+          test "$listening" = true
+          grep -q '"execution_enabled":false' <<< "$logs"
+          echo '+ docker exec runner-check node --input-type=module --eval <TCP connection to port 8080, then POST /v1/agent-attempts without a credential>'
+          status=0
+          docker exec runner-check node --input-type=module --eval '
+            import { connect } from "node:net";
+            await new Promise((resolve, reject) => {
+              const socket = connect(8080, "127.0.0.1", () => { socket.end(); resolve(); });
+              socket.on("error", reject);
+            });
+            console.log("TCP connection to 127.0.0.1:8080: open");
+            const response = await fetch("http://127.0.0.1:8080/v1/agent-attempts", { method: "POST" });
+            const body = await response.json();
+            console.log(`POST /v1/agent-attempts without a credential: HTTP ${response.status} ${body.schema_version} ${body.code}`);
+            process.exit(response.status === 401 && body.code === "UNAUTHENTICATED" ? 0 : 1);
+          ' || status=$?
+          echo "exit code: $status (expected 0)"
+          test "$status" -eq 0
+          echo '+ docker stop --time 10 runner-check'
+          docker stop --time 10 runner-check
+          code=$(docker inspect --format '{{.State.ExitCode}}' runner-check)
+          docker logs runner-check
+          echo "runner exit code after SIGTERM: $code (expected 0)"
+          docker rm runner-check
+          test "$code" -eq 0
+
+  terraform:
+    name: Terraform validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TERRAFORM_VERSION: 1.17.0
+      # The SHA-256 of terraform_1.17.0_linux_amd64.zip; the published SHA256SUMS must state the same value.
+      TERRAFORM_SHA256: c168cab7c637a8769fdb90089ddd19de701bc6ff8aca64dc2e2185fe46f59f67
+      CHECKPOINT_DISABLE: '1'
+      TF_IN_AUTOMATION: '1'
+      TF_INPUT: '0'
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Terraform
+        run: |
+          set -euo pipefail
+          directory="$RUNNER_TEMP/terraform"
+          mkdir -p "$directory/bin"
+          cd "$directory"
+          zip="terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
+          base="https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}"
+          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 --output "$zip" "$base/$zip"
+          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 --output SHA256SUMS "$base/terraform_${TERRAFORM_VERSION}_SHA256SUMS"
+          published=$(awk -v file="$zip" '$2 == file { print $1 }' SHA256SUMS)
+          echo "published SHA-256: $published"
+          echo "expected SHA-256:  $TERRAFORM_SHA256"
+          test "$published" = "$TERRAFORM_SHA256"
+          echo "$TERRAFORM_SHA256  $zip" | sha256sum --check --strict
+          unzip -q "$zip" terraform -d bin
+          echo "$directory/bin" >> "$GITHUB_PATH"
+      - name: Validate the Terraform configuration
+        working-directory: infra/terraform
+        run: |
+          set -euo pipefail
+          expect() {
+            printf '+ %s\n' "$*"
+            local status=0
+            "$@" || status=$?
+            echo "exit code: $status (expected 0)"
+            test "$status" -eq 0
+          }
+          expect terraform version
+          expect terraform fmt -check -recursive -diff
+          expect terraform init -backend=false
+          expect terraform validate

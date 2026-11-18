@@ -39,6 +39,7 @@ const ENVIRONMENTS: readonly DeploymentEnvironment[] = ['DEVELOPMENT', 'STAGING'
 const MIN_TOKEN_LENGTH = 32;
 const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
 const VERSION = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
+const FLY_MACHINE_ID = /^[0-9a-z]{1,32}$/;
 
 function flag(env: Env, name: string, errors: string[]): boolean {
   const value = env[name];
@@ -118,10 +119,22 @@ export function loadConfig(env: Env, options: LoadOptions): ConfigResult {
     if (problem) errors.push(`AGENT_RUNNER_PASS_ENV: ${problem}`);
   }
 
-  const workerId = (env.AGENT_RUNNER_WORKER_ID ?? `${hostname()}-${process.pid}`)
-    .replace(/[^A-Za-z0-9._:-]/g, '-')
-    .slice(0, 64);
-  if (!IDENTIFIER.test(workerId)) errors.push('AGENT_RUNNER_WORKER_ID must be an identifier');
+  // On a Fly Machine the worker name carries the Machine ID that Fly sets, `fly:<machine id>:agent-runner-<pid>`. The
+  // API stores it with the claim, and its termination probe asks Fly about that Machine (apps/api/src/fly-probe.ts).
+  // It grants no authority (OQ-05 section 9).
+  const flyMachine = env.FLY_MACHINE_ID ?? '';
+  let workerId: string;
+  if (flyMachine !== '') {
+    if (!FLY_MACHINE_ID.test(flyMachine)) errors.push('FLY_MACHINE_ID must be a Fly Machine ID');
+    if (env.AGENT_RUNNER_WORKER_ID !== undefined && env.AGENT_RUNNER_WORKER_ID !== '')
+      errors.push('AGENT_RUNNER_WORKER_ID cannot be set on a Fly Machine: the worker name carries FLY_MACHINE_ID');
+    workerId = `fly:${flyMachine}:agent-runner-${process.pid}`;
+  } else {
+    workerId = (env.AGENT_RUNNER_WORKER_ID ?? `${hostname()}-${process.pid}`)
+      .replace(/[^A-Za-z0-9._:-]/g, '-')
+      .slice(0, 64);
+    if (!IDENTIFIER.test(workerId)) errors.push('AGENT_RUNNER_WORKER_ID must be an identifier');
+  }
 
   const port = integer(env, 'AGENT_RUNNER_PORT', 8080, 1, 65535, errors);
   const maxConcurrent = integer(env, 'AGENT_RUNNER_MAX_CONCURRENT', 2, 1, 16, errors);
