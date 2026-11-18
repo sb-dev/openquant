@@ -12,6 +12,7 @@ import {
   type CommandOutcome,
   type CommandRouteId,
   type Fetch,
+  NotFoundError,
   RevisionConflictError,
   route,
   statusOfCode,
@@ -22,11 +23,15 @@ import { createElement as h } from 'react';
 import { type ApiEnvironment, displayContext, headerLines } from './context.ts';
 import {
   budgetLines,
+  type CandidateValues,
   decisionsLines,
   findingsLines,
   gatesLines,
   lineageLines,
+  type MissionResults,
   missionLines,
+  type RunValues,
+  resultsLines,
   trialsLines,
 } from './format.ts';
 import {
@@ -42,7 +47,7 @@ import {
   outcomeLines,
 } from './outcome.ts';
 import { bareClient, type ClientSettings, sessionClient } from './session.ts';
-import { configDirectory, Store, type StoredSession } from './store.ts';
+import { configDirectory, type PendingCommand, Store, type StoredSession } from './store.ts';
 import { MAX_WIDTH, outputWidth, safeJson, wrapLines } from './text.ts';
 import { Confirm, type ConfirmProps, MissionWatch, Report } from './ui.ts';
 
@@ -84,6 +89,7 @@ const OPTIONS = {
   reason: { type: 'string' },
   yes: { type: 'boolean' },
   interval: { type: 'string' },
+  candidate: { type: 'string' },
 } as const;
 
 type Values = { [K in keyof typeof OPTIONS]?: (typeof OPTIONS)[K]['type'] extends 'boolean' ? boolean : string };
@@ -331,23 +337,35 @@ async function sendCommand(
 ): Promise<Result> {
   const unresolved = context.store.pendingIds();
   if (unresolved.length > 0) {
+    const first = unresolved[0] as string;
+    const binding = journalBinding(context, first);
     throw new CliFailure(
       EXIT.UNKNOWN,
       `The outcome of an earlier command is unknown: ${unresolved.join(', ')}. Nothing was sent.`,
-      `Run openquant command resolve ${unresolved[0]} first.`,
+      binding === undefined
+        ? `Run openquant command resolve ${first} first.`
+        : `Log in to ${binding.api_url} as ${binding.principal_id}, then run openquant command resolve ${first}.`,
     );
   }
-  const { client } = requireSession(context);
+  const { session, client } = requireSession(context);
   const commandId = context.values['command-id'];
   const request = client.buildCommand(payload, {
     expectedRevision,
     ...(commandId === undefined ? {} : { commandId }),
   });
+  // The exact request is journalled before it is sent, so that an interrupted process leaves it for command resolve
+  // with the same command ID (OQ-04 section 12). It is removed once the outcome is known.
+  context.store.recordPending({
+    schema: 'openquant-cli-pending/2',
+    api_url: session.api_url,
+    principal_id: session.principal.id,
+    route: routeId,
+    params,
+    request,
+  });
   const resync = params.mission_id === undefined ? undefined : () => client.mission(params.mission_id as string);
   const outcome = await client.submit(routeId, request, params, resync);
-  if (outcome.state === 'UNKNOWN') {
-    context.store.recordPending({ schema: 'openquant-cli-pending/1', route: routeId, params, request });
-  }
+  if (outcome.state !== 'UNKNOWN') context.store.removePending(request.command_id);
   return commandResult(context, routeId, outcome, readBack === undefined ? undefined : await readBack(client, outcome));
 }
 
@@ -489,6 +507,61 @@ function readView<T>(
   };
 }
 
+/** A document that is NotFound while none is committed: null then (unknown, never zero). */
+async function committed<T>(read: () => Promise<T>): Promise<T | null> {
+  try {
+    return await read();
+  } catch (error) {
+    if (error instanceof NotFoundError) return null;
+    throw error;
+  }
+}
+
+/**
+ * The official values of a mission's candidates (OQ-04 section 5): the runs from the lineage, the window labels from the
+ * evaluation plan, and for each COMPLETED run its committed metrics and result, unchanged. Nothing is recomputed.
+ */
+async function missionResults(context: Context): Promise<Result> {
+  const { client } = requireSession(context);
+  const missionId = context.argument as string;
+  const lineage = await client.lineage(missionId);
+  const wanted = context.values.candidate;
+  const versions =
+    wanted === undefined ? lineage.versions : lineage.versions.filter((version) => version.trial_slot === wanted);
+  if (versions.length === 0 && wanted !== undefined) {
+    throw new CliFailure(
+      EXIT.NOT_FOUND,
+      `Mission ${missionId} has no candidate in trial slot ${wanted}.`,
+      `Use openquant mission lineage ${missionId}.`,
+    );
+  }
+  const plan = await committed(() => client.plan(missionId));
+  const candidates: CandidateValues[] = [];
+  for (const version of versions) {
+    const runs: RunValues[] = [];
+    for (const run of version.runs) {
+      const completed = run.status === 'COMPLETED';
+      runs.push({
+        ...run,
+        replay_of: plan?.run_slots.find((slot) => slot.run_slot_id === run.run_slot)?.replay_of ?? null,
+        window_label: plan?.windows.find((window) => window.role === run.window_role)?.label ?? null,
+        metrics: completed ? await committed(() => client.runMetrics(run.run_id)) : null,
+        result: completed ? await committed(() => client.runResult(run.run_id)) : null,
+      });
+    }
+    candidates.push({
+      trial_slot: version.trial_slot,
+      strategy_id: version.strategy_id,
+      version: version.version,
+      strategy_hash: version.strategy_hash,
+      lifecycle: version.lifecycle,
+      runs,
+    });
+  }
+  const view: MissionResults = { mission_id: lineage.mission_id, windows: plan?.windows ?? null, candidates };
+  return { exit: EXIT.OK, lines: resultsLines(view), data: view, observedAt: stamp(context.now()) };
+}
+
 async function missionWatch(context: Context): Promise<Result> {
   if (context.json || !context.terminal || context.io.stdin.isTTY !== true) {
     throw new CliFailure(EXIT.USAGE, 'mission watch needs an interactive terminal.', 'Use openquant mission show.');
@@ -514,11 +587,29 @@ async function missionWatch(context: Context): Promise<Result> {
   return { exit: EXIT.OK, lines: [], rendered: true, data: { detached: true } };
 }
 
+/** Whether a journal entry was sent to the API and as the principal of the stored session (OQ-05 section 9). */
+function sameSession(pending: PendingCommand, session: StoredSession): boolean {
+  return pending.api_url === session.api_url && pending.principal_id === session.principal.id;
+}
+
+/** The journal entry of a command when it belongs to another API or principal than the stored session. */
+function journalBinding(context: Context, commandId: string): PendingCommand | undefined {
+  try {
+    const pending = context.store.readPending(commandId);
+    const session = context.store.readSession();
+    return pending === undefined || (session !== undefined && sameSession(pending, session)) ? undefined : pending;
+  } catch {
+    return undefined;
+  }
+}
+
 async function commandShow(context: Context): Promise<Result> {
-  const { client } = requireSession(context);
+  const { session, client } = requireSession(context);
   const commandId = context.argument as string;
   const status = await client.commandStatus(commandId);
-  const pending = context.store.readPending(commandId);
+  // A journal entry of another API or principal is neither used nor settled by what this session reads.
+  const journalled = context.store.readPending(commandId);
+  const pending = journalled !== undefined && sameSession(journalled, session) ? journalled : undefined;
   if (pending !== undefined && status.state !== 'PENDING') context.store.removePending(commandId);
   const request = pending?.request ?? ({ command_id: commandId, payload: { kind: status.kind } } as CommandRequest);
   const outcome: CommandOutcome =
@@ -552,7 +643,15 @@ async function commandResolve(context: Context): Promise<Result> {
       `Use openquant command show ${commandId}.`,
     );
   }
-  const { client } = requireSession(context);
+  const { session, client } = requireSession(context);
+  if (!sameSession(pending, session)) {
+    // Resolving may send the request again: only to the API it was sent to, and only as the principal that sent it.
+    throw new CliFailure(
+      EXIT.SESSION_MISMATCH,
+      `Command ${commandId} was sent to ${pending.api_url} as ${pending.principal_id}, and this session is ${session.api_url} as ${session.principal.id}. Nothing was sent; the journal entry is kept.`,
+      `Log in to ${pending.api_url} as ${pending.principal_id}, then run openquant command resolve ${commandId}.`,
+    );
+  }
   const outcome = await client.resolveCommand(pending.route, pending.request, pending.params);
   if (outcome.state !== 'UNKNOWN') context.store.removePending(commandId);
   return commandResult(context, pending.route, outcome, undefined);
@@ -672,6 +771,13 @@ export const COMMANDS: readonly CommandSpec[] = [
     options: [],
     summary: 'Recorded Decisions',
     run: readView((c, id) => c.decisions(id), decisionsLines),
+  },
+  {
+    words: ['mission', 'results'],
+    argument: MISSION,
+    options: ['candidate'],
+    summary: 'Official D, V and H run values per candidate (reveals holdout results)',
+    run: missionResults,
   },
   {
     words: ['mission', 'watch'],

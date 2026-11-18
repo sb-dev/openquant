@@ -5,12 +5,16 @@
 
 import type {
   DecisionsView,
+  EvaluationMetrics,
+  EvaluationResult,
   FindingsView,
   GateOutcome,
   GatesView,
   LineageView,
   MissionView,
+  ResolvedWindow,
   TrialsView,
+  ViewLineageRun,
 } from '@openquant/api-contracts';
 
 /** The one Decision that S1 never records (OQ-04 section 5). */
@@ -237,5 +241,174 @@ export function decisionsLines(view: DecisionsView): string[] {
     if (decision.reason !== null) lines.push(`    reason: ${decision.reason}`);
   }
   if (!view.decisions.some((decision) => decision.kind === 'EVALUATING_TO_PAPER')) lines.push(NONE_RECORDED_LINE);
+  return lines;
+}
+
+/** One run of a candidate with the official documents the API serves for it; null while none is committed. */
+export interface RunValues {
+  readonly run_id: string;
+  readonly run_slot: string;
+  readonly status: ViewLineageRun['status'];
+  readonly window_role: ViewLineageRun['window_role'];
+  readonly cost_scenario: ViewLineageRun['cost_scenario'];
+  /** The run slot this one repeats (deterministic repeat), from the evaluation plan; null when it repeats none. */
+  readonly replay_of: string | null;
+  /** The label of the run's window from the evaluation plan; null when no plan is recorded. */
+  readonly window_label: string | null;
+  readonly metrics: EvaluationMetrics | null;
+  readonly result: EvaluationResult | null;
+}
+
+export interface CandidateValues {
+  readonly trial_slot: string | null;
+  readonly strategy_id: string;
+  readonly version: number;
+  readonly strategy_hash: string;
+  readonly lifecycle: string;
+  readonly runs: readonly RunValues[];
+}
+
+/** The official values of a mission's candidates (OQ-04 section 5): what `mission results` reads and shows. */
+export interface MissionResults {
+  readonly mission_id: string;
+  /** The windows of the evaluation plan, with their labels; null when no plan is recorded. */
+  readonly windows: readonly ResolvedWindow[] | null;
+  readonly candidates: readonly CandidateValues[];
+}
+
+const ROLE_ORDER = ['DEVELOPMENT', 'VALIDATION', 'HOLDOUT'] as const;
+const LETTER: Record<string, string> = { DEVELOPMENT: 'D', VALIDATION: 'V', HOLDOUT: 'H' };
+const UNKNOWN = 'unknown';
+
+type Row = readonly [label: string, cell: (run: RunValues) => string];
+
+const ratio = (metric: { value: string } | undefined) => metric?.value ?? UNKNOWN;
+const money = (metric: { value: string; currency: string } | undefined) =>
+  metric === undefined ? UNKNOWN : `${metric.value} ${metric.currency}`;
+const count = (metric: { value: number } | undefined) => (metric === undefined ? UNKNOWN : String(metric.value));
+const buyAndHold = (
+  run: RunValues,
+  read: (computed: {
+    net_return: { value: string };
+    max_drawdown: { value: string };
+    excess_return: { value: string };
+  }) => string,
+) => {
+  const benchmark = run.metrics?.benchmarks.buy_and_hold;
+  if (benchmark === undefined) return UNKNOWN;
+  return benchmark.status === 'COMPUTED' ? read(benchmark) : benchmark.status;
+};
+const final = (run: RunValues, read: (result: EvaluationResult) => string) =>
+  run.result === null ? UNKNOWN : read(run.result);
+
+/** Every row shows a value as the run's committed document states it; nothing is derived from another value. */
+const ROWS: readonly Row[] = [
+  ['run', (run) => run.run_id],
+  ['status', (run) => run.status],
+  ['net return', (run) => ratio(run.metrics?.strategy.net_return)],
+  ['max drawdown', (run) => ratio(run.metrics?.strategy.max_drawdown)],
+  ['worst session', (run) => ratio(run.metrics?.strategy.worst_session_return)],
+  ['turnover', (run) => ratio(run.metrics?.strategy.turnover)],
+  ['exposure', (run) => ratio(run.metrics?.strategy.exposure)],
+  ['trades closed', (run) => count(run.metrics?.strategy.trade_count)],
+  ['scored sessions', (run) => count(run.metrics?.strategy.scored_session_count)],
+  ['fees', (run) => money(run.metrics?.strategy.execution_cost.fees)],
+  ['gap slippage', (run) => money(run.metrics?.strategy.execution_cost.gap_slippage)],
+  ['total cost', (run) => money(run.metrics?.strategy.execution_cost.total)],
+  ['B&H net return', (run) => buyAndHold(run, (b) => b.net_return.value)],
+  ['B&H max drawdown', (run) => buyAndHold(run, (b) => b.max_drawdown.value)],
+  ['B&H excess return', (run) => buyAndHold(run, (b) => b.excess_return.value)],
+  ['cash net return', (run) => ratio(run.metrics?.benchmarks.cash.net_return)],
+  ['cash excess return', (run) => ratio(run.metrics?.benchmarks.cash.excess_return)],
+];
+
+/** The simulated per-candidate ledger as the result carries it: its final state and its record counts. */
+const LEDGER_ROWS: readonly Row[] = [
+  ['result outcome', (run) => final(run, (result) => result.outcome.status)],
+  ['cash available', (run) => final(run, (result) => result.final.cash_available)],
+  ['cash reserved', (run) => final(run, (result) => result.final.cash_reserved)],
+  ['receivables', (run) => final(run, (result) => result.final.receivables)],
+  ['positions value', (run) => final(run, (result) => result.final.positions_value)],
+  ['equity', (run) => final(run, (result) => result.final.equity)],
+  ['open positions', (run) => final(run, (result) => String(result.final.open_positions.length))],
+  ['ledger entries', (run) => final(run, (result) => String(result.journal.cash_ledger.length))],
+];
+
+function table(title: string, runs: readonly RunValues[], rows: readonly Row[]): string[] {
+  const head = (run: RunValues) =>
+    `${LETTER[run.window_role] ?? run.window_role}${run.replay_of === null ? '' : ' repeat'}`;
+  const all: (readonly [string, readonly string[]])[] = [
+    [title, runs.map(head)],
+    ...rows.map(([label, cell]) => [label, runs.map(cell)] as const),
+  ];
+  const labelWidth = Math.max(...all.map(([label]) => label.length)) + 2;
+  const widths = runs.map((_, i) => Math.max(...all.map(([, cells]) => (cells[i] ?? '').length)) + 2);
+  return all.map(([label, cells]) =>
+    `    ${label.padEnd(labelWidth)}${cells.map((cell, i) => cell.padEnd(widths[i] ?? 0)).join('')}`.replace(/ +$/, ''),
+  );
+}
+
+function ordered(runs: readonly RunValues[]): RunValues[] {
+  const rank = (run: RunValues) => ROLE_ORDER.indexOf(run.window_role) * 2 + (run.replay_of === null ? 0 : 1);
+  return [...runs].sort((a, b) => rank(a) - rank(b) || a.run_slot.localeCompare(b.run_slot));
+}
+
+export function resultsLines(view: MissionResults): string[] {
+  const lines = [
+    `Official run values of mission ${view.mission_id} (${view.candidates.length} candidate(s))`,
+    '  As the API serves them (evaluation-metrics/1, evaluation-result/1); nothing is recomputed. unknown: no',
+    '  official value is committed. RATIO values are fractions of initial capital (0.05 is 5 percent); MONEY is',
+    '  in the policy currency. The first read of a holdout run is recorded as its consumption.',
+    'Windows (D development, V validation, H holdout; scored sessions and label)',
+  ];
+  if (view.windows === null) lines.push('  labels unknown: the evaluation plan is not recorded yet');
+  for (const window of view.windows ?? []) {
+    lines.push(
+      `  ${LETTER[window.role] ?? window.role} ${window.resolved.scored_start} to ${window.resolved.scored_end}: ${window.label}`,
+    );
+  }
+  for (const candidate of view.candidates) {
+    lines.push(
+      `Candidate ${known(candidate.trial_slot, 'without trial slot')}: ${candidate.strategy_id} v${candidate.version}, ${candidate.lifecycle}`,
+      `  strategy: ${candidate.strategy_hash}`,
+    );
+    if (candidate.runs.length === 0) {
+      lines.push('  no run written yet');
+      continue;
+    }
+    for (const scenario of ['BASE', 'COST_STRESS'] as const) {
+      const runs = ordered(candidate.runs.filter((run) => run.cost_scenario === scenario));
+      if (runs.length > 0) lines.push(...table(scenario, runs, ROWS));
+    }
+    lines.push('  Simulated per-candidate ledger (final state of each result)');
+    for (const scenario of ['BASE', 'COST_STRESS'] as const) {
+      const runs = ordered(candidate.runs.filter((run) => run.cost_scenario === scenario));
+      if (runs.length > 0) lines.push(...table(scenario, runs, LEDGER_ROWS));
+    }
+    const labels = new Map<string, string[]>();
+    const uncertainty = new Map<string, string[]>();
+    for (const run of ordered(candidate.runs)) {
+      const label = run.window_label ?? 'unknown (no evaluation plan recorded)';
+      const letter = LETTER[run.window_role] ?? run.window_role;
+      const letters = labels.get(label) ?? [];
+      if (!letters.includes(letter)) labels.set(label, [...letters, letter]);
+      const statement =
+        run.metrics === null
+          ? 'unknown (no official metrics)'
+          : `${run.metrics.uncertainty.status} - ${run.metrics.uncertainty.limitation}`;
+      uncertainty.set(statement, [...(uncertainty.get(statement) ?? []), run.run_id]);
+      const benchmark = run.metrics?.benchmarks.buy_and_hold;
+      if (benchmark?.status === 'INSUFFICIENT')
+        lines.push(`  buy-and-hold of ${run.run_id}: INSUFFICIENT - ${benchmark.reason}`);
+      const outcome = run.result?.outcome;
+      if (outcome !== undefined && outcome.status !== 'COMPLETED') {
+        lines.push(
+          `  result of ${run.run_id}: ${outcome.status}${outcome.code === undefined ? '' : ` ${outcome.code}`}; its final state is not a valuation${outcome.detail === undefined ? '' : ` (${outcome.detail})`}`,
+        );
+      }
+    }
+    for (const [label, letters] of labels) lines.push(`  window label of ${letters.join(', ')}: ${label}`);
+    for (const [statement, runs] of uncertainty) lines.push(`  uncertainty: ${statement} (${runs.join(', ')})`);
+  }
   return lines;
 }

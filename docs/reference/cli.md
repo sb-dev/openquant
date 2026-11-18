@@ -68,11 +68,23 @@ The API decides authority on every request ([OQ-05 §9](../specs/05-system-archi
 | `mission findings <mission-id>` | any role | Critic findings and their treatment per transition. |
 | `mission gates <mission-id>` | any role | Gate reports, with eligibility shown apart from the gate results. The first read of holdout observations is recorded by the API as their consumption ([OQ-02 §3.3](../specs/02-trading-domain-and-evaluation-spec.md)). |
 | `mission decisions <mission-id>` | any role | Recorded Decisions, and `none recorded` for `EVALUATING` → `PAPER`. |
+| `mission results <mission-id> [--candidate <trial-slot>]` | any role | The official values of each candidate's runs, D, V and H side by side for each cost case (see [Official run values](#official-run-values)). Reading a holdout run's values is recorded by the API as holdout consumption. |
 | `mission watch <mission-id> [--interval <s>]` | any role | Terminal only: the mission, read again every 5 to 300 seconds (10 by default), with a `Summary` and a `Budget` tab. |
 | `command show <command-id>` | any role | Read a command back by its ID. |
 | `command resolve <command-id>` | the sender | Settle a command whose outcome is `UNKNOWN`. |
 
 Registrations take `--expected-revision <n>`: by default one less than the `revision` of the document (0 for a seed). `mission run-now` and `mission cancel` read the mission first and send the revision they showed, or `--expected-revision`. Every command takes `--command-id <id>` to choose its client command ID, and `--json`.
+
+### Official run values
+
+`mission results` reads the mission's lineage for its candidates and runs, the evaluation plan for the window labels, and for each `COMPLETED` run its committed `evaluation-metrics/1` (`runs.metrics`) and `evaluation-result/1` (`runs.result`) ([OQ-04 §5](../specs/04-ink-ux-ui-spec.md#5-arena), [OQ-02 §3.6](../specs/02-trading-domain-and-evaluation-spec.md)). For each candidate it shows, per cost case (`BASE`, `COST_STRESS`), one column per run in the order D, V, H (a deterministic repeat as `D repeat`):
+
+- the strategy metrics: net return, maximum drawdown, worst session return, turnover, exposure, trades closed, scored sessions and execution costs;
+- both benchmarks: buy-and-hold (net return, maximum drawdown and excess return as the metrics state them, or `INSUFFICIENT` with its reason) and cash;
+- the simulated per-candidate ledger as the result carries it: the outcome, the final cash, reserved cash, receivables, positions value, equity, the number of open positions and of cash-ledger entries;
+- the label of each window from the evaluation plan, such as `historical window within model training period` ([OQ-02 §3.3](../specs/02-trading-domain-and-evaluation-spec.md)), and the uncertainty statement of the metrics with its recorded limitation.
+
+Every value is the committed value; nothing is recomputed (the buy-and-hold return comes from the metrics, not from net return minus excess return). A run that is not `COMPLETED`, or whose document is not committed yet (`NOT_FOUND`), shows `unknown`, never zero; without a recorded plan the labels are `unknown`. `--candidate` limits the output to one trial slot and exits 5 when the mission has none by that name. With `--json`, `data` holds `mission_id`, the plan's `windows` (or `null`) and, per candidate, its runs with `replay_of`, `window_label` and the committed `metrics` and `result` documents unchanged (`null` when none is committed).
 
 ### Confirmations
 
@@ -85,7 +97,9 @@ Every command gets a client command ID and is read back by it ([OQ-04 §12](../s
 - `APPLIED`: the record and the revision it produced are shown; `mission create`, `run-now` and `cancel` then read the mission back.
 - `PENDING`: accepted and durable, not applied after a bounded read-back. `command show` reads it again.
 - `REJECTED`: the API refused it. "No state changed" is printed only because the API states it.
-- `UNKNOWN`: no usable answer arrived and the read-back did not find the command. The CLI keeps the exact request in `pending/<command-id>.json` (mode 0600) in the configuration directory and refuses every new command until `command resolve <command-id>` settles it: that reads the command back and, only when the API has no command with that ID, sends the identical request once more. The same ID with the same body is applied once.
+- `UNKNOWN`: no usable answer arrived and the read-back did not find the command. `command resolve <command-id>` settles it: that reads the command back and, only when the API has no command with that ID, sends the identical request once more. The same ID with the same body is applied once.
+
+Before it sends a command the CLI writes the exact request, with the API address and the principal of the session, to `pending/<command-id>.json` (mode 0600) in the configuration directory, and removes the file once the outcome is known (`APPLIED`, `PENDING` or `REJECTED`). A command whose outcome is `UNKNOWN`, or whose process was interrupted before the answer, therefore stays in the journal, and the CLI refuses every new command (exit 9) until `command resolve` settles it. Resolution may send the request again, so it runs only against the API the command was sent to and as the principal that sent it ([OQ-05 §9](../specs/05-system-architecture-and-data-spec.md#9-authentication-and-authority)): after a login to another API or as another person, `command resolve` sends nothing, keeps the entry and exits 13, and the refusal names the API and the principal to log in as. `command show` under another session reads the API it is logged in to and leaves the journal entry alone.
 
 A stale revision (`REVISION_CONFLICT`) is never retried with a newer revision: the CLI reads the mission again, shows it with the current revision and exits 7, and the operator decides again.
 
@@ -100,7 +114,7 @@ A stale revision (`REVISION_CONFLICT`) is never retried with a newer revision: t
 | 2 | `USAGE` | A bad argument or input document, a missing confirmation, or a command that needs a terminal. Nothing was sent. |
 | 3 | `UNAUTHENTICATED` | Not logged in, the credential was refused, or the credentials file is unreadable or open to others. |
 | 4 | `FORBIDDEN` | The caller's roles do not allow the route. |
-| 5 | `NOT_FOUND` | No such mission, command or journal entry. |
+| 5 | `NOT_FOUND` | No such mission, command, journal entry or candidate. |
 | 6 | `REJECTED` | The API refused the command or the request: a policy, budget, execution or contract rule. |
 | 7 | `CONFLICT` | A stale revision (the current state is shown) or a reused command ID. |
 | 8 | `PENDING` | The command was accepted and is not applied yet. |
@@ -108,4 +122,5 @@ A stale revision (`REVISION_CONFLICT`) is never retried with a newer revision: t
 | 10 | `UNAVAILABLE` | No answer to a read, `UNAVAILABLE` or `RATE_LIMITED`. |
 | 11 | `PROTOCOL` | An answer failed its contract and was not used. |
 | 12 | `DECLINED` | The operator declined the confirmation; nothing was sent. |
+| 13 | `SESSION_MISMATCH` | `command resolve` of a command that was sent to another API or as another principal; nothing was sent. Log in to that API as that principal. |
 | 130 | `INTERRUPTED` | Interrupted (Ctrl+C at the credential prompt, or SIGINT). |

@@ -104,6 +104,7 @@ export async function until(check: () => boolean, what: string, ms = 3_000): Pro
 }
 
 export interface Sent {
+  readonly origin: string;
   readonly method: string;
   readonly path: string;
   readonly headers: Record<string, string>;
@@ -135,8 +136,8 @@ export function fakeApi(): FakeApi {
   const counts = new Map<string, number>();
   const sent: Sent[] = [];
   const fetch: Fetch = async (url: string, init: FetchInit) => {
-    const path = new URL(url).pathname;
-    const request: Sent = { method: init.method, path, headers: init.headers, body: init.body };
+    const { origin, pathname: path } = new URL(url);
+    const request: Sent = { origin, method: init.method, path, headers: init.headers, body: init.body };
     sent.push(request);
     const key = `${init.method} ${path}`;
     const count = (counts.get(key) ?? 0) + 1;

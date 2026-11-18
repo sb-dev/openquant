@@ -34,6 +34,7 @@ export const EXIT = {
   UNAVAILABLE: 10,
   PROTOCOL: 11,
   DECLINED: 12,
+  SESSION_MISMATCH: 13,
   INTERRUPTED: 130,
 } as const;
 
