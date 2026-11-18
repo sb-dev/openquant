@@ -21,7 +21,7 @@ export const boundaryRules: readonly BoundaryRule[] = [
   },
   {
     name: 'Worker code uses no Node built-ins',
-    roots: ['packages/api-contracts/ts/src', 'apps/api/src', 'packages/agents/src'],
+    roots: ['packages/api-contracts/ts/src', 'apps/api/src', 'packages/agents/src', 'packages/api-client/src'],
     reason: (specifier) => (specifier.startsWith('node:') || builtins.has(specifier.split('/')[0]) ? `imports the Node built-in ${specifier}` : undefined),
   },
   {

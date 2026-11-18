@@ -8,8 +8,11 @@ import { resolve } from 'node:path';
 // Permissive licences accepted for any package.
 export const permissiveLicences: readonly string[] = ['MIT', 'ISC', 'Apache-2.0', 'BSD-3-Clause', 'MIT OR Apache-2.0'];
 
-// Licences accepted only for the named packages. All are development tools; none is distributed.
+// Licences accepted only for the named packages. All but type-fest are development tools; none is distributed.
 export const reviewedLicences: Readonly<Record<string, RegExp>> = {
+  // type-fest, TypeScript declarations only, through ink (apps/cli). Dual licence: OpenQuant takes it under MIT. It
+  // holds no run-time code, so the built CLI contains none of it.
+  '(MIT OR CC0-1.0)': /^type-fest$/,
   // lightningcss and its platform binaries, through vite (Vitest). File-level copyleft on unmodified files.
   'MPL-2.0': /^lightningcss(?:-[a-z0-9-]+)?$/,
   // argparse, a port of the Python module, through js-yaml (json-schema-to-typescript and its ref parser).

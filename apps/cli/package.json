@@ -1,0 +1,30 @@
+{
+  "name": "@openquant/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "The openquant operator CLI: Ink rendering, direct commands with --json, and the typed API client",
+  "bin": {
+    "openquant": "./dist/openquant.mjs"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
+    "lint": "biome check --error-on-warnings .",
+    "test": "vitest run --reporter=default --reporter=./test-reporter.ts",
+    "build": "tsc -p tsconfig.json && node tools/bundle.ts"
+  },
+  "dependencies": {
+    "@openquant/api-client": "workspace:*",
+    "@openquant/api-contracts": "workspace:*",
+    "ink": "8.0.0",
+    "react": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  }
+}

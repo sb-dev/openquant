@@ -1035,13 +1035,15 @@ test('U1: a manifest cannot turn off test discovery or a test harness',()=>{
 // it ran no test or skipped one (see also scripts/workspace/tests/reporters.test.ts).
 const contractsManifest = 'packages/api-contracts/ts/package.json';
 const runnerManifest = 'apps/agent-runner/package.json';
+const clientManifest = 'packages/api-client/package.json';
+const cliManifest = 'apps/cli/package.json';
 // workspaceErrors reads only the workspace configuration, the package and scripts/workspace, so most of its
 // mutations use a small copy of those files and call it directly. The reviewer's edits below run the whole
 // repository check on a full copy, which proves that s0Errors applies these rules.
 function workspaceMutation(change: (directory: string) => void, expected: RegExp) {
   const temporary = mkdtempSync(resolve(tmpdir(),'openquant-workspace-'));
   try {
-    const kept = (file: string) => file.startsWith('packages/api-contracts/ts/') || file.startsWith('apps/api/') || file.startsWith('packages/agents/') || file.startsWith('apps/agent-runner/') || file.startsWith('scripts/workspace/') || ['package.json','pnpm-workspace.yaml','tsconfig.base.json','biome.json'].includes(file);
+    const kept = (file: string) => file.startsWith('packages/api-contracts/ts/') || file.startsWith('apps/api/') || file.startsWith('packages/agents/') || file.startsWith('apps/agent-runner/') || file.startsWith('packages/api-client/') || file.startsWith('apps/cli/') || file.startsWith('scripts/workspace/') || ['package.json','pnpm-workspace.yaml','tsconfig.base.json','biome.json'].includes(file);
     for (const file of paths(root).filter(kept)) { mkdirSync(resolve(temporary,file,'..'),{recursive:true}); copyFileSync(resolve(root,file),resolve(temporary,file)); }
     assert.deepEqual(workspaceErrors(temporary,new Set(paths(temporary))),[],'the small copy passes before the change');
     change(temporary);
@@ -1105,11 +1107,14 @@ test('C8: test sources cannot skip, focus or postpone a test, and sources cannot
 
 // C9 and U0: the workspace packages and the workspace test files are literal lists in scripts/s0.ts.
 test('C9: the reviewer\'s empty workspace fails: pnpm-workspace.yaml must list exactly the expected packages',()=>{
-  mutated((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - packages/api-contracts/ts\n','  - packages/none-yet\n')),/pnpm-workspace\.yaml must list exactly these packages, one per line, in this order: packages\/api-contracts\/ts, apps\/api, packages\/agents, apps\/agent-runner; found packages\/none-yet, apps\/api, packages\/agents, apps\/agent-runner/);
-  workspaceMutation((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - apps/api\n','  - packages/agents\n  - apps/api\n')),/found packages\/api-contracts\/ts, packages\/agents, apps\/api, packages\/agents, apps\/agent-runner/);
-  workspaceMutation((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - apps/agent-runner\n','  - apps/agent-runner\n  - packages/other\n')),/found packages\/api-contracts\/ts, apps\/api, packages\/agents, apps\/agent-runner, packages\/other/);
-  workspaceMutation((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - apps/agent-runner\n','')),/found packages\/api-contracts\/ts, apps\/api, packages\/agents$/);
-  workspaceMutation((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - packages/agents\n','')),/found packages\/api-contracts\/ts, apps\/api, apps\/agent-runner$/);
+  mutated((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - packages/api-contracts/ts\n','  - packages/none-yet\n')),/pnpm-workspace\.yaml must list exactly these packages, one per line, in this order: packages\/api-contracts\/ts, apps\/api, packages\/agents, apps\/agent-runner, packages\/api-client, apps\/cli; found packages\/none-yet, apps\/api, packages\/agents, apps\/agent-runner, packages\/api-client, apps\/cli/);
+  workspaceMutation((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - apps/api\n','  - packages/agents\n  - apps/api\n')),/found packages\/api-contracts\/ts, packages\/agents, apps\/api, packages\/agents, apps\/agent-runner, packages\/api-client, apps\/cli/);
+  workspaceMutation((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - apps/cli\n','  - apps/cli\n  - packages/other\n')),/found packages\/api-contracts\/ts, apps\/api, packages\/agents, apps\/agent-runner, packages\/api-client, apps\/cli, packages\/other/);
+  workspaceMutation((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - apps/cli\n','')),/found packages\/api-contracts\/ts, apps\/api, packages\/agents, apps\/agent-runner, packages\/api-client$/);
+  workspaceMutation((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - packages/api-client\n','')),/found packages\/api-contracts\/ts, apps\/api, packages\/agents, apps\/agent-runner, apps\/cli$/);
+  workspaceMutation((base)=>edit(base,'pnpm-workspace.yaml',(t)=>replaceOnce(t,'  - packages/agents\n','')),/found packages\/api-contracts\/ts, apps\/api, apps\/agent-runner, packages\/api-client, apps\/cli$/);
+  workspaceMutation((base)=>editJson(base,clientManifest,(value)=>{ value.name = '@openquant/other'; }),/package\.json must be named @openquant\/api-client/);
+  workspaceMutation((base)=>editJson(base,cliManifest,(value)=>{ value.name = '@openquant/other'; }),/package\.json must be named @openquant\/cli/);
   workspaceMutation((base)=>editJson(base,runnerManifest,(value)=>{ value.name = '@openquant/other'; }),/package\.json must be named @openquant\/agent-runner/);
   workspaceMutation((base)=>editJson(base,contractsManifest,(value)=>{ value.name = '@openquant/other'; }),/package\.json must be named @openquant\/api-contracts/);
   assert.equal(workspacePackageList('packages: [packages/api-contracts/ts]\n'),undefined);
@@ -1142,6 +1147,27 @@ test('P4: the Vitest configuration and the reporter of the agent runner are pinn
     workspaceMutation((base)=>edit(base,testFile,(t)=>t.replace(/^(\s*)it\(/m,`$1it.${modifier}(`)),/config\.test\.ts must not use \.(?:skip|only|todo): every test runs in verification/);
   }
   workspaceMutation((base)=>editJson(base,'apps/agent-runner/tsconfig.json',(value)=>{ value.compilerOptions.strict = false; }),/apps\/agent-runner\/tsconfig\.json must not turn strict off/);
+});
+
+// P5.2: the API client and the CLI are workspace packages like the others: their task scripts, Vitest configurations
+// and reporters are pinned and their tests cannot be skipped. Their import boundaries are tested in
+// scripts/workspace/tests/boundaries.test.ts.
+test('P5.2: the task scripts of the API client and the CLI are pinned',()=>{
+  for (const [directory, manifest] of [['packages/api-client',clientManifest],['apps/cli',cliManifest]] as const) {
+    for (const task of ['typecheck','lint','test','build'] as const) {
+      workspaceMutation((base)=>editJson(base,manifest,(value)=>{ value.scripts[task] = 'node --version'; }),new RegExp(`${directory}/package\\.json must have the ${task} script`));
+    }
+    workspaceMutation((base)=>editJson(base,manifest,(value)=>{ value.scripts.test = value.scripts.test.replace(' --reporter=./test-reporter.ts',''); }),new RegExp(`${directory}/package\\.json must have the test script`));
+    workspaceMutation((base)=>editJson(base,manifest,(value)=>{ value.scripts.prepare = 'node -e 0'; }),new RegExp(`${directory}/package\\.json must not have the prepare script`));
+  }
+});
+test('P5.2: the Vitest configurations and reporters of the API client and the CLI are pinned and cannot skip a test',()=>{
+  for (const [directory, testFile] of [['packages/api-client','packages/api-client/test/client.test.ts'],['apps/cli','apps/cli/test/format.test.ts']] as const) {
+    workspaceMutation((base)=>edit(base,`${directory}/vitest.config.ts`,(t)=>replaceOnce(t,'passWithNoTests: false','passWithNoTests: true')),new RegExp(`${directory}/vitest\\.config\\.ts must set passWithNoTests: false, and only that`));
+    workspaceMutation((base)=>edit(base,`${directory}/test-reporter.ts`,(t)=>replaceOnce(t,'      process.exitCode = 1;\n','')),new RegExp(`${directory}/test-reporter\\.ts changed`));
+    workspaceMutation((base)=>edit(base,testFile,(t)=>t.replace(/^(\s*)it\(/m,'$1it.skip(')),/must not use \.skip: every test runs in verification/);
+    workspaceMutation((base)=>editJson(base,`${directory}/tsconfig.json`,(value)=>{ value.compilerOptions.strict = false; }),new RegExp(`${directory}/tsconfig\\.json must not turn strict off`));
+  }
 });
 
 // G1 of the P1 review: pnpm-workspace.yaml may set only the reviewed keys, in the reviewed form, and no other tracked
