@@ -1,6 +1,6 @@
 # Reference
 
-The [command reference](commands.md) lists every implemented command, including the root package scripts, and its behaviour.
+The [command reference](commands.md) lists every implemented command, including the root package scripts, and its behaviour. The [CLI reference](cli.md) gives the commands, output and exit codes of the `openquant` operator CLI.
 
 Application CLI, API, strategy/protocol schemas, exit codes, configuration, and integration catalogues are added with their implementation. See [engineering §7](../specs/06-engineering-delivery-and-operations-spec.md#7-application-command-contract).
 

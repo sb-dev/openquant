@@ -36,6 +36,8 @@ test('Worker code cannot import Node built-ins', () => {
   }
   assert.match(boundaryViolations('apps/api/src/index.ts', "const cp = await import('node:child_process');").join('\n'), /imports the Node built-in node:child_process/);
   assert.match(boundaryViolations('packages/agents/src/runtime.ts', "const fs = require('fs');").join('\n'), /imports the Node built-in fs/);
+  assert.match(boundaryViolations('packages/api-client/src/client.ts', "import { request } from 'node:https';").join('\n'), /Worker code uses no Node built-ins\): .* imports the Node built-in node:https/);
+  assert.deepEqual(boundaryViolations('packages/api-client/tools/bundle-check.ts', "import { resolve } from 'node:path';"), [], 'its build tool is not Worker code');
   assert.deepEqual(boundaryViolations('apps/api/src/index.ts', "import { Hono } from 'hono';\nimport { digest } from '@openquant/api-contracts';"), []);
   assert.deepEqual(boundaryViolations('packages/api-contracts/ts/tools/generate.ts', "import { readFileSync } from 'node:fs';"), [], 'build tools are not Worker code');
 });

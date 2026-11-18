@@ -4,7 +4,7 @@ Directories reserve ownership until their checkpoint. The agent runner is implem
 
 | Path | Purpose | First checkpoint |
 | --- | --- | --- |
-| [cli](cli/README.md) | TypeScript Ink operator client | M1 |
+| [cli](cli/README.md) | TypeScript Ink operator client (S1 direct commands implemented, not published) | M1 |
 | [api](api/README.md) | Cloudflare control application | M1 |
 | [agent-runner](agent-runner/README.md) | Fly.io delegated execution host (implemented for S1, tested with a fake executor, not deployed) | M1 |
 | [engine](engine/README.md) | Native Rust host | M1 |

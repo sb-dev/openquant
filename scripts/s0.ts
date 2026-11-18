@@ -128,6 +128,28 @@ export const expectedWorkspacePackages: readonly WorkspacePackage[] = [
       build: 'tsc -p tsconfig.json && node tools/bundle.ts',
     },
   },
+  {
+    // Worker-safe: its build type checks it and bundles it for the neutral platform, which fails on a Node import.
+    directory: 'packages/api-client',
+    name: '@openquant/api-client',
+    scripts: {
+      typecheck: 'tsc -p tsconfig.json && tsc -p tsconfig.test.json',
+      lint: 'biome check --error-on-warnings .',
+      test: 'vitest run --reporter=default --reporter=./test-reporter.ts',
+      build: 'tsc -p tsconfig.json && node tools/bundle-check.ts',
+    },
+  },
+  {
+    // A Node application: its build type checks and bundles the openquant binary for Node 24, with Ink and React inside.
+    directory: 'apps/cli',
+    name: '@openquant/cli',
+    scripts: {
+      typecheck: 'tsc -p tsconfig.json && tsc -p tsconfig.test.json',
+      lint: 'biome check --error-on-warnings .',
+      test: 'vitest run --reporter=default --reporter=./test-reporter.ts',
+      build: 'tsc -p tsconfig.json && node tools/bundle.ts',
+    },
+  },
 ];
 
 // Files that decide whether a test run counts or which guards run, pinned by SHA-256 of their bytes: the two
@@ -144,6 +166,10 @@ export const pinnedFiles: Readonly<Record<string, string>> = {
   'packages/agents/vitest.config.ts': '58433531d0bf46b50dba6178f0ce16c6b86c1972d8b3021edcbd9e3c3d5550fb',
   'apps/agent-runner/test-reporter.ts': '5a19ae965e6153903150f7fe3e37fc39a1e5b26a7729bb115065b70faf1d865d',
   'apps/agent-runner/vitest.config.ts': '58433531d0bf46b50dba6178f0ce16c6b86c1972d8b3021edcbd9e3c3d5550fb',
+  'packages/api-client/test-reporter.ts': '5a19ae965e6153903150f7fe3e37fc39a1e5b26a7729bb115065b70faf1d865d',
+  'packages/api-client/vitest.config.ts': '58433531d0bf46b50dba6178f0ce16c6b86c1972d8b3021edcbd9e3c3d5550fb',
+  'apps/cli/test-reporter.ts': '5a19ae965e6153903150f7fe3e37fc39a1e5b26a7729bb115065b70faf1d865d',
+  'apps/cli/vitest.config.ts': '58433531d0bf46b50dba6178f0ce16c6b86c1972d8b3021edcbd9e3c3d5550fb',
 };
 
 // Protocol manifest vocabulary. The Rust tests select entries by these exact expect values. For

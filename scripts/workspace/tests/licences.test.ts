@@ -20,6 +20,8 @@ test('a licence outside the allowlist fails', () => {
 test('a reviewed licence is accepted only for the named packages', () => {
   assert.deepEqual(licenceErrors([{ name: 'lightningcss-darwin-arm64', version: '1.33.0', licence: 'MPL-2.0' }, { name: 'argparse', version: '2.0.1', licence: 'Python-2.0' }]), []);
   assert.deepEqual(licenceErrors([{ name: 'other', version: '1.0.0', licence: 'MPL-2.0' }]), ['Licence not on the allowlist: other@1.0.0 is MPL-2.0']);
+  assert.deepEqual(licenceErrors([{ name: 'type-fest', version: '5.10.0', licence: '(MIT OR CC0-1.0)' }]), []);
+  assert.deepEqual(licenceErrors([{ name: 'other', version: '1.0.0', licence: '(MIT OR CC0-1.0)' }]), ['Licence not on the allowlist: other@1.0.0 is (MIT OR CC0-1.0)']);
 });
 
 test('an empty install fails', () => assert.deepEqual(licenceErrors([]), ['No installed npm packages were found to check']));
