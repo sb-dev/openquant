@@ -10,6 +10,9 @@
 //     request, the strategy of the request and the dataset and instrument of the mission's manifest (D14);
 //   - the metrics derive from that result, that input and that method, for the window and cost case of the run.
 //
+// A REPLAY run (replay.ts) binds the same submission, result and identities. Its input is the frozen input that its
+// request names, and its metrics follow the replay convention (REPLAY_METRICS); it has no mission, manifest or policy.
+//
 // The outcome then maps to run status (outcomes.ts). A redelivery of the same submission returns the stored outcome:
 // the run has one official result (results.run_id is its primary key).
 
@@ -17,6 +20,7 @@ import type {
   BacktestRequest,
   EvaluationInput,
   EvaluationMetrics,
+  EvaluationRequest,
   EvaluationSubmission,
 } from '@openquant/api-contracts';
 import { canonicalJson, digest, RESULT_SCAN_LIMIT, scanEvaluationResult } from '@openquant/api-contracts';
@@ -36,7 +40,8 @@ import {
   sameExecutable,
   storedBytes,
 } from './refs.ts';
-import { durationUsage, openResult, repeatOutcome } from './results.ts';
+import { REPLAY_METRICS } from './replay.ts';
+import { durationUsage, openAnyResult, repeatOutcome } from './results.ts';
 import { storeDocument } from './store.ts';
 import { requireRelease } from './validation.ts';
 
@@ -51,7 +56,7 @@ export type EvaluationAccepted = 'COMPLETED' | 'FAILED' | 'REPEATED';
 /** The bindings of the submission to its request. Throws IDENTITY_MISMATCH; nothing is written. */
 function bindSubmission(
   submission: EvaluationSubmission,
-  request: BacktestRequest,
+  request: EvaluationRequest,
   requestDigest: string,
   environment: string,
   executable: { name: string; version: string; digest: string },
@@ -141,7 +146,7 @@ export async function acceptEvaluationSubmission(
   principalId: string,
   submission: EvaluationSubmission,
 ): Promise<Guarded<EvaluationAccepted>> {
-  const gate = await openResult(tx, ctx, submission.attempt.attempt_id, submission.attempt.ownership_revision);
+  const gate = await openAnyResult(tx, ctx, submission.attempt.attempt_id, submission.attempt.ownership_revision);
   if (gate.kind === 'rejected') return { ok: false, failure: gate.failure };
   const { env } = ctx;
   const submissionDigest = await digest(submission);
@@ -155,7 +160,6 @@ export async function acceptEvaluationSubmission(
   const dispatch = await dispatchOf(tx, attempt.attempt_id);
   const requestRef = requestRefOf(dispatch.message);
   const request = await loadCited(tx, env, 'evaluation-request', requestRef, 'request');
-  if (request.mode !== 'BACKTEST') throw mismatch('Only backtest runs are accepted here.');
   const executable = await claimedExecutable(tx, attempt.attempt_id);
   bindSubmission(submission, request, requestRef.digest, env.environment, executable, attempt);
   const release = await requireRelease(tx, env.environment);
@@ -227,39 +231,66 @@ export async function acceptEvaluationSubmission(
       throw mismatch('The outcome code of the result is not the one the submission states.');
   }
 
-  if (inputRef !== undefined) {
-    const input = await loadCited(tx, env, 'evaluation-input', inputRef, 'input');
-    bindInput(input, request);
-    if (request.input.source !== 'PROVIDER_MANIFEST') throw mismatch('The request names no manifest.');
-    const manifest = await loadCited(tx, env, 'dataset-manifest', request.input.manifest, 'manifest');
-    if (
-      !same(input.dataset, manifest.dataset) ||
-      input.instruments[0]?.instrument_id !== manifest.instrument.instrument_id
-    ) {
-      throw mismatch('The input is not built from the dataset and instrument of the mission manifest.');
-    }
-  }
   let metrics: EvaluationMetrics | undefined;
-  if (metricsRef !== undefined && resultRef !== undefined && inputRef !== undefined) {
-    metrics = await loadCited(tx, env, 'evaluation-metrics', metricsRef, 'metrics');
-    if (request.input.source !== 'PROVIDER_MANIFEST') throw mismatch('The request names no windows.');
-    const policy = await loadPolicy(tx, env, mission.policy_id, mission.policy_revision);
-    if (policy === undefined) throw new Error(`The policy of mission ${mission.mission_id} is missing.`);
-    bindMetrics(metrics, {
-      runId: work.id,
-      resultDigest: resultRef.digest,
-      inputDigest: inputRef.digest,
-      strategyHash: request.strategy.artefact.digest,
-      engineDigest: submission.engine_digest,
-      method: request.method,
-      window: {
-        role: work.windowRole as string,
-        costScenario: work.costScenario as string,
-        start: request.input.windows.scored_start,
-        end: request.input.windows.scored_end,
-      },
-      metricScale: policy.document.metrics.metric_scale,
-    });
+  if (request.mode === 'REPLAY') {
+    // A replay evaluates the frozen input that its request names, and nothing else. Its metrics follow the replay
+    // convention of the evaluate job (replay.ts, REPLAY_METRICS): no window role, cost case or policy exists for it.
+    if (inputRef !== undefined && !same(inputRef, request.input.input))
+      throw mismatch('The input of a replay is not the frozen input that its request names.');
+    if (metricsRef !== undefined && resultRef !== undefined && inputRef !== undefined) {
+      metrics = await loadCited(tx, env, 'evaluation-metrics', metricsRef, 'metrics');
+      const input = await loadCited(tx, env, 'evaluation-input', inputRef, 'input');
+      bindMetrics(metrics, {
+        runId: work.id,
+        resultDigest: resultRef.digest,
+        inputDigest: inputRef.digest,
+        strategyHash: request.strategy.artefact.digest,
+        engineDigest: submission.engine_digest,
+        method: request.method,
+        window: {
+          role: REPLAY_METRICS.windowRole,
+          costScenario: REPLAY_METRICS.costScenario,
+          start: input.windows.scored_start,
+          end: input.windows.scored_end,
+        },
+        metricScale: REPLAY_METRICS.metricScale,
+      });
+    }
+  } else {
+    if (mission === undefined) throw mismatch('A backtest run belongs to a mission.');
+    if (inputRef !== undefined) {
+      const input = await loadCited(tx, env, 'evaluation-input', inputRef, 'input');
+      bindInput(input, request);
+      if (request.input.source !== 'PROVIDER_MANIFEST') throw mismatch('The request names no manifest.');
+      const manifest = await loadCited(tx, env, 'dataset-manifest', request.input.manifest, 'manifest');
+      if (
+        !same(input.dataset, manifest.dataset) ||
+        input.instruments[0]?.instrument_id !== manifest.instrument.instrument_id
+      ) {
+        throw mismatch('The input is not built from the dataset and instrument of the mission manifest.');
+      }
+    }
+    if (metricsRef !== undefined && resultRef !== undefined && inputRef !== undefined) {
+      metrics = await loadCited(tx, env, 'evaluation-metrics', metricsRef, 'metrics');
+      if (request.input.source !== 'PROVIDER_MANIFEST') throw mismatch('The request names no windows.');
+      const policy = await loadPolicy(tx, env, mission.policy_id, mission.policy_revision);
+      if (policy === undefined) throw new Error(`The policy of mission ${mission.mission_id} is missing.`);
+      bindMetrics(metrics, {
+        runId: work.id,
+        resultDigest: resultRef.digest,
+        inputDigest: inputRef.digest,
+        strategyHash: request.strategy.artefact.digest,
+        engineDigest: submission.engine_digest,
+        method: request.method,
+        window: {
+          role: work.windowRole as string,
+          costScenario: work.costScenario as string,
+          start: request.input.windows.scored_start,
+          end: request.input.windows.scored_end,
+        },
+        metricScale: policy.document.metrics.metric_scale,
+      });
+    }
   }
 
   // Every binding holds: commit the one official result.
@@ -302,7 +333,7 @@ export async function acceptEvaluationSubmission(
     await openAttention(
       tx,
       env,
-      mission.mission_id,
+      mission?.mission_id ?? null,
       `run ${work.id}`,
       `The run ${work.id} failed with ${code ?? 'no code'}: the defect is not the candidate's. Dependent gates are INSUFFICIENT.`,
     );

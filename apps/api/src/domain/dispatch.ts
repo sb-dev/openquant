@@ -23,9 +23,9 @@ import { ApiFailure } from '../errors.ts';
 import { multiplyDecimal } from './decimal.ts';
 import { currentRelease, loadPlan, loadPolicy, loadProfile } from './documents.ts';
 import { reject } from './rejection.ts';
-import { findMission, loadMissionBudget } from './rows.ts';
+import { findMission, findReplay, loadMissionBudget } from './rows.ts';
 import { artefactRef, storeDocument } from './store.ts';
-import type { DispatchKind, Work } from './work.ts';
+import { type DispatchKind, missionIdOf, type Work } from './work.ts';
 
 export interface Binding {
   readonly attemptId: string;
@@ -52,8 +52,13 @@ export type DispatchBuilders = Partial<Record<DispatchKind, DispatchBuilder>>;
 // them here, the same for every mission. max_requests and max_response_bytes follow from the budget and the policy.
 export const RETRIEVAL_MAX_RETRIES = 2;
 export const RETRIEVAL_REQUEST_TIMEOUT_SECONDS = 30;
-/** The dataset operations of a mission's retrieval. The probe-only capabilities of a profile are not retrieved. */
-export const DATASET_OPERATIONS: readonly string[] = ['daily_bars', 'corporate_actions', 'calendar'];
+/**
+ * The dataset operations of a mission's retrieval. The probe-only capabilities of a profile (the minute bars of the
+ * session probe) are not retrieved. The asset read is: the batch host maps the instrument through it before it reads
+ * the calendar and the bars, and refuses a request that does not list it (apps/engine/src/market/retrieve.rs,
+ * REQUIRED; OQ-05 section 7.1, "stable instrument mapping"). The connected test found it missing.
+ */
+export const DATASET_OPERATIONS: readonly string[] = ['daily_bars', 'corporate_actions', 'calendar', 'asset'];
 
 /** The most provider requests that one retrieval attempt may make: the mission's budget over its attempt cap. */
 export function retrievalRequestCap(providerRequests: string | number, attemptCap: number): number {
@@ -110,7 +115,7 @@ function assertValid(contract: 'job-dispatch', message: unknown): JobDispatch {
 }
 
 export const buildRetrieve: DispatchBuilder = async ({ tx, env, actorId }, work, binding) => {
-  const mission = await findMission(tx, work.missionId);
+  const mission = await findMission(tx, missionIdOf(work));
   if (mission === undefined) throw new Error(`The mission ${work.missionId} does not exist.`);
   const profile = await loadProfile(tx, env, mission.profile_id, mission.profile_revision);
   const policy = await loadPolicy(tx, env, mission.policy_id, mission.policy_revision);
@@ -197,7 +202,58 @@ async function requireRef(tx: Queryable, digest: string, what: string): Promise<
   return ref;
 }
 
-export const buildEvaluate: DispatchBuilder = async ({ tx, env, actorId }, work, binding) => {
+/**
+ * The evaluation request of a REPLAY run: the frozen input and the strategy of its replay record, the engine and method
+ * of the release, and no mission, profile, policy or plan (OQ-05 section 7, evaluation-request/1 mode REPLAY). Its
+ * dispatch names no mission.
+ */
+const buildReplayEvaluate: DispatchBuilder = async ({ tx, env, actorId }, work, binding) => {
+  const replay = await findReplay(tx, work.replayId as string);
+  const release = (await currentRelease(tx, env.environment)) as ReleaseManifest | undefined;
+  if (release === undefined) {
+    throw new ApiFailure(
+      'EXECUTION_DISABLED',
+      `No release identity is recorded for ${env.environment}: a replay request needs the required engine and method.`,
+    );
+  }
+  const stored = await storeDocument(
+    tx,
+    env,
+    'evaluation-request',
+    {
+      schema_version: 'evaluation-request/1',
+      run_id: work.id,
+      attempt: { attempt_id: binding.attemptId, ownership_revision: binding.ownershipRevision },
+      mode: 'REPLAY',
+      environment: env.environment,
+      engine: release.engine,
+      method: release.method,
+      strategy: {
+        strategy_id: replay.strategy_id,
+        version: replay.strategy_version,
+        artefact: await requireRef(tx, replay.strategy_digest, 'strategy'),
+      },
+      conditions: { fixture_set: replay.fixture_set, case_id: replay.case_id },
+      input: { source: 'INPUT_REFERENCE', input: await requireRef(tx, replay.input_digest, 'frozen input') },
+    },
+    actorId,
+  );
+  return {
+    destination: 'BATCH_QUEUE',
+    message: assertValid('job-dispatch', {
+      schema_version: 'job-dispatch/1',
+      environment: env.environment,
+      job_id: work.id,
+      attempt: { attempt_id: binding.attemptId, ownership_revision: binding.ownershipRevision },
+      dispatched_at: timestamp(env.clock()),
+      inputs: { kind: 'evaluate', request: stored.ref },
+    }) as unknown as Record<string, unknown>,
+  };
+};
+
+export const buildEvaluate: DispatchBuilder = async (context, work, binding) => {
+  if (work.replayId !== null) return buildReplayEvaluate(context, work, binding);
+  const { tx, env, actorId } = context;
   if (
     work.kind !== 'run' ||
     work.runSlot === null ||
@@ -209,7 +265,7 @@ export const buildEvaluate: DispatchBuilder = async ({ tx, env, actorId }, work,
   ) {
     throw new Error(`The work ${work.id} is not a planned backtest run.`);
   }
-  const mission = await findMission(tx, work.missionId);
+  const mission = await findMission(tx, missionIdOf(work));
   if (mission === undefined) throw new Error(`The mission ${work.missionId} does not exist.`);
   const profile = await loadProfile(tx, env, mission.profile_id, mission.profile_revision);
   const policy = await loadPolicy(tx, env, mission.policy_id, mission.policy_revision);

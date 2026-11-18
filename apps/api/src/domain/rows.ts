@@ -41,6 +41,31 @@ export async function findMission(tx: Queryable, missionId: string, lock = false
 }
 
 /** The mission, locked, or a NOT_FOUND refusal. */
+/** The replay record of a REPLAY run (migration 0011, replay.ts). */
+export interface ReplayRow {
+  readonly replay_id: string;
+  readonly run_id: string;
+  readonly fixture_set: string;
+  readonly case_id: string;
+  readonly strategy_id: string;
+  readonly strategy_version: number;
+  readonly strategy_digest: string;
+  readonly input_digest: string;
+  readonly evaluate_seconds: number;
+}
+
+export async function findReplay(tx: Queryable, replayId: string): Promise<ReplayRow> {
+  const { rows } = await tx.query<ReplayRow>(
+    `SELECT replay_id, run_id, fixture_set, case_id, strategy_id, strategy_version, strategy_digest, input_digest,
+            evaluate_seconds
+       FROM replays WHERE replay_id = $1`,
+    [replayId],
+  );
+  const row = rows[0];
+  if (row === undefined) throw new Error(`The replay ${replayId} does not exist.`);
+  return row;
+}
+
 export async function lockMission(tx: Queryable, missionId: string): Promise<MissionRow> {
   const mission = await findMission(tx, missionId, true);
   if (mission === undefined) throw reject('NOT_FOUND', `The mission ${missionId} does not exist.`);

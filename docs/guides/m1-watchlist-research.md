@@ -15,6 +15,16 @@ An operator selects sources, a watchlist, calendar and budgets. OpenQuant retain
 5. In S4 freeze watchlist membership and allocate budgets to both stock and joint work. Display every member's outcome. Use a bounded strategy-level mission over the same snapshot, then evaluate one policy with ranking, five slots and shared strategy cash through Rust. Run the [four-candidate comparison](../specs/02-trading-domain-and-evaluation-spec.md#37-controlled-seed-comparison) on common dates and inputs. Inspect joint results, contributions and skipped entries. Required missing data blocks joint evidence; other stock findings remain saved. Preserve old cycles when membership changes.
 6. In S5 add stored schedule slots and bounded catch-up, pause/resume and explicit cancellation. Verify recovery without clients, shared provider/model/compute reservations and conservative unknown usage. Resume joint state including pending entries and scheduled stops. Supply later missions with permitted prior findings for bounded revisions; retain failed variants, lineage and holdout consumption.
 
+### Run the S1 connected test locally
+
+`apps/api/test/e2e.connected.test.ts` drives one pilot-shaped mission through the api-client to `CONCLUDED` with `NO_ELIGIBLE_CANDIDATE`, replays every S0 case through the connected path and checks candidate cash isolation. It runs the real API on a real PostgreSQL, the built `engine-batch` binary and the agent runner's modules with a fake executor. Every external host is a loopback fake: no credential, provider, model or network call. `pnpm verify` runs it inside the `@openquant/api` tests. To run it alone:
+
+1. `pnpm install --frozen-lockfile`, then build what it reads: `cargo build --locked -p openquant-engine --bin engine-batch` (a debug build: only that accepts the test-only loopback mode) and `cargo run --locked -p openquant-engine --bin s0-replay -- --out local-runs/s0` (the digests it compares with).
+2. Have PostgreSQL 14 or later server binaries on the machine, or set `OPENQUANT_TEST_DATABASE_URL` (the [command reference](../reference/commands.md) gives the details), and `openssl` on `PATH` for the loopback certificates.
+3. Build the packages that the API tests import, `pnpm exec turbo run build --filter=@openquant/api^...`, then run `pnpm --filter @openquant/api exec vitest run test/e2e.connected.test.ts`.
+
+A missing binary, S0 index or `openssl` fails the test with the command that supplies it; it never skips. It does not establish S1 acceptance: the providers, the queue and the executor are fakes, and nothing is deployed.
+
 ## Acceptance handoff
 
 Use [engineering §8](../specs/06-engineering-delivery-and-operations-spec.md#8-delivery-checkpoints-and-acceptance). Each slice records its implemented path, source revision, exact command, input/executable identities, independent expected results, actual results, adverse cases and remaining limits. S0 completes with its local result report and real Rust checks in `pnpm verify`. Record only the cases verified; local replay does not complete A03–A05 in full or establish A11 distributed recovery.

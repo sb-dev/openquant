@@ -7,13 +7,31 @@ import { writeAudit } from '../audit.ts';
 import type { Database, Queryable } from '../db/database.ts';
 import type { ApiEnv } from '../env.ts';
 import { ApiFailure } from '../errors.ts';
-import { fenceFailure, type Located, locate, recordRejection, type WorkContext } from './attempts.ts';
+import {
+  fenceFailure,
+  type Located,
+  type LocatedAny,
+  locate,
+  locateAny,
+  recordRejection,
+  type WorkContext,
+} from './attempts.ts';
 import type { UsageValue } from './budget.ts';
 
-export type ResultGate =
-  | { readonly kind: 'live'; readonly located: Located }
-  | { readonly kind: 'repeat'; readonly located: Located }
+export type ResultGate<L extends LocatedAny = Located> =
+  | { readonly kind: 'live'; readonly located: L }
+  | { readonly kind: 'repeat'; readonly located: L }
   | { readonly kind: 'rejected'; readonly failure: ApiFailure };
+
+/** As openResult, for the evaluation route, which also takes the submission of a REPLAY run (replay.ts). */
+export function openAnyResult(
+  tx: Queryable,
+  ctx: WorkContext,
+  attemptId: string,
+  ownershipRevision: number,
+): Promise<ResultGate<LocatedAny>> {
+  return openWith(tx, ctx, attemptId, ownershipRevision, locateAny);
+}
 
 /**
  * Decide what a submission from an attempt may do. `live`: the caller holds the current lease and ownership revision.
@@ -22,13 +40,23 @@ export type ResultGate =
  * LEASE_EXPIRED, or ATTEMPT_NOT_CLAIMABLE for an attempt that is cancelled, failed, completed with no result of its own
  * or still pending (OQ-05 section 4).
  */
-export async function openResult(
+export function openResult(
   tx: Queryable,
   ctx: WorkContext,
   attemptId: string,
   ownershipRevision: number,
 ): Promise<ResultGate> {
-  const located = await locate(tx, attemptId);
+  return openWith(tx, ctx, attemptId, ownershipRevision, locate);
+}
+
+async function openWith<L extends LocatedAny>(
+  tx: Queryable,
+  ctx: WorkContext,
+  attemptId: string,
+  ownershipRevision: number,
+  find: (tx: Queryable, attemptId: string) => Promise<L | undefined>,
+): Promise<ResultGate<L>> {
+  const located = await find(tx, attemptId);
   if (located === undefined) {
     return { kind: 'rejected', failure: new ApiFailure('NOT_FOUND', 'The attempt does not exist.') };
   }
@@ -48,7 +76,7 @@ export async function openResult(
  * caller answers as for the first), or another document, which is refused.
  */
 export function repeatOutcome(
-  located: Located,
+  located: LocatedAny,
   submissionDigest: string,
 ): { readonly ok: true } | { readonly ok: false; readonly failure: ApiFailure } {
   return located.attempt.result_digest === submissionDigest ? { ok: true } : { ok: false, failure: differentRepeat() };

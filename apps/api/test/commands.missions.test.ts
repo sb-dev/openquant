@@ -374,6 +374,9 @@ describe('run_mission_now', () => {
     expected.attempt = { attempt_id: started.attemptId, ownership_revision: 1 };
     expected.environment = 'DEVELOPMENT';
     expected.deadline = '2026-11-15T10:10:00Z';
+    // The fixture lists three operations; the batch host also needs the asset read of the instrument mapping, which
+    // the profile lists and the engine requires (dispatch.ts, DATASET_OPERATIONS). The fixture is not changed here.
+    expected.operations = [...expected.operations, 'provider:alpaca/asset@1'];
     expect(request).toEqual(expected);
     await world.drop();
   });

@@ -14,6 +14,7 @@ import { grantClaim } from '../domain/claim.ts';
 import { loadPolicy } from '../domain/documents.ts';
 import { acceptEvaluationSubmission } from '../domain/evaluation.ts';
 import { dispatchOf, referencesIn, storedBytes } from '../domain/refs.ts';
+import { REPLAY_ARTEFACT_LIMIT_BYTES } from '../domain/replay.ts';
 import { auditRefusal } from '../domain/results.ts';
 import { acceptRetrievalResult } from '../domain/retrieval.ts';
 import { findMission } from '../domain/rows.ts';
@@ -61,7 +62,7 @@ function requireLiveCapability(caller: Parameters<Handler>[0]['caller']): void {
 
 /**
  * The artefacts that an attempt may read: the ones its dispatch message names, and the ones that the documents of that
- * message name in turn (the strategy and manifest of an evaluation request, the results and metrics of the submissions
+ * message name in turn (the strategy, manifest and cohort policy of an evaluation request, the results and metrics of the submissions
  * that an assessment reads). Nothing else: a worker reads no artefact of another mission.
  */
 export async function readableDigests(
@@ -75,15 +76,24 @@ export async function readableDigests(
     kind?: string;
     request?: { digest: string };
     runs?: { submission?: { digest: string } }[];
+    strategy_hash?: string;
   };
   const documents: string[] = [];
   if (inputs.kind === 'evaluate' && inputs.request !== undefined) documents.push(inputs.request.digest);
   if (inputs.kind === 'assess') {
     for (const run of inputs.runs ?? []) if (run.submission !== undefined) documents.push(run.submission.digest);
+    // The assess job rebuilds each completed run from the candidate's strategy artefact, which its dispatch names by
+    // hash only (apps/engine/src/batch/jobs/assess.rs). The connected test found it unreadable.
+    if (inputs.strategy_hash !== undefined) readable.add(inputs.strategy_hash);
   }
   for (const digest of documents) {
     const parsed = JSON.parse(new TextDecoder().decode(await storedBytes(env, digest)));
     for (const ref of referencesIn(parsed)) readable.add(ref.digest);
+    // The evaluate job of a backtest reads the cohort policy that its request names by record reference, for the
+    // metric scale and the uncertainty limitation of its metrics (apps/engine/src/batch/jobs/evaluate.rs, metrics_facts).
+    // The connected test found it unreadable.
+    const policy = inputs.kind === 'evaluate' ? parsed?.conditions?.cohort_policy?.digest : undefined;
+    if (typeof policy === 'string') readable.add(policy);
   }
   return readable;
 }
@@ -118,14 +128,19 @@ export const artefactRoute: Handler = async ({ env, db, caller, params, body, re
     throw new ApiFailure('DIGEST_MISMATCH', 'The uploaded bytes do not hash to the digest of the path.');
   const unlocked = await workOfAttempt(db, caller.attempt.attemptId);
   if (unlocked === undefined) throw new ApiFailure('NOT_FOUND', 'The attempt does not exist.');
-  const mission = await findMission(db, unlocked.missionId);
-  const policy =
-    mission === undefined ? undefined : await loadPolicy(db, env, mission.policy_id, mission.policy_revision);
-  if (policy === undefined) throw new Error(`The policy of work ${unlocked.id} is missing.`);
-  if (body.bytes.length > policy.document.limits.artefact_limit_bytes) {
+  // A replay run has no cohort policy: its artefacts are bounded by the replay limit (replay.ts).
+  let limit = REPLAY_ARTEFACT_LIMIT_BYTES;
+  if (unlocked.missionId !== null) {
+    const mission = await findMission(db, unlocked.missionId);
+    const policy =
+      mission === undefined ? undefined : await loadPolicy(db, env, mission.policy_id, mission.policy_revision);
+    if (policy === undefined) throw new Error(`The policy of work ${unlocked.id} is missing.`);
+    limit = policy.document.limits.artefact_limit_bytes;
+  }
+  if (body.bytes.length > limit) {
     throw new ApiFailure(
       'LIMIT_EXCEEDED',
-      `An artefact may hold at most ${policy.document.limits.artefact_limit_bytes} bytes under the cohort policy.`,
+      `An artefact may hold at most ${limit} bytes under the ${unlocked.missionId === null ? 'replay limit' : 'cohort policy'}.`,
     );
   }
   // The Worker verified the hash above and verifies it again before it writes the content-addressed key (OQ-05 section 5).
