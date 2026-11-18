@@ -27,6 +27,6 @@ terraform -chdir=infra/terraform plan -out=<untracked plan file>
 
 Supply variables as `TF_VAR_<name>` from the protected environment, never in a tracked `.tfvars` file. The Hyperdrive password is in the state, so the state store is a secret store.
 
-## Not verified
+## Checks
 
-Terraform is not installed in the development container, so neither `terraform validate` nor a plan has run. The attribute names follow the provider 5.x documentation as last known. [`scripts/infrastructure.ts`](../../scripts/infrastructure.ts) checks the exact provider pin, `required_version`, the empty backend, Hyperdrive caching, the absence of literal identifiers and of tracked variable files, and that the variables equal the list in `infra/environments/staging.json`.
+[`infrastructure-check.yml`](../../.github/workflows/infrastructure-check.yml) runs `terraform fmt -check -recursive`, `terraform init -backend=false` and `terraform validate` here with Terraform 1.17.0, whose archive it checks against a pinned SHA-256. No plan has run: it needs the owner's account, credential and state store. [`scripts/infrastructure.ts`](../../scripts/infrastructure.ts) checks the exact provider pin, `required_version`, the empty backend, Hyperdrive caching, the absence of literal identifiers and of tracked variable files, and that the variables equal the list in `infra/environments/staging.json`.
