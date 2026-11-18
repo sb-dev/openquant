@@ -568,6 +568,13 @@ const register: Step = {
           await reject(`The proposal leaves ${proposal.unresolved.length} executable rule(s) unresolved.`);
           continue;
         }
+        // A proposal that cites a date of a withheld window used withheld data (OQ-02 section 3.3): it is never built
+        // into a draft, since the draft drops the claims that show it. The reason names no date, so the next
+        // request carries none.
+        if (parsed.blockers.some((blocker) => blocker.code === 'HOLDOUT_REFERENCE')) {
+          await reject('The proposal cites a date inside a withheld window.');
+          continue;
+        }
         const seedArtefact = await loadDocument(env, 'strategy-artefact', seed.strategyHash);
         const draft = await draftOf(tx, missionId, seedArtefact, proposal);
         if (!validateContract('strategy-artefact', draft).ok) {

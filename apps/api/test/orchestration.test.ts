@@ -52,6 +52,8 @@ interface Behaviour {
   validate?: (slot: string, ordinal: number) => Doc | undefined;
   /** The threshold that a proposer of a slot proposes, by the ordinal of its proposal. */
   threshold?: (slot: string, ordinal: number) => string;
+  /** The rationale that a proposer of a slot writes, by the ordinal of its proposal. */
+  rationale?: (slot: string, ordinal: number) => string | undefined;
   /** Hold the agent work of a role: claim it and post nothing. */
   holdAgent?: (role: string) => boolean;
 }
@@ -210,7 +212,9 @@ async function runnerHost(flow: Flow & Started, message: Doc, behaviour: Behavio
       source_refs: [],
       rule_changes: computeDifference(parent, proposed).declared,
       claims: {
-        rationale: 'The development results suggest a higher weakness threshold.',
+        rationale:
+          behaviour.rationale?.(job?.trial_slot as string, (job?.proposals as number) + 1) ??
+          'The development results suggest a higher weakness threshold.',
         expected_effect: 'More entries; evaluation can contradict this.',
         invalidation_conditions: ['No change in entry counts against the parent.'],
         requested_tests: ['The registered comparison against the parent.'],
@@ -423,6 +427,41 @@ describe('a pilot-shaped mission driven by the orchestrator', () => {
     const summary = await tick(flow, fake);
     expect(summary.orchestration).toEqual({ advanced: 0, errors: 0 });
     expect(await flow.world.snapshot()).toEqual(before);
+  });
+});
+
+describe('a proposal that cites a withheld date', () => {
+  let flow: Flow & Started;
+  const fake = hosts();
+  // rev-a's first proposal says that it chose its threshold from a holdout session (OQ-02 section 3.3, A05).
+  const behaviour: Behaviour = {
+    rationale: (slot, ordinal) =>
+      slot === 'rev-a' && ordinal === 1 ? 'The threshold was chosen from the close of 2025-01-02.' : undefined,
+  };
+
+  beforeAll(async () => {
+    flow = await orchestratedFlow();
+    await runUntilQuiet(flow, fake, behaviour);
+  }, 240_000);
+  afterAll(async () => {
+    await flow.world.drop();
+  });
+
+  it('is recorded INVALID before any draft is built or validated, with a reason that names no date', async () => {
+    const trials = await flow.world.sql<{ proposal_ordinal: number; status: string; reason: string | null }>(
+      `SELECT proposal_ordinal, status, reason FROM trials WHERE mission_id = $1 AND trial_slot = 'rev-a'
+        ORDER BY proposal_ordinal`,
+      [flow.missionId],
+    );
+    expect(trials[0]).toMatchObject({
+      proposal_ordinal: 1,
+      status: 'INVALID',
+      reason: 'The proposal cites a date inside a withheld window.',
+    });
+    expect(trials[0]?.reason).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    // The slot goes on: its next proposal is the one that is validated and registered.
+    expect(trials.slice(1).some((trial) => trial.status !== 'INVALID')).toBe(true);
+    expect(await missionOf(flow)).toMatchObject({ status: 'CONCLUDED' });
   });
 });
 
