@@ -2,7 +2,7 @@
 // codes, authority refusals, the journal of commands whose outcome is unknown, resynchronisation after a stale revision,
 // the read-back after a command, and the confirmation of a consequential command in a terminal.
 
-import { statSync, writeFileSync } from 'node:fs';
+import { readFileSync, statSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { EXIT } from '../src/outcome.ts';
@@ -242,6 +242,90 @@ describe('commands', () => {
     expect((await cli.run(['command', 'show', 'cmd-lost'])).exit).toBe(EXIT.OK);
   });
 
+  it('journal the exact request with its API and principal before it is sent, and remove it once the outcome is known', async () => {
+    await cli.login(['Steward']);
+    const journal = resolve(cli.configDir, 'pending', 'cmd-early.json');
+    let entry: Doc | undefined;
+    cli.api.on('POST', '/v1/budgets', (sent) => {
+      entry = JSON.parse(readFileSync(journal, 'utf8')) as Doc;
+      return { status: 202, body: statusFor(sent.body) };
+    });
+    const run = await cli.run(['budget', 'register', '--file', budgetFile(), '--command-id', 'cmd-early']);
+    expect(run.exit).toBe(EXIT.OK);
+    expect(entry).toMatchObject({
+      schema: 'openquant-cli-pending/2',
+      api_url: 'https://api.example.test',
+      principal_id: 'human-researcher',
+      route: 'budgets.register',
+    });
+    expect(JSON.stringify(entry?.request)).toBe(posts()[0]?.body);
+    expect(() => statSync(journal)).toThrow();
+  });
+
+  it('resolve an UNKNOWN command only against the API and as the principal that sent it (OQ-05 section 9)', async () => {
+    await cli.login(['Steward']);
+    let recorded: string | undefined;
+    cli.api.on('POST', '/v1/budgets', (sent, count) => {
+      if (count === 1) return 'network-failure';
+      recorded = sent.body;
+      return { status: 202, body: statusFor(sent.body) };
+    });
+    cli.api.on('GET', '/v1/commands/cmd-bound', () =>
+      recorded === undefined
+        ? { status: 404, body: apiError('NOT_FOUND') }
+        : { status: 200, body: statusFor(recorded) },
+    );
+    const lost = await cli.run(['budget', 'register', '--file', budgetFile(), '--command-id', 'cmd-bound']);
+    expect(lost.exit).toBe(EXIT.UNKNOWN);
+    const journal = resolve(cli.configDir, 'pending', 'cmd-bound.json');
+    const sentBefore = cli.api.sent.length;
+    const next =
+      'Log in to https://api.example.test as human-researcher, then run openquant command resolve cmd-bound.';
+
+    // Another API: neither resolved nor resent there, and new commands name where to resolve it.
+    expect((await cli.run(['login', '--api', 'https://staging.example.test'], { stdin: `${CREDENTIAL}\n` })).exit).toBe(
+      EXIT.OK,
+    );
+    const otherApi = await cli.run(['command', 'resolve', 'cmd-bound', '--json']);
+    expect(otherApi.exit).toBe(EXIT.SESSION_MISMATCH);
+    expect(JSON.parse(otherApi.stdout.text).error).toMatchObject({
+      code: 'CLI_SESSION_MISMATCH',
+      state_changed: 'NONE',
+      next,
+    });
+    const blocked = await cli.run(['budget', 'register', '--file', budgetFile(), '--json']);
+    expect(blocked.exit).toBe(EXIT.UNKNOWN);
+    expect(JSON.parse(blocked.stdout.text).error.next).toBe(next);
+
+    // The same API as another principal.
+    cli.api.on('POST', '/v1/auth/token', () => ({
+      status: 200,
+      body: { ...accessToken(['Steward']), principal: { id: 'human-other', display_name: 'Other', kind: 'HUMAN' } },
+    }));
+    expect((await cli.run(['login', '--api', 'https://api.example.test'], { stdin: `${CREDENTIAL}\n` })).exit).toBe(
+      EXIT.OK,
+    );
+    const otherPrincipal = await cli.run(['command', 'resolve', 'cmd-bound']);
+    expect(otherPrincipal.exit).toBe(EXIT.SESSION_MISMATCH);
+    expect(otherPrincipal.stderr.text).toContain('as human-other. Nothing was sent;');
+
+    const reached = cli.api.sent.slice(sentBefore).filter((sent) => !sent.path.startsWith('/v1/auth/'));
+    expect(reached.map((sent) => `${sent.origin} ${sent.method} ${sent.path}`)).toEqual([
+      'https://staging.example.test GET /v1/system/identity',
+      'https://api.example.test GET /v1/system/identity',
+    ]);
+    expect(statSync(journal).isFile()).toBe(true);
+
+    // Back on the original API as the original principal, the same request settles it.
+    await cli.login(['Steward']);
+    const resolved = await cli.run(['command', 'resolve', 'cmd-bound']);
+    expect(resolved.exit).toBe(EXIT.OK);
+    expect(posts()).toHaveLength(2);
+    expect(posts()[1]?.origin).toBe('https://api.example.test');
+    expect(posts()[1]?.body).toBe(posts()[0]?.body);
+    expect(() => statSync(journal)).toThrow();
+  });
+
   it('resynchronise after a stale revision: exit 7 with the current mission read again', async () => {
     await cli.login();
     cli.api.on('GET', '/v1/missions/msn-00000a', () => ({ status: 200, body: mission }));
@@ -332,5 +416,99 @@ describe('commands', () => {
       expected_revision: 4,
       payload: { kind: 'run_mission_now', mission_id: 'msn-1' },
     });
+  });
+});
+
+describe('mission results', () => {
+  const lineage = fixture('lineage-view.three-versions.json');
+  const plan = fixture('evaluation-plan.aapl-mission.json');
+  const result = fixture('evaluation-result.f0.json');
+  const roles: Record<string, string> = { d: 'DEVELOPMENT', v: 'VALIDATION', h: 'HOLDOUT' };
+  // The committed metrics of each seed run: the validation-base fixture, moved to the run's window and cost case.
+  const metricsOf = (runId: string, slot: string, netReturn: string): Doc => {
+    const metrics = fixture('evaluation-metrics.validation-base.json');
+    const [, window, cost] = slot.split('.');
+    metrics.run_id = runId;
+    metrics.window.role = roles[window ?? ''];
+    metrics.window.cost_scenario = cost === 'stress' ? 'COST_STRESS' : 'BASE';
+    metrics.strategy.net_return.value = netReturn;
+    return metrics;
+  };
+  const served: Record<string, Doc> = {
+    'run-00001e': metricsOf('run-00001e', 'seed.d.base', '0.010000'),
+    'run-000026': metricsOf('run-000026', 'seed.d.base.repeat', '0.010001'),
+    'run-000020': metricsOf('run-000020', 'seed.d.stress', '0.009000'),
+    'run-000022': metricsOf('run-000022', 'seed.v.base', '0.041873'),
+    'run-000024': metricsOf('run-000024', 'seed.v.stress', '0.040000'),
+    'run-0000bd': metricsOf('run-0000bd', 'seed.h.base', '0.030000'),
+    // run-0000bf (H, COST_STRESS) has no committed metrics: NOT_FOUND.
+  };
+  // The buy-and-hold return is shown as the metrics state it, even where it is not net return minus excess return.
+  (served['run-000022'] as Doc).benchmarks.buy_and_hold.net_return.value = '0.299999';
+  (served['run-0000bd'] as Doc).benchmarks.buy_and_hold = {
+    status: 'INSUFFICIENT',
+    reason: 'No whole lot is affordable at the first fillable open.',
+  };
+
+  function serve(withPlan: boolean): void {
+    cli.api.on('GET', '/v1/missions/msn-00000a/lineage', () => ({ status: 200, body: lineage }));
+    cli.api.on('GET', '/v1/missions/msn-00000a/plan', () =>
+      withPlan ? { status: 200, body: plan } : { status: 404, body: apiError('NOT_FOUND') },
+    );
+    for (const [runId, metrics] of Object.entries(served)) {
+      cli.api.on('GET', `/v1/runs/${runId}/metrics`, () => ({ status: 200, body: metrics }));
+    }
+    cli.api.on('GET', '/v1/runs/run-000022/result', () => ({ status: 200, body: result }));
+  }
+
+  it('show the official D, V and H values side by side with both benchmarks, the ledger and the labels', async () => {
+    await cli.login(['Viewer']);
+    serve(true);
+    const run = await cli.run(['mission', 'results', 'msn-00000a', '--candidate', 'seed']);
+    expect(run.exit).toBe(EXIT.OK);
+    const text = run.stdout.text;
+    const lines = text.split('\n');
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(80);
+    expect(text).toContain('Candidate seed: daily-swing-seed v1, EVALUATING');
+    expect(text).not.toContain('Candidate rev-a');
+    expect(lines).toContain('    BASE                D           D repeat    V           H');
+    expect(text).toMatch(/ {4}net return +0\.010000 +0\.010001 +0\.041873 +0\.030000\n/);
+    expect(text).toMatch(/ {4}net return +0\.009000 +0\.040000 +unknown\n/);
+    expect(text).toMatch(/ {4}B&H net return +0\.300000 +0\.300000 +0\.299999 +INSUFFICIENT\n/);
+    expect(text).toMatch(/ {4}cash excess return +0\.041873 +0\.041873 +0\.041873 +0\.041873\n/);
+    expect(text).toMatch(/ {4}fees +150\.00 USD +150\.00 USD +unknown\n/);
+    expect(text).toContain('buy-and-hold of run-0000bd: INSUFFICIENT - No whole lot is affordable');
+    expect(text).toContain('  Simulated per-candidate ledger (final state of each result)');
+    expect(text).toMatch(/ {4}equity +unknown +unknown +5132\.00 +unknown\n/);
+    expect(text).toMatch(/ {4}ledger entries +unknown +unknown +7 +unknown\n/);
+    expect(text).toContain('  window label of D, V, H: historical window within model training period');
+    expect(text).toContain('  H 2025-01-02 to 2025-12-31: historical window within model training period');
+    expect(text).toContain('  uncertainty: NOT_COMPUTED - S1 reports no uncertainty statistic');
+    expect(text).toContain('  uncertainty: unknown (no official metrics) (run-0000bf)');
+
+    const json = await cli.run(['mission', 'results', 'msn-00000a', '--candidate', 'seed', '--json']);
+    expect(json.exit).toBe(EXIT.OK);
+    const data = JSON.parse(json.stdout.text).data;
+    expect(data.windows).toEqual(plan.windows);
+    const runs: Doc[] = data.candidates[0].runs;
+    const byId = (id: string) => runs.find((item) => item.run_id === id) as Doc;
+    expect(byId('run-000022')).toMatchObject({ window_role: 'VALIDATION', cost_scenario: 'BASE', replay_of: null });
+    expect(byId('run-000022').metrics).toEqual(served['run-000022']);
+    expect(byId('run-000022').result).toEqual(result);
+    expect(byId('run-000026').replay_of).toBe('seed.d.base');
+    expect(byId('run-0000bf')).toMatchObject({ metrics: null, result: null });
+    expect(byId('run-00001e').window_label).toBe('historical window within model training period');
+  });
+
+  it('show an unrecorded plan as unknown labels, and refuse an unknown candidate with exit 5', async () => {
+    await cli.login(['Viewer']);
+    serve(false);
+    const run = await cli.run(['mission', 'results', 'msn-00000a']);
+    expect(run.exit).toBe(EXIT.OK);
+    expect(run.stdout.text).toContain('  labels unknown: the evaluation plan is not recorded yet');
+    expect(run.stdout.text).toContain('  window label of D, V, H: unknown (no evaluation plan recorded)');
+    expect(run.stdout.text).toContain('Candidate rev-a:');
+    const missing = await cli.run(['mission', 'results', 'msn-00000a', '--candidate', 'nope', '--json']);
+    expect(missing.exit).toBe(EXIT.NOT_FOUND);
   });
 });

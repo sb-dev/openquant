@@ -1,11 +1,12 @@
 // The built binary (OQ-06 section 2.2: installed-package smoke tests): tools/bundle.ts builds dist/openquant.mjs into
 // a directory of this test, and the test runs it with Node, without node_modules beside it, against a loopback HTTP
-// fake of the API: help, login with the credential on stdin, a view in text and in --json, and the exit codes of a
-// refusal and of a missing login.
+// fake of the API: help, login with the credential on stdin, a view in text and in --json, the exit codes of a
+// refusal and of a missing login, and a command whose process is killed after the API received it and before it
+// answered (OQ-04 section 12).
 
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { copyFileSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { createServer, type Server } from 'node:http';
+import { createServer, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
@@ -17,6 +18,10 @@ let directory: string;
 let binary: string;
 let server: Server;
 let base: string;
+/** The seed registrations the fake API received, and a hook that holds the next one without an answer. */
+const seeds: { command_id: string; payload: { kind: string } }[] = [];
+let holdNext: ((commandId: string) => void) | undefined;
+const held: ServerResponse[] = [];
 
 beforeAll(async () => {
   directory = mkdtempSync(resolve(tmpdir(), 'openquant-built-'));
@@ -44,23 +49,60 @@ beforeAll(async () => {
       return answer(200, fixture('decisions-view.concluded.json'));
     }
     if (request.method === 'POST' && request.url === '/v1/budgets') return answer(403, apiError('FORBIDDEN'));
+    if (request.method === 'POST' && request.url === '/v1/strategies/seeds') {
+      const chunks: Buffer[] = [];
+      request.on('data', (chunk: Buffer) => chunks.push(chunk));
+      request.on('end', () => {
+        const command = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        seeds.push(command);
+        const hold = holdNext;
+        if (hold !== undefined) {
+          // Received and kept, but never answered: the client is killed while it waits.
+          holdNext = undefined;
+          held.push(response);
+          hold(command.command_id);
+          return;
+        }
+        answer(202, applied(command.command_id));
+      });
+      return;
+    }
+    const status = /^\/v1\/commands\/([^/]+)$/.exec(request.url ?? '');
+    if (request.method === 'GET' && status !== null) {
+      const known = seeds.find((command) => command.command_id === status[1]);
+      return known === undefined ? answer(404, apiError('NOT_FOUND')) : answer(200, applied(known.command_id));
+    }
     return answer(404, apiError('NOT_FOUND'));
   });
   await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 }, 120_000);
 
+const applied = (commandId: string) => ({
+  ...fixture('command.status-applied.json'),
+  command_id: commandId,
+  kind: 'register_seed',
+  record: { id: 'daily-swing-seed', revision: 1 },
+});
+
 afterAll(async () => {
+  for (const response of held) response.destroy();
+  server.closeAllConnections();
   await new Promise((done) => server.close(done));
   rmSync(directory, { recursive: true, force: true });
 });
 
-function run(args: string[], stdin = ''): Promise<{ code: number; stdout: string; stderr: string }> {
+const environment = (config: string) => ({
+  PATH: process.env.PATH ?? '',
+  OPENQUANT_CONFIG_DIR: resolve(directory, config),
+});
+
+function run(args: string[], stdin = '', config = 'config'): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((done) => {
     const child = execFile(
       process.execPath,
       [binary, ...args],
-      { env: { PATH: process.env.PATH ?? '', OPENQUANT_CONFIG_DIR: resolve(directory, 'config') }, timeout: 30_000 },
+      { env: environment(config), timeout: 30_000 },
       (error, stdout, stderr) => {
         done({ code: error === null ? 0 : typeof error.code === 'number' ? error.code : -1, stdout, stderr });
       },
@@ -108,5 +150,40 @@ describe('the built openquant binary', () => {
     const forbidden = await run(['budget', 'register', '--file', budget]);
     expect(forbidden.code).toBe(4);
     expect(forbidden.stdout).toContain('This command needs one of these roles: Steward.');
+  });
+
+  it('keeps a command killed after the API received it, and settles it with the same command ID, sent once', async () => {
+    const config = 'config-interrupted';
+    expect((await run(['login', '--api', base], `${CREDENTIAL}\n`, config)).code).toBe(0);
+    const { kind: _, ...document } = fixture('command.register-seed.json').payload;
+    const seed = resolve(directory, 'seed.json');
+    writeFileSync(seed, JSON.stringify(document));
+
+    const received = new Promise<string>((done) => {
+      holdNext = done;
+    });
+    const child = spawn(process.execPath, [binary, 'seed', 'register', '--file', seed], {
+      env: environment(config),
+      stdio: 'ignore',
+    });
+    const exited = new Promise<string>((done) => child.on('exit', (code, signal) => done(signal ?? `exit ${code}`)));
+    const commandId = await Promise.race([received, exited.then((how) => Promise.reject(new Error(how)))]);
+    child.kill('SIGKILL');
+    expect(await exited).toBe('SIGKILL');
+    expect(seeds).toHaveLength(1);
+
+    // The rerun sends nothing new: the interrupted command must be resolved first.
+    const again = await run(['seed', 'register', '--file', seed, '--json'], '', config);
+    expect(again.code).toBe(9);
+    expect(JSON.parse(again.stdout).error.message).toContain(commandId);
+    expect(seeds).toHaveLength(1);
+
+    const resolved = await run(['command', 'resolve', commandId, '--json'], '', config);
+    expect(resolved.code).toBe(0);
+    expect(JSON.parse(resolved.stdout).data).toMatchObject({ command_id: commandId, state: 'APPLIED' });
+    expect(seeds.map((command) => command.command_id)).toEqual([commandId]);
+    expect((await run(['seed', 'register', '--file', seed, '--json'], '', config)).code).toBe(0);
+    expect(seeds).toHaveLength(2);
+    expect(seeds[1]?.command_id).not.toBe(commandId);
   });
 });

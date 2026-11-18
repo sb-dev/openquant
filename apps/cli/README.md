@@ -11,7 +11,7 @@ The [CLI reference](../../docs/reference/cli.md) lists the commands, their outpu
 | `src/format.ts`, `src/context.ts` | The text of each view and the operating context (environment, mode, simulated account, risk `UNKNOWN`). |
 | `src/text.ts` | Sanitising, terminal width and wrapping within 80 columns. |
 | `src/outcome.ts` | Exit codes and error reports. |
-| `src/store.ts`, `src/session.ts` | The 0600 credentials file, the journal of commands with an unknown outcome, and token renewal. |
+| `src/store.ts`, `src/session.ts` | The 0600 credentials file, the journal of each command from before it is sent until its outcome is known (with the API and principal it was sent to), and token renewal. |
 | `tools/bundle.ts` | The build of `dist/openquant.mjs`. |
 
 Rendering, input, focus and local presentation state live here; the API is reached only through `@openquant/api-client` (Hono is the only remote boundary). The tests use fakes of the API and a loopback HTTP server for the built binary; `apps/api/test/client.test.ts` runs the client against the real API on PostgreSQL. Nothing here is deployed or published.

@@ -294,6 +294,23 @@ export class ApiClient {
   job(jobId: string) {
     return this.read('jobs.show', { job_id: jobId });
   }
+  /** The evaluation plan of a mission: its windows with their labels, trial slots and run slots. */
+  plan(missionId: string) {
+    return this.read('missions.plan', { mission_id: missionId });
+  }
+  /**
+   * The official metrics of a run, as committed (runs.metrics); NotFoundError while none is committed. The first read
+   * of a HOLDOUT run's metrics or result is recorded as holdout consumption (OQ-02 section 3.3).
+   */
+  async runMetrics(runId: string) {
+    const metrics = await this.read('runs.metrics', { run_id: runId });
+    if (metrics.run_id !== runId) throw new ResponseContractError(200, 'runs.metrics answered for another run');
+    return metrics;
+  }
+  /** The official evaluation result of a run, as committed (runs.result); NotFoundError while none is committed. */
+  runResult(runId: string) {
+    return this.read('runs.result', { run_id: runId });
+  }
   /** The status of a command by its ID (commands.show). */
   async commandStatus(commandId: string): Promise<CommandStatus> {
     const status = await this.read('commands.show', { command_id: commandId });

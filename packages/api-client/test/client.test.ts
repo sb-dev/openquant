@@ -282,6 +282,13 @@ describe('reads', () => {
       ['/v1/missions/m/gates', 'gates-view.one-report.json', (s) => s.gates('m')],
       ['/v1/missions/m/decisions', 'decisions-view.concluded.json', (s) => s.decisions('m')],
       ['/v1/jobs/j', 'job-view.retrieve.json', (s) => s.job('j')],
+      ['/v1/missions/m/plan', 'evaluation-plan.aapl-mission.json', (s) => s.plan('m')],
+      [
+        '/v1/runs/run-aapl-v-base-a/metrics',
+        'evaluation-metrics.validation-base.json',
+        (s) => s.runMetrics('run-aapl-v-base-a'),
+      ],
+      ['/v1/runs/r/result', 'evaluation-result.f0.json', (s) => s.runResult('r')],
       ['/v1/system/identity', 'system-identity-view.release-recorded.json', (s) => s.identity()],
     ];
     const subject = client(api);
@@ -292,6 +299,21 @@ describe('reads', () => {
       api.on('GET', path, () => ({ status: 200, body: missionView }));
       await expect(read(subject), name).rejects.toBeInstanceOf(ResponseContractError);
     }
+  });
+
+  it('read the official metrics and result of a run: NOT_FOUND while none is committed, and only for that run', async () => {
+    const api = fakeApi();
+    const metrics = fixture('evaluation-metrics.validation-base.json');
+    api.on('GET', '/v1/runs/run-other/metrics', () => ({ status: 200, body: metrics }));
+    const subject = client(api);
+    await expect(subject.runMetrics('run-none')).rejects.toBeInstanceOf(NotFoundError);
+    await expect(subject.runResult('run-none')).rejects.toBeInstanceOf(NotFoundError);
+    await expect(subject.runMetrics('run-other')).rejects.toBeInstanceOf(ResponseContractError);
+    expect(api.sent.map((sent) => sent.path)).toEqual([
+      '/v1/runs/run-none/metrics',
+      '/v1/runs/run-none/result',
+      '/v1/runs/run-other/metrics',
+    ]);
   });
 
   it('encode a path parameter as one segment', async () => {

@@ -1,8 +1,9 @@
 // Local files of the CLI (OQ-05 sections 8 and 9). The credentials file holds a person's long-lived credential and
 // the current 15-minute access token: it is created with mode 0600 in a 0700 directory, written whole through a
-// temporary file of the same mode, and refused when another user can read it. The journal keeps each command whose
-// outcome is UNKNOWN, with its exact request, so that `openquant command resolve` can settle it with the same command ID
-// and body. No credential or token is ever printed, logged or put in an error message.
+// temporary file of the same mode, and refused when another user can read it. The journal keeps the exact request of
+// each command from before it is sent until its outcome is known, with the API and the principal it was sent to, so
+// that `openquant command resolve` can settle an interrupted or UNKNOWN command with the same command ID and body, and
+// only against that API as that principal. No credential or token is ever printed, logged or put in an error message.
 
 import { chmodSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -22,7 +23,11 @@ export interface StoredSession {
 }
 
 export interface PendingCommand {
-  readonly schema: 'openquant-cli-pending/1';
+  readonly schema: 'openquant-cli-pending/2';
+  /** The API the command was sent to, as the session stored it. */
+  readonly api_url: string;
+  /** The principal that sent it. */
+  readonly principal_id: string;
   readonly route: CommandRouteId;
   readonly params: Readonly<Record<string, string>>;
   readonly request: CommandRequest;
@@ -147,8 +152,18 @@ export class Store {
   readPending(commandId: string): PendingCommand | undefined {
     const text = readPrivate(this.#pendingPath(commandId));
     if (text === undefined) return undefined;
-    const value = JSON.parse(text) as PendingCommand;
-    if (value.schema !== 'openquant-cli-pending/1' || value.request?.command_id !== commandId) {
+    let value: PendingCommand;
+    try {
+      value = JSON.parse(text) as PendingCommand;
+    } catch {
+      throw new StoreError(`The journal entry of ${commandId} is not valid.`);
+    }
+    if (
+      value.schema !== 'openquant-cli-pending/2' ||
+      typeof value.api_url !== 'string' ||
+      typeof value.principal_id !== 'string' ||
+      value.request?.command_id !== commandId
+    ) {
       throw new StoreError(`The journal entry of ${commandId} is not valid.`);
     }
     return value;
