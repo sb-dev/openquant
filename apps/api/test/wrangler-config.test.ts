@@ -73,6 +73,7 @@ describe('wrangler.jsonc', () => {
     ].sort();
     expect(configured).toEqual(declaredBindings());
     expect(declaredBindings()).toEqual([
+      'AGENT_EXECUTOR_VERSION',
       'AGENT_RUNNER_CREDENTIAL',
       'AGENT_RUNNER_URL',
       'ARTEFACTS',
@@ -116,7 +117,11 @@ describe('wrangler.jsonc', () => {
     };
     walk(config, 'config');
     // Research execution is off in the file: the delivery job turns it on for an environment, never this file.
-    expect(config.vars).toEqual({ OPENQUANT_ENVIRONMENT: 'DEVELOPMENT', OPENQUANT_RESEARCH_EXECUTION: 'disabled' });
+    expect(config.vars).toEqual({
+      OPENQUANT_ENVIRONMENT: 'DEVELOPMENT',
+      OPENQUANT_RESEARCH_EXECUTION: 'disabled',
+      AGENT_EXECUTOR_VERSION: '2.1.325',
+    });
     expect(JSON.stringify(config)).not.toMatch(/postgres(?:ql)?:\/\/|oqk1\.|oqa1\.|sk-|Bearer /i);
     // A secret has its name in .dev.vars.example and an empty value, never a value.
     expect(

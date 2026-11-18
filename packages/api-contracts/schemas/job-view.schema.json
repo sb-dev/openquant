@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:job-view:1",
+  "title": "JobView",
+  "description": "A job, an agent's logical run or an evaluation run (an evaluate job is a run): its attempts with outcome, lease, ownership revision, dispatch state and reservation lines. used is null while nothing reported it: unknown, not zero. The response body of jobs.show (routes/v1.json). A value that nothing reported is null, never zero; arrays are always present and may be empty.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "job_id", "kind", "status", "mission_id", "trial_slot", "agent_role", "configuration_id", "attempt_cap", "failure_code", "waiting_reason", "revision", "created_at", "completed_at", "attempts"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["job-view/1"] },
+    "job_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "kind": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewWorkKind" },
+    "status": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/JobStatus" },
+    "mission_id": {
+      "oneOf": [
+        { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewIdentifier" },
+        { "type": "null" }
+      ]
+    },
+    "trial_slot": {
+      "oneOf": [
+        { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewIdentifier" },
+        { "type": "null" }
+      ]
+    },
+    "agent_role": {
+      "oneOf": [
+        { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewState" },
+        { "type": "null" }
+      ]
+    },
+    "configuration_id": {
+      "oneOf": [
+        { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewIdentifier" },
+        { "type": "null" }
+      ]
+    },
+    "attempt_cap": { "type": "integer", "minimum": 1, "maximum": 10 },
+    "failure_code": {
+      "oneOf": [
+        { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewText" },
+        { "type": "null" }
+      ]
+    },
+    "waiting_reason": {
+      "oneOf": [
+        { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewText" },
+        { "type": "null" }
+      ]
+    },
+    "revision": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+    "created_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+    "completed_at": {
+      "oneOf": [
+        { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewTimestamp" },
+        { "type": "null" }
+      ]
+    },
+    "attempts": {
+      "type": "array",
+      "maxItems": 10,
+      "items": { "$ref": "#/$defs/ViewAttempt" }
+    }
+  },
+  "$defs": {
+    "ViewAttempt": {
+      "title": "ViewAttempt",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempt_id", "ownership_revision", "status", "failure_code", "agent_outcome", "worker_id", "executable", "created_at", "claimed_at", "ended_at", "lease", "dispatch", "reservation"],
+      "properties": {
+        "attempt_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "ownership_revision": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "status": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/AttemptStatus" },
+        "failure_code": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewText" },
+            { "type": "null" }
+          ]
+        },
+        "agent_outcome": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewState" },
+            { "type": "null" }
+          ]
+        },
+        "worker_id": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewIdentifier" },
+            { "type": "null" }
+          ]
+        },
+        "executable": {
+          "oneOf": [
+            { "$ref": "#/$defs/ViewExecutable" },
+            { "type": "null" }
+          ]
+        },
+        "created_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "claimed_at": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewTimestamp" },
+            { "type": "null" }
+          ]
+        },
+        "ended_at": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewTimestamp" },
+            { "type": "null" }
+          ]
+        },
+        "lease": {
+          "oneOf": [
+            { "$ref": "#/$defs/ViewLease" },
+            { "type": "null" }
+          ]
+        },
+        "dispatch": { "$ref": "#/$defs/ViewDispatch" },
+        "reservation": { "$ref": "#/$defs/ViewReservation" }
+      }
+    },
+    "ViewDispatch": {
+      "title": "ViewDispatch",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["destination", "status", "sent_at", "message_digest"],
+      "properties": {
+        "destination": { "type": "string", "enum": ["BATCH_QUEUE", "AGENT_RUNNER"] },
+        "status": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/OutboxStatus" },
+        "sent_at": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewTimestamp" },
+            { "type": "null" }
+          ]
+        },
+        "message_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" }
+      }
+    },
+    "ViewExecutable": {
+      "title": "ViewExecutable",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "digest"],
+      "properties": {
+        "name": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "version": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" }
+      }
+    },
+    "ViewLease": {
+      "title": "ViewLease",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "granted_at", "expires_at"],
+      "properties": {
+        "status": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/LeaseStatus" },
+        "granted_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "expires_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" }
+      }
+    },
+    "ViewReservation": {
+      "title": "ViewReservation",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "lines"],
+      "properties": {
+        "status": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ReservationStatus" },
+        "lines": {
+          "type": "array",
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/ViewReservationLine" }
+        }
+      }
+    },
+    "ViewReservationLine": {
+      "title": "ViewReservationLine",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension", "configuration_id", "reserved", "used", "usage_label", "usage"],
+      "properties": {
+        "dimension": {
+          "type": "string",
+          "enum": ["MODEL_SPEND", "PROVIDER_REQUESTS", "BATCH_COMPUTE_SECONDS", "AGENT_COMPUTE_SECONDS"]
+        },
+        "configuration_id": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewIdentifier" },
+            { "type": "null" }
+          ]
+        },
+        "reserved": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewAmount" },
+        "used": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewAmount" },
+            { "type": "null" }
+          ]
+        },
+        "usage_label": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewState" },
+            { "type": "null" }
+          ]
+        },
+        "usage": { "type": "string", "enum": ["observed", "estimated", "unknown", "unreported"] }
+      }
+    }
+  }
+}

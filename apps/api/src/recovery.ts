@@ -16,7 +16,10 @@
 //      attempts that were fenced or cancelled while claimed and still hold an UNRECONCILED reservation, other than the
 //      ones that step 2 has just asked about, and does nothing when there is none. A report that a runner posts after its
 //      lease ended settles the reservation too (the agent result route); that path and this one never settle twice;
-//   4. every PENDING outbox entry is sent again (outbox.ts): a dispatch that was lost, or that failed, is not missed.
+//   4. where the environment runs the orchestrator, every IN_PROGRESS mission takes the steps that its records allow
+//      (orchestrator.ts): the catch-up of a step that the request of a result could not take;
+//   5. every PENDING outbox entry is sent again (outbox.ts): a dispatch that was lost, or that failed, is not missed; and
+//      so is every PENDING cancellation request to the runner that cancel_mission wrote.
 //
 // One failing item never stops the pass: its error is logged and counted, and the item is tried again on the next pass.
 
@@ -31,7 +34,14 @@ import {
 import type { UsageReport } from './domain/budget.ts';
 import { allBuilders } from './domain/builders.ts';
 import type { ApiEnv } from './env.ts';
-import { type Dispatchers, type DispatchSummary, dispatchPending } from './outbox.ts';
+import { type AdvanceSummary, advanceMissions } from './orchestrator.ts';
+import {
+  type CancellationSummary,
+  type Dispatchers,
+  type DispatchSummary,
+  dispatchPending,
+  sendCancellations,
+} from './outbox.ts';
 
 export interface TerminationEvidence {
   readonly terminated: boolean;
@@ -79,7 +89,11 @@ export interface RecoverySummary {
   readonly terminationsConfirmed: number;
   /** Reservations that were UNRECONCILED and are now SETTLED from the usage that the probe reported. */
   readonly reconciled: number;
+  /** The orchestrator's catch-up (orchestrator.ts): zero when the environment does not run it. */
+  readonly orchestration: AdvanceSummary;
   readonly dispatch: DispatchSummary;
+  /** The cancellation requests to the runner that cancel_mission wrote (runner_cancellations). */
+  readonly cancellations: CancellationSummary;
   /** Items that threw: logged and tried again on the next pass. */
   readonly errors: number;
 }
@@ -114,7 +128,19 @@ export async function runRecovery(env: ApiEnv, db: Database, deps: RecoveryDeps)
     // Nothing that writes can run without an actor: the dispatch of what is pending still can.
     env.log({ level: 'error', message: 'recovery: no active workflows service principal exists in this environment' });
     const dispatch = await dispatchPending(env, db, deps.dispatchers, limit);
-    return { leasesExpired, retried, failed, waiting, terminationsConfirmed, reconciled, dispatch, errors: 1 };
+    const cancellations = await sendCancellations(env, db, deps.dispatchers, limit);
+    return {
+      leasesExpired,
+      retried,
+      failed,
+      waiting,
+      terminationsConfirmed,
+      reconciled,
+      orchestration: { advanced: 0, errors: 0 },
+      dispatch,
+      cancellations,
+      errors: 1,
+    };
   }
   const context: WorkContext = { env, actorId, builders: allBuilders };
 
@@ -204,6 +230,29 @@ export async function runRecovery(env: ApiEnv, db: Database, deps: RecoveryDeps)
     }
   }
 
+  // The orchestrator's catch-up: every IN_PROGRESS mission takes the steps that its records allow, so a result whose
+  // request could not advance the mission is not stranded. What it writes is dispatched below in the same pass.
+  const orchestration =
+    env.orchestrate === true
+      ? await advanceMissions(
+          env,
+          db,
+          { principalId: actorId, kind: 'SERVICE', serviceKind: 'workflows', roles: [] },
+          limit,
+        )
+      : { advanced: 0, errors: 0 };
   const dispatch = await dispatchPending(env, db, deps.dispatchers, limit);
-  return { leasesExpired, retried, failed, waiting, terminationsConfirmed, reconciled, dispatch, errors };
+  const cancellations = await sendCancellations(env, db, deps.dispatchers, limit);
+  return {
+    leasesExpired,
+    retried,
+    failed,
+    waiting,
+    terminationsConfirmed,
+    reconciled,
+    orchestration,
+    dispatch,
+    cancellations,
+    errors: errors + orchestration.errors,
+  };
 }

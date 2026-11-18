@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:findings-view:1",
+  "title": "FindingsView",
+  "description": "Critic findings with category, finding_source, applicability and the policy treatment of each lifecycle transition. A transition without a treatment has not been assigned one yet. The response body of missions.findings (routes/v1.json). A value that nothing reported is null, never zero; arrays are always present and may be empty.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "mission_id", "findings"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["findings-view/1"] },
+    "mission_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ViewFinding" },
+      "maxItems": 256
+    }
+  },
+  "$defs": {
+    "ViewFinding": {
+      "title": "ViewFinding",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_id", "strategy_hash", "attempt_id", "critique_digest", "ordinal", "category", "finding_source", "applicability", "recorded_at", "treatments"],
+      "properties": {
+        "finding_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "strategy_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "attempt_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "critique_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "ordinal": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "category": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/FindingCategory" },
+        "finding_source": { "type": "string", "enum": ["deterministic_check", "model_judgement"] },
+        "applicability": {
+          "type": "array",
+          "maxItems": 2,
+          "items": { "type": "string", "enum": ["affects_executable_rule", "required_evidence"] }
+        },
+        "recorded_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "treatments": {
+          "type": "array",
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/ViewFindingTreatment" }
+        }
+      }
+    },
+    "ViewFindingTreatment": {
+      "title": "ViewFindingTreatment",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transition", "treatment", "policy", "assigned_at", "resolved_by", "resolved_at"],
+      "properties": {
+        "transition": { "type": "string", "pattern": "^[A-Z_]{1,40}$" },
+        "treatment": { "type": "string", "enum": ["BLOCKING", "ADVISORY"] },
+        "policy": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewRecordRef" },
+        "assigned_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "resolved_by": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewIdentifier" },
+            { "type": "null" }
+          ]
+        },
+        "resolved_at": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewTimestamp" },
+            { "type": "null" }
+          ]
+        }
+      }
+    }
+  }
+}

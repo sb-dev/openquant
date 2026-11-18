@@ -40,6 +40,7 @@ export async function buildSystemIdentity(env: ApiEnv, db: Queryable): Promise<S
   );
   const release = rows[0];
   const view: SystemIdentityView = {
+    schema_version: 'system-identity-view/1',
     environment: env.environment,
     protocol: { route_manifest: manifest.version, contracts: protocolContracts() },
     migration_level: level,

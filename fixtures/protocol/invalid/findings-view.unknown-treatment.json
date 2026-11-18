@@ -1,0 +1,111 @@
+{
+  "schema_version": "findings-view/1",
+  "mission_id": "msn-00000a",
+  "findings": [
+    {
+      "finding_id": "find-00001c",
+      "strategy_hash": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
+      "attempt_id": "att-000016",
+      "critique_digest": "sha256:b2829f2acbf59341bbfe229c28085d1536e29f3c5443a2a72da5e3369716a312",
+      "ordinal": 1,
+      "category": "method_advice",
+      "finding_source": "model_judgement",
+      "applicability": [],
+      "recorded_at": "2026-11-15T10:00:00Z",
+      "treatments": [
+        {
+          "transition": "DRAFT_TO_EVALUATING",
+          "treatment": "IGNORED",
+          "policy": {
+            "id": "s1-aapl-daily-swing",
+            "revision": 1
+          },
+          "assigned_at": "2026-11-15T10:00:00Z",
+          "resolved_by": null,
+          "resolved_at": null
+        },
+        {
+          "transition": "EVALUATING_TO_PAPER",
+          "treatment": "ADVISORY",
+          "policy": {
+            "id": "s1-aapl-daily-swing",
+            "revision": 1
+          },
+          "assigned_at": "2026-11-15T10:00:00Z",
+          "resolved_by": null,
+          "resolved_at": null
+        }
+      ]
+    },
+    {
+      "finding_id": "find-000063",
+      "strategy_hash": "sha256:ab5f48cdc451feb20a105cfc26fe8f969bb7f1f2c4d2ed7dfdf8390aeb106889",
+      "attempt_id": "att-000058",
+      "critique_digest": "sha256:44e3eeaf99f54b4ac8e1209a0de7027314629ce56fe1bd57d5a6bd9afaea3c54",
+      "ordinal": 1,
+      "category": "method_advice",
+      "finding_source": "model_judgement",
+      "applicability": [],
+      "recorded_at": "2026-11-15T10:00:00Z",
+      "treatments": [
+        {
+          "transition": "DRAFT_TO_EVALUATING",
+          "treatment": "ADVISORY",
+          "policy": {
+            "id": "s1-aapl-daily-swing",
+            "revision": 1
+          },
+          "assigned_at": "2026-11-15T10:00:00Z",
+          "resolved_by": null,
+          "resolved_at": null
+        },
+        {
+          "transition": "EVALUATING_TO_PAPER",
+          "treatment": "ADVISORY",
+          "policy": {
+            "id": "s1-aapl-daily-swing",
+            "revision": 1
+          },
+          "assigned_at": "2026-11-15T10:00:00Z",
+          "resolved_by": null,
+          "resolved_at": null
+        }
+      ]
+    },
+    {
+      "finding_id": "find-000098",
+      "strategy_hash": "sha256:fe1cd5a63e470c9d992d36a656b0d7e6674c6758d1373028958c948f24d5b078",
+      "attempt_id": "att-000092",
+      "critique_digest": "sha256:d4350dd23357097dc24cb115951e4a35ac7965b6de83170880d0e803eb8fa6db",
+      "ordinal": 1,
+      "category": "method_advice",
+      "finding_source": "model_judgement",
+      "applicability": [],
+      "recorded_at": "2026-11-15T10:00:00Z",
+      "treatments": [
+        {
+          "transition": "DRAFT_TO_EVALUATING",
+          "treatment": "ADVISORY",
+          "policy": {
+            "id": "s1-aapl-daily-swing",
+            "revision": 1
+          },
+          "assigned_at": "2026-11-15T10:00:00Z",
+          "resolved_by": null,
+          "resolved_at": null
+        },
+        {
+          "transition": "EVALUATING_TO_PAPER",
+          "treatment": "ADVISORY",
+          "policy": {
+            "id": "s1-aapl-daily-swing",
+            "revision": 1
+          },
+          "assigned_at": "2026-11-15T10:00:00Z",
+          "resolved_by": null,
+          "resolved_at": null
+        }
+      ]
+    }
+  ]
+}

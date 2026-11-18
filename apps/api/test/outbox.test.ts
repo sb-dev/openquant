@@ -40,6 +40,7 @@ function fakes(options: { failQueue?: number; failRunner?: boolean } = {}) {
       if (options.failRunner === true) throw new Error('The runner is unavailable.');
       sent.runner.push(message);
     },
+    async cancel() {},
   };
   const dispatchers: Dispatchers = { batch, runner };
   return { sent, dispatchers };
@@ -223,6 +224,23 @@ describe('the call to the agent runner', () => {
     expect(request?.headers.get('authorization')).toBe('Bearer oqk1.id.secret');
     expect(request?.headers.get('content-type')).toBe('application/json');
     expect(JSON.parse(await (request as Request).text())).toEqual(message);
+  });
+
+  it('asks the runner to cancel an attempt at runner.cancel, with no body, the same credential and no redirect', async () => {
+    const fetched = recordingFetch(204);
+    const client = createAgentRunnerClient('https://runner.example.test/base', 'oqk1.id.secret', fetched.fetcher);
+    await client.cancel('att-000123');
+    const [request] = fetched.requests;
+    expect(request?.method).toBe('POST');
+    expect(request?.url).toBe('https://runner.example.test/v1/agent-attempts/att-000123/cancel');
+    expect(request?.redirect).toBe('manual');
+    expect(request?.headers.get('authorization')).toBe('Bearer oqk1.id.secret');
+    expect(await (request as Request).text()).toBe('');
+    await expect(
+      createAgentRunnerClient('https://runner.example.test', 'oqk1.id.secret', recordingFetch(503).fetcher).cancel(
+        'att-000123',
+      ),
+    ).rejects.toThrow(/503/);
   });
 
   it('accepts any 2xx answer and refuses the rest, a redirect included, without repeating the credential', async () => {

@@ -43,6 +43,14 @@ const SCHEMAS: &[&str] = &[
     "agent-attempt-result",
     "api-error",
     "release-manifest",
+    "system-identity-view",
+    "mission-view",
+    "lineage-view",
+    "trials-view",
+    "findings-view",
+    "gates-view",
+    "decisions-view",
+    "job-view",
 ];
 
 /// Files that hold shared definitions only. Their roots are not types.

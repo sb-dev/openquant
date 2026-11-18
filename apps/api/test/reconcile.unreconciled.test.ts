@@ -55,7 +55,7 @@ afterEach(async () => {
 
 const dispatchers: Dispatchers = {
   batch: { async send() {} },
-  runner: { async dispatch() {} },
+  runner: { async dispatch() {}, async cancel() {} },
 };
 
 async function recover(flow: Flow & Started, probe?: TerminationProbe) {

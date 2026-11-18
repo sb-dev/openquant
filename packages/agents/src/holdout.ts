@@ -11,10 +11,10 @@ import type { CohortPolicy, HoldoutExclusion } from './types.ts';
 export const REQUIRED_EXCLUSIONS = ['VALIDATION', 'HOLDOUT'] as const;
 
 /**
- * Why a list of exclusions does not do its job: V and H must each be named exactly once and no window twice. With
- * the cohort policy at hand, each exclusion must also repeat its window's label and lie inside its scored dates, and a
- * V or H exclusion must cover the whole protected window: a narrower range would leave dates of the window out of the
- * date screen (OQ-02 section 3.3).
+ * Why a list of exclusions does not do its job: V and H must each be named exactly once and no window twice, and a V
+ * or H exclusion carries the resolved sessions of its window with a range that is exactly their first and last
+ * session (`sessionIssues`). With the cohort policy at hand, each exclusion must also repeat its window's label and lie
+ * inside its scored dates (OQ-02 section 3.3).
  */
 export function exclusionIssues(exclusions: readonly HoldoutExclusion[], policy?: CohortPolicy): string[] {
   const issues: string[] = [];
@@ -29,6 +29,7 @@ export function exclusionIssues(exclusions: readonly HoldoutExclusion[], policy?
     if (exclusion.range.start > exclusion.range.end) {
       issues.push(`the ${exclusion.window} exclusion starts after it ends`);
     }
+    issues.push(...sessionIssues(exclusion));
     const rule = policy?.conditions.windows.windows.find((item) => item.role === exclusion.window);
     if (policy === undefined) continue;
     if (rule === undefined) {
@@ -39,37 +40,33 @@ export function exclusionIssues(exclusions: readonly HoldoutExclusion[], policy?
       issues.push(`the ${exclusion.window} exclusion repeats another label than the policy`);
     if (exclusion.range.start < rule.scored.start || exclusion.range.end > rule.scored.end) {
       issues.push(`the ${exclusion.window} exclusion lies outside the scored dates of the policy window`);
-    } else if (
-      exclusion.window !== 'DEVELOPMENT' &&
-      (!edgeGapFits(rule.scored.start, exclusion.range.start) || !edgeGapFits(exclusion.range.end, rule.scored.end))
-    ) {
-      issues.push(`the ${exclusion.window} exclusion does not cover the scored dates of the policy window`);
     }
   }
   return issues;
 }
 
 /**
- * Whether the dates from `from` up to but not including `to` can all lie outside the sessions of the window.
- *
- * An exclusion holds the resolved scored sessions of its window (the evaluation plan), and the policy holds the
- * calendar-date bounds that they resolve against. The request carries the policy but not the trading calendar, so the
- * uncovered edge between the two may hold weekend days and at most one weekday, an exchange holiday next to the
- * window bound (2024-01-01 before the first session 2024-01-02). Any wider gap omits sessions of the window. The
- * one weekday cannot be told from a session here, so the date screen does not rely on the exclusion bounds: it covers
- * the whole policy window (`screenedRanges`).
+ * The sessions of an exclusion against its range. A V or H exclusion must carry the resolved scored sessions of its
+ * window (the evaluation plan, resolved against the frozen calendar). Where they are given they are strictly
+ * increasing, and the range is exactly their first and their last session. The comparison is exact: no date is guessed
+ * to be a session or an exchange holiday. A range or a session list that leaves sessions of the window out is still
+ * covered by the date screen, which withholds the whole policy window (`screenedRanges`).
  */
-function edgeGapFits(from: string, to: string): boolean {
-  const start = Date.parse(`${from}T00:00:00Z`);
-  const end = Date.parse(`${to}T00:00:00Z`);
-  if (Number.isNaN(start) || Number.isNaN(end)) return false;
-  let weekdays = 0;
-  for (let day = start; day < end; day += 86_400_000) {
-    const weekday = new Date(day).getUTCDay();
-    if (weekday !== 0 && weekday !== 6) weekdays += 1;
-    if (weekdays > 1) return false;
+function sessionIssues(exclusion: HoldoutExclusion): string[] {
+  const { sessions } = exclusion;
+  if (sessions === undefined) {
+    return exclusion.window === 'DEVELOPMENT'
+      ? []
+      : [`the ${exclusion.window} exclusion does not carry the resolved sessions of its window`];
   }
-  return true;
+  const issues: string[] = [];
+  if (sessions.some((session, index) => index > 0 && session <= (sessions[index - 1] as string))) {
+    issues.push(`the sessions of the ${exclusion.window} exclusion are not in strictly increasing order`);
+  }
+  if (sessions[0] !== exclusion.range.start || sessions.at(-1) !== exclusion.range.end) {
+    issues.push(`the ${exclusion.window} exclusion range is not the first and the last of its sessions`);
+  }
+  return issues;
 }
 
 // A calendar date written year first: YYYY-MM-DD, YYYY/MM/DD or the compact YYYYMMDD, with one separator throughout.

@@ -48,6 +48,8 @@ export interface TestApp {
 
 export interface TestAppOptions {
   readonly environment?: DeploymentEnvironment;
+  /** The orchestrator after each committed result and on the recovery tick: off unless a test asks for it. */
+  readonly orchestrate?: boolean;
   /** Research execution on or off. On by default in tests that start missions. */
   readonly researchExecution?: boolean;
   readonly registry?: Readonly<Record<string, Handler>>;
@@ -85,6 +87,8 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     objects,
     clock: () => clock.now(),
     researchExecution: options.researchExecution ?? true,
+    agentExecutorVersion: '2.1.325',
+    ...(options.orchestrate === true ? { orchestrate: true } : {}),
     ids: {
       next: (prefix) => {
         counter += 1;

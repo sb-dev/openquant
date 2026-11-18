@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:gates-view:1",
+  "title": "GatesView",
+  "description": "The gate report of each candidate, as stored, with its eligibility and the reasons. Reading holdout observations through this view is consumption (OQ-02 section 3.3). It holds at most four reports: the S1 mission budget allows three candidates, and four keep a parse of the body within the Worker memory bound (OQ-05 section 7). The response body of missions.gates (routes/v1.json). A value that nothing reported is null, never zero; arrays are always present and may be empty.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "mission_id", "reports"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["gates-view/1"] },
+    "mission_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "reports": {
+      "type": "array",
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/ViewGateReport" }
+    }
+  },
+  "$defs": {
+    "ViewEligibility": {
+      "title": "ViewEligibility",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "reasons"],
+      "properties": {
+        "state": { "type": "string", "enum": ["ELIGIBLE", "NOT_ELIGIBLE"] },
+        "reasons": {
+          "type": "array",
+          "maxItems": 64,
+          "items": { "type": "string", "maxLength": 1000 }
+        }
+      }
+    },
+    "ViewGateReport": {
+      "title": "ViewGateReport",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy_hash", "report_digest", "cohort_policy", "recorded_at", "eligibility", "report"],
+      "properties": {
+        "strategy_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "report_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "cohort_policy": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewRecordRef" },
+        "recorded_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "eligibility": {
+          "oneOf": [
+            { "$ref": "#/$defs/ViewEligibility" },
+            { "type": "null" }
+          ]
+        },
+        "report": { "$ref": "urn:openquant:schema:gate-report:1" }
+      }
+    }
+  }
+}

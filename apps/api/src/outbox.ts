@@ -20,6 +20,8 @@ export interface BatchQueue {
 export interface AgentRunnerClient {
   /** Submit one agent-dispatch/1 message to the runner. Rejects when the runner did not accept it. */
   dispatch(message: unknown): Promise<void>;
+  /** Ask the runner to end one attempt (runner.cancel). Rejects when the runner did not answer with success. */
+  cancel(attemptId: string): Promise<void>;
 }
 
 export interface Dispatchers {
@@ -116,19 +118,78 @@ export function createAgentRunnerClient(
 ): AgentRunnerClient {
   const url = new URL('/v1/agent-attempts', baseUrl);
   if (url.protocol !== 'https:') throw new Error('The agent runner is reached over HTTPS only.');
-  return {
-    async dispatch(message) {
-      const response = await fetcher(
-        new Request(url, {
-          method: 'POST',
-          redirect: 'manual',
-          headers: { 'content-type': 'application/json', authorization: `Bearer ${credential}` },
-          body: JSON.stringify(message),
-        }),
-      );
-      if (response.status < 200 || response.status >= 300) {
-        throw new Error(`The agent runner answered ${response.status}.`);
-      }
-    },
+  const post = async (target: URL, body: string | undefined): Promise<void> => {
+    const response = await fetcher(
+      new Request(target, {
+        method: 'POST',
+        redirect: 'manual',
+        headers: {
+          ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+          authorization: `Bearer ${credential}`,
+        },
+        ...(body === undefined ? {} : { body }),
+      }),
+    );
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`The agent runner answered ${response.status}.`);
+    }
   };
+  return {
+    dispatch: (message) => post(url, JSON.stringify(message)),
+    cancel: (attemptId) =>
+      post(new URL(`/v1/agent-attempts/${encodeURIComponent(attemptId)}/cancel`, baseUrl), undefined),
+  };
+}
+
+export interface CancellationSummary {
+  /** Requests that the runner answered with success: they are SENT. */
+  readonly sent: number;
+  /** Requests whose send failed: they stay PENDING and go again on the next pass. */
+  readonly failed: number;
+  /** Requests left alone because no runner is configured. */
+  readonly skipped: number;
+}
+
+/**
+ * Send the cancellation requests that cancel_mission wrote (runner_cancellations, OQ-05 section 4) to the runner's cancel
+ * route. A request is sent whatever research execution is set to: ending a process is always safe. A failed send stays
+ * PENDING and is sent again; the runner answers success for an attempt that it does not run, so a repeat is harmless.
+ */
+export async function sendCancellations(
+  env: ApiEnv,
+  db: Database,
+  dispatchers: Dispatchers,
+  limit: number = DISPATCH_BATCH_SIZE,
+): Promise<CancellationSummary> {
+  const pending = await db.query<{ attempt_id: string }>(
+    `SELECT attempt_id FROM runner_cancellations WHERE status = 'PENDING' ORDER BY created_at, attempt_id LIMIT $1`,
+    [limit],
+  );
+  const runner = dispatchers.runner;
+  if (runner === undefined) return { sent: 0, failed: 0, skipped: pending.rows.length };
+  let sent = 0;
+  let failed = 0;
+  for (const { attempt_id: attemptId } of pending.rows) {
+    try {
+      await runner.cancel(attemptId);
+    } catch (error) {
+      failed += 1;
+      env.log({
+        level: 'warn',
+        message: 'runner cancellation failed: the request stays PENDING and is sent again',
+        attempt_id: attemptId,
+        error: error instanceof Error ? error.name : 'unknown',
+      });
+      continue;
+    }
+    await db.transaction(async (tx) => {
+      assertTransition('outbox', 'PENDING', 'SENT');
+      await tx.query(
+        `UPDATE runner_cancellations SET status = 'SENT', sent_at = $2 WHERE attempt_id = $1 AND status = 'PENDING'`,
+        [attemptId, env.clock()],
+      );
+    });
+    sent += 1;
+  }
+  return { sent, failed, skipped: 0 };
 }

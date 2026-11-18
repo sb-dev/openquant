@@ -31,6 +31,16 @@ export interface ApiEnv {
    * is refused with EXECUTION_DISABLED until the deployment turns it on (OQ-05 section 4).
    */
   readonly researchExecution: boolean;
+  /**
+   * The pinned version of the delegated executor that the agent runner runs (OQ-03 section 3), which every
+   * agent-dispatch/1 names. Without it the orchestrator dispatches no agent work and blocks the mission with the reason.
+   */
+  readonly agentExecutorVersion?: string;
+  /**
+   * Whether the mission orchestrator runs after each committed result and on the scheduled tick (orchestrator.ts). The
+   * Worker turns it on; tests that play the workflow's steps by hand leave it off.
+   */
+  readonly orchestrate?: boolean;
   readonly secrets: {
     /** HMAC key of access tokens and attempt capabilities: at least 32 bytes. */
     readonly tokenSigningKey: Uint8Array;
@@ -50,6 +60,8 @@ export interface WorkerBindings {
   readonly OPENQUANT_ENVIRONMENT: string;
   /** Plain variable: `enabled` turns research execution on; any other value, or none, leaves it off. */
   readonly OPENQUANT_RESEARCH_EXECUTION: string;
+  /** Plain variable: the pinned executor version, the same value as the runner's AGENT_RUNNER_EXECUTOR_VERSION. */
+  readonly AGENT_EXECUTOR_VERSION: string;
   /** The Queue producer of the one batch queue (OQ-05 section 1). The scheduled dispatcher sends job-dispatch/1 to it. */
   readonly BATCH_QUEUE: Queue;
   /** Secret: the base URL (https) of the Fly agent runner. */

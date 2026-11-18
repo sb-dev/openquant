@@ -76,6 +76,9 @@ export {
   skillForRole,
 } from './registry.ts';
 export type {
+  EvidenceItem,
+  HoldoutExclusion,
+  RoleContext,
   StrategyCritiqueRequest,
   StrategyCritiqueResult,
   StrategyFormulationRequest,

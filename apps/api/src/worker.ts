@@ -42,6 +42,8 @@ export function workerEnv(bindings: WorkerBindings): ApiEnv {
     clock: () => new Date(),
     ids: randomIds(),
     researchExecution: bindings.OPENQUANT_RESEARCH_EXECUTION === 'enabled',
+    ...(bindings.AGENT_EXECUTOR_VERSION ? { agentExecutorVersion: bindings.AGENT_EXECUTOR_VERSION } : {}),
+    orchestrate: true,
     secrets: { tokenSigningKey },
     // One JSON line: Workers Logs makes it searchable (workers-best-practices).
     log: (entry) => (entry.level === 'error' ? console.error : console.log)(JSON.stringify(entry)),

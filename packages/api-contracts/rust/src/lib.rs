@@ -118,10 +118,18 @@ pub enum Envelope {
     AgentAttemptResult,
     ApiError,
     ReleaseManifest,
+    SystemIdentityView,
+    MissionView,
+    LineageView,
+    TrialsView,
+    FindingsView,
+    GatesView,
+    DecisionsView,
+    JobView,
 }
 
 impl Envelope {
-    pub const ALL: [Self; 18] = [
+    pub const ALL: [Self; 26] = [
         Self::EvaluationPlan,
         Self::EvaluationRequest,
         Self::EvaluationSubmission,
@@ -140,6 +148,14 @@ impl Envelope {
         Self::AgentAttemptResult,
         Self::ApiError,
         Self::ReleaseManifest,
+        Self::SystemIdentityView,
+        Self::MissionView,
+        Self::LineageView,
+        Self::TrialsView,
+        Self::FindingsView,
+        Self::GatesView,
+        Self::DecisionsView,
+        Self::JobView,
     ];
 
     /// Schema `$id` of the envelope root.
@@ -164,6 +180,14 @@ impl Envelope {
             Self::AgentAttemptResult => "urn:openquant:schema:agent-attempt-result:1",
             Self::ApiError => "urn:openquant:schema:api-error:1",
             Self::ReleaseManifest => "urn:openquant:schema:release-manifest:1",
+            Self::SystemIdentityView => "urn:openquant:schema:system-identity-view:1",
+            Self::MissionView => "urn:openquant:schema:mission-view:1",
+            Self::LineageView => "urn:openquant:schema:lineage-view:1",
+            Self::TrialsView => "urn:openquant:schema:trials-view:1",
+            Self::FindingsView => "urn:openquant:schema:findings-view:1",
+            Self::GatesView => "urn:openquant:schema:gates-view:1",
+            Self::DecisionsView => "urn:openquant:schema:decisions-view:1",
+            Self::JobView => "urn:openquant:schema:job-view:1",
         }
     }
 
@@ -190,6 +214,14 @@ impl Envelope {
             Self::AgentAttemptResult => "agent-attempt-result/1",
             Self::ApiError => "api-error/1",
             Self::ReleaseManifest => "release-manifest/1",
+            Self::SystemIdentityView => "system-identity-view/1",
+            Self::MissionView => "mission-view/1",
+            Self::LineageView => "lineage-view/1",
+            Self::TrialsView => "trials-view/1",
+            Self::FindingsView => "findings-view/1",
+            Self::GatesView => "gates-view/1",
+            Self::DecisionsView => "decisions-view/1",
+            Self::JobView => "job-view/1",
         }
     }
 }
@@ -317,6 +349,14 @@ impl AnyContract {
             Self::Envelope(Envelope::AgentAttemptResult) => run::<g::AgentAttemptResult>(text),
             Self::Envelope(Envelope::ApiError) => run::<g::ApiError>(text),
             Self::Envelope(Envelope::ReleaseManifest) => run::<g::ReleaseManifest>(text),
+            Self::Envelope(Envelope::SystemIdentityView) => run::<g::SystemIdentityView>(text),
+            Self::Envelope(Envelope::MissionView) => run::<g::MissionView>(text),
+            Self::Envelope(Envelope::LineageView) => run::<g::LineageView>(text),
+            Self::Envelope(Envelope::TrialsView) => run::<g::TrialsView>(text),
+            Self::Envelope(Envelope::FindingsView) => run::<g::FindingsView>(text),
+            Self::Envelope(Envelope::GatesView) => run::<g::GatesView>(text),
+            Self::Envelope(Envelope::DecisionsView) => run::<g::DecisionsView>(text),
+            Self::Envelope(Envelope::JobView) => run::<g::JobView>(text),
         }
     }
 }
@@ -376,6 +416,14 @@ envelope_payloads!(
     AgentAttemptResult,
     ApiError,
     ReleaseManifest,
+    SystemIdentityView,
+    MissionView,
+    LineageView,
+    TrialsView,
+    FindingsView,
+    GatesView,
+    DecisionsView,
+    JobView,
 );
 
 /// Parse text, validate it against the schema, then bind it to the typed payload.

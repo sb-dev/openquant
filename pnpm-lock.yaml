@@ -42,6 +42,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@openquant/agents':
+        specifier: workspace:*
+        version: link:../../packages/agents
       '@openquant/api-contracts':
         specifier: workspace:*
         version: link:../../packages/api-contracts/ts

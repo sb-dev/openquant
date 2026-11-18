@@ -1,0 +1,463 @@
+{
+  "schema_version": "trials-view/1",
+  "mission_id": "msn-00000a",
+  "plan_digest": "sha256:440dfd6f2aa9a05f7720626029a5248bb74203b0a59bed5245ac9b6622b06264",
+  "trial_slots": [
+    {
+      "trial_slot": "rev-a",
+      "kind": "REVISION",
+      "configuration_id": "proposer-a",
+      "parent_slot": "seed",
+      "terminal_reason": null,
+      "terminal_at": null
+    },
+    {
+      "trial_slot": "rev-b",
+      "kind": "REVISION",
+      "configuration_id": "proposer-b",
+      "parent_slot": "seed",
+      "terminal_reason": null,
+      "terminal_at": null
+    },
+    {
+      "trial_slot": "seed",
+      "kind": "SEED",
+      "configuration_id": null,
+      "parent_slot": null,
+      "terminal_reason": null,
+      "terminal_at": null
+    }
+  ],
+  "run_slots": [
+    {
+      "run_slot": "rev-a.d.base",
+      "trial_slot": "rev-a",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": null
+    },
+    {
+      "run_slot": "rev-a.d.base.repeat",
+      "trial_slot": "rev-a",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": "rev-a.d.base",
+      "run": {
+        "run_id": "run-00006d",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "rev-a.d.stress",
+      "trial_slot": "rev-a",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": null,
+      "run": {
+        "run_id": "run-000067",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "rev-a.h.base",
+      "trial_slot": "rev-a",
+      "window_role": "HOLDOUT",
+      "cost_scenario": "BASE",
+      "written_by": "FREEZE_CANDIDATES",
+      "replay_of": null,
+      "run": {
+        "run_id": "run-0000c1",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "rev-a.h.stress",
+      "trial_slot": "rev-a",
+      "window_role": "HOLDOUT",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "FREEZE_CANDIDATES",
+      "replay_of": null,
+      "run": {
+        "run_id": "run-0000c3",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "rev-a.v.base",
+      "trial_slot": "rev-a",
+      "window_role": "VALIDATION",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": null,
+      "run": {
+        "run_id": "run-000069",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "rev-a.v.stress",
+      "trial_slot": "rev-a",
+      "window_role": "VALIDATION",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": null,
+      "run": {
+        "run_id": "run-00006b",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "rev-b.d.base",
+      "trial_slot": "rev-b",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": null,
+      "run": {
+        "run_id": "run-00009a",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "rev-b.d.base.repeat",
+      "trial_slot": "rev-b",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": "rev-b.d.base",
+      "run": {
+        "run_id": "run-0000a2",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "rev-b.d.stress",
+      "trial_slot": "rev-b",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": null,
+      "run": {
+        "run_id": "run-00009c",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "rev-b.h.base",
+      "trial_slot": "rev-b",
+      "window_role": "HOLDOUT",
+      "cost_scenario": "BASE",
+      "written_by": "FREEZE_CANDIDATES",
+      "replay_of": null,
+      "run": {
+        "run_id": "run-0000c5",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "rev-b.h.stress",
+      "trial_slot": "rev-b",
+      "window_role": "HOLDOUT",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "FREEZE_CANDIDATES",
+      "replay_of": null,
+      "run": {
+        "run_id": "run-0000c7",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "rev-b.v.base",
+      "trial_slot": "rev-b",
+      "window_role": "VALIDATION",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": null,
+      "run": {
+        "run_id": "run-00009e",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "rev-b.v.stress",
+      "trial_slot": "rev-b",
+      "window_role": "VALIDATION",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": null,
+      "run": {
+        "run_id": "run-0000a0",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "seed.d.base",
+      "trial_slot": "seed",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": null,
+      "run": {
+        "run_id": "run-00001e",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "seed.d.base.repeat",
+      "trial_slot": "seed",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": "seed.d.base",
+      "run": {
+        "run_id": "run-000026",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "seed.d.stress",
+      "trial_slot": "seed",
+      "window_role": "DEVELOPMENT",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": null,
+      "run": {
+        "run_id": "run-000020",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "seed.h.base",
+      "trial_slot": "seed",
+      "window_role": "HOLDOUT",
+      "cost_scenario": "BASE",
+      "written_by": "FREEZE_CANDIDATES",
+      "replay_of": null,
+      "run": {
+        "run_id": "run-0000bd",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "seed.h.stress",
+      "trial_slot": "seed",
+      "window_role": "HOLDOUT",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "FREEZE_CANDIDATES",
+      "replay_of": null,
+      "run": {
+        "run_id": "run-0000bf",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "seed.v.base",
+      "trial_slot": "seed",
+      "window_role": "VALIDATION",
+      "cost_scenario": "BASE",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": null,
+      "run": {
+        "run_id": "run-000022",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    },
+    {
+      "run_slot": "seed.v.stress",
+      "trial_slot": "seed",
+      "window_role": "VALIDATION",
+      "cost_scenario": "COST_STRESS",
+      "written_by": "EVALUATING_DECISION",
+      "replay_of": null,
+      "run": {
+        "run_id": "run-000024",
+        "status": "COMPLETED",
+        "mode": "BACKTEST",
+        "environment": "DEVELOPMENT",
+        "attempts": 1,
+        "failure_code": null,
+        "waiting_reason": null,
+        "completed_at": "2026-11-15T10:00:00Z",
+        "holdout_consumed": false
+      }
+    }
+  ],
+  "trials": [
+    {
+      "trial_id": "trial-00004b",
+      "trial_slot": "rev-a",
+      "proposal_ordinal": 1,
+      "draft_digest": "sha256:ab5f48cdc451feb20a105cfc26fe8f969bb7f1f2c4d2ed7dfdf8390aeb106889",
+      "status": "REGISTERED",
+      "strategy_hash": "sha256:ab5f48cdc451feb20a105cfc26fe8f969bb7f1f2c4d2ed7dfdf8390aeb106889",
+      "reason": null,
+      "created_at": "2026-11-15T10:00:00Z"
+    },
+    {
+      "trial_id": "trial-000052",
+      "trial_slot": "rev-b",
+      "proposal_ordinal": 1,
+      "draft_digest": "sha256:1c5eb08adcd11123c26547f547117c74756fd222cf6c26b66ab56034d800b37d",
+      "status": "INVALID",
+      "strategy_hash": null,
+      "reason": "REVISION_SCOPE",
+      "created_at": "2026-11-15T10:00:00Z"
+    },
+    {
+      "trial_id": "trial-000073",
+      "trial_slot": "rev-b",
+      "proposal_ordinal": 2,
+      "draft_digest": "sha256:fe1cd5a63e470c9d992d36a656b0d7e6674c6758d1373028958c948f24d5b078",
+      "status": "REGISTERED",
+      "strategy_hash": "sha256:fe1cd5a63e470c9d992d36a656b0d7e6674c6758d1373028958c948f24d5b078",
+      "reason": null,
+      "created_at": "2026-11-15T10:00:00Z"
+    },
+    {
+      "trial_id": "trial-000010",
+      "trial_slot": "seed",
+      "proposal_ordinal": 1,
+      "draft_digest": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
+      "status": "REGISTERED",
+      "strategy_hash": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
+      "reason": null,
+      "created_at": "2026-11-15T10:00:00Z"
+    }
+  ]
+}

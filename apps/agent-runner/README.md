@@ -4,7 +4,7 @@ Status: S1 parts B and C. `@openquant/agent-runner` is a workspace package: the 
 
 Run the reviewed external CLI in isolated sessions. Return structured outcomes; never write canonical research results or obtain broker credentials.
 
-Owner: [03-model-backed-execution-spec.md](../../docs/specs/03-model-backed-execution-spec.md) §§3–6 and [05-system-architecture-and-data-spec.md](../../docs/specs/05-system-architecture-and-data-spec.md) §§4–5. The role schemas, request assembly, result parsing, the dispatch checks and the behaviour bundle are in [`packages/agents`](../../packages/agents/README.md). The envelopes and the route are in [`packages/api-contracts`](../../packages/api-contracts/README.md): `agent-dispatch/1`, `agent-attempt-result/1`, `attempt-claim/1` and the route `runner.dispatch` of `routes/v1.json`.
+Owner: [03-model-backed-execution-spec.md](../../docs/specs/03-model-backed-execution-spec.md) §§3–6 and [05-system-architecture-and-data-spec.md](../../docs/specs/05-system-architecture-and-data-spec.md) §§4–5. The role schemas, request assembly, result parsing, the dispatch checks and the behaviour bundle are in [`packages/agents`](../../packages/agents/README.md). The envelopes and the route are in [`packages/api-contracts`](../../packages/api-contracts/README.md): `agent-dispatch/1`, `agent-attempt-result/1`, `attempt-claim/1` and the routes `runner.dispatch` and `runner.cancel` of `routes/v1.json`.
 
 ## What happens to a dispatch
 
@@ -28,7 +28,7 @@ The API credentials are two: the runner's service credential, used for the claim
 | Not JSON, schema, reference or rule-change failure of the shared validator; output over the limit; a session or model in the executor's report that is not the attempt's; an executor that ended without a result | `malformed_result` | yes |
 | The deadline of the dispatch: the configured timeout from the start of the executor | `timeout`, after the tree was killed | yes |
 | The lease expires before the executor starts, or while it runs (the tree is killed at the lease expiry) | nothing is posted: the lease is lost and recovery fences a new attempt | yes |
-| `Runner.cancel(attempt)` | `cancellation`, after the tree was killed | no |
+| `Runner.cancel(attempt)`, through the cancel route | `cancellation`, after the tree was killed | no |
 | The runner crashes, shuts down, loses its lease or cannot read or store what it needs (after retries: no answer, an answer that breaks off while its body is read, a redirect, which is never followed, or an unavailable API) | nothing is posted: the lease expires and recovery fences a new attempt | yes |
 | A late completion | the API rejects it with `LEASE_EXPIRED`, `STALE_OWNERSHIP`, or `ATTEMPT_NOT_CLAIMABLE` for a cancelled or ended attempt, and records it; the runner does not retry it | no |
 
@@ -144,6 +144,6 @@ The evaluation harness is a root command, `pnpm agents:eval` (see above), not a 
 ## What is not done, and what is not verified
 
 - The real pinned binary was not run by any test: its authentication, its refusal and error results, the effect of `--bare`, the enforcement of `--json-schema` and the model identity it reports are for the executor probe (P6, OQ-06 Fly execution probe). The mapping of those cases is tested against fake output.
-- The route manifest has no route that asks a runner to cancel. `Runner.cancel` and the outcome `cancellation` exist, and nothing calls them yet.
+- The cancel route (`runner.cancel`, `POST /v1/agent-attempts/{attempt_id}/cancel`) takes the dispatch credential and no body. It calls `Runner.cancel` and answers 204 whether or not this runner runs the attempt, so a repeated request or one that arrives after the attempt ended is harmless; the attempt then posts its `cancellation` report, which the API takes as the confirmation of its termination (OQ-05 §4). The API sends the request after `cancel_mission`, from the cancellation requests that the command wrote.
 - No Fly app, image or release exists. The runner listens on loopback by default.
 - The runner compares the session and the model that the executor reports with the ones it passed, and treats a missing report as unknown, not as a mismatch.

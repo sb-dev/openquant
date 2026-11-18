@@ -723,13 +723,16 @@ export interface CancelSummary {
   readonly pendingAttempts: number;
   /** Attempts cancelled while claimed: the reservation stays until termination is confirmed. */
   readonly claimedAttempts: number;
+  /** Agent attempts cancelled while claimed, for which a cancellation request to the runner is written. */
+  readonly runnerCancellations: number;
 }
 
 /**
  * The cancel_mission effect on work (OQ-05 section 4): every open run and job becomes CANCELLED, a PENDING attempt is
  * CANCELLED with its reservation RELEASED and its PENDING outbox entry CANCELLED, and a CLAIMED attempt is CANCELLED
- * and keeps its reservation. A run or job that already ended is not touched: a result that committed first wins.
- * The caller holds the mission lock.
+ * and keeps its reservation. A claimed agent attempt also gets a cancellation request to the runner, which the
+ * dispatcher sends (runner_cancellations). A run or job that already ended is not touched: a result that committed
+ * first wins. The caller holds the mission lock.
  */
 export async function cancelOpenWork(tx: Queryable, ctx: WorkContext, missionId: string): Promise<CancelSummary> {
   const now = ctx.env.clock();
@@ -737,6 +740,7 @@ export async function cancelOpenWork(tx: Queryable, ctx: WorkContext, missionId:
   let jobsCancelled = 0;
   let pendingAttempts = 0;
   let claimedAttempts = 0;
+  let runnerCancellations = 0;
   for (const open of await lockOpenWork(tx, missionId)) {
     const column = open.kind === 'run' ? 'run_id' : 'job_id';
     const live = await tx.query<AttemptRow>(
@@ -762,13 +766,22 @@ export async function cancelOpenWork(tx: Queryable, ctx: WorkContext, missionId:
           attempt.attempt_id,
           now,
         ]);
+        if (open.dispatchKind === 'agent') {
+          // The cancellation request to the runner (OQ-05 section 4), sent by the dispatcher after this commits. A batch
+          // attempt has no cancel route: its worker learns at its next call, which is refused (ATTEMPT_NOT_CLAIMABLE).
+          await tx.query('INSERT INTO runner_cancellations (attempt_id, created_at) VALUES ($1, $2)', [
+            attempt.attempt_id,
+            now,
+          ]);
+          runnerCancellations += 1;
+        }
       }
     }
     await setWorkStatus(tx, ctx.env, open, 'CANCELLED');
     if (open.kind === 'run') runsCancelled += 1;
     else jobsCancelled += 1;
   }
-  return { runsCancelled, jobsCancelled, pendingAttempts, claimedAttempts };
+  return { runsCancelled, jobsCancelled, pendingAttempts, claimedAttempts, runnerCancellations };
 }
 
 // --- outbox ------------------------------------------------------------------------------------------------------

@@ -1851,6 +1851,164 @@
       "path": "protocol/valid/validation-result.policy-violation.json",
       "contract": "validation-result",
       "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/system-identity-view.release-recorded.json",
+      "contract": "system-identity-view",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/mission-view.concluded.json",
+      "contract": "mission-view",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/lineage-view.three-versions.json",
+      "contract": "lineage-view",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/trials-view.concluded.json",
+      "contract": "trials-view",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/findings-view.three-critiques.json",
+      "contract": "findings-view",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/gates-view.one-report.json",
+      "contract": "gates-view",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/decisions-view.concluded.json",
+      "contract": "decisions-view",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/job-view.retrieve.json",
+      "contract": "job-view",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/valid/job-view.evaluate-run.json",
+      "contract": "job-view",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/invalid/system-identity-view.version-2.json",
+      "contract": "system-identity-view",
+      "expect": "schema_invalid",
+      "code": "UNSUPPORTED_SCHEMA_VERSION"
+    },
+    {
+      "path": "protocol/invalid/system-identity-view.release-missing.json",
+      "contract": "system-identity-view",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/mission-view.unknown-field.json",
+      "contract": "mission-view",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/mission-view.outcome-reason-number.json",
+      "contract": "mission-view",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/lineage-view.version-zero.json",
+      "contract": "lineage-view",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/lineage-view.versions-missing.json",
+      "contract": "lineage-view",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/trials-view.run-slot-without-run.json",
+      "contract": "trials-view",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/trials-view.unknown-trial-status.json",
+      "contract": "trials-view",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/findings-view.unknown-category.json",
+      "contract": "findings-view",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/findings-view.unknown-treatment.json",
+      "contract": "findings-view",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/gates-view.five-reports.json",
+      "contract": "gates-view",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/gates-view.report-not-a-gate-report.json",
+      "contract": "gates-view",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/decisions-view.unknown-outcome.json",
+      "contract": "decisions-view",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/decisions-view.decided-at-date-only.json",
+      "contract": "decisions-view",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/job-view.used-number.json",
+      "contract": "job-view",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/job-view.unknown-kind.json",
+      "contract": "job-view",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/valid/agent-dispatch.critic-with-sessions.json",
+      "contract": "agent-dispatch",
+      "expect": "valid"
+    },
+    {
+      "path": "protocol/invalid/agent-dispatch.sessions-empty.json",
+      "contract": "agent-dispatch",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
+    },
+    {
+      "path": "protocol/invalid/agent-dispatch.session-malformed.json",
+      "contract": "agent-dispatch",
+      "expect": "schema_invalid",
+      "code": "SCHEMA_VIOLATION"
     }
   ]
 }

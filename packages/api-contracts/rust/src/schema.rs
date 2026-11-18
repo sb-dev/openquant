@@ -114,6 +114,38 @@ const CONNECTED_SOURCES: &[(&str, &str)] = &[
         "urn:openquant:schema:release-manifest:1",
         include_str!("../../schemas/release-manifest.schema.json"),
     ),
+    (
+        "urn:openquant:schema:system-identity-view:1",
+        include_str!("../../schemas/system-identity-view.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:mission-view:1",
+        include_str!("../../schemas/mission-view.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:lineage-view:1",
+        include_str!("../../schemas/lineage-view.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:trials-view:1",
+        include_str!("../../schemas/trials-view.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:findings-view:1",
+        include_str!("../../schemas/findings-view.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:gates-view:1",
+        include_str!("../../schemas/gates-view.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:decisions-view:1",
+        include_str!("../../schemas/decisions-view.schema.json"),
+    ),
+    (
+        "urn:openquant:schema:job-view:1",
+        include_str!("../../schemas/job-view.schema.json"),
+    ),
 ];
 
 /// Violations listed individually. Later ones are counted and summarised in one marker entry.

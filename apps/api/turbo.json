@@ -5,6 +5,7 @@
     "typecheck": {
       "inputs": [
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/agents/**",
         "$TURBO_ROOT$/packages/api-contracts/schemas/**",
         "$TURBO_ROOT$/packages/api-contracts/routes/**"
       ]
@@ -15,6 +16,7 @@
     "test": {
       "inputs": [
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/agents/**",
         "$TURBO_ROOT$/packages/api-contracts/schemas/**",
         "$TURBO_ROOT$/packages/api-contracts/routes/**",
         "$TURBO_ROOT$/fixtures/protocol/**"
@@ -24,6 +26,7 @@
     "build": {
       "inputs": [
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/agents/**",
         "$TURBO_ROOT$/packages/api-contracts/schemas/**",
         "$TURBO_ROOT$/packages/api-contracts/routes/**"
       ]

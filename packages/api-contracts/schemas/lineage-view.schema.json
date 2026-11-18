@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:lineage-view:1",
+  "title": "LineageView",
+  "description": "The Strategy Graph of the mission, derived from the records: versions, parents, change scope, linked runs, findings and Decisions. The response body of missions.lineage (routes/v1.json). A value that nothing reported is null, never zero; arrays are always present and may be empty.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "mission_id", "versions"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["lineage-view/1"] },
+    "mission_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "versions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ViewLineageVersion" },
+      "maxItems": 32
+    }
+  },
+  "$defs": {
+    "ViewLineageDecision": {
+      "title": "ViewLineageDecision",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_id", "outcome"],
+      "properties": {
+        "decision_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "outcome": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DecisionOutcome" }
+      }
+    },
+    "ViewLineageRun": {
+      "title": "ViewLineageRun",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_id", "run_slot", "status", "window_role", "cost_scenario"],
+      "properties": {
+        "run_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "run_slot": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "status": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/RunStatus" },
+        "window_role": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/WindowRole" },
+        "cost_scenario": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/CostScenario" }
+      }
+    },
+    "ViewLineageVersion": {
+      "title": "ViewLineageVersion",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy_hash", "strategy_id", "version", "parent_hash", "lifecycle", "registered_at", "trial_slot", "change_scope", "validation_digest", "runs", "findings", "decisions"],
+      "properties": {
+        "strategy_hash": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "strategy_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "version": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "parent_hash": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewDigest" },
+            { "type": "null" }
+          ]
+        },
+        "lifecycle": { "type": "string", "pattern": "^[A-Z_]{1,40}$" },
+        "registered_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "trial_slot": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewIdentifier" },
+            { "type": "null" }
+          ]
+        },
+        "change_scope": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewState" },
+            { "type": "null" }
+          ]
+        },
+        "validation_digest": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewDigest" },
+            { "type": "null" }
+          ]
+        },
+        "runs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ViewLineageRun" },
+          "maxItems": 64
+        },
+        "findings": {
+          "type": "array",
+          "items": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+          "maxItems": 256
+        },
+        "decisions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ViewLineageDecision" },
+          "maxItems": 64
+        }
+      }
+    }
+  }
+}
