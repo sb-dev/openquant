@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:openquant:schema:connected-common:1",
   "title": "OpenQuantConnectedDefinitions",
-  "description": "Shared definitions for the S1 connected envelopes (OQ-05 sections 3, 4 and 7). They are outside engine identity. Unknown values are explicit branches, never zero. JobKind, JobStatus, AttemptStatus, LeaseStatus, ReservationStatus, OutboxStatus, GateResult, MissionStatus and MissionOutcome are referenced by no S1 envelope. They stay here because they are the state values of the OQ-05 section 4 transition table and of the P2 read models.",
+  "description": "Shared definitions for the S1 connected envelopes (OQ-05 sections 3, 4 and 7). They are outside engine identity. Unknown values are explicit branches, never zero. JobKind, JobStatus, AttemptStatus, LeaseStatus, ReservationStatus, OutboxStatus, GateResult, MissionStatus and MissionOutcome are the state values of the OQ-05 section 4 transition table; the view contracts of the read routes use several of them. The View definitions are the scalar types and references that the view contracts share.",
   "$defs": {
     "DeploymentEnvironment": {
       "title": "DeploymentEnvironment",
@@ -290,7 +290,14 @@
       "properties": {
         "window": { "$ref": "#/$defs/WindowRole" },
         "range": { "$ref": "#/$defs/SessionDateRange" },
-        "label": { "type": "string", "maxLength": 200 }
+        "label": { "type": "string", "maxLength": 200 },
+        "sessions": {
+          "description": "The resolved scored sessions of the window, in calendar order, from the evaluation plan and the calendar of the frozen dataset manifest: the first is range.start and the last is range.end. Every S1 agent request carries them for V and H, so the exclusion check compares the range with them exactly instead of guessing which dates are sessions (OQ-02 section 3.3). An evaluation request omits them.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 400,
+          "items": { "$ref": "urn:openquant:schema:common:1#/$defs/SessionDate" }
+        }
       }
     },
     "InstrumentMapping": {
@@ -485,6 +492,50 @@
     "CountUsage": {
       "title": "CountUsage",
       "oneOf": [{ "$ref": "#/$defs/ReportedCount" }, { "$ref": "#/$defs/UnknownUsage" }]
+    },
+    "ViewText": {
+      "title": "ViewText",
+      "description": "Bounded text of a record. Where a property allows null, null means that the record holds none.",
+      "type": "string",
+      "maxLength": 1000
+    },
+    "ViewTimestamp": {
+      "title": "ViewTimestamp",
+      "description": "A UTC instant with second precision. Where a property allows null, the event has not happened.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "ViewIdentifier": { "title": "ViewIdentifier", "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$" },
+    "ViewDigest": { "title": "ViewDigest", "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "ViewState": {
+      "title": "ViewState",
+      "description": "A state value of the transition table or of the evidence records. Where a property allows null, there is none yet.",
+      "type": "string",
+      "pattern": "^[A-Za-z_]{1,40}$"
+    },
+    "ViewAmount": {
+      "title": "ViewAmount",
+      "description": "An exact decimal amount as the database states it, eight fractional digits for a budget amount. Where a property allows null, nothing reported it: unknown, not zero.",
+      "type": "string",
+      "pattern": "^-?[0-9]{1,24}(?:\\.[0-9]{1,8})?$"
+    },
+    "ViewCount": { "title": "ViewCount", "type": "integer", "minimum": 0, "maximum": 1000000 },
+    "ViewRecordRef": {
+      "title": "ViewRecordRef",
+      "description": "A registered record by its id and revision.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "revision"],
+      "properties": {
+        "id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "revision": { "type": "integer", "minimum": 1, "maximum": 1000000 }
+      }
+    },
+    "ViewWorkKind": {
+      "title": "ViewWorkKind",
+      "description": "The kind of a job: the four batch kinds of OQ-05 section 3, and the logical run of an agent.",
+      "type": "string",
+      "enum": ["retrieve", "validate", "evaluate", "assess", "agent"]
     }
   }
 }

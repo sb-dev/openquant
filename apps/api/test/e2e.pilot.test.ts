@@ -32,6 +32,7 @@ import {
   submitEvaluation,
   toEvaluating,
 } from './support/steps.ts';
+import { readViews } from './support/views.ts';
 import type { Doc } from './support/world.ts';
 
 let flow: Flow & Started;
@@ -60,6 +61,8 @@ describe('the pilot, stage by stage', () => {
     const [plan] = await flow.world.sql<{ plan_digest: string }>('SELECT plan_digest FROM evaluation_plans');
     planDigest = plan?.plan_digest as string;
     expect(planDigest).toMatch(/^sha256:/);
+    // A mission in progress, with most of its records still null: every read route answers the view contract of its route.
+    await readViews(flow);
   });
 
   it('2. the seed is validated, criticised and approved by the policy-determined Decision: five runs are written', async () => {
@@ -469,6 +472,14 @@ describe('the views of the concluded mission', () => {
     const [run] = await flow.world.sql<{ run_id: string }>(`SELECT run_id FROM runs WHERE run_slot = 'seed.v.base'`);
     const evaluation = await json<Doc>(await flow.send('GET', `/v1/jobs/${run?.run_id}`, viewer));
     expect(evaluation).toMatchObject({ job_id: run?.run_id, kind: 'evaluate', status: 'COMPLETED' });
+  });
+
+  it('answers every read route with the view contract that the route manifest names', async () => {
+    const views = await readViews(flow);
+    expect(views[`/v1/missions/${flow.missionId}`]).toMatchObject({
+      schema_version: 'mission-view/1',
+      status: 'CONCLUDED',
+    });
   });
 
   it('answers NOT_FOUND for what does not exist, and a command that was applied through its status route', async () => {

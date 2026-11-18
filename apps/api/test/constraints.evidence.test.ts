@@ -358,6 +358,23 @@ describe('findings and their treatment (OQ-02 sections 3.6 and 4)', () => {
         constraint: 'findings_position',
       },
     );
+    // A byte-identical critique from another attempt (another candidate) keeps its own findings.
+    await insertJob(t.exec, { jobId: 'job-d', kind: 'agent', status: 'COMPLETED' });
+    await insertAttempt(t.exec, {
+      attemptId: 'att-d',
+      jobId: 'job-d',
+      poolId: await insertPool(t.exec),
+      status: 'COMPLETED',
+    });
+    await t.ok(insertFinding.replace("'att-c'", "'att-d'"), [
+      'f-3',
+      ids.mission,
+      digests.seedStrategy,
+      sha('critique'),
+      1,
+      'causal_leakage',
+      NOW,
+    ]);
     await t.violation(`UPDATE findings SET category = 'method_advice'`, [], {
       code: CHECK,
       constraint: 'findings_immutable',

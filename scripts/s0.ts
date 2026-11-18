@@ -153,7 +153,7 @@ export const pinnedFiles: Readonly<Record<string, string>> = {
 // connected list is the Envelope enum in packages/api-contracts/rust/src/lib.rs (OQ-05 section 7).
 export const protocolExpectations: readonly string[] = ['valid', 'schema_invalid', 'semantic_invalid'];
 export const protocolEngineContracts: readonly string[] = ['strategy-artefact', 'evaluation-input', 'evaluation-result', 'checkpoint'];
-export const protocolConnectedContracts: readonly string[] = ['evaluation-plan', 'evaluation-request', 'evaluation-submission', 'job-dispatch', 'attempt-claim', 'command', 'research-profile', 'cohort-policy', 'dataset-manifest', 'retrieval-request', 'retrieval-result', 'validation-result', 'evaluation-metrics', 'gate-report', 'agent-dispatch', 'agent-attempt-result', 'api-error', 'release-manifest'];
+export const protocolConnectedContracts: readonly string[] = ['evaluation-plan', 'evaluation-request', 'evaluation-submission', 'job-dispatch', 'attempt-claim', 'command', 'research-profile', 'cohort-policy', 'dataset-manifest', 'retrieval-request', 'retrieval-result', 'validation-result', 'evaluation-metrics', 'gate-report', 'agent-dispatch', 'agent-attempt-result', 'api-error', 'release-manifest', 'system-identity-view', 'mission-view', 'lineage-view', 'trials-view', 'findings-view', 'gates-view', 'decisions-view', 'job-view'];
 
 // Exact equality with the expected list: same steps, same flags, same order, nothing extra.
 function stepListErrors(file: string, kind: string, expected: readonly string[], commands: readonly string[]): string[] {

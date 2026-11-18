@@ -28,9 +28,9 @@ function withContext(context: RoleContext, change: (copy: RoleContext) => void):
   return copy;
 }
 
-// A V or H exclusion that leaves sessions of its policy window out of the date screen, and a date in the part that it
-// leaves out. The policy windows are 2024-01-01 to 2024-12-31 (V) and 2025-01-01 to 2025-12-31 (H); the full
-// exclusions start at the first sessions 2024-01-02 and 2025-01-02.
+// A V or H exclusion that leaves sessions of its policy window out, and a date in the part that it leaves out. The
+// policy windows are 2024-01-01 to 2024-12-31 (V) and 2025-01-01 to 2025-12-31 (H); the full exclusions start at the
+// first sessions 2024-01-02 and 2025-01-02.
 const NARROWED: readonly (readonly ['VALIDATION' | 'HOLDOUT', string, string, string])[] = [
   ['VALIDATION', '2024-07-01', '2024-12-31', '2024-03-15'],
   ['VALIDATION', '2024-01-02', '2024-12-27', '2024-12-30'],
@@ -38,11 +38,13 @@ const NARROWED: readonly (readonly ['VALIDATION' | 'HOLDOUT', string, string, st
   ['HOLDOUT', '2025-01-03', '2025-12-31', '2025-01-02'],
 ];
 
+/** An exclusion narrowed consistently: its range and its sessions both leave out what lies outside start..end. */
 function narrowed(context: RoleContext, window: string, start: string, end: string): RoleContext {
   return withContext(context, (copy) => {
     const exclusion = copy.holdout_exclusions.find((item) => item.window === window);
     if (!exclusion) throw new Error(`the request names no ${window} exclusion`);
     exclusion.range = { start, end };
+    exclusion.sessions = (exclusion.sessions ?? []).filter((session) => session >= start && session <= end);
   });
 }
 
@@ -229,7 +231,9 @@ describe('refusals of a proposer request', () => {
       'HOLDOUT_EXCLUSIONS_INVALID',
     ]);
     const moved = withContext(input.context, (copy) => {
-      (copy.holdout_exclusions[1] as HoldoutExclusion).range = { start: '2024-06-03', end: '2025-12-31' };
+      const holdout = copy.holdout_exclusions[1] as HoldoutExclusion;
+      holdout.range = { start: '2024-06-03', end: '2025-12-31' };
+      holdout.sessions = ['2024-06-03', ...(holdout.sessions ?? [])];
     });
     expect(await codes(await assembleFormulationRequest({ ...input, context: moved }))).toEqual([
       'HOLDOUT_EXCLUSIONS_INVALID',
@@ -237,17 +241,57 @@ describe('refusals of a proposer request', () => {
   });
 
   test.each(NARROWED)(
-    'a %s exclusion narrowed to %s..%s is refused, with evidence dated %s in the omitted part',
+    'a %s exclusion whose range is narrowed to %s..%s is refused, and evidence dated %s in the omitted part too',
     async (window, start, end, date) => {
       const input = await revisionInput({ evidence: evidenceDated(date) });
-      const context = narrowed(input.context, window, start, end);
+      const context = withContext(input.context, (copy) => {
+        const exclusion = copy.holdout_exclusions.find((item) => item.window === window) as HoldoutExclusion;
+        exclusion.range = { start, end };
+      });
       const assembly = await assembleFormulationRequest({ ...input, context });
       expect(await codes(assembly)).toEqual(['HOLDOUT_EXCLUSIONS_INVALID', 'HOLDOUT_OVERLAP']);
       expect(!assembly.ok && assembly.refusals[0]?.detail).toBe(
-        `the ${window} exclusion does not cover the scored dates of the policy window`,
+        `the ${window} exclusion range is not the first and the last of its sessions`,
       );
     },
   );
+
+  test.each(NARROWED)(
+    'a %s exclusion whose sessions are narrowed to %s..%s still withholds evidence dated %s in the policy window',
+    async (window, start, end, date) => {
+      const input = await revisionInput({ evidence: evidenceDated(date) });
+      const context = narrowed(input.context, window, start, end);
+      expect(await codes(await assembleFormulationRequest({ ...input, context }))).toEqual(['HOLDOUT_OVERLAP']);
+    },
+  );
+
+  test('an exclusion is compared with its resolved sessions exactly: no weekday is guessed to be a holiday', async () => {
+    // The exchange closed on two weekdays at the start of V (2024-01-01 and 2024-01-02, say): its first resolved
+    // session is 2024-01-03. A weekday rule would refuse the gap of two weekdays; the sessions of the plan decide.
+    const input = await revisionInput();
+    const context = narrowed(input.context, 'VALIDATION', '2024-01-03', '2024-12-31');
+    expect(await codes(await assembleFormulationRequest({ ...input, context }))).toEqual([]);
+  });
+
+  test('a V or H exclusion without its sessions, or with sessions out of order, is refused', async () => {
+    const input = await revisionInput();
+    const bare = withContext(input.context, (copy) => {
+      delete (copy.holdout_exclusions[0] as HoldoutExclusion).sessions;
+    });
+    const missing = await assembleFormulationRequest({ ...input, context: bare });
+    expect(await codes(missing)).toEqual(['HOLDOUT_EXCLUSIONS_INVALID']);
+    expect(!missing.ok && missing.refusals[0]?.detail).toBe(
+      'the VALIDATION exclusion does not carry the resolved sessions of its window',
+    );
+    const shuffled = withContext(input.context, (copy) => {
+      const sessions = (copy.holdout_exclusions[1] as HoldoutExclusion).sessions as string[];
+      [sessions[1], sessions[2]] = [sessions[2] as string, sessions[1] as string];
+    });
+    const unordered = await assembleFormulationRequest({ ...input, context: shuffled });
+    expect(!unordered.ok && unordered.refusals.map((item) => item.detail)).toEqual([
+      'the sessions of the HOLDOUT exclusion are not in strictly increasing order',
+    ]);
+  });
 
   test('operators that are not the policy operators are refused', async () => {
     const input = await revisionInput();
@@ -363,15 +407,12 @@ describe('a critic request', () => {
   });
 
   test.each(NARROWED)(
-    'a %s exclusion narrowed to %s..%s is refused, with evidence dated %s in the omitted part',
+    'a %s exclusion narrowed to %s..%s still withholds evidence dated %s in the omitted part',
     async (window, start, end, date) => {
       const input = await critiqueRequestInput();
       const evidence = [{ ...(input.evidence[0] as EvidenceItem), content: `Seen on ${date}.` }];
       const context = narrowed(input.context, window, start, end);
-      expect(await codes(await assembleCritiqueRequest({ ...input, context, evidence }))).toEqual([
-        'HOLDOUT_EXCLUSIONS_INVALID',
-        'HOLDOUT_OVERLAP',
-      ]);
+      expect(await codes(await assembleCritiqueRequest({ ...input, context, evidence }))).toEqual(['HOLDOUT_OVERLAP']);
     },
   );
 

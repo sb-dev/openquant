@@ -20,6 +20,7 @@ import { findMission } from '../domain/rows.ts';
 import { acceptValidationResult } from '../domain/validation.ts';
 import { workOfAttempt } from '../domain/work.ts';
 import { ApiFailure } from '../errors.ts';
+import { advanceAfterResult } from '../orchestrator.ts';
 import { type Handler, json, type LateHandler } from './context.ts';
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
@@ -174,6 +175,9 @@ function resultRoute<D extends { attempt: { attempt_id: string } }>(accept: Acce
       throw error;
     }
     if (!outcome.ok) throw outcome.failure;
+    // The orchestrator takes the next step of the mission now that the result is committed (orchestrator.ts). It never
+    // fails this request; the scheduled tick catches up with what it could not do.
+    if (env.orchestrate === true) await advanceAfterResult(env, db, params.attempt_id ?? '');
     return new Response(null, { status: route.success_status });
   };
 }

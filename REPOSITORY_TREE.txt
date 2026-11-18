@@ -570,6 +570,7 @@ apps/api/migrations/0006_evidence.sql
 apps/api/migrations/0007_control.sql
 apps/api/migrations/0008_commands.sql
 apps/api/migrations/0009_attempt_routes.sql
+apps/api/migrations/0010_orchestration.sql
 apps/api/package.json
 apps/api/src/app.ts
 apps/api/src/audit.ts
@@ -589,6 +590,7 @@ apps/api/src/db/database.ts
 apps/api/src/db/migration-level.ts
 apps/api/src/db/pg-module.d.ts
 apps/api/src/db/pg.ts
+apps/api/src/domain/agent-requests.ts
 apps/api/src/domain/agents.ts
 apps/api/src/domain/assessment.ts
 apps/api/src/domain/attempts.ts
@@ -629,6 +631,7 @@ apps/api/src/handlers/reads.ts
 apps/api/src/handlers/releases.ts
 apps/api/src/handlers/system-identity.ts
 apps/api/src/manifest.ts
+apps/api/src/orchestrator.ts
 apps/api/src/outbox.ts
 apps/api/src/read-models.ts
 apps/api/src/recovery.ts
@@ -661,6 +664,7 @@ apps/api/test/e2e.pilot.test.ts
 apps/api/test/identity-routes.test.ts
 apps/api/test/migrations.test.ts
 apps/api/test/object-store.test.ts
+apps/api/test/orchestration.test.ts
 apps/api/test/outbox.test.ts
 apps/api/test/policy.fit.test.ts
 apps/api/test/reconcile.unreconciled.test.ts
@@ -688,6 +692,7 @@ apps/api/test/support/pipeline.ts
 apps/api/test/support/rollback.ts
 apps/api/test/support/seed.ts
 apps/api/test/support/steps.ts
+apps/api/test/support/views.ts
 apps/api/test/support/world.ts
 apps/api/test/test-database.test.ts
 apps/api/test/tokens.test.ts
@@ -1210,6 +1215,8 @@ fixtures/protocol/invalid/agent-dispatch.critic-with-formulation-skill.json
 fixtures/protocol/invalid/agent-dispatch.negative-reservation.json
 fixtures/protocol/invalid/agent-dispatch.output-limit-above-524288.json
 fixtures/protocol/invalid/agent-dispatch.proposer-with-critique-request.json
+fixtures/protocol/invalid/agent-dispatch.session-malformed.json
+fixtures/protocol/invalid/agent-dispatch.sessions-empty.json
 fixtures/protocol/invalid/agent-dispatch.tool-granted.json
 fixtures/protocol/invalid/agent-dispatch.unknown-field.json
 fixtures/protocol/invalid/agent-dispatch.version-2.json
@@ -1310,6 +1317,8 @@ fixtures/protocol/invalid/dataset-manifest.request-digest-malformed.json
 fixtures/protocol/invalid/dataset-manifest.unknown-nested-field.json
 fixtures/protocol/invalid/dataset-manifest.unlisted-decimals-at-4097.json
 fixtures/protocol/invalid/dataset-manifest.version-2.json
+fixtures/protocol/invalid/decisions-view.decided-at-date-only.json
+fixtures/protocol/invalid/decisions-view.unknown-outcome.json
 fixtures/protocol/invalid/evaluation-input.listed-decimals-at-4096.json
 fixtures/protocol/invalid/evaluation-input.unlisted-decimals-at-4097.json
 fixtures/protocol/invalid/evaluation-metrics.missing-turnover.json
@@ -1334,6 +1343,8 @@ fixtures/protocol/invalid/evaluation-submission.executable-digest-malformed.json
 fixtures/protocol/invalid/evaluation-submission.metrics-on-failed.json
 fixtures/protocol/invalid/evaluation-submission.unknown-field.json
 fixtures/protocol/invalid/evaluation-submission.version-2.json
+fixtures/protocol/invalid/findings-view.unknown-category.json
+fixtures/protocol/invalid/findings-view.unknown-treatment.json
 fixtures/protocol/invalid/gate-report.empty-evidence.json
 fixtures/protocol/invalid/gate-report.empty-observations.json
 fixtures/protocol/invalid/gate-report.missing-duration.json
@@ -1342,6 +1353,8 @@ fixtures/protocol/invalid/gate-report.observed-decimal-exponent.json
 fixtures/protocol/invalid/gate-report.old-signal-timing-name.json
 fixtures/protocol/invalid/gate-report.unknown-field.json
 fixtures/protocol/invalid/gate-report.version-2.json
+fixtures/protocol/invalid/gates-view.five-reports.json
+fixtures/protocol/invalid/gates-view.report-not-a-gate-report.json
 fixtures/protocol/invalid/input.cutoff-impossible.json
 fixtures/protocol/invalid/input.cutoff-malformed.json
 fixtures/protocol/invalid/input.cutoff-missing.json
@@ -1371,6 +1384,12 @@ fixtures/protocol/invalid/job-dispatch.unknown-field.json
 fixtures/protocol/invalid/job-dispatch.unknown-kind.json
 fixtures/protocol/invalid/job-dispatch.validate-without-mission.json
 fixtures/protocol/invalid/job-dispatch.version-2.json
+fixtures/protocol/invalid/job-view.unknown-kind.json
+fixtures/protocol/invalid/job-view.used-number.json
+fixtures/protocol/invalid/lineage-view.version-zero.json
+fixtures/protocol/invalid/lineage-view.versions-missing.json
+fixtures/protocol/invalid/mission-view.outcome-reason-number.json
+fixtures/protocol/invalid/mission-view.unknown-field.json
 fixtures/protocol/invalid/release-manifest.image-digest-malformed.json
 fixtures/protocol/invalid/release-manifest.source-commit-short.json
 fixtures/protocol/invalid/release-manifest.unknown-field.json
@@ -1408,6 +1427,10 @@ fixtures/protocol/invalid/strategy.unsupported-operator-id.json
 fixtures/protocol/invalid/strategy.unsupported-operator-version.json
 fixtures/protocol/invalid/strategy.version-2.json
 fixtures/protocol/invalid/strategy.window-over-limit.json
+fixtures/protocol/invalid/system-identity-view.release-missing.json
+fixtures/protocol/invalid/system-identity-view.version-2.json
+fixtures/protocol/invalid/trials-view.run-slot-without-run.json
+fixtures/protocol/invalid/trials-view.unknown-trial-status.json
 fixtures/protocol/invalid/validation-result.draft-digest-malformed.json
 fixtures/protocol/invalid/validation-result.missing-duration.json
 fixtures/protocol/invalid/validation-result.revision-no-change.json
@@ -1423,6 +1446,7 @@ fixtures/protocol/manifest.json
 fixtures/protocol/valid/agent-attempt-result.completion-with-notices.json
 fixtures/protocol/valid/agent-attempt-result.completion.json
 fixtures/protocol/valid/agent-attempt-result.timeout.json
+fixtures/protocol/valid/agent-dispatch.critic-with-sessions.json
 fixtures/protocol/valid/agent-dispatch.critic.json
 fixtures/protocol/valid/agent-dispatch.proposer.json
 fixtures/protocol/valid/api-error.maximal-listing.json
@@ -1453,6 +1477,7 @@ fixtures/protocol/valid/command.status-applied.json
 fixtures/protocol/valid/command.status-pending.json
 fixtures/protocol/valid/command.status-rejected.json
 fixtures/protocol/valid/dataset-manifest.dividend-window.json
+fixtures/protocol/valid/decisions-view.concluded.json
 fixtures/protocol/valid/evaluation-metrics.validation-base.json
 fixtures/protocol/valid/evaluation-plan.aapl-mission.json
 fixtures/protocol/valid/evaluation-request.backtest.json
@@ -1461,7 +1486,9 @@ fixtures/protocol/valid/evaluation-request.replay.json
 fixtures/protocol/valid/evaluation-result.f0.json
 fixtures/protocol/valid/evaluation-submission.completed-replay.json
 fixtures/protocol/valid/evaluation-submission.not-prepared.json
+fixtures/protocol/valid/findings-view.three-critiques.json
 fixtures/protocol/valid/gate-report.no-eligible-candidate.json
+fixtures/protocol/valid/gates-view.one-report.json
 fixtures/protocol/valid/input.exact-fractions.json
 fixtures/protocol/valid/input.provider-source.json
 fixtures/protocol/valid/job-dispatch.assess.json
@@ -1470,6 +1497,10 @@ fixtures/protocol/valid/job-dispatch.evaluate.json
 fixtures/protocol/valid/job-dispatch.retrieve.json
 fixtures/protocol/valid/job-dispatch.validate-seed.json
 fixtures/protocol/valid/job-dispatch.validate.json
+fixtures/protocol/valid/job-view.evaluate-run.json
+fixtures/protocol/valid/job-view.retrieve.json
+fixtures/protocol/valid/lineage-view.three-versions.json
+fixtures/protocol/valid/mission-view.concluded.json
 fixtures/protocol/valid/release-manifest.staging.json
 fixtures/protocol/valid/research-profile.aapl-sip-daily.json
 fixtures/protocol/valid/retrieval-request.aapl-mission.json
@@ -1478,6 +1509,8 @@ fixtures/protocol/valid/retrieval-result.authentication-failed.json
 fixtures/protocol/valid/retrieval-result.complete.json
 fixtures/protocol/valid/retrieval-result.egress-refused.json
 fixtures/protocol/valid/retrieval-result.rate-limited.json
+fixtures/protocol/valid/system-identity-view.release-recorded.json
+fixtures/protocol/valid/trials-view.concluded.json
 fixtures/protocol/valid/validation-result.invalid-draft.json
 fixtures/protocol/valid/validation-result.policy-violation.json
 fixtures/protocol/valid/validation-result.revision-scope.json
@@ -2352,19 +2385,27 @@ packages/api-contracts/schemas/command.schema.json
 packages/api-contracts/schemas/common.schema.json
 packages/api-contracts/schemas/connected-common.schema.json
 packages/api-contracts/schemas/dataset-manifest.schema.json
+packages/api-contracts/schemas/decisions-view.schema.json
 packages/api-contracts/schemas/evaluation-input.schema.json
 packages/api-contracts/schemas/evaluation-metrics.schema.json
 packages/api-contracts/schemas/evaluation-plan.schema.json
 packages/api-contracts/schemas/evaluation-request.schema.json
 packages/api-contracts/schemas/evaluation-result.schema.json
 packages/api-contracts/schemas/evaluation-submission.schema.json
+packages/api-contracts/schemas/findings-view.schema.json
 packages/api-contracts/schemas/gate-report.schema.json
+packages/api-contracts/schemas/gates-view.schema.json
 packages/api-contracts/schemas/job-dispatch.schema.json
+packages/api-contracts/schemas/job-view.schema.json
+packages/api-contracts/schemas/lineage-view.schema.json
+packages/api-contracts/schemas/mission-view.schema.json
 packages/api-contracts/schemas/release-manifest.schema.json
 packages/api-contracts/schemas/research-profile.schema.json
 packages/api-contracts/schemas/retrieval-request.schema.json
 packages/api-contracts/schemas/retrieval-result.schema.json
 packages/api-contracts/schemas/strategy-artefact.schema.json
+packages/api-contracts/schemas/system-identity-view.schema.json
+packages/api-contracts/schemas/trials-view.schema.json
 packages/api-contracts/schemas/validation-result.schema.json
 packages/api-contracts/ts/README.md
 packages/api-contracts/ts/package.json

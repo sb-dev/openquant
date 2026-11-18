@@ -328,7 +328,7 @@ describe('the concurrency limit of the cohort policy', () => {
     const db = env.database();
     try {
       return await runRecovery(env, db, {
-        dispatchers: { batch: { async send() {} }, runner: { async dispatch() {} } },
+        dispatchers: { batch: { async send() {} }, runner: { async dispatch() {}, async cancel() {} } },
         probe,
       });
     } finally {

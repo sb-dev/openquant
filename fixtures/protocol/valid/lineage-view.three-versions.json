@@ -1,0 +1,219 @@
+{
+  "schema_version": "lineage-view/1",
+  "mission_id": "msn-00000a",
+  "versions": [
+    {
+      "strategy_hash": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
+      "strategy_id": "daily-swing-seed",
+      "version": 1,
+      "parent_hash": null,
+      "lifecycle": "EVALUATING",
+      "registered_at": "2026-11-15T10:00:00Z",
+      "trial_slot": "seed",
+      "change_scope": null,
+      "validation_digest": null,
+      "runs": [
+        {
+          "run_id": "run-00001e",
+          "run_slot": "seed.d.base",
+          "status": "COMPLETED",
+          "window_role": "DEVELOPMENT",
+          "cost_scenario": "BASE"
+        },
+        {
+          "run_id": "run-000026",
+          "run_slot": "seed.d.base.repeat",
+          "status": "COMPLETED",
+          "window_role": "DEVELOPMENT",
+          "cost_scenario": "BASE"
+        },
+        {
+          "run_id": "run-000020",
+          "run_slot": "seed.d.stress",
+          "status": "COMPLETED",
+          "window_role": "DEVELOPMENT",
+          "cost_scenario": "COST_STRESS"
+        },
+        {
+          "run_id": "run-0000bd",
+          "run_slot": "seed.h.base",
+          "status": "COMPLETED",
+          "window_role": "HOLDOUT",
+          "cost_scenario": "BASE"
+        },
+        {
+          "run_id": "run-0000bf",
+          "run_slot": "seed.h.stress",
+          "status": "COMPLETED",
+          "window_role": "HOLDOUT",
+          "cost_scenario": "COST_STRESS"
+        },
+        {
+          "run_id": "run-000022",
+          "run_slot": "seed.v.base",
+          "status": "COMPLETED",
+          "window_role": "VALIDATION",
+          "cost_scenario": "BASE"
+        },
+        {
+          "run_id": "run-000024",
+          "run_slot": "seed.v.stress",
+          "status": "COMPLETED",
+          "window_role": "VALIDATION",
+          "cost_scenario": "COST_STRESS"
+        }
+      ],
+      "findings": [
+        "find-00001c"
+      ],
+      "decisions": [
+        {
+          "decision_id": "dec-00001d",
+          "outcome": "APPROVED"
+        }
+      ]
+    },
+    {
+      "strategy_hash": "sha256:ab5f48cdc451feb20a105cfc26fe8f969bb7f1f2c4d2ed7dfdf8390aeb106889",
+      "strategy_id": "daily-swing-seed",
+      "version": 2,
+      "parent_hash": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
+      "lifecycle": "EVALUATING",
+      "registered_at": "2026-11-15T10:00:00Z",
+      "trial_slot": "rev-a",
+      "change_scope": "ENTRY",
+      "validation_digest": "sha256:da1dcaaa1e51b09a41af39e3a9c0dd4676d45cb6c7d0eba33dfb2616b96babb5",
+      "runs": [
+        {
+          "run_id": "run-000065",
+          "run_slot": "rev-a.d.base",
+          "status": "COMPLETED",
+          "window_role": "DEVELOPMENT",
+          "cost_scenario": "BASE"
+        },
+        {
+          "run_id": "run-00006d",
+          "run_slot": "rev-a.d.base.repeat",
+          "status": "COMPLETED",
+          "window_role": "DEVELOPMENT",
+          "cost_scenario": "BASE"
+        },
+        {
+          "run_id": "run-000067",
+          "run_slot": "rev-a.d.stress",
+          "status": "COMPLETED",
+          "window_role": "DEVELOPMENT",
+          "cost_scenario": "COST_STRESS"
+        },
+        {
+          "run_id": "run-0000c1",
+          "run_slot": "rev-a.h.base",
+          "status": "COMPLETED",
+          "window_role": "HOLDOUT",
+          "cost_scenario": "BASE"
+        },
+        {
+          "run_id": "run-0000c3",
+          "run_slot": "rev-a.h.stress",
+          "status": "COMPLETED",
+          "window_role": "HOLDOUT",
+          "cost_scenario": "COST_STRESS"
+        },
+        {
+          "run_id": "run-000069",
+          "run_slot": "rev-a.v.base",
+          "status": "COMPLETED",
+          "window_role": "VALIDATION",
+          "cost_scenario": "BASE"
+        },
+        {
+          "run_id": "run-00006b",
+          "run_slot": "rev-a.v.stress",
+          "status": "COMPLETED",
+          "window_role": "VALIDATION",
+          "cost_scenario": "COST_STRESS"
+        }
+      ],
+      "findings": [
+        "find-000063"
+      ],
+      "decisions": [
+        {
+          "decision_id": "dec-000064",
+          "outcome": "APPROVED"
+        }
+      ]
+    },
+    {
+      "strategy_hash": "sha256:fe1cd5a63e470c9d992d36a656b0d7e6674c6758d1373028958c948f24d5b078",
+      "strategy_id": "daily-swing-seed",
+      "version": 4,
+      "parent_hash": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
+      "lifecycle": "EVALUATING",
+      "registered_at": "2026-11-15T10:00:00Z",
+      "trial_slot": "rev-b",
+      "change_scope": "ENTRY",
+      "validation_digest": "sha256:4e1c103f785de21bd96b8f258196a589830fb947aa1e41b861f8e8e6040c5623",
+      "runs": [
+        {
+          "run_id": "run-00009a",
+          "run_slot": "rev-b.d.base",
+          "status": "COMPLETED",
+          "window_role": "DEVELOPMENT",
+          "cost_scenario": "BASE"
+        },
+        {
+          "run_id": "run-0000a2",
+          "run_slot": "rev-b.d.base.repeat",
+          "status": "COMPLETED",
+          "window_role": "DEVELOPMENT",
+          "cost_scenario": "BASE"
+        },
+        {
+          "run_id": "run-00009c",
+          "run_slot": "rev-b.d.stress",
+          "status": "COMPLETED",
+          "window_role": "DEVELOPMENT",
+          "cost_scenario": "COST_STRESS"
+        },
+        {
+          "run_id": "run-0000c5",
+          "run_slot": "rev-b.h.base",
+          "status": "COMPLETED",
+          "window_role": "HOLDOUT",
+          "cost_scenario": "BASE"
+        },
+        {
+          "run_id": "run-0000c7",
+          "run_slot": "rev-b.h.stress",
+          "status": "COMPLETED",
+          "window_role": "HOLDOUT",
+          "cost_scenario": "COST_STRESS"
+        },
+        {
+          "run_id": "run-00009e",
+          "run_slot": "rev-b.v.base",
+          "status": "COMPLETED",
+          "window_role": "VALIDATION",
+          "cost_scenario": "BASE"
+        },
+        {
+          "run_id": "run-0000a0",
+          "run_slot": "rev-b.v.stress",
+          "status": "COMPLETED",
+          "window_role": "VALIDATION",
+          "cost_scenario": "COST_STRESS"
+        }
+      ],
+      "findings": [
+        "find-000098"
+      ],
+      "decisions": [
+        {
+          "decision_id": "dec-000099",
+          "outcome": "APPROVED"
+        }
+      ]
+    }
+  ]
+}

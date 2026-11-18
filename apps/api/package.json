@@ -14,6 +14,7 @@
     "bootstrap": "node tools/bootstrap.ts"
   },
   "dependencies": {
+    "@openquant/agents": "workspace:*",
     "@openquant/api-contracts": "workspace:*",
     "hono": "4.13.15",
     "pg": "8.23.1"

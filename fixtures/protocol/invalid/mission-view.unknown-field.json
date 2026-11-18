@@ -1,0 +1,313 @@
+{
+  "schema_version": "mission-view/1",
+  "mission_id": "msn-00000a",
+  "status": "CONCLUDED",
+  "outcome": "NO_ELIGIBLE_CANDIDATE",
+  "outcome_reason": "No candidate is eligible (rev-a: NOT_ELIGIBLE; rev-b: NOT_ELIGIBLE; seed: NOT_ELIGIBLE).",
+  "blocked_reason": null,
+  "withdrawn": null,
+  "revision": 8,
+  "objective": "Compare two controlled revisions of the daily swing seed on AAPL under the registered S1 cohort policy.",
+  "scope": {
+    "instrument_id": "alpaca:11111111-2222-4333-8444-555555555555",
+    "symbol": "AAPL",
+    "provider": "alpaca",
+    "provider_asset_id": "11111111-2222-4333-8444-555555555555",
+    "effective_from": "2022-01-03"
+  },
+  "profile": {
+    "id": "aapl-us-daily-sip",
+    "revision": 1
+  },
+  "cohort_policy": {
+    "id": "s1-aapl-daily-swing",
+    "revision": 1
+  },
+  "seed_draft_digest": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
+  "plan_digest": "sha256:440dfd6f2aa9a05f7720626029a5248bb74203b0a59bed5245ac9b6622b06264",
+  "created_by": "human-researcher",
+  "created_at": "2026-11-15T10:00:00Z",
+  "started_by": "human-researcher",
+  "started_at": "2026-11-15T10:00:00Z",
+  "concluded_at": "2026-11-15T10:00:00Z",
+  "budget": {
+    "limits": {
+      "currency": "USD",
+      "candidates": 3,
+      "experiments": 21,
+      "revisions_per_proposer": 2,
+      "new_families": 0,
+      "proposer_count": 2,
+      "model_spend": "105.00000000",
+      "model_spend_per_attempt": "5.00000000",
+      "proposer_spend": "30.00000000",
+      "proposer_attempts": 6,
+      "critic_spend": "45.00000000",
+      "critic_attempts": 9,
+      "provider_requests": "60",
+      "batch_compute_seconds": "7200",
+      "agent_compute_seconds": "18900",
+      "attempt_cap": 3
+    },
+    "pools": [
+      {
+        "dimension": "AGENT_COMPUTE_SECONDS",
+        "configuration_id": null,
+        "limit": "18900.00000000",
+        "committed": "1440.00000000",
+        "overrun": "0.00000000"
+      },
+      {
+        "dimension": "BATCH_COMPUTE_SECONDS",
+        "configuration_id": null,
+        "limit": "7200.00000000",
+        "committed": "883.00000000",
+        "overrun": "0.00000000"
+      },
+      {
+        "dimension": "MODEL_SPEND",
+        "configuration_id": "critic",
+        "limit": "45.00000000",
+        "committed": "9.75000000",
+        "overrun": "0.00000000"
+      },
+      {
+        "dimension": "MODEL_SPEND",
+        "configuration_id": "proposer-a",
+        "limit": "30.00000000",
+        "committed": "3.25000000",
+        "overrun": "0.00000000"
+      },
+      {
+        "dimension": "MODEL_SPEND",
+        "configuration_id": "proposer-b",
+        "limit": "30.00000000",
+        "committed": "6.50000000",
+        "overrun": "0.00000000"
+      },
+      {
+        "dimension": "PROVIDER_REQUESTS",
+        "configuration_id": null,
+        "limit": "60.00000000",
+        "committed": "2.00000000",
+        "overrun": "0.00000000"
+      }
+    ]
+  },
+  "reservations": [
+    {
+      "status": "SETTLED",
+      "reservations": 35
+    }
+  ],
+  "candidates": [
+    {
+      "trial_slot": "rev-a",
+      "kind": "REVISION",
+      "configuration_id": "proposer-a",
+      "terminal_reason": null,
+      "strategy_hash": "sha256:ab5f48cdc451feb20a105cfc26fe8f969bb7f1f2c4d2ed7dfdf8390aeb106889",
+      "lifecycle": "EVALUATING",
+      "decision": "APPROVED",
+      "eligibility": "NOT_ELIGIBLE"
+    },
+    {
+      "trial_slot": "rev-b",
+      "kind": "REVISION",
+      "configuration_id": "proposer-b",
+      "terminal_reason": null,
+      "strategy_hash": "sha256:fe1cd5a63e470c9d992d36a656b0d7e6674c6758d1373028958c948f24d5b078",
+      "lifecycle": "EVALUATING",
+      "decision": "APPROVED",
+      "eligibility": "NOT_ELIGIBLE"
+    },
+    {
+      "trial_slot": "seed",
+      "kind": "SEED",
+      "configuration_id": null,
+      "terminal_reason": null,
+      "strategy_hash": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
+      "lifecycle": "EVALUATING",
+      "decision": "APPROVED",
+      "eligibility": "NOT_ELIGIBLE"
+    }
+  ],
+  "jobs": [
+    {
+      "job_id": "job-00000b",
+      "kind": "retrieve",
+      "status": "COMPLETED",
+      "trial_slot": null,
+      "agent_role": null,
+      "configuration_id": null,
+      "waiting_reason": null,
+      "failure_code": null,
+      "attempts": 1,
+      "latest_attempt": "att-00000c"
+    },
+    {
+      "job_id": "job-000011",
+      "kind": "validate",
+      "status": "COMPLETED",
+      "trial_slot": "seed",
+      "agent_role": null,
+      "configuration_id": null,
+      "waiting_reason": null,
+      "failure_code": null,
+      "attempts": 1,
+      "latest_attempt": "att-000012"
+    },
+    {
+      "job_id": "job-000015",
+      "kind": "agent",
+      "status": "COMPLETED",
+      "trial_slot": "seed",
+      "agent_role": "CRITIC",
+      "configuration_id": "critic",
+      "waiting_reason": null,
+      "failure_code": null,
+      "attempts": 1,
+      "latest_attempt": "att-000016"
+    },
+    {
+      "job_id": "job-000041",
+      "kind": "agent",
+      "status": "COMPLETED",
+      "trial_slot": "rev-a",
+      "agent_role": "PROPOSER",
+      "configuration_id": "proposer-a",
+      "waiting_reason": null,
+      "failure_code": null,
+      "attempts": 1,
+      "latest_attempt": "att-000042"
+    },
+    {
+      "job_id": "job-000044",
+      "kind": "agent",
+      "status": "COMPLETED",
+      "trial_slot": "rev-b",
+      "agent_role": "PROPOSER",
+      "configuration_id": "proposer-b",
+      "waiting_reason": null,
+      "failure_code": null,
+      "attempts": 1,
+      "latest_attempt": "att-000045"
+    },
+    {
+      "job_id": "job-00004c",
+      "kind": "validate",
+      "status": "COMPLETED",
+      "trial_slot": "rev-a",
+      "agent_role": null,
+      "configuration_id": null,
+      "waiting_reason": null,
+      "failure_code": null,
+      "attempts": 1,
+      "latest_attempt": "att-00004d"
+    },
+    {
+      "job_id": "job-000053",
+      "kind": "validate",
+      "status": "COMPLETED",
+      "trial_slot": "rev-b",
+      "agent_role": null,
+      "configuration_id": null,
+      "waiting_reason": null,
+      "failure_code": null,
+      "attempts": 1,
+      "latest_attempt": "att-000054"
+    },
+    {
+      "job_id": "job-000057",
+      "kind": "agent",
+      "status": "COMPLETED",
+      "trial_slot": "rev-a",
+      "agent_role": "CRITIC",
+      "configuration_id": "critic",
+      "waiting_reason": null,
+      "failure_code": null,
+      "attempts": 1,
+      "latest_attempt": "att-000058"
+    },
+    {
+      "job_id": "job-00005c",
+      "kind": "agent",
+      "status": "COMPLETED",
+      "trial_slot": "rev-b",
+      "agent_role": "PROPOSER",
+      "configuration_id": "proposer-b",
+      "waiting_reason": null,
+      "failure_code": null,
+      "attempts": 1,
+      "latest_attempt": "att-00005d"
+    },
+    {
+      "job_id": "job-000074",
+      "kind": "validate",
+      "status": "COMPLETED",
+      "trial_slot": "rev-b",
+      "agent_role": null,
+      "configuration_id": null,
+      "waiting_reason": null,
+      "failure_code": null,
+      "attempts": 1,
+      "latest_attempt": "att-000075"
+    },
+    {
+      "job_id": "job-000091",
+      "kind": "agent",
+      "status": "COMPLETED",
+      "trial_slot": "rev-b",
+      "agent_role": "CRITIC",
+      "configuration_id": "critic",
+      "waiting_reason": null,
+      "failure_code": null,
+      "attempts": 1,
+      "latest_attempt": "att-000092"
+    },
+    {
+      "job_id": "job-0000d3",
+      "kind": "assess",
+      "status": "COMPLETED",
+      "trial_slot": "seed",
+      "agent_role": null,
+      "configuration_id": null,
+      "waiting_reason": null,
+      "failure_code": null,
+      "attempts": 1,
+      "latest_attempt": "att-0000d4"
+    },
+    {
+      "job_id": "job-0000df",
+      "kind": "assess",
+      "status": "COMPLETED",
+      "trial_slot": "rev-a",
+      "agent_role": null,
+      "configuration_id": null,
+      "waiting_reason": null,
+      "failure_code": null,
+      "attempts": 1,
+      "latest_attempt": "att-0000e0"
+    },
+    {
+      "job_id": "job-0000eb",
+      "kind": "assess",
+      "status": "COMPLETED",
+      "trial_slot": "rev-b",
+      "agent_role": null,
+      "configuration_id": null,
+      "waiting_reason": null,
+      "failure_code": null,
+      "attempts": 1,
+      "latest_attempt": "att-0000ec"
+    }
+  ],
+  "runs": [
+    {
+      "status": "COMPLETED",
+      "runs": 21
+    }
+  ],
+  "attention_items": [],
+  "score": "HIGH"
+}

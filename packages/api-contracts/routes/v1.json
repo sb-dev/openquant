@@ -1,6 +1,6 @@
 {
   "schema": "api-route-manifest/1",
-  "note": "HTTP routes of the S1 API (host api) and the agent runner dispatch endpoint (host agent-runner). auth lists the credentials a route accepts; any one of them is enough. A contract body names a schema in packages/api-contracts/schemas by its short name; form selects one form of a two-form contract. A view body is an API-owned JSON document, such as a read model: it is not a cross-runtime contract and apps/api owns its shape. bytes is a raw artefact body addressed by its SHA-256 digest. max_body_bytes bounds a request body: the API refuses a larger one with LIMIT_EXCEEDED before it parses it. Every route with a request body declares it. For a contract body it is the contract's Worker byte limit (workerBodyLimit in packages/api-contracts/ts), at which the parse of every body that the memory test measures stays within half of a Worker isolate's memory in Node 24 (OQ-05 section 7). The limit bounds memory, not CPU time: the time of the schema checks follows from the patterns, which the generated validators run in linear time (OQ-05 section 7). A bytes body may reach the 16 MiB strict-JSON limit; the API hashes and stores it without parsing it. When an evaluation-submission cites an evaluation-result/1, the API scans that result before it commits it (scanEvaluationResult, within RESULT_SCAN_LIMIT of 8 MiB): strict JSON and the array, object, string and key limits of OQ-05 section 7 over the whole document, but not the value limit, the schema over its head, and the bindings of the head to the request and the submission. A larger result fails the submission with LIMIT_EXCEEDED (OQ-05 sections 4 and 7). Every error body is the api-error contract. A route lists INVALID_DECIMAL only when its request contract has a decimal field that no oneOf lies above: a malformed decimal is INVALID_DECIMAL only when it is the document's only kind of violation (OQ-05 section 7), so a decimal inside command/1, whose root is a oneOf, is SCHEMA_VIOLATION. common_errors apply to every route in addition to its own errors. The internal commands record_evaluation_decision and freeze_candidates have no route. runs.metrics and runs.result return the committed official evaluation-metrics/1 and evaluation-result/1 of one run unchanged, served from storage by content hash, with NOT_FOUND while none is committed: a FAILED or INSUFFICIENT run has no metrics, and a run that ended before the core prepared it has no result. Clients show these official values and never recompute them (OQ-04 section 5, OQ-05 section 7).",
+  "note": "HTTP routes of the S1 API (host api) and the dispatch and cancel endpoints of the agent runner (host agent-runner). auth lists the credentials a route accepts; any one of them is enough. A contract body names a schema in packages/api-contracts/schemas by its short name; form selects one form of a contract with several forms. Each read route returns the view contract of its view, such as mission-view/1. A view body is an API-owned JSON document that is not a cross-runtime contract: only the access token of auth.token is one. bytes is a raw artefact body addressed by its SHA-256 digest. max_body_bytes bounds a request body: the API refuses a larger one with LIMIT_EXCEEDED before it parses it. Every route with a request body declares it. For a contract body it is the contract's Worker byte limit (workerBodyLimit in packages/api-contracts/ts), at which the parse of every body that the memory test measures stays within half of a Worker isolate's memory in Node 24 (OQ-05 section 7). The limit bounds memory, not CPU time: the time of the schema checks follows from the patterns, which the generated validators run in linear time (OQ-05 section 7). A bytes body may reach the 16 MiB strict-JSON limit; the API hashes and stores it without parsing it. When an evaluation-submission cites an evaluation-result/1, the API scans that result before it commits it (scanEvaluationResult, within RESULT_SCAN_LIMIT of 8 MiB): strict JSON and the array, object, string and key limits of OQ-05 section 7 over the whole document, but not the value limit, the schema over its head, and the bindings of the head to the request and the submission. A larger result fails the submission with LIMIT_EXCEEDED (OQ-05 sections 4 and 7). Every error body is the api-error contract. A route lists INVALID_DECIMAL only when its request contract has a decimal field that no oneOf lies above: a malformed decimal is INVALID_DECIMAL only when it is the document's only kind of violation (OQ-05 section 7), so a decimal inside command/1, whose root is a oneOf, is SCHEMA_VIOLATION. common_errors apply to every route in addition to its own errors. The internal commands record_evaluation_decision and freeze_candidates have no route. runner.cancel asks the agent runner to end the attempt in its path: cancel_mission writes the request in its transaction for every agent attempt that it cancels while claimed, and the dispatcher sends it with the dispatch credential. The runner answers 204 whether or not it runs that attempt; it ends the process tree and posts only the cancellation report of the attempt, which confirms its termination (OQ-03 section 5, OQ-05 section 4). runs.metrics and runs.result return the committed official evaluation-metrics/1 and evaluation-result/1 of one run unchanged, served from storage by content hash, with NOT_FOUND while none is committed: a FAILED or INSUFFICIENT run has no metrics, and a run that ended before the core prepared it has no result. Clients show these official values and never recompute them (OQ-04 section 5, OQ-05 section 7).",
   "version": "v1",
   "base_path": "/v1",
   "error_body": "api-error",
@@ -34,15 +34,7 @@
     "attempt": "The attempt-scoped capability from an attempt-claim grant. It is valid only for the attempt in the path and expires with the lease."
   },
   "views": {
-    "access-token": "Access token, its expiry, the principal and its roles.",
-    "system-identity": "The current release identity, as recorded from release-manifest/1: source SHA, CLI version, engine digest, image and binary digests, bundle hash, method identity, protocol versions, migration level and deployment references. releases.record returns it after it records a manifest, so the delivery job reads back what was stored.",
-    "mission": "Mission status and outcome with its reasons, scope, profile, cohort policy, evaluation plan digest, per-mission budget with reservations and usage, candidates by trial slot, typed jobs (retrieve, validate, evaluate and assess) with their attempts, and attention items.",
-    "lineage": "Generated Strategy Graph of the mission: versions, parents, rule changes and linked runs, findings and decisions.",
-    "trials": "Planned run slots and registered trials, including failed and discarded ones, with run IDs, run status, mode, environment and holdout consumption. A run's official metrics and result are read from runs.metrics and runs.result; the view repeats none of their values.",
-    "findings": "Critic findings with category, finding_source, applicability and policy treatment per lifecycle transition.",
-    "gates": "Gate reports per candidate with eligibility.",
-    "decisions": "Recorded Decisions with actor, outcome and evidence references. A policy-determined Decision also names the cohort policy digest, the Steward approval Decision and the Researcher who started the mission.",
-    "job": "Job kind, attempts with outcome, lease and ownership revision, and dispatch state."
+    "access-token": "Access token, its expiry, the principal and its roles."
   },
   "routes": [
     {
@@ -66,7 +58,7 @@
         { "kind": "service", "principals": ["workflows"] }
       ],
       "request": { "kind": "none" },
-      "response": { "kind": "view", "view": "system-identity" },
+      "response": { "kind": "contract", "contract": "system-identity-view" },
       "success_status": 200,
       "errors": []
     },
@@ -78,7 +70,7 @@
       "auth": [{ "kind": "human", "roles": ["Administrator"] }, { "kind": "service", "principals": ["deploy"] }],
       "request": { "kind": "contract", "contract": "release-manifest" },
       "max_body_bytes": 4194304,
-      "response": { "kind": "view", "view": "system-identity" },
+      "response": { "kind": "contract", "contract": "system-identity-view" },
       "success_status": 200,
       "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "IDENTITY_MISMATCH", "LIMIT_EXCEEDED"]
     },
@@ -173,7 +165,7 @@
       "path": "/v1/missions/{mission_id}",
       "auth": [{ "kind": "human", "roles": ["Viewer", "Researcher", "Steward", "Administrator"] }],
       "request": { "kind": "none" },
-      "response": { "kind": "view", "view": "mission" },
+      "response": { "kind": "contract", "contract": "mission-view" },
       "success_status": 200,
       "errors": ["NOT_FOUND"]
     },
@@ -195,7 +187,7 @@
       "path": "/v1/missions/{mission_id}/lineage",
       "auth": [{ "kind": "human", "roles": ["Viewer", "Researcher", "Steward", "Administrator"] }],
       "request": { "kind": "none" },
-      "response": { "kind": "view", "view": "lineage" },
+      "response": { "kind": "contract", "contract": "lineage-view" },
       "success_status": 200,
       "errors": ["NOT_FOUND"]
     },
@@ -206,7 +198,7 @@
       "path": "/v1/missions/{mission_id}/trials",
       "auth": [{ "kind": "human", "roles": ["Viewer", "Researcher", "Steward", "Administrator"] }],
       "request": { "kind": "none" },
-      "response": { "kind": "view", "view": "trials" },
+      "response": { "kind": "contract", "contract": "trials-view" },
       "success_status": 200,
       "errors": ["NOT_FOUND"]
     },
@@ -217,7 +209,7 @@
       "path": "/v1/missions/{mission_id}/findings",
       "auth": [{ "kind": "human", "roles": ["Viewer", "Researcher", "Steward", "Administrator"] }],
       "request": { "kind": "none" },
-      "response": { "kind": "view", "view": "findings" },
+      "response": { "kind": "contract", "contract": "findings-view" },
       "success_status": 200,
       "errors": ["NOT_FOUND"]
     },
@@ -228,7 +220,7 @@
       "path": "/v1/missions/{mission_id}/gates",
       "auth": [{ "kind": "human", "roles": ["Viewer", "Researcher", "Steward", "Administrator"] }],
       "request": { "kind": "none" },
-      "response": { "kind": "view", "view": "gates" },
+      "response": { "kind": "contract", "contract": "gates-view" },
       "success_status": 200,
       "errors": ["NOT_FOUND"]
     },
@@ -239,7 +231,7 @@
       "path": "/v1/missions/{mission_id}/decisions",
       "auth": [{ "kind": "human", "roles": ["Viewer", "Researcher", "Steward", "Administrator"] }],
       "request": { "kind": "none" },
-      "response": { "kind": "view", "view": "decisions" },
+      "response": { "kind": "contract", "contract": "decisions-view" },
       "success_status": 200,
       "errors": ["NOT_FOUND"]
     },
@@ -283,7 +275,7 @@
       "path": "/v1/jobs/{job_id}",
       "auth": [{ "kind": "human", "roles": ["Viewer", "Researcher", "Steward", "Administrator"] }],
       "request": { "kind": "none" },
-      "response": { "kind": "view", "view": "job" },
+      "response": { "kind": "contract", "contract": "job-view" },
       "success_status": 200,
       "errors": ["NOT_FOUND"]
     },
@@ -393,6 +385,17 @@
       "response": { "kind": "none" },
       "success_status": 202,
       "errors": ["UNSUPPORTED_SCHEMA_VERSION", "SCHEMA_VIOLATION", "INVALID_DECIMAL", "STALE_OWNERSHIP", "ATTEMPT_NOT_CLAIMABLE", "IDENTITY_MISMATCH", "EXECUTION_DISABLED", "LIMIT_EXCEEDED"]
+    },
+    {
+      "id": "runner.cancel",
+      "host": "agent-runner",
+      "method": "POST",
+      "path": "/v1/agent-attempts/{attempt_id}/cancel",
+      "auth": [{ "kind": "service", "principals": ["workflows"] }],
+      "request": { "kind": "none" },
+      "response": { "kind": "none" },
+      "success_status": 204,
+      "errors": []
     }
   ]
 }

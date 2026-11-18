@@ -25,7 +25,10 @@
     "OPENQUANT_ENVIRONMENT": "DEVELOPMENT",
     // `enabled` turns research execution on. It stays `disabled` until the deployment is verified (OQ-05 section 4):
     // run_mission_now answers EXECUTION_DISABLED, and nothing is dispatched to the batch host or the agent runner.
-    "OPENQUANT_RESEARCH_EXECUTION": "disabled"
+    "OPENQUANT_RESEARCH_EXECUTION": "disabled",
+    // The pinned Claude Code CLI version that the agent runner runs (AGENT_RUNNER_EXECUTOR_VERSION of the runner). Every
+    // agent-dispatch/1 names it, and the runner refuses another. 2.1.325 is the candidate of the pilot record.
+    "AGENT_EXECUTOR_VERSION": "2.1.325"
   },
   "hyperdrive": [
     // Query caching is disabled on the Hyperdrive resource itself (OQ-05 section 1); Terraform creates it with

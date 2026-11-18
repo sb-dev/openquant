@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:system-identity-view:1",
+  "title": "SystemIdentityView",
+  "description": "The release identity of the environment (OQ-05 sections 9 and 11): the recorded release-manifest/1 with the record's own identity, or null with the reason while none is recorded. The response body of system.identity and releases.record (routes/v1.json). A value that nothing reported is null, never zero; arrays are always present and may be empty.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "environment", "protocol", "migration_level", "release", "release_note", "generated_at"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["system-identity-view/1"] },
+    "environment": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/DeploymentEnvironment" },
+    "protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["route_manifest", "contracts"],
+      "properties": {
+        "route_manifest": { "type": "string", "maxLength": 100 },
+        "contracts": {
+          "type": "array",
+          "maxItems": 64,
+          "items": { "type": "string", "maxLength": 100 }
+        }
+      }
+    },
+    "migration_level": { "type": "string", "maxLength": 100 },
+    "release": {
+      "oneOf": [
+        { "$ref": "#/$defs/ViewRecordedRelease" },
+        { "type": "null" }
+      ]
+    },
+    "release_note": {
+      "oneOf": [
+        { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewText" },
+        { "type": "null" }
+      ]
+    },
+    "generated_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" }
+  },
+  "$defs": {
+    "ViewRecordedRelease": {
+      "title": "ViewRecordedRelease",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["release_id", "manifest_digest", "recorded_at", "manifest"],
+      "properties": {
+        "release_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "manifest_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+        "recorded_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+        "manifest": { "$ref": "urn:openquant:schema:release-manifest:1" }
+      }
+    }
+  }
+}

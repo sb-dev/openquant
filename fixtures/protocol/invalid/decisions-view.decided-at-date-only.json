@@ -1,0 +1,90 @@
+{
+  "schema_version": "decisions-view/1",
+  "mission_id": "msn-00000a",
+  "decisions": [
+    {
+      "decision_id": "dec-000009",
+      "kind": "POLICY_APPROVAL",
+      "outcome": "APPROVED",
+      "actor_id": "human-steward",
+      "actor_kind": "HUMAN",
+      "mission_id": null,
+      "trial_slot": null,
+      "strategy_hash": null,
+      "plan_digest": null,
+      "policy_approval_decision": null,
+      "mission_started_by": null,
+      "critique_status": null,
+      "critique_digest": null,
+      "reason": null,
+      "decided_at": "2026-11-15",
+      "cohort_policy": {
+        "id": "s1-aapl-daily-swing",
+        "revision": 1
+      }
+    },
+    {
+      "decision_id": "dec-00001d",
+      "kind": "DRAFT_TO_EVALUATING",
+      "outcome": "APPROVED",
+      "actor_id": "svc-workflows",
+      "actor_kind": "SERVICE",
+      "mission_id": "msn-00000a",
+      "trial_slot": "seed",
+      "strategy_hash": "sha256:77cfdc1ca253a3d35c5ea6b8091ff58d2b1bf8346a636cae29a79ec2f927dc78",
+      "plan_digest": "sha256:440dfd6f2aa9a05f7720626029a5248bb74203b0a59bed5245ac9b6622b06264",
+      "policy_approval_decision": "dec-000009",
+      "mission_started_by": "human-researcher",
+      "critique_status": "COMPLETED",
+      "critique_digest": "sha256:b2829f2acbf59341bbfe229c28085d1536e29f3c5443a2a72da5e3369716a312",
+      "reason": null,
+      "decided_at": "2026-11-15T10:00:00Z",
+      "cohort_policy": {
+        "id": "s1-aapl-daily-swing",
+        "revision": 1
+      }
+    },
+    {
+      "decision_id": "dec-000064",
+      "kind": "DRAFT_TO_EVALUATING",
+      "outcome": "APPROVED",
+      "actor_id": "svc-workflows",
+      "actor_kind": "SERVICE",
+      "mission_id": "msn-00000a",
+      "trial_slot": "rev-a",
+      "strategy_hash": "sha256:ab5f48cdc451feb20a105cfc26fe8f969bb7f1f2c4d2ed7dfdf8390aeb106889",
+      "plan_digest": "sha256:440dfd6f2aa9a05f7720626029a5248bb74203b0a59bed5245ac9b6622b06264",
+      "policy_approval_decision": "dec-000009",
+      "mission_started_by": "human-researcher",
+      "critique_status": "COMPLETED",
+      "critique_digest": "sha256:44e3eeaf99f54b4ac8e1209a0de7027314629ce56fe1bd57d5a6bd9afaea3c54",
+      "reason": null,
+      "decided_at": "2026-11-15T10:00:00Z",
+      "cohort_policy": {
+        "id": "s1-aapl-daily-swing",
+        "revision": 1
+      }
+    },
+    {
+      "decision_id": "dec-000099",
+      "kind": "DRAFT_TO_EVALUATING",
+      "outcome": "APPROVED",
+      "actor_id": "svc-workflows",
+      "actor_kind": "SERVICE",
+      "mission_id": "msn-00000a",
+      "trial_slot": "rev-b",
+      "strategy_hash": "sha256:fe1cd5a63e470c9d992d36a656b0d7e6674c6758d1373028958c948f24d5b078",
+      "plan_digest": "sha256:440dfd6f2aa9a05f7720626029a5248bb74203b0a59bed5245ac9b6622b06264",
+      "policy_approval_decision": "dec-000009",
+      "mission_started_by": "human-researcher",
+      "critique_status": "COMPLETED",
+      "critique_digest": "sha256:d4350dd23357097dc24cb115951e4a35ac7965b6de83170880d0e803eb8fa6db",
+      "reason": null,
+      "decided_at": "2026-11-15T10:00:00Z",
+      "cohort_policy": {
+        "id": "s1-aapl-daily-swing",
+        "revision": 1
+      }
+    }
+  ]
+}

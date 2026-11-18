@@ -35,18 +35,18 @@ S1 adds connected envelopes as a separate contract set ([architecture §7](../..
 | Policy and data | `research-profile`, `cohort-policy`, `dataset-manifest`, `retrieval-request`, `retrieval-result` |
 | Derived evidence, each bound to method identity | `validation-result`, `evaluation-metrics`, `gate-report` |
 | Agent host, never sent to the model | `agent-dispatch`, `agent-attempt-result` |
-| API | `api-error`, `release-manifest` |
+| API | `api-error`, `release-manifest` and the view contracts `system-identity-view`, `mission-view`, `lineage-view`, `trials-view`, `findings-view`, `gates-view`, `decisions-view` and `job-view` (the response body of each read route) |
 
-`connected-common` also holds state values that no S1 envelope carries yet, such as the job, attempt, lease, reservation, outbox and mission states. The API read models use them ([architecture §4](../../docs/specs/05-system-architecture-and-data-spec.md#4-dispatch-ownership-and-completion)).
+`connected-common` also holds the state values of the transition table, such as the job, attempt, lease, reservation, outbox and mission states ([architecture §4](../../docs/specs/05-system-architecture-and-data-spec.md#4-dispatch-ownership-and-completion)), which the view contracts use, and the `View` definitions that the view contracts share.
 
 The agent role schemas live in `packages/agents/schemas`. They reference these schemas with `$ref`.
 
 ## Route manifest
 
-`routes/v1.json` lists the HTTP routes of the S1 API and the agent-runner dispatch endpoint. Each route names its host, method, path, accepted credentials, request and response bodies, success status and its own error codes.
+`routes/v1.json` lists the HTTP routes of the S1 API and the dispatch and cancel endpoints of the agent runner. Each route names its host, method, path, accepted credentials, request and response bodies, success status and its own error codes.
 
 - Credentials: a person's long-lived credential (token route only), a person's 15-minute access token with the roles that may call the route, a service principal credential with the principals that may call it, or the attempt-scoped capability from a claim grant. Any one listed credential is enough.
-- Bodies: a contract body names a schema in `schemas` by its short name, with a form where a contract has two forms. A view body is an API-owned read model; it is not a cross-runtime contract, and `apps/api` owns its shape. A bytes body is a raw artefact addressed by its SHA-256 digest. `max_body_bytes` bounds a request body, and every route with a request body declares it: the Worker byte limit of its contract (`workerBodyLimit` in `ts`), or 16 MiB for a bytes body, which the API stores without parsing. When a submission cites a stored `evaluation-result/1`, the API scans it within 8 MiB before commit (`scanEvaluationResult` in `ts`): it never parses a whole result.
+- Bodies: a contract body names a schema in `schemas` by its short name, with a form where a contract has several. Every read route returns the view contract of its view, such as `mission-view/1`. A view body is an API-owned document that is not a cross-runtime contract; only the access token of `auth.token` is one. A bytes body is a raw artefact addressed by its SHA-256 digest. `max_body_bytes` bounds a request body, and every route with a request body declares it: the Worker byte limit of its contract (`workerBodyLimit` in `ts`), or 16 MiB for a bytes body, which the API stores without parsing. When a submission cites a stored `evaluation-result/1`, the API scans it within 8 MiB before commit (`scanEvaluationResult` in `ts`): it never parses a whole result.
 - Official run values: `runs.metrics` and `runs.result` return a run's committed `evaluation-metrics/1` and `evaluation-result/1` unchanged. Clients show these values and never recompute them.
 - Errors: every error body is `api-error/1`. The common errors apply to every route, and the manifest maps each error code to its HTTP status. A route lists `INVALID_DECIMAL` only when its request contract has a decimal field that no `oneOf` lies above (`agent-dispatch` has one, `command` has none), and a test checks that for every route. `violations` carries the listing of the contract layer, at most 21 entries (20 and one that counts the rest), and the API cuts a pointer to 1,024 characters and a message to 1,000 (`apiViolations` in `ts`).
 - The internal commands `record_evaluation_decision` and `freeze_candidates` have no route. Only the workflows service principal applies them.

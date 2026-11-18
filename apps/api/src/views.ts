@@ -1,6 +1,6 @@
-// API-owned read models (routes/v1.json, "views"). They are not cross-runtime contracts: this module owns their shape.
-// The client package cannot import apps/api, so a shared home for these types is an open point for the lead (see the
-// README). A view never carries a credential other than the one that it exists to hand out once.
+// The types of two bodies of the identity routes: the access token of auth.token, an API-owned view (routes/v1.json,
+// "views"), and system-identity-view/1, the contract of system.identity and releases.record. A view never carries a
+// credential other than the one that it exists to hand out once.
 
 import type { DeploymentEnvironment } from './env.ts';
 import type { Role } from './manifest.ts';
@@ -25,6 +25,7 @@ export interface RecordedRelease {
 
 /** The answer of system.identity (and of releases.record, which returns it after it records a manifest). */
 export interface SystemIdentityView {
+  readonly schema_version: 'system-identity-view/1';
   readonly environment: DeploymentEnvironment;
   readonly protocol: {
     readonly route_manifest: string;

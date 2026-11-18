@@ -1,7 +1,8 @@
-// The read models of the GET routes (routes/v1.json, "views"). They read authoritative state and say what is unknown:
-// a value that nothing reported is `null` with its label, never zero (OQ-02 section 1.1). A view repeats none of the
-// official run values: metrics and results are served unchanged by runs.metrics and runs.result. The shapes are owned
-// here (apps/api); packages/api-client has no shared home for them yet (README, open points).
+// The read models of the GET routes. Each body is the view contract of its route, such as mission-view/1
+// (packages/api-contracts, routes/v1.json), which the tests validate every response against. A view reads
+// authoritative state and says what is unknown: a value that nothing reported is `null` with its label, never zero
+// (OQ-02 section 1.1). A view repeats none of the official run values: metrics and results are served unchanged by
+// runs.metrics and runs.result.
 
 import type { Queryable } from './db/database.ts';
 import { loadDocument } from './domain/store.ts';
@@ -122,6 +123,7 @@ export async function missionView(db: Queryable, missionId: string) {
     [missionId],
   );
   return {
+    schema_version: 'mission-view/1',
     mission_id: mission.mission_id,
     status: mission.status,
     outcome: mission.outcome,
@@ -205,6 +207,7 @@ export async function lineageView(db: Queryable, missionId: string) {
     [missionId],
   );
   return {
+    schema_version: 'lineage-view/1',
     mission_id: missionId,
     versions: versions.rows.map((row) => ({
       ...row,
@@ -247,6 +250,7 @@ export async function trialsView(db: Queryable, env: Pick<ApiEnv, 'environment'>
     [missionId],
   );
   return {
+    schema_version: 'trials-view/1',
     mission_id: missionId,
     plan_digest: await planDigestOf(db, missionId),
     trial_slots: slots.rows.map((row) => ({ ...row, terminal_at: iso(row.terminal_at as Timestamp) })),
@@ -320,6 +324,7 @@ export async function findingsView(db: Queryable, missionId: string) {
     [missionId],
   );
   return {
+    schema_version: 'findings-view/1',
     mission_id: missionId,
     findings: findings.rows.map((finding) => ({
       finding_id: finding.finding_id,
@@ -396,7 +401,10 @@ export async function gatesView(db: Queryable, env: Pick<ApiEnv, 'objects'>, mis
       report,
     });
   }
-  return { view: { mission_id: missionId, reports: out }, revealedHoldoutRuns: [...revealed] };
+  return {
+    view: { schema_version: 'gates-view/1', mission_id: missionId, reports: out },
+    revealedHoldoutRuns: [...revealed],
+  };
 }
 
 // --- decisions -----------------------------------------------------------------------------------------------------
@@ -413,6 +421,7 @@ export async function decisionsView(db: Queryable, missionId: string) {
     [missionId, mission.policy_id, mission.policy_revision],
   );
   return {
+    schema_version: 'decisions-view/1',
     mission_id: missionId,
     decisions: decisions.rows.map((row) => ({
       ...row,
@@ -489,6 +498,7 @@ export async function jobView(db: Queryable, id: string) {
     [id],
   );
   return {
+    schema_version: 'job-view/1',
     job_id: work.id,
     kind: work.kind,
     status: work.status,

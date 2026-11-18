@@ -11,6 +11,7 @@ import { canonicalJson } from '@openquant/api-contracts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type Actors, accessTokenFor, seedActors } from './support/actors.ts';
 import { bearer, bodyOf, createTestApp, type TestApp } from './support/app.ts';
+import { expectContract } from './support/views.ts';
 
 const directory = resolve(fileURLToPath(import.meta.url), '..');
 const level = readdirSync(resolve(directory, '../migrations'))
@@ -69,6 +70,8 @@ describe('a release that the delivery job records', () => {
       release_note: string | null;
     }>(response);
     expect(view).toMatchObject({ environment: 'DEVELOPMENT', migration_level: level, release_note: null });
+    // The body is system-identity-view/1, the contract that the route manifest names for releases.record.
+    expectContract('releases.record', view);
     expect(view.release.manifest_digest).toBe(digestOf(release));
     expect(view.release.manifest).toEqual(release);
 

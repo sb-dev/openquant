@@ -1,0 +1,32 @@
+{
+  "schema_version": "system-identity-view/1",
+  "environment": "DEVELOPMENT",
+  "protocol": {
+    "route_manifest": "v1",
+    "contracts": [
+      "agent-attempt-result/1",
+      "api-error/1",
+      "attempt-claim/1",
+      "command/1",
+      "decisions-view/1",
+      "evaluation-metrics/1",
+      "evaluation-plan/1",
+      "evaluation-result/1",
+      "evaluation-submission/1",
+      "findings-view/1",
+      "gate-report/1",
+      "gates-view/1",
+      "job-view/1",
+      "lineage-view/1",
+      "mission-view/1",
+      "release-manifest/1",
+      "retrieval-result/1",
+      "system-identity-view/1",
+      "trials-view/1",
+      "validation-result/1"
+    ]
+  },
+  "migration_level": "0010_orchestration",
+  "release_note": null,
+  "generated_at": "2026-11-15T10:00:00Z"
+}

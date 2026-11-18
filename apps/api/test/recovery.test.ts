@@ -48,6 +48,7 @@ function queue() {
       async dispatch(message) {
         sent.runner.push(message);
       },
+      async cancel() {},
     },
   };
   return { sent, dispatchers };
@@ -111,7 +112,9 @@ describe('a worker that died', () => {
       waiting: 0,
       terminationsConfirmed: 0,
       reconciled: 0,
+      orchestration: { advanced: 0, errors: 0 },
       dispatch: { ...zero, sent: 1 },
+      cancellations: { sent: 0, failed: 0, skipped: 0 },
       errors: 0,
     });
     const first = await claim(flow, flow.retrieve.attemptId);
@@ -130,7 +133,9 @@ describe('a worker that died', () => {
       waiting: 0,
       terminationsConfirmed: 0,
       reconciled: 0,
+      orchestration: { advanced: 0, errors: 0 },
       dispatch: { ...zero, sent: 1 },
+      cancellations: { sent: 0, failed: 0, skipped: 0 },
       errors: 0,
     });
 
@@ -185,7 +190,9 @@ describe('a worker that died', () => {
       waiting: 0,
       terminationsConfirmed: 0,
       reconciled: 0,
+      orchestration: { advanced: 0, errors: 0 },
       dispatch: zero,
+      cancellations: { sent: 0, failed: 0, skipped: 0 },
       errors: 0,
     });
     expect(sent.batch).toHaveLength(sentBefore);
@@ -523,7 +530,9 @@ describe('a pass that meets a failure', () => {
       waiting: 0,
       terminationsConfirmed: 0,
       reconciled: 0,
+      orchestration: { advanced: 0, errors: 0 },
       dispatch: { ...zero, delivered: 1 },
+      cancellations: { sent: 0, failed: 0, skipped: 0 },
       errors: 1,
     });
     // The attempt was already claimed, so its entry is delivered: the dispatcher marks it, and sends nothing.

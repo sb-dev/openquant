@@ -134,8 +134,9 @@ export class Runner {
   }
 
   /**
-   * Cancel one attempt: the process tree is ended and the outcome `cancellation` is recorded. The route manifest has
-   * no route that asks a runner to cancel yet, so this is the hook for it (OQ-03 section 5).
+   * Cancel one attempt: the process tree is ended and the outcome `cancellation` is recorded, which tells the API that
+   * the attempt stopped (OQ-03 section 5, OQ-05 section 4). The cancel route (`runner.cancel`) calls it. Returns whether
+   * this runner ran the attempt.
    */
   cancel(attemptId: string): boolean {
     const slot = this.#active.get(attemptId);

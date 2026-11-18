@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:openquant:schema:mission-view:1",
+  "title": "MissionView",
+  "description": "Mission status and outcome with its reasons, scope, profile, cohort policy, evaluation plan digest, per-mission budget with its pools and reservations, candidates by trial slot, typed jobs with their attempts, run counts and attention items. The response body of missions.show (routes/v1.json). A value that nothing reported is null, never zero; arrays are always present and may be empty.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "mission_id", "status", "outcome", "outcome_reason", "blocked_reason", "withdrawn", "revision", "objective", "scope", "profile", "cohort_policy", "seed_draft_digest", "plan_digest", "created_by", "created_at", "started_by", "started_at", "concluded_at", "budget", "reservations", "candidates", "jobs", "runs", "attention_items"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["mission-view/1"] },
+    "mission_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "status": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/MissionStatus" },
+    "outcome": {
+      "oneOf": [
+        { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewState" },
+        { "type": "null" }
+      ]
+    },
+    "outcome_reason": {
+      "oneOf": [
+        { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewText" },
+        { "type": "null" }
+      ]
+    },
+    "blocked_reason": {
+      "oneOf": [
+        { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewText" },
+        { "type": "null" }
+      ]
+    },
+    "withdrawn": {
+      "oneOf": [
+        { "$ref": "#/$defs/ViewWithdrawal" },
+        { "type": "null" }
+      ]
+    },
+    "revision": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+    "objective": { "type": "string", "maxLength": 2000 },
+    "scope": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/InstrumentMapping" },
+    "profile": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewRecordRef" },
+    "cohort_policy": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewRecordRef" },
+    "seed_draft_digest": { "$ref": "urn:openquant:schema:common:1#/$defs/Digest" },
+    "plan_digest": {
+      "oneOf": [
+        { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewDigest" },
+        { "type": "null" }
+      ]
+    },
+    "created_by": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+    "created_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" },
+    "started_by": {
+      "oneOf": [
+        { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewIdentifier" },
+        { "type": "null" }
+      ]
+    },
+    "started_at": {
+      "oneOf": [
+        { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewTimestamp" },
+        { "type": "null" }
+      ]
+    },
+    "concluded_at": {
+      "oneOf": [
+        { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewTimestamp" },
+        { "type": "null" }
+      ]
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["limits", "pools"],
+      "properties": {
+        "limits": {
+          "oneOf": [
+            { "$ref": "#/$defs/ViewBudgetLimits" },
+            { "type": "null" }
+          ]
+        },
+        "pools": {
+          "type": "array",
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/ViewBudgetPool" }
+        }
+      }
+    },
+    "reservations": {
+      "type": "array",
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/ViewStatusCount" }
+    },
+    "candidates": {
+      "type": "array",
+      "maxItems": 64,
+      "items": { "$ref": "#/$defs/ViewCandidate" }
+    },
+    "jobs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ViewMissionJob" },
+      "maxItems": 256
+    },
+    "runs": {
+      "type": "array",
+      "maxItems": 64,
+      "items": { "$ref": "#/$defs/ViewRunCount" }
+    },
+    "attention_items": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ViewAttentionItem" },
+      "maxItems": 64
+    }
+  },
+  "$defs": {
+    "ViewAttentionItem": {
+      "title": "ViewAttentionItem",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["item_id", "subject", "reason", "status", "opened_at"],
+      "properties": {
+        "item_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "subject": { "type": "string", "maxLength": 200 },
+        "reason": { "type": "string", "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["OPEN", "ACKNOWLEDGED", "RESOLVED"] },
+        "opened_at": { "$ref": "urn:openquant:schema:common:1#/$defs/UtcTimestamp" }
+      }
+    },
+    "ViewBudgetLimits": {
+      "title": "ViewBudgetLimits",
+      "description": "The mission budget as the create command set it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["currency", "candidates", "experiments", "revisions_per_proposer", "new_families", "proposer_count", "model_spend", "model_spend_per_attempt", "proposer_spend", "proposer_attempts", "critic_spend", "critic_attempts", "provider_requests", "batch_compute_seconds", "agent_compute_seconds", "attempt_cap"],
+      "properties": {
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "candidates": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewCount" },
+        "experiments": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewCount" },
+        "revisions_per_proposer": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewCount" },
+        "new_families": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewCount" },
+        "proposer_count": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewCount" },
+        "model_spend": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewAmount" },
+        "model_spend_per_attempt": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewAmount" },
+        "proposer_spend": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewAmount" },
+        "proposer_attempts": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewCount" },
+        "critic_spend": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewAmount" },
+        "critic_attempts": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewCount" },
+        "provider_requests": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewAmount" },
+        "batch_compute_seconds": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewAmount" },
+        "agent_compute_seconds": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewAmount" },
+        "attempt_cap": { "type": "integer", "minimum": 1, "maximum": 10 }
+      }
+    },
+    "ViewBudgetPool": {
+      "title": "ViewBudgetPool",
+      "description": "One limit of the mission budget. committed counts the reservations and the spend; overrun is usage above a reservation, which blocks the mission.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension", "configuration_id", "limit", "committed", "overrun"],
+      "properties": {
+        "dimension": {
+          "type": "string",
+          "enum": ["MODEL_SPEND", "PROVIDER_REQUESTS", "BATCH_COMPUTE_SECONDS", "AGENT_COMPUTE_SECONDS"]
+        },
+        "configuration_id": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewIdentifier" },
+            { "type": "null" }
+          ]
+        },
+        "limit": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewAmount" },
+        "committed": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewAmount" },
+        "overrun": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewAmount" }
+      }
+    },
+    "ViewCandidate": {
+      "title": "ViewCandidate",
+      "description": "One trial slot of the plan: its registered version, lifecycle, Decision and eligibility, each null while there is none.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trial_slot", "kind", "configuration_id", "terminal_reason", "strategy_hash", "lifecycle", "decision", "eligibility"],
+      "properties": {
+        "trial_slot": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "kind": { "type": "string", "enum": ["SEED", "REVISION"] },
+        "configuration_id": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewIdentifier" },
+            { "type": "null" }
+          ]
+        },
+        "terminal_reason": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewState" },
+            { "type": "null" }
+          ]
+        },
+        "strategy_hash": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewDigest" },
+            { "type": "null" }
+          ]
+        },
+        "lifecycle": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewState" },
+            { "type": "null" }
+          ]
+        },
+        "decision": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewState" },
+            { "type": "null" }
+          ]
+        },
+        "eligibility": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewState" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "ViewMissionJob": {
+      "title": "ViewMissionJob",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["job_id", "kind", "status", "trial_slot", "agent_role", "configuration_id", "waiting_reason", "failure_code", "attempts", "latest_attempt"],
+      "properties": {
+        "job_id": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "kind": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewWorkKind" },
+        "status": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/JobStatus" },
+        "trial_slot": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewIdentifier" },
+            { "type": "null" }
+          ]
+        },
+        "agent_role": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewState" },
+            { "type": "null" }
+          ]
+        },
+        "configuration_id": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewIdentifier" },
+            { "type": "null" }
+          ]
+        },
+        "waiting_reason": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewText" },
+            { "type": "null" }
+          ]
+        },
+        "failure_code": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewText" },
+            { "type": "null" }
+          ]
+        },
+        "attempts": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewCount" },
+        "latest_attempt": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewIdentifier" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "ViewRunCount": {
+      "title": "ViewRunCount",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "runs"],
+      "properties": {
+        "status": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/RunStatus" },
+        "runs": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewCount" }
+      }
+    },
+    "ViewStatusCount": {
+      "title": "ViewStatusCount",
+      "description": "How many reservations of the mission are in one status.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reservations"],
+      "properties": {
+        "status": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ReservationStatus" },
+        "reservations": { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewCount" }
+      }
+    },
+    "ViewWithdrawal": {
+      "title": "ViewWithdrawal",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["by", "at", "reason"],
+      "properties": {
+        "by": { "$ref": "urn:openquant:schema:common:1#/$defs/Identifier" },
+        "at": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewTimestamp" },
+            { "type": "null" }
+          ]
+        },
+        "reason": {
+          "oneOf": [
+            { "$ref": "urn:openquant:schema:connected-common:1#/$defs/ViewText" },
+            { "type": "null" }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
-// The dispatch endpoint of the runner: `POST /v1/agent-attempts` (route `runner.dispatch` in routes/v1.json).
+// The endpoints of the runner: `POST /v1/agent-attempts` (route `runner.dispatch` in routes/v1.json) and
+// `POST /v1/agent-attempts/{attempt_id}/cancel` (route `runner.cancel`, below), both with the workflows credential.
 //
-// In order: the route, the credential of the workflows principal, the body limit checked while the body arrives and
+// The dispatch, in order: the route, the credential of the workflows principal, the body limit checked while the body arrives and
 // before anything parses it, the shared strict parser for `agent-dispatch/1`, then the runner, which claims the
 // attempt before it starts anything. The answer is 202 with no body once the claim is durable, or an `api-error/1`
 // body whose status follows the route manifest. No error body carries a credential or a stack trace.
@@ -122,12 +123,20 @@ export interface ServerOptions {
   readonly log: Logger;
 }
 
+/**
+ * The cancel route of the runner (`runner.cancel`): `POST /v1/agent-attempts/{attempt_id}/cancel`, no body. It ends the
+ * process tree of the attempt when this runner runs it, and answers 204 either way, so a repeated or late request is
+ * harmless (OQ-05 section 4: cancel_mission's cancellation request; OQ-03 section 5).
+ */
+export const CANCEL_PATH = /^\/v1\/agent-attempts\/([A-Za-z0-9][A-Za-z0-9._:-]{0,63})\/cancel$/;
+
 export function createDispatchServer(options: ServerOptions): Server {
   const { runner, dispatchToken, log } = options;
   const server = createServer(async (request, response) => {
     try {
       const path = new URL(request.url ?? '/', 'http://runner.invalid').pathname;
-      if (path !== DISPATCH_PATH || request.method !== 'POST') {
+      const cancel = CANCEL_PATH.exec(path);
+      if ((path !== DISPATCH_PATH && cancel === null) || request.method !== 'POST') {
         refuse(response, apiError('NOT_FOUND', 'there is no such route'), true);
         return;
       }
@@ -135,6 +144,15 @@ export function createDispatchServer(options: ServerOptions): Server {
       if (token === undefined || !sameSecret(token, dispatchToken)) {
         log('dispatch_unauthenticated', {});
         refuse(response, apiError('UNAUTHENTICATED', 'the dispatch credential is missing or invalid'), true);
+        return;
+      }
+      if (cancel !== null) {
+        // The route has no body: whatever was sent is not read.
+        const attemptId = cancel[1] as string;
+        const running = runner.cancel(attemptId);
+        log('cancel_requested', { attempt: attemptId, running });
+        response.setHeader('connection', 'close');
+        send(response, 204, undefined);
         return;
       }
       const body = await readBody(request, DISPATCH_BODY_LIMIT);

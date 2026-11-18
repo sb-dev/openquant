@@ -370,6 +370,62 @@ describe('what the runner answers when it cannot take the attempt', () => {
   });
 });
 
+describe('the cancel route', () => {
+  const cancelRoute = manifest.routes.find((entry) => entry.id === 'runner.cancel') as Route & {
+    path: string;
+    request: { kind: string };
+  };
+  const cancel = (attemptId: string, headers: Record<string, string> = { authorization: `Bearer ${DISPATCH_TOKEN}` }) =>
+    fetch(`http://127.0.0.1:${port}${DISPATCH_PATH}/${attemptId}/cancel`, { method: 'POST', headers });
+
+  it('is the route that routes/v1.json lists: the workflows credential, no body, 204 and no error of its own', () => {
+    expect(cancelRoute).toMatchObject({
+      path: '/v1/agent-attempts/{attempt_id}/cancel',
+      auth: [{ kind: 'service', principals: ['workflows'] }],
+      request: { kind: 'none' },
+      success_status: 204,
+      errors: [],
+    });
+  });
+
+  it('ends the attempt that runs, which records the outcome cancellation and nothing else', async () => {
+    await start({ behaviour: 'hang' });
+    expect((await post(canonicalJson(valid))).status).toBe(202);
+    await until(() => world.cli.calls().length > 0);
+    const response = await cancel('attempt-1');
+    expect(response.status).toBe(204);
+    expect(await response.text()).toBe('');
+    await until(() => runner.running === 0);
+    expect(world.api.results).toHaveLength(1);
+    expect(world.api.results[0]?.outcome).toMatchObject({ outcome: 'cancellation' });
+    // A repeated request, or one for an attempt that this runner does not run, is answered the same and ends nothing.
+    expect((await cancel('attempt-1')).status).toBe(204);
+    expect((await cancel('attempt-unknown')).status).toBe(204);
+    expect(world.api.results).toHaveLength(1);
+  });
+
+  it('refuses a request without the dispatch credential and ends nothing', async () => {
+    await start({ behaviour: 'hang' });
+    expect((await post(canonicalJson(valid))).status).toBe(202);
+    const response = await cancel('attempt-1', { authorization: 'Bearer wrong-token-0000000000000000000000000' });
+    expect(response.status).toBe(401);
+    expect((await errorBody(response)).code).toBe('UNAUTHENTICATED');
+    expect(runner.running).toBe(1);
+    runner.cancel('attempt-1');
+    await until(() => runner.running === 0);
+  });
+
+  it('is no route for another method or another path', async () => {
+    await start({ behaviour: 'result' });
+    const get = await fetch(`http://127.0.0.1:${port}${DISPATCH_PATH}/attempt-1/cancel`, {
+      headers: { authorization: `Bearer ${DISPATCH_TOKEN}` },
+    });
+    expect(get.status).toBe(404);
+    expect((await cancel('attempt-1/extra')).status).toBe(404);
+    expect((await cancel('-attempt')).status).toBe(404);
+  });
+});
+
 describe('logs', () => {
   it('never contain a credential, a capability or a payload', async () => {
     await start({ behaviour: 'result', resultText: JSON.stringify(await revisionOutput()) });
