@@ -42,6 +42,9 @@ pub const ENV_VISIBILITY: &str = "OPENQUANT_VISIBILITY_SECONDS";
 pub const ENV_STOP_FILE: &str = "OPENQUANT_STOP_FILE";
 /// A directory for the optional local checkpoint journal of a long evaluation. Off when unset.
 pub const ENV_SCRATCH_DIR: &str = "OPENQUANT_SCRATCH_DIR";
+/// Set by Fly.io on every Machine: its Machine ID. The worker name of a claim carries it, so the
+/// termination probe of the API can ask Fly whether that Machine stopped (`apps/api/src/fly-probe.ts`).
+pub const ENV_FLY_MACHINE_ID: &str = "FLY_MACHINE_ID";
 /// Test only: the loopback port that every allowlisted host resolves to (see [`LoopbackTest`]).
 pub const ENV_TEST_LOOPBACK_PORT: &str = "OPENQUANT_TEST_LOOPBACK_PORT";
 /// Test only: the absolute path of the one DER certificate authority that the loopback wire trusts.
@@ -213,6 +216,8 @@ pub struct Config {
     pub scratch_dir: Option<PathBuf>,
     /// Test only, debug builds only: see [`LoopbackTest`].
     pub loopback: Option<LoopbackTest>,
+    /// The Fly Machine ID ([`ENV_FLY_MACHINE_ID`]), when the process runs on a Fly Machine.
+    pub fly_machine_id: Option<String>,
 }
 
 fn required(
@@ -302,6 +307,17 @@ impl Config {
             },
         };
         let loopback = loopback_test(lookup, &environment, LOOPBACK_TEST_BUILD)?;
+        let fly_machine_id = optional(lookup, ENV_FLY_MACHINE_ID);
+        if let Some(id) = &fly_machine_id {
+            let machine_id = !id.is_empty()
+                && id.len() <= 32
+                && id
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || b.is_ascii_lowercase());
+            if !machine_id {
+                return Err(invalid(ENV_FLY_MACHINE_ID, "it is not a Fly Machine ID"));
+            }
+        }
         Ok(Self {
             environment,
             api,
@@ -317,7 +333,20 @@ impl Config {
             stop_file: optional(lookup, ENV_STOP_FILE).map(PathBuf::from),
             scratch_dir: optional(lookup, ENV_SCRATCH_DIR).map(PathBuf::from),
             loopback,
+            fly_machine_id,
         })
+    }
+
+    /// The worker name that worker `index` of process `process_id` records with each claim. On a
+    /// Fly Machine it is `fly:<machine id>:engine-batch-<pid>-<index>`, which the API's termination
+    /// probe reads back to find the Machine. It is for diagnosis and that lookup only, and grants no
+    /// authority (OQ-05 section 9).
+    #[must_use]
+    pub fn worker_id(&self, process_id: u32, index: usize) -> String {
+        match &self.fly_machine_id {
+            Some(machine) => format!("fly:{machine}:engine-batch-{process_id}-{index}"),
+            None => format!("engine-batch-{process_id}-{index}"),
+        }
     }
 
     /// Read the configuration from the process environment.
@@ -614,6 +643,31 @@ mod tests {
         assert!(matches!(read(&staging), Err(ConfigError::Invalid { .. })));
         assert_eq!(read(&base()).unwrap().loopback, None);
         assert_eq!(LOOPBACK_TEST_BUILD, cfg!(debug_assertions));
+    }
+
+    #[test]
+    fn on_a_fly_machine_the_worker_name_carries_the_machine_id() {
+        let local = read(&base()).unwrap();
+        assert_eq!(local.fly_machine_id, None);
+        assert_eq!(local.worker_id(42, 1), "engine-batch-42-1");
+        let mut map = base();
+        map.insert(ENV_FLY_MACHINE_ID, "148e272b0a1d2c".to_owned());
+        let on_fly = read(&map).unwrap();
+        assert_eq!(
+            on_fly.worker_id(42, 1),
+            "fly:148e272b0a1d2c:engine-batch-42-1"
+        );
+        // The longest name still fits the claim's identifier (64 characters at most).
+        map.insert(ENV_FLY_MACHINE_ID, "a".repeat(32));
+        assert!(read(&map).unwrap().worker_id(u32::MAX, 1).len() <= 64);
+        let too_long = "a".repeat(33);
+        for value in ["148E272B", "../x", "ab:cd", "ab cd", too_long.as_str()] {
+            map.insert(ENV_FLY_MACHINE_ID, value.to_owned());
+            assert!(
+                matches!(read(&map), Err(ConfigError::Invalid { name, .. }) if name == ENV_FLY_MACHINE_ID),
+                "{value}"
+            );
+        }
     }
 
     #[test]

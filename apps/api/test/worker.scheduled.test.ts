@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toBase64Url } from '../src/auth/encoding.ts';
 import type { WorkerBindings } from '../src/env.ts';
 import worker, { dispatchersOf } from '../src/worker.ts';
-import { claim, type Flow, outboxOf, type Started, startAgent, startedFlow } from './support/flow.ts';
+import { claim, claimRequest, type Flow, outboxOf, type Started, startAgent, startedFlow } from './support/flow.ts';
 
 const flows: (Flow & Started)[] = [];
 async function fresh(): Promise<Flow & Started> {
@@ -149,6 +149,47 @@ describe('the scheduled handler', () => {
     await runScheduled(flow, { BATCH_QUEUE: { send: quiet }, OPENQUANT_RESEARCH_EXECUTION: 'disabled' });
     expect(quiet).not.toHaveBeenCalled();
     expect(await outboxStatus(flow, flow.retrieve.attemptId)).toEqual([{ status: 'PENDING' }]);
+  });
+
+  it('asks Fly about the Machine that the claim named, and confirms the termination only once it has stopped', async () => {
+    const flow = await fresh();
+    const machine = '148e272b0a1d2c';
+    // The batch host claims as it does on a Fly Machine: its worker name carries FLY_MACHINE_ID.
+    const outbox = await outboxOf(flow, flow.retrieve.attemptId);
+    const response = await flow.send('POST', `/v1/attempts/${flow.retrieve.attemptId}/claim`, flow.service('batch'), {
+      ...claimRequest(flow.retrieve.attemptId, outbox.revision, outbox.digest),
+      worker_id: `fly:${machine}:engine-batch-7-0`,
+    });
+    expect(response.status).toBe(200);
+    let state = 'started';
+    const asked: string[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      asked.push(String(input));
+      return new Response(JSON.stringify({ id: machine, state }), { status: 200 });
+    });
+    const fly = {
+      FLY_MACHINES_READ_TOKEN: 'fly-read-token-for-the-test',
+      FLY_ENGINE_BATCH_APP: 'openquant-staging-engine-batch',
+      FLY_AGENT_RUNNER_APP: 'openquant-staging-agent-runner',
+    };
+    const reservation = () =>
+      flow.world.sql<{ status: string }>('SELECT status FROM reservations WHERE attempt_id = $1', [
+        flow.retrieve.attemptId,
+      ]);
+
+    // The lease has ended and the Machine still runs: fenced, the reservation held.
+    await runScheduled(flow, fly);
+    expect(asked).toEqual([`https://api.machines.dev/v1/apps/openquant-staging-engine-batch/machines/${machine}`]);
+    expect(await reservation()).toEqual([{ status: 'RESERVED' }]);
+    // Without the probe's configuration nothing is asked and nothing is confirmed, even once the Machine stopped.
+    state = 'stopped';
+    await runScheduled(flow);
+    expect(asked).toHaveLength(1);
+    expect(await reservation()).toEqual([{ status: 'RESERVED' }]);
+    // Configured, the stopped Machine confirms it: no usage report, so the full amount counts as spent.
+    await runScheduled(flow, fly);
+    expect(asked).toHaveLength(2);
+    expect(await reservation()).toEqual([{ status: 'UNRECONCILED' }]);
   });
 
   it('refuses an http runner URL and says so, without the credential, and still serves the queue', async () => {

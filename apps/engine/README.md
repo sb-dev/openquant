@@ -65,6 +65,7 @@ The binary reads these variables once and fails closed. An error names the varia
 | `OPENQUANT_VISIBILITY_SECONDS` | The visibility timeout of a pulled message, from 60 to 43200. Default 720 (below). |
 | `OPENQUANT_STOP_FILE` | A file whose existence asks the worker to stop after its current job. |
 | `OPENQUANT_SCRATCH_DIR` | A directory for the checkpoint journal. Off when unset. |
+| `FLY_MACHINE_ID` | Set by Fly on every Machine (a lowercase Machine ID, refused otherwise). The worker name of each claim is then `fly:<machine id>:engine-batch-<pid>-<index>`, which the API's termination probe reads back to ask Fly whether that Machine stopped (`apps/api/src/fly-probe.ts`). It grants no authority. Off Fly the name is `engine-batch-<pid>-<index>`. |
 | `OPENQUANT_TEST_LOOPBACK_PORT`, `OPENQUANT_TEST_LOOPBACK_ROOT` | Test only: the loopback mode of the connected test (`apps/api/test/e2e.connected.test.ts`). Both or neither; accepted only by a debug build and only in `DEVELOPMENT` (`config::LoopbackTest`), refused at start otherwise. Every host of the allowlist then resolves to `127.0.0.1` and that port, and the wire trusts only the DER certificate authority at that absolute path. The allowlist, HTTPS only and the redirect refusal do not change. |
 
 ### The order of the worker

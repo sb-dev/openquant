@@ -8,9 +8,10 @@
 //      the cap the run or job fails. Without budget it waits QUEUED and the mission is BLOCKED (expireLease);
 //   2. the reservation of a fenced or cancelled-while-claimed attempt stays RESERVED, and the attempt keeps its
 //      concurrency slot, until its termination is confirmed (decision D22). Only the probe confirms, never the clock;
-//      the default probe confirms nothing (below). While unconfirmed, one attention item reports the hold
-//      (reportUnconfirmed); confirmation resolves it. Confirmation with no usage report makes the reservation
-//      UNRECONCILED: the full amount counts as spent. Nothing is released without a report (confirmTermination);
+//      without a configured platform probe (fly-probe.ts) nothing confirms (unwiredProbe, below). While unconfirmed,
+//      one attention item reports the hold (reportUnconfirmed); confirmation resolves it. Confirmation with no usage
+//      report makes the reservation UNRECONCILED: the full amount counts as spent. Nothing is released without a report
+//      (confirmTermination);
 //   3. a reservation that stayed UNRECONCILED is reconciled when the probe now reports the usage of its attempt
 //      (reconcileReservation, OQ-05 section 4: "Recovery reconciles UNRECONCILED reservations"). The step asks about the
 //      attempts that were fenced or cancelled while claimed and still hold an UNRECONCILED reservation, other than the
@@ -55,18 +56,24 @@ export interface FencedAttempt {
   readonly destination: 'BATCH_QUEUE' | 'AGENT_RUNNER';
   /** The time at which the lease ran, or would have run, out. */
   readonly leaseExpiresAt: Date;
+  /**
+   * The worker name of the claim (`attempt-claim/1` worker_id). A Fly host names its Machine in it (fly-probe.ts). It is
+   * for finding the host only and grants no authority (OQ-05 section 9).
+   */
+  readonly workerId: string | null;
 }
 
 /**
  * Whether the host of a fenced attempt has stopped. Only a probe confirms a termination, never the clock alone (decision
- * D22). P6 supplies the probe that asks the platform (Fly.io) whether the host of the attempt stopped.
+ * D22). fly-probe.ts asks the platform (Fly.io) whether the Machine of the attempt stopped; the Worker wires it when it
+ * is configured (worker.ts, terminationProbeOf).
  */
 export interface TerminationProbe {
   check(attempt: FencedAttempt, now: Date): Promise<TerminationEvidence>;
 }
 
 /**
- * The probe used while no platform probe is wired: it confirms nothing. The reservation of a fenced attempt then stays
+ * The probe used while no platform probe is configured: it confirms nothing. The reservation of a fenced attempt then stays
  * RESERVED, the attempt keeps its concurrency slot, and an attention item reports the hold (README, open points).
  */
 export const unwiredProbe: TerminationProbe = {
@@ -166,8 +173,9 @@ export async function runRecovery(env: ApiEnv, db: Database, deps: RecoveryDeps)
     status: 'LEASE_EXPIRED' | 'CANCELLED';
     destination: 'BATCH_QUEUE' | 'AGENT_RUNNER';
     expires_at: Date;
+    worker_id: string | null;
   }>(
-    `SELECT a.attempt_id, a.status, o.destination, l.expires_at
+    `SELECT a.attempt_id, a.status, o.destination, l.expires_at, a.worker_id
        FROM attempts a
        JOIN reservations r ON r.attempt_id = a.attempt_id AND r.status = 'RESERVED'
        JOIN leases l ON l.attempt_id = a.attempt_id
@@ -183,7 +191,13 @@ export async function runRecovery(env: ApiEnv, db: Database, deps: RecoveryDeps)
       asked.add(row.attempt_id);
       const now = env.clock();
       const evidence = await probe.check(
-        { attemptId: row.attempt_id, status: row.status, destination: row.destination, leaseExpiresAt: row.expires_at },
+        {
+          attemptId: row.attempt_id,
+          status: row.status,
+          destination: row.destination,
+          leaseExpiresAt: row.expires_at,
+          workerId: row.worker_id,
+        },
         now,
       );
       if (!evidence.terminated) {
@@ -204,8 +218,9 @@ export async function runRecovery(env: ApiEnv, db: Database, deps: RecoveryDeps)
     status: 'LEASE_EXPIRED' | 'CANCELLED';
     destination: 'BATCH_QUEUE' | 'AGENT_RUNNER';
     expires_at: Date;
+    worker_id: string | null;
   }>(
-    `SELECT a.attempt_id, a.status, o.destination, l.expires_at
+    `SELECT a.attempt_id, a.status, o.destination, l.expires_at, a.worker_id
        FROM reservations r
        JOIN attempts a ON a.attempt_id = r.attempt_id
        JOIN leases l ON l.attempt_id = a.attempt_id
@@ -218,7 +233,13 @@ export async function runRecovery(env: ApiEnv, db: Database, deps: RecoveryDeps)
     if (asked.has(row.attempt_id)) continue;
     try {
       const evidence = await probe.check(
-        { attemptId: row.attempt_id, status: row.status, destination: row.destination, leaseExpiresAt: row.expires_at },
+        {
+          attemptId: row.attempt_id,
+          status: row.status,
+          destination: row.destination,
+          leaseExpiresAt: row.expires_at,
+          workerId: row.worker_id,
+        },
         env.clock(),
       );
       if (!evidence.terminated || evidence.usage === undefined) continue;

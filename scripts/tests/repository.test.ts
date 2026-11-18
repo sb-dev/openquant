@@ -194,7 +194,8 @@ test('vendored examples may hold a database URL with a password, first-party fil
 });
 test('a tracked .dev.vars.example is allowed and a .dev.vars file is not',()=>{
   const errors = mutationErrors((base)=>{
-    writeFileSync(resolve(base,'apps/api/.dev.vars.example'),'CLOUDFLARE_API_TOKEN=\n');
+    // The tracked example keeps its names, which infra/environments/staging.json must equal.
+    writeFileSync(resolve(base,'apps/api/.dev.vars.example'),readFileSync(resolve(base,'apps/api/.dev.vars.example'),'utf8'));
     writeFileSync(resolve(base,'apps/api/.dev.vars'),'CLOUDFLARE_API_TOKEN=\n');
   });
   assert.ok(errors.includes('Private file must not be tracked: apps/api/.dev.vars'),errors.join('\n'));
@@ -1263,7 +1264,7 @@ test('C6R: CI runs the repository checks as their own step before any install an
   mutated((base)=>edit(base,'.github/workflows/ci.yml',(t)=>replaceOnce(replaceOnce(t,step,''),verify,`${verify}${step}`)),/CI must run node scripts\/check-repository\.ts as its own step before any install/);
 });
 test('G3: the top-level code of a guarded module may not use process, the environment, an exit or dynamic code',()=>{
-  assert.deepEqual(guardedModules(root),['scripts/agent-assets.ts','scripts/check-repository.ts','scripts/development-skills.ts','scripts/environment.ts','scripts/repository.ts','scripts/rust.ts','scripts/s0.ts','scripts/typescript.ts']);
+  assert.deepEqual(guardedModules(root),['scripts/agent-assets.ts','scripts/check-repository.ts','scripts/development-skills.ts','scripts/environment.ts','scripts/infrastructure.ts','scripts/repository.ts','scripts/rust.ts','scripts/s0.ts','scripts/typescript.ts']);
   for (const file of guardedModules(root)) assert.deepEqual(topLevelErrors(file,readFileSync(resolve(root,file),'utf8')),[],file);
   const s0 = readFileSync(resolve(root,'scripts/s0.ts'),'utf8');
   assert.deepEqual(verifyModuleErrors('scripts/s0.ts',s0),[]);
@@ -1504,3 +1505,158 @@ test('an invalid manifest entry must state its failure code',()=>mutated(manifes
 }),/an invalid fixture must state its expected failure code/));
 test('a manifest cannot list a file twice',()=>mutated(manifestEdit((entries)=>{ entries.push({ ...entries[0] }); }),/is listed twice/));
 test('a manifest entry needs a path',()=>mutated(manifestEdit((entries)=>{ delete entries[0].path; }),/Protocol manifest entry 0 has no path/));
+
+// Infrastructure files (scripts/infrastructure.ts). Each rule is shown on the tracked file with one change; the
+// unchanged files pass.
+import { dockerfileErrors, engineDockerfileErrors, runnerDockerfileErrors, dockerignoreErrors, flyProfileErrors, terraformErrors, terraformVariables, environmentProfileErrors, infrastructureErrors, type ProfileContext } from '../infrastructure.ts';
+const infra = {
+  engine: 'apps/engine/Dockerfile',
+  runner: 'apps/agent-runner/Dockerfile',
+  batch: 'infra/fly/openquant-staging-engine-batch.toml',
+  agent: 'infra/fly/openquant-staging-agent-runner.toml',
+  staging: 'infra/environments/staging.json',
+};
+const tracked = (path: string) => readFileSync(resolve(root, path), 'utf8');
+const runnerPins = { node: '24.19.0', pnpm: '11.25.0', executor: '2.1.325' };
+const terraformSources = (): Record<string, string> => Object.fromEntries(['main.tf', 'outputs.tf', 'variables.tf', 'versions.tf'].map((name) => [`infra/terraform/${name}`, tracked(`infra/terraform/${name}`)]));
+function profileContext(): ProfileContext {
+  return {
+    files: new Set(paths(root)),
+    flyProfiles: { [infra.batch]: tracked(infra.batch), [infra.agent]: tracked(infra.agent) },
+    workerVariables: ['OPENQUANT_ENVIRONMENT', 'OPENQUANT_RESEARCH_EXECUTION', 'AGENT_EXECUTOR_VERSION', 'FLY_ENGINE_BATCH_APP', 'FLY_AGENT_RUNNER_APP'],
+    workerSecrets: ['TOKEN_SIGNING_KEY', 'AGENT_RUNNER_URL', 'AGENT_RUNNER_CREDENTIAL', 'FLY_MACHINES_READ_TOKEN'],
+    terraformVariables: terraformVariables(terraformSources()),
+  };
+}
+function rejects(errors: string[], expected: RegExp) {
+  assert.ok(errors.some((error) => expected.test(error)), `Expected rejection matching ${expected}, found ${JSON.stringify(errors)}`);
+}
+test('the tracked infrastructure files pass their checks',()=>{
+  assert.deepEqual(infrastructureErrors(root, new Set(paths(root))), []);
+  for (const file of [infra.engine, infra.runner]) assert.deepEqual(dockerfileErrors(file, tracked(file)), []);
+  assert.deepEqual(engineDockerfileErrors(tracked(infra.engine), '1.97.0'), []);
+  assert.deepEqual(runnerDockerfileErrors(tracked(infra.runner), runnerPins), []);
+  assert.deepEqual(dockerignoreErrors(tracked('.dockerignore')), []);
+  for (const file of [infra.batch, infra.agent]) assert.deepEqual(flyProfileErrors(file, tracked(file)), []);
+  assert.deepEqual(terraformErrors(terraformSources()), []);
+  assert.deepEqual(environmentProfileErrors(infra.staging, JSON.parse(tracked(infra.staging)), profileContext()), []);
+});
+test('a Dockerfile base image must be pinned by digest, and a later stage may name an earlier one',()=>{
+  const text = tracked(infra.engine);
+  rejects(dockerfileErrors(infra.engine, text.replace(/@sha256:[0-9a-f]{64} AS build/, ' AS build')), /base image must name a tag and pin its digest/);
+  rejects(dockerfileErrors(infra.engine, text.replace(/^FROM debian:bookworm-slim@sha256:[0-9a-f]{64}$/m, `FROM debian@sha256:${'a'.repeat(64)}`)), /base image must name a tag/);
+  assert.deepEqual(dockerfileErrors(infra.engine, `${text}\nFROM build AS again\nUSER 10001\n`), []);
+});
+test('a Dockerfile must end as a user that is not root',()=>{
+  const text = tracked(infra.runner);
+  rejects(dockerfileErrors(infra.runner, text.replace(/^USER node$/m, '')), /must end with USER set to a user that is not root/);
+  rejects(dockerfileErrors(infra.runner, text.replace(/^USER node$/m, 'USER root')), /not root/);
+  rejects(dockerfileErrors(infra.engine, tracked(infra.engine).replace(/^USER 10001:10001$/m, 'USER 0:0')), /not root/);
+  // A USER of an earlier stage does not count for the final one.
+  rejects(dockerfileErrors(infra.engine, `${tracked(infra.engine)}\nFROM build AS last\n`), /not root/);
+});
+test('a Dockerfile must not bake a credential into ENV or ARG',()=>{
+  for (const line of ['ENV ANTHROPIC_API_KEY=x', 'ARG OPENQUANT_API_TOKEN', 'ENV A=1 \\\n    FLY_MACHINES_READ_TOKEN=y']) {
+    rejects(dockerfileErrors(infra.runner, tracked(infra.runner).replace(/^USER node$/m, `${line}\nUSER node`)), /must not name a credential/);
+  }
+});
+test('the engine image is a locked release build on the pinned Rust toolchain',()=>{
+  const text = tracked(infra.engine);
+  rejects(engineDockerfileErrors(text, '1.98.0'), /must use the rust:1\.98\.0 image of rust-toolchain\.toml/);
+  rejects(engineDockerfileErrors(text.replace('cargo build --release --locked', 'cargo build --locked'), '1.97.0'), /must be a locked release build/);
+  rejects(engineDockerfileErrors(text.replace('cargo build --release --locked', 'cargo build --release'), '1.97.0'), /must be a locked release build/);
+  rejects(engineDockerfileErrors(text.replace('RUN cargo build', 'ENV CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS=true\nRUN cargo build'), '1.97.0'), /must not turn debug assertions on/);
+});
+test('the runner image pins Node, pnpm and the executor version that the Worker dispatches',()=>{
+  const text = tracked(infra.runner);
+  rejects(runnerDockerfileErrors(text, { ...runnerPins, node: '24.20.0' }), /must use the node:24\.20\.0 image of \.node-version/);
+  rejects(runnerDockerfileErrors(text, { ...runnerPins, pnpm: '11.26.0' }), /must install pnpm@11\.26\.0/);
+  rejects(runnerDockerfileErrors(text.replace('pnpm install --frozen-lockfile --ignore-scripts', 'pnpm install'), runnerPins), /--frozen-lockfile --ignore-scripts/);
+  rejects(runnerDockerfileErrors(text, { ...runnerPins, executor: '2.1.326' }), /must install @anthropic-ai\/claude-code@2\.1\.326/);
+  rejects(runnerDockerfileErrors(text.replace('AGENT_RUNNER_EXECUTOR_VERSION=2.1.325', 'AGENT_RUNNER_EXECUTOR_VERSION=2.1.324'), runnerPins), /must set AGENT_RUNNER_EXECUTOR_VERSION=2\.1\.325/);
+});
+test('.dockerignore keeps history, dependencies and credential files out of the build context',()=>{
+  const text = tracked('.dockerignore');
+  for (const entry of ['.git', '**/.dev.vars', '**/*.tfvars']) rejects(dockerignoreErrors(text.split('\n').filter((line) => line !== entry).join('\n')), new RegExp(`must exclude ${entry.replace(/[.*]/g, '\\$&')}$`));
+  rejects(dockerignoreErrors(`${text}!apps/api/.dev.vars\n`), /must not re-include a path/);
+});
+test('a Fly profile is the app it is named after, with one region, size and restart policy, and no build',()=>{
+  const text = tracked(infra.batch);
+  rejects(flyProfileErrors(infra.batch, text.replace('app = "openquant-staging-engine-batch"', 'app = "openquant-staging-other"')), /app must be openquant-staging-engine-batch/);
+  rejects(flyProfileErrors(infra.batch, text.replace('primary_region = "iad"\n', '')), /must name one primary_region/);
+  rejects(flyProfileErrors(infra.batch, text.replace(/\[\[vm\]\][^[]*/, '')), /must set one \[\[vm\]\] with size and memory/);
+  rejects(flyProfileErrors(infra.batch, text.replace(/\[\[restart\]\][\s\S]*$/, '')), /must set one \[\[restart\]\] policy/);
+  rejects(flyProfileErrors(infra.batch, `${text}\n[build]\n  dockerfile = "apps/engine/Dockerfile"\n`), /must not build/);
+  rejects(flyProfileErrors('infra/fly/openquant-staging-paper.toml', text.replace('openquant-staging-engine-batch', 'openquant-staging-paper')), /unknown Fly profile/);
+});
+test('a Fly profile sets no credential in [env]',()=>{
+  rejects(flyProfileErrors(infra.batch, tracked(infra.batch).replace('[env]\n', '[env]\n  OPENQUANT_QUEUE_TOKEN = "x"\n')), /\[env\] must not set OPENQUANT_QUEUE_TOKEN/);
+});
+test('the batch host serves nothing',()=>{
+  const text = tracked(infra.batch);
+  rejects(flyProfileErrors(infra.batch, `${text}\n[http_service]\n  internal_port = 8080\n`), /the batch host serves nothing/);
+  rejects(flyProfileErrors(infra.batch, `${text}\n[[services]]\n  internal_port = 8080\n`), /the batch host serves nothing/);
+});
+test('the runner serves its dispatch port behind TLS on every interface, and the proxy never stops its Machines',()=>{
+  const text = tracked(infra.agent);
+  rejects(flyProfileErrors(infra.agent, text.replace('internal_port = 8080', 'internal_port = 8081')), /internal_port is AGENT_RUNNER_PORT/);
+  rejects(flyProfileErrors(infra.agent, text.replace('AGENT_RUNNER_HOST = "0.0.0.0"', 'AGENT_RUNNER_HOST = "127.0.0.1"')), /AGENT_RUNNER_HOST must be 0\.0\.0\.0/);
+  rejects(flyProfileErrors(infra.agent, text.replace('auto_stop_machines = "off"', 'auto_stop_machines = "stop"')), /auto_stop_machines = "off"/);
+  rejects(flyProfileErrors(infra.agent, text.replace('handlers = ["tls", "http"]', 'handlers = ["http"]')), /must terminate TLS/);
+  rejects(flyProfileErrors(infra.agent, `${text}\n[http_service]\n  internal_port = 8080\n`), /not \[http_service\]/);
+});
+test('Terraform pins every provider exactly and sets required_version once',()=>{
+  const sources = terraformSources();
+  const versions = 'infra/terraform/versions.tf';
+  for (const pin of ['~> 5.28', '>= 5.28.1', '5.28.1']) rejects(terraformErrors({ ...sources, [versions]: sources[versions].replace('"= 5.28.1"', `"${pin}"`) }), /must pin one exact version/);
+  rejects(terraformErrors({ ...sources, [versions]: sources[versions].replace(/\s+version = "= 5\.28\.1"/, '') }), /must pin one exact version/);
+  rejects(terraformErrors({ ...sources, [versions]: sources[versions].replace('source  = "cloudflare/cloudflare"', '') }), /must name its source/);
+  rejects(terraformErrors({ ...sources, [versions]: sources[versions].replace(/required_version = .*\n/, '') }), /must set required_version once/);
+  rejects(terraformErrors({ ...sources, [versions]: sources[versions].replace(/required_providers \{[\s\S]*?\n {2}\}\n/, '') }), /must declare required_providers once/);
+  rejects(terraformErrors({}), /must hold the Terraform configuration/);
+});
+test('Terraform leaves the state backend to init',()=>{
+  const sources = terraformSources();
+  const versions = 'infra/terraform/versions.tf';
+  rejects(terraformErrors({ ...sources, [versions]: sources[versions].replace('backend "s3" {}', 'backend "s3" {\n    bucket = "state"\n  }') }), /the backend block must be empty/);
+  rejects(terraformErrors({ ...sources, [versions]: sources[versions].replace('backend "s3" {}', '') }), /one empty backend block/);
+});
+test('Terraform disables Hyperdrive caching and holds no literal identifier',()=>{
+  const sources = terraformSources();
+  const main = 'infra/terraform/main.tf';
+  const caching = /\n {2}caching = \{\n {4}disabled = true\n {2}\}\n/;
+  rejects(terraformErrors({ ...sources, [main]: sources[main].replace('disabled = true', 'disabled = false') }), /must disable caching/);
+  rejects(terraformErrors({ ...sources, [main]: sources[main].replace(caching, '\n') }), /must disable caching/);
+  // A comment does not satisfy the rule.
+  rejects(terraformErrors({ ...sources, [main]: sources[main].replace(caching, '\n  # caching = { disabled = true }\n') }), /must disable caching/);
+  rejects(terraformErrors({ ...sources, [main]: sources[main].replace('account_id = var.cloudflare_account_id', `account_id = "${'0123456789abcdef'.repeat(2)}"`) }), /a literal identifier is not allowed/);
+});
+test('a tracked Terraform variable file fails',()=>mutated((base)=>{
+  writeFileSync(resolve(base,'infra/terraform/staging.tfvars'),'worker_name = "openquant-api"\n');
+},/Terraform variable files, plans and provider caches are not tracked/));
+test('the environment profile has a fixed shape of names, never a value',()=>{
+  const check = (change: (value: any) => void) => { const value = JSON.parse(tracked(infra.staging)); change(value); return environmentProfileErrors(infra.staging, value, profileContext()); };
+  rejects(check((value) => { value.cloudflare.worker.values = { TOKEN_SIGNING_KEY: 'x' }; }), /must not have values: a profile holds names only/);
+  rejects(check((value) => { value.fly['openquant-staging-engine-batch'].secrets.push('OPENQUANT_API_TOKEN=abc'); }), /must hold names only, found "OPENQUANT_API_TOKEN=abc"/);
+  rejects(check((value) => { value.fly['openquant-staging-agent-runner'].settings.push('AGENT_RUNNER_DISPATCH_TOKEN'); }), /names a credential; list it under secrets/);
+  rejects(check((value) => { value.hosts.agent_runner = 'https://openquant-staging-agent-runner.fly.dev'; }), /hosts\.agent_runner must be a host name/);
+  rejects(check((value) => { value.environment = 'PRODUCTION'; }), /does not match the file name/);
+  rejects(check((value) => { value.fly['openquant-staging-agent-runner'].secrets.push('OPENQUANT_API_TOKEN'); }), /OPENQUANT_API_TOKEN is listed twice/);
+  rejects(check((value) => { delete value.fly['openquant-staging-agent-runner'].optional_secrets; }), /must have optional_secrets/);
+});
+test('the environment profile agrees with the Fly profiles, the Worker and Terraform',()=>{
+  const check = (change: (value: any) => void) => { const value = JSON.parse(tracked(infra.staging)); change(value); return environmentProfileErrors(infra.staging, value, profileContext()); };
+  rejects(check((value) => { value.fly['openquant-staging-engine-batch'].config = infra.agent; }), /configures "openquant-staging-agent-runner", not openquant-staging-engine-batch/);
+  rejects(check((value) => { value.fly['openquant-staging-engine-batch'].dockerfile = 'apps/engine/Missing.Dockerfile'; }), /dockerfile must name a tracked file/);
+  rejects(check((value) => { delete value.fly['openquant-staging-agent-runner']; }), /openquant-staging-agent-runner\.toml is not listed under fly/);
+  rejects(check((value) => { value.fly['openquant-staging-engine-batch'].settings.push('OPENQUANT_CONCURRENCY'); }), /OPENQUANT_CONCURRENCY is set in \[env\]/);
+  rejects(check((value) => { value.cloudflare.worker.secrets.pop(); }), /secrets must equal the names of apps\/api\/\.dev\.vars\.example/);
+  rejects(check((value) => { value.cloudflare.worker.variables.pop(); }), /variables must equal the vars of apps\/api\/wrangler\.jsonc/);
+  rejects(check((value) => { value.cloudflare.worker.fly_apps.FLY_ENGINE_BATCH_APP = 'openquant-staging-paper'; }), /must name an app listed under fly/);
+  rejects(check((value) => { value.cloudflare.terraform.variables.pop(); }), /must equal the variables of infra\/terraform/);
+  rejects(check((value) => { value.cloudflare.terraform.secret_variables = []; }), /must equal the sensitive variables/);
+});
+test('the infrastructure checks run with the repository checks',()=>mutated((base)=>edit(base,infra.engine,(t)=>t.replace(/^USER 10001:10001$/m,'USER root')),/apps\/engine\/Dockerfile: the final stage must end with USER set to a user that is not root/));
+test('an environment profile without its checks fails',()=>mutated((base)=>{
+  writeFileSync(resolve(base,'infra/environments/production.json'),'{}\n');
+},/infra\/environments\/production\.json: an environment profile needs its checks/));

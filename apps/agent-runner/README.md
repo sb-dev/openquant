@@ -126,6 +126,7 @@ Read once from the environment of the process (`AGENT_RUNNER_*`). Execution is o
 | `AGENT_RUNNER_BARE` | Pass `--bare`. Default on. |
 | `AGENT_RUNNER_BUNDLE_DIR` | The installed behaviour bundle. Default `bundle` beside the built module. |
 | `AGENT_RUNNER_SCRATCH_DIR`, `AGENT_RUNNER_PORT`, `AGENT_RUNNER_HOST`, `AGENT_RUNNER_MAX_CONCURRENT`, `AGENT_RUNNER_API_TIMEOUT_MS`, `AGENT_RUNNER_WORKER_ID` | Scratch root, listen address (default `127.0.0.1:8080`), concurrency (default 2), API timeout and worker name. |
+| `FLY_MACHINE_ID` | Set by Fly on every Machine. The worker name of each claim is then `fly:<machine id>:agent-runner-<pid>`, which the API's termination probe reads back to ask Fly whether that Machine stopped (`apps/api/src/fly-probe.ts`); `AGENT_RUNNER_WORKER_ID` is refused beside it, and so is a value that is not a lowercase Machine ID. It grants no authority and never reaches the child. |
 
 ## Commands
 
@@ -145,5 +146,5 @@ The evaluation harness is a root command, `pnpm agents:eval` (see above), not a 
 
 - The real pinned binary was not run by any test: its authentication, its refusal and error results, the effect of `--bare`, the enforcement of `--json-schema` and the model identity it reports are for the executor probe (P6, OQ-06 Fly execution probe). The mapping of those cases is tested against fake output.
 - The cancel route (`runner.cancel`, `POST /v1/agent-attempts/{attempt_id}/cancel`) takes the dispatch credential and no body. It calls `Runner.cancel` and answers 204 whether or not this runner runs the attempt, so a repeated request or one that arrives after the attempt ended is harmless; the attempt then posts its `cancellation` report, which the API takes as the confirmation of its termination (OQ-05 §4). The API sends the request after `cancel_mission`, from the cancellation requests that the command wrote.
-- No Fly app, image or release exists. The runner listens on loopback by default.
+- The image (`Dockerfile`, Claude Code 2.1.325, the `node` user, no credential) and the Fly profile (`infra/fly/openquant-staging-agent-runner.toml`) exist, but no app, image or release has been created or deployed. The runner listens on loopback by default; the Fly profile sets `0.0.0.0`. The child runs as the same user as the runner: a separate user or sandbox for it is still for the executor probe.
 - The runner compares the session and the model that the executor reports with the ones it passed, and treats a missing report as unknown, not as a mismatch.

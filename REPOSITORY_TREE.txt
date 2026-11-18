@@ -493,6 +493,7 @@
 .claude/third-party/trailofbits/skills/LICENSE
 .claude/third-party/vercel/turborepo/LICENSE
 .claude/third-party/wshobson/agents/LICENSE
+.dockerignore
 .editorconfig
 .gitattributes
 .github/CODEOWNERS
@@ -519,6 +520,7 @@ SECURITY.md
 TRADEMARKS.md
 academy/README.md
 apps/README.md
+apps/agent-runner/Dockerfile
 apps/agent-runner/README.md
 apps/agent-runner/package.json
 apps/agent-runner/src/api-client.ts
@@ -624,6 +626,7 @@ apps/api/src/domain/validation.ts
 apps/api/src/domain/work.ts
 apps/api/src/env.ts
 apps/api/src/errors.ts
+apps/api/src/fly-probe.ts
 apps/api/src/handlers/attempts.ts
 apps/api/src/handlers/auth-token.ts
 apps/api/src/handlers/commands.ts
@@ -666,6 +669,7 @@ apps/api/test/domain.decimal.test.ts
 apps/api/test/domain.transitions.test.ts
 apps/api/test/e2e.connected.test.ts
 apps/api/test/e2e.pilot.test.ts
+apps/api/test/fly-probe.test.ts
 apps/api/test/identity-routes.test.ts
 apps/api/test/migrations.test.ts
 apps/api/test/object-store.test.ts
@@ -740,6 +744,7 @@ apps/cli/tsconfig.json
 apps/cli/tsconfig.test.json
 apps/cli/vitest.config.ts
 apps/engine/Cargo.toml
+apps/engine/Dockerfile
 apps/engine/README.md
 apps/engine/src/batch/api.rs
 apps/engine/src/batch/clock.rs
@@ -2318,8 +2323,15 @@ fixtures/s1/metrics/oracle/oracle.py
 fixtures/s1/metrics/policies/offline-pass.json
 infra/README.md
 infra/environments/README.md
+infra/environments/staging.json
 infra/fly/README.md
+infra/fly/openquant-staging-agent-runner.toml
+infra/fly/openquant-staging-engine-batch.toml
 infra/terraform/README.md
+infra/terraform/main.tf
+infra/terraform/outputs.tf
+infra/terraform/variables.tf
+infra/terraform/versions.tf
 package.json
 packages/README.md
 packages/agents/README.md
@@ -2578,6 +2590,7 @@ scripts/development-skills.ts
 scripts/environment.ts
 scripts/generate-repository-tree.ts
 scripts/generate-spec-index.ts
+scripts/infrastructure.ts
 scripts/repository.ts
 scripts/rust.ts
 scripts/s0.ts

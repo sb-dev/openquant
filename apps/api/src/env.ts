@@ -68,6 +68,15 @@ export interface WorkerBindings {
   readonly AGENT_RUNNER_URL: string;
   /** Secret: the credential of the workflows service principal, which the runner accepts for its dispatch route. */
   readonly AGENT_RUNNER_CREDENTIAL: string;
+  /**
+   * Secret: a read-only Fly token that can read the Machines of both Fly apps. With the two app names it wires the
+   * termination probe (fly-probe.ts); without all three, recovery confirms no termination.
+   */
+  readonly FLY_MACHINES_READ_TOKEN?: string;
+  /** Plain variable: the Fly app of the batch host, such as openquant-staging-engine-batch. Empty: not configured. */
+  readonly FLY_ENGINE_BATCH_APP?: string;
+  /** Plain variable: the Fly app of the agent runner, such as openquant-staging-agent-runner. Empty: not configured. */
+  readonly FLY_AGENT_RUNNER_APP?: string;
 }
 
 /** Identifiers from the platform's random source: 96 bits after the prefix. */
