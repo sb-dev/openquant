@@ -11,7 +11,8 @@ use std::{process::ExitCode, sync::Arc, thread};
 
 use openquant_engine::batch::{
     clock::{RealTime, Time},
-    config::Config,
+    config::{Config, ENV_TEST_LOOPBACK_ROOT},
+    egress::Policy,
     identity::ExecutableId,
     wire::UreqWire,
     worker::{Log, Worker},
@@ -63,10 +64,46 @@ fn main() -> ExitCode {
         }
     };
     let time: Arc<dyn Time> = Arc::new(RealTime::new());
-    let wire = Arc::new(UreqWire::new());
     let log: Log = {
         let time = Arc::clone(&time);
         Arc::new(move |line: &str| eprintln!("{} {line}", time.now()))
+    };
+    let wire = match &config.loopback {
+        None => Arc::new(UreqWire::new()),
+        // Test only (a debug build in DEVELOPMENT, see `config::LoopbackTest`): the hosts of the
+        // allowlist resolve to the loopback port. The allowlist itself does not change.
+        Some(loopback) => {
+            let root = match std::fs::read(&loopback.root_der) {
+                Ok(root) => root,
+                Err(_) => {
+                    eprintln!(
+                        "engine-batch: the variable {ENV_TEST_LOOPBACK_ROOT} names a file that cannot be read"
+                    );
+                    return ExitCode::from(2);
+                }
+            };
+            let policy =
+                match Policy::batch(&config.api, &config.queue_account_id, &config.queue_id) {
+                    Ok(policy) => policy,
+                    Err(error) => {
+                        eprintln!("engine-batch: {error}");
+                        return ExitCode::from(2);
+                    }
+                };
+            let mut hosts: Vec<String> = policy
+                .rules()
+                .iter()
+                .map(|rule| rule.host.clone())
+                .collect();
+            hosts.sort();
+            hosts.dedup();
+            log(&format!(
+                "TEST LOOPBACK MODE: {} allowlisted hosts resolve to 127.0.0.1:{}",
+                hosts.len(),
+                loopback.port
+            ));
+            Arc::new(UreqWire::for_loopback(root, &hosts, loopback.port))
+        }
     };
     let concurrency = config.concurrency;
     log(&format!(

@@ -42,6 +42,14 @@ pub const ENV_VISIBILITY: &str = "OPENQUANT_VISIBILITY_SECONDS";
 pub const ENV_STOP_FILE: &str = "OPENQUANT_STOP_FILE";
 /// A directory for the optional local checkpoint journal of a long evaluation. Off when unset.
 pub const ENV_SCRATCH_DIR: &str = "OPENQUANT_SCRATCH_DIR";
+/// Test only: the loopback port that every allowlisted host resolves to (see [`LoopbackTest`]).
+pub const ENV_TEST_LOOPBACK_PORT: &str = "OPENQUANT_TEST_LOOPBACK_PORT";
+/// Test only: the absolute path of the one DER certificate authority that the loopback wire trusts.
+pub const ENV_TEST_LOOPBACK_ROOT: &str = "OPENQUANT_TEST_LOOPBACK_ROOT";
+
+/// Whether this build accepts the test-only loopback variables: debug builds only. A release build,
+/// which is what a Machine image runs, refuses to start when either variable is set.
+pub const LOOPBACK_TEST_BUILD: bool = cfg!(debug_assertions);
 
 /// The most attempts that run at the same time (the cohort policy of the pilot).
 pub const MAX_CONCURRENCY: usize = 2;
@@ -123,6 +131,70 @@ pub struct EvidenceRecord {
     pub licence: String,
 }
 
+/// The test-only loopback mode of the connected end-to-end test (OQ-06 section 8). Every host of the
+/// egress allowlist resolves to `127.0.0.1:port` and the wire trusts only the certificate authority
+/// in `root_der`. The allowlist itself is unchanged: a host, method or path outside it is still
+/// refused before any I/O, and the wire is still HTTPS only and follows no redirect. It exists only
+/// in a debug build, only in `DEVELOPMENT`, and only when both variables are set.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LoopbackTest {
+    pub port: u16,
+    pub root_der: PathBuf,
+}
+
+/// Read the two test-only variables. `allowed` is [`LOOPBACK_TEST_BUILD`] in the binary.
+///
+/// # Errors
+/// [`ConfigError`] when a variable is set in a build or environment that refuses it, when only one
+/// is set, or when a value is not a port or an absolute path.
+pub fn loopback_test(
+    lookup: &dyn Fn(&str) -> Option<String>,
+    environment: &str,
+    allowed: bool,
+) -> Result<Option<LoopbackTest>, ConfigError> {
+    let port = optional(lookup, ENV_TEST_LOOPBACK_PORT);
+    let root = optional(lookup, ENV_TEST_LOOPBACK_ROOT);
+    if port.is_none() && root.is_none() {
+        return Ok(None);
+    }
+    let name = if port.is_some() {
+        ENV_TEST_LOOPBACK_PORT
+    } else {
+        ENV_TEST_LOOPBACK_ROOT
+    };
+    if !allowed {
+        return Err(invalid(
+            name,
+            "it is a test-only variable and this build does not accept it",
+        ));
+    }
+    if environment != "DEVELOPMENT" {
+        return Err(invalid(
+            name,
+            "it is a test-only variable and is refused outside DEVELOPMENT",
+        ));
+    }
+    let port = port.ok_or(ConfigError::Missing(ENV_TEST_LOOPBACK_PORT))?;
+    let root = root.ok_or(ConfigError::Missing(ENV_TEST_LOOPBACK_ROOT))?;
+    let port = match port.parse::<u16>() {
+        Ok(n) if n > 0 => n,
+        _ => {
+            return Err(invalid(
+                ENV_TEST_LOOPBACK_PORT,
+                "it must be a port from 1 to 65535",
+            ));
+        }
+    };
+    let root_der = PathBuf::from(root);
+    if !root_der.is_absolute() {
+        return Err(invalid(
+            ENV_TEST_LOOPBACK_ROOT,
+            "it must be an absolute path",
+        ));
+    }
+    Ok(Some(LoopbackTest { port, root_der }))
+}
+
 /// The configuration of one batch process.
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -139,6 +211,8 @@ pub struct Config {
     pub visibility: Duration,
     pub stop_file: Option<PathBuf>,
     pub scratch_dir: Option<PathBuf>,
+    /// Test only, debug builds only: see [`LoopbackTest`].
+    pub loopback: Option<LoopbackTest>,
 }
 
 fn required(
@@ -227,6 +301,7 @@ impl Config {
                 }
             },
         };
+        let loopback = loopback_test(lookup, &environment, LOOPBACK_TEST_BUILD)?;
         Ok(Self {
             environment,
             api,
@@ -241,6 +316,7 @@ impl Config {
             visibility: Duration::from_secs(visibility_seconds),
             stop_file: optional(lookup, ENV_STOP_FILE).map(PathBuf::from),
             scratch_dir: optional(lookup, ENV_SCRATCH_DIR).map(PathBuf::from),
+            loopback,
         })
     }
 
@@ -452,6 +528,92 @@ mod tests {
                 "{text}"
             );
         }
+    }
+
+    #[test]
+    fn the_loopback_test_variables_are_refused_in_a_release_build_and_outside_development() {
+        let map = |entries: &[(&'static str, &str)]| -> BTreeMap<&'static str, String> {
+            entries.iter().map(|(k, v)| (*k, (*v).to_owned())).collect()
+        };
+        let both = map(&[
+            (ENV_TEST_LOOPBACK_PORT, "8443"),
+            (ENV_TEST_LOOPBACK_ROOT, "/tmp/root.der"),
+        ]);
+        let check = |entries: &BTreeMap<&'static str, String>, environment: &str, allowed: bool| {
+            loopback_test(&|name| entries.get(name).cloned(), environment, allowed)
+        };
+        // Neither variable: no loopback, in every build and environment.
+        for allowed in [true, false] {
+            for environment in ["DEVELOPMENT", "STAGING", "PRODUCTION"] {
+                assert_eq!(check(&BTreeMap::new(), environment, allowed), Ok(None));
+            }
+        }
+        // A debug build in DEVELOPMENT with both: the loopback mode.
+        assert_eq!(
+            check(&both, "DEVELOPMENT", true),
+            Ok(Some(LoopbackTest {
+                port: 8443,
+                root_der: PathBuf::from("/tmp/root.der"),
+            }))
+        );
+        // A release build refuses either variable, in every environment.
+        for environment in ["DEVELOPMENT", "STAGING", "PRODUCTION"] {
+            for one in [ENV_TEST_LOOPBACK_PORT, ENV_TEST_LOOPBACK_ROOT] {
+                let only = map(&[(one, both[one].as_str())]);
+                assert!(
+                    matches!(check(&only, environment, false), Err(ConfigError::Invalid { name, .. }) if name == one),
+                    "{one} in {environment}"
+                );
+            }
+            assert!(check(&both, environment, false).is_err(), "{environment}");
+        }
+        // A debug build refuses them outside DEVELOPMENT.
+        for environment in ["STAGING", "PRODUCTION"] {
+            assert!(
+                matches!(
+                    check(&both, environment, true),
+                    Err(ConfigError::Invalid { .. })
+                ),
+                "{environment}"
+            );
+        }
+        // Both or neither, a real port and an absolute path.
+        assert_eq!(
+            check(
+                &map(&[(ENV_TEST_LOOPBACK_PORT, "8443")]),
+                "DEVELOPMENT",
+                true
+            ),
+            Err(ConfigError::Missing(ENV_TEST_LOOPBACK_ROOT))
+        );
+        assert_eq!(
+            check(
+                &map(&[(ENV_TEST_LOOPBACK_ROOT, "/tmp/root.der")]),
+                "DEVELOPMENT",
+                true
+            ),
+            Err(ConfigError::Missing(ENV_TEST_LOOPBACK_PORT))
+        );
+        for (name, value) in [
+            (ENV_TEST_LOOPBACK_PORT, "0"),
+            (ENV_TEST_LOOPBACK_PORT, "65536"),
+            (ENV_TEST_LOOPBACK_PORT, "x"),
+            (ENV_TEST_LOOPBACK_ROOT, "root.der"),
+        ] {
+            let mut entries = both.clone();
+            entries.insert(name, value.to_owned());
+            assert!(
+                matches!(check(&entries, "DEVELOPMENT", true), Err(ConfigError::Invalid { name: n, .. }) if n == name),
+                "{name}={value}"
+            );
+        }
+        // The configuration reads them with the build's own switch. `base` is STAGING, so even this
+        // debug build refuses them there.
+        let mut staging = base();
+        staging.extend(both.clone());
+        assert!(matches!(read(&staging), Err(ConfigError::Invalid { .. })));
+        assert_eq!(read(&base()).unwrap().loopback, None);
+        assert_eq!(LOOPBACK_TEST_BUILD, cfg!(debug_assertions));
     }
 
     #[test]

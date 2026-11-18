@@ -33,7 +33,7 @@ import type { Binding, BuildContext, Dispatch, DispatchBuilder } from './dispatc
 import { loadPlan, loadPolicy, loadProfile } from './documents.ts';
 import { findMission, loadMissionBudget, type MissionRow } from './rows.ts';
 import { loadDocument, storeBytes } from './store.ts';
-import type { Work } from './work.ts';
+import { missionIdOf, type Work } from './work.ts';
 
 /** Assembly refused the request, or the records cannot give one: nothing is dispatched (OQ-03 section 4). */
 export class AgentRequestRefused extends Error {
@@ -206,7 +206,7 @@ function refusalText(assembly: Assembly<unknown>): string {
 /** Assemble, store and wrap the role request of the first attempt of an agent run. */
 async function assembleDispatch(context: BuildContext, work: Work, binding: Binding): Promise<Dispatch> {
   const { tx, env, actorId } = context;
-  const mission = await findMission(tx, work.missionId);
+  const mission = await findMission(tx, missionIdOf(work));
   if (mission === undefined) throw new Error(`The mission ${work.missionId} does not exist.`);
   const refuse = (reason: string) => new AgentRequestRefused(mission.mission_id, reason);
   if (work.agentRole === null || work.configurationId === null || work.trialSlot === null) {

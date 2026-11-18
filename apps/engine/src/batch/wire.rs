@@ -198,7 +198,8 @@ impl UreqWire {
     /// A wire for a test that serves TLS on the loopback interface: it trusts only
     /// `trusted_roots` (DER certificates) and resolves each name of `resolve` to the given
     /// socket address. The egress policy above the wire is unchanged, so a name still has to be
-    /// on the allowlist. The binary never calls this.
+    /// on the allowlist. The binary calls it only through [`UreqWire::for_loopback`], in the
+    /// test-only loopback mode of a debug build (`config::LoopbackTest`).
     #[doc(hidden)]
     #[must_use]
     pub fn for_loopback_test(trusted_roots: &[Vec<u8>], resolve: &[(String, SocketAddr)]) -> Self {
@@ -216,6 +217,19 @@ impl UreqWire {
         Self {
             agent: Agent::with_parts(config, DefaultConnector::default(), resolver),
         }
+    }
+}
+
+impl UreqWire {
+    /// The wire of the test-only loopback mode: each of `hosts` (the hosts of the egress
+    /// allowlist) resolves to `127.0.0.1:port`, and only the certificate authority `root_der` is
+    /// trusted. Nothing else of the wire changes: HTTPS only, no redirect, no proxy.
+    #[must_use]
+    pub fn for_loopback(root_der: Vec<u8>, hosts: &[String], port: u16) -> Self {
+        let address = SocketAddr::from(([127, 0, 0, 1], port));
+        let resolve: Vec<(String, SocketAddr)> =
+            hosts.iter().map(|host| (host.clone(), address)).collect();
+        Self::for_loopback_test(&[root_der], &resolve)
     }
 }
 

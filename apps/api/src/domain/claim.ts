@@ -18,9 +18,10 @@ import { signCapability } from '../auth/tokens.ts';
 import type { Queryable } from '../db/database.ts';
 import { ApiFailure } from '../errors.ts';
 import type { ServiceKind } from '../manifest.ts';
-import { claimAttempt, type Guarded, locate, type WorkContext } from './attempts.ts';
+import { claimAttempt, type Guarded, locateAny, type WorkContext } from './attempts.ts';
 import { currentRelease, loadPolicy } from './documents.ts';
 import { dispatchOf } from './refs.ts';
+import { findReplay } from './rows.ts';
 import type { DispatchKind } from './work.ts';
 
 /** The lease outlasts the attempt timeout by this long, so a host that stops at its timeout can still submit. */
@@ -109,7 +110,7 @@ export async function grantClaim(
     };
   }
   const attemptId = request.attempt.attempt_id;
-  const located = await locate(tx, attemptId);
+  const located = await locateAny(tx, attemptId);
   if (located === undefined) return { ok: false, failure: new ApiFailure('NOT_FOUND', 'The attempt does not exist.') };
   const { mission, work } = located;
   const dispatch = await dispatchOf(tx, attemptId);
@@ -120,8 +121,10 @@ export async function grantClaim(
       failure: new ApiFailure('FORBIDDEN', 'This service principal does not host the work of this attempt.'),
     };
   }
-  const policy = await loadPolicy(tx, env, mission.policy_id, mission.policy_revision);
-  if (policy === undefined) throw new Error(`The policy of mission ${mission.mission_id} is missing.`);
+  const policy =
+    mission === undefined ? undefined : await loadPolicy(tx, env, mission.policy_id, mission.policy_revision);
+  if (mission !== undefined && policy === undefined)
+    throw new Error(`The policy of mission ${mission.mission_id} is missing.`);
   if (
     !release.executables.some(
       (entry) =>
@@ -142,12 +145,15 @@ export async function grantClaim(
   // An attempt that cannot be claimed is told why (it is claimed, ended or of another revision), never "try later".
   const claimable =
     located.attempt.status === 'PENDING' && located.attempt.ownership_revision === request.attempt.ownership_revision;
-  // The mission lock (taken by locate) serialises claims of one mission, so the count below cannot be raced.
+  // The mission lock (taken by locate) serialises claims of one mission, so the count below cannot be raced. A replay
+  // runs one attempt at a time by construction and has no cohort policy, so it has no concurrency limit of its own.
   const limit =
-    expected === 'batch'
-      ? policy.document.limits.concurrent_batch_attempts
-      : policy.document.limits.concurrent_agent_attempts;
-  const held = await heldSlots(tx, mission.mission_id, dispatch.destination);
+    policy === undefined
+      ? Number.POSITIVE_INFINITY
+      : expected === 'batch'
+        ? policy.document.limits.concurrent_batch_attempts
+        : policy.document.limits.concurrent_agent_attempts;
+  const held = mission === undefined ? 0 : await heldSlots(tx, mission.mission_id, dispatch.destination);
   if (claimable && held >= limit) {
     return {
       ok: false,
@@ -160,7 +166,11 @@ export async function grantClaim(
       ),
     };
   }
-  const seconds = timeoutSeconds(policy.document.limits, work.dispatchKind) + LEASE_GRACE_SECONDS;
+  const timeout =
+    policy === undefined
+      ? (await findReplay(tx, work.replayId as string)).evaluate_seconds
+      : timeoutSeconds(policy.document.limits, work.dispatchKind);
+  const seconds = timeout + LEASE_GRACE_SECONDS;
   const leaseExpiresAt = new Date(Math.floor((now.getTime() + seconds * 1000) / 1000) * 1000);
   const token = await signCapability(env.secrets.tokenSigningKey, {
     sub: claimer.principalId,

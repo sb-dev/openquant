@@ -571,6 +571,7 @@ apps/api/migrations/0007_control.sql
 apps/api/migrations/0008_commands.sql
 apps/api/migrations/0009_attempt_routes.sql
 apps/api/migrations/0010_orchestration.sql
+apps/api/migrations/0011_replays.sql
 apps/api/package.json
 apps/api/src/app.ts
 apps/api/src/audit.ts
@@ -612,6 +613,7 @@ apps/api/src/domain/plan.ts
 apps/api/src/domain/policy-fit.ts
 apps/api/src/domain/refs.ts
 apps/api/src/domain/rejection.ts
+apps/api/src/domain/replay.ts
 apps/api/src/domain/results.ts
 apps/api/src/domain/retrieval.ts
 apps/api/src/domain/retry.ts
@@ -643,6 +645,7 @@ apps/api/test-reporter.ts
 apps/api/test/attempts.artefacts.test.ts
 apps/api/test/attempts.claim.test.ts
 apps/api/test/auth-matrix.test.ts
+apps/api/test/authority.negative.test.ts
 apps/api/test/bootstrap.test.ts
 apps/api/test/bundle.test.ts
 apps/api/test/client.test.ts
@@ -661,6 +664,7 @@ apps/api/test/domain.attempts.test.ts
 apps/api/test/domain.budget.test.ts
 apps/api/test/domain.decimal.test.ts
 apps/api/test/domain.transitions.test.ts
+apps/api/test/e2e.connected.test.ts
 apps/api/test/e2e.pilot.test.ts
 apps/api/test/identity-routes.test.ts
 apps/api/test/migrations.test.ts
@@ -672,6 +676,7 @@ apps/api/test/reconcile.unreconciled.test.ts
 apps/api/test/recovery.test.ts
 apps/api/test/release.required.test.ts
 apps/api/test/releases.test.ts
+apps/api/test/replay.test.ts
 apps/api/test/results.agents.limit.test.ts
 apps/api/test/results.agents.test.ts
 apps/api/test/results.evaluation.test.ts
@@ -685,7 +690,9 @@ apps/api/test/support/actors.ts
 apps/api/test/support/app.ts
 apps/api/test/support/assess.ts
 apps/api/test/support/attempts.ts
+apps/api/test/support/connected.ts
 apps/api/test/support/database.ts
+apps/api/test/support/fake-executor.mjs
 apps/api/test/support/flow.ts
 apps/api/test/support/global-setup.ts
 apps/api/test/support/objects.ts

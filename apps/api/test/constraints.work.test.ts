@@ -25,6 +25,16 @@ const CHECK = '23514';
 const UNIQUE = '23505';
 const FOREIGN_KEY = '23503';
 
+/** A replay record (migration 0011): every REPLAY run names its own, and no other run names one. */
+async function replayRecord(replayId: string, runId: string): Promise<void> {
+  await t.ok(
+    `INSERT INTO replays (replay_id, run_id, fixture_set, case_id, strategy_id, strategy_version, strategy_digest,
+       input_digest, evaluate_seconds, requested_by, requested_at)
+     VALUES ($1, $2, 's0', 'F0-smoke', 'f0-smoke', 1, $3, $3, 120, $4, $5)`,
+    [replayId, runId, digests.seedStrategy, ids.admin, NOW],
+  );
+}
+
 describe('runs (OQ-02 sections 3.6 and 8)', () => {
   it('belongs to a planned run slot and to one window, or is a replay with none of them', async () => {
     await insertRun(t.exec, { runId: 'run-ok' });
@@ -38,13 +48,32 @@ describe('runs (OQ-02 sections 3.6 and 8)', () => {
       [ids.mission, NOW],
       { code: CHECK, constraint: 'runs_backtest_shape' },
     );
-    await t.ok(`INSERT INTO runs (run_id, mode, attempt_cap, created_at) VALUES ('run-replay', 'REPLAY', 3, $1)`, [
-      NOW,
-    ]);
+    await replayRecord('rpl-1', 'run-replay');
+    // A REPLAY run names its replay record (its own budget), and a backtest run names none.
     await t.violation(
-      `INSERT INTO runs (run_id, mode, attempt_cap, repeat_of_run, created_at) VALUES ('run-replay-2', 'REPLAY', 3, 'run-replay', $1)`,
+      `INSERT INTO runs (run_id, mode, attempt_cap, created_at) VALUES ('run-replay', 'REPLAY', 3, $1)`,
+      [NOW],
+      { code: CHECK, constraint: 'runs_replay_record' },
+    );
+    await t.violation(`UPDATE runs SET replay_id = 'rpl-1' WHERE run_id = 'run-ok'`, [], {
+      code: CHECK,
+      constraint: 'runs_replay_record',
+    });
+    await t.ok(
+      `INSERT INTO runs (run_id, mode, replay_id, attempt_cap, created_at) VALUES ('run-replay', 'REPLAY', 'rpl-1', 3, $1)`,
+      [NOW],
+    );
+    await replayRecord('rpl-2', 'run-replay-2');
+    await t.violation(
+      `INSERT INTO runs (run_id, mode, replay_id, attempt_cap, repeat_of_run, created_at) VALUES ('run-replay-2', 'REPLAY', 'rpl-2', 3, 'run-replay', $1)`,
       [NOW],
       { code: CHECK, constraint: 'runs_backtest_shape' },
+    );
+    // One run per replay record.
+    await t.violation(
+      `INSERT INTO runs (run_id, mode, replay_id, attempt_cap, created_at) VALUES ('run-replay-3', 'REPLAY', 'rpl-1', 3, $1)`,
+      [NOW],
+      { code: UNIQUE, constraint: 'runs_one_per_replay' },
     );
   });
 
@@ -94,28 +123,29 @@ describe('runs (OQ-02 sections 3.6 and 8)', () => {
   });
 
   it('is terminal with a completion time, FAILED with a code, and waits for budget only while QUEUED', async () => {
+    for (const run of ['c', 'f', 'q', 'w']) await replayRecord(`rpl-${run}`, `run-${run}`);
     await t.violation(
-      `INSERT INTO runs (run_id, mode, status, attempt_cap, created_at) VALUES ('run-c', 'REPLAY', 'COMPLETED', 3, $1)`,
+      `INSERT INTO runs (run_id, mode, replay_id, status, attempt_cap, created_at) VALUES ('run-c', 'REPLAY', 'rpl-c', 'COMPLETED', 3, $1)`,
       [NOW],
       { code: CHECK, constraint: 'runs_terminal_completed_at' },
     );
     await t.violation(
-      `INSERT INTO runs (run_id, mode, status, attempt_cap, created_at, completed_at) VALUES ('run-f', 'REPLAY', 'FAILED', 3, $1, $1)`,
+      `INSERT INTO runs (run_id, mode, replay_id, status, attempt_cap, created_at, completed_at) VALUES ('run-f', 'REPLAY', 'rpl-f', 'FAILED', 3, $1, $1)`,
       [NOW],
       { code: CHECK, constraint: 'runs_failed_has_code' },
     );
     await t.violation(
-      `INSERT INTO runs (run_id, mode, status, attempt_cap, created_at, completed_at) VALUES ('run-q', 'REPLAY', 'QUEUED', 3, $1, $1)`,
+      `INSERT INTO runs (run_id, mode, replay_id, status, attempt_cap, created_at, completed_at) VALUES ('run-q', 'REPLAY', 'rpl-q', 'QUEUED', 3, $1, $1)`,
       [NOW],
       { code: CHECK, constraint: 'runs_terminal_completed_at' },
     );
     await t.violation(
-      `INSERT INTO runs (run_id, mode, status, attempt_cap, waiting_reason, created_at) VALUES ('run-w', 'REPLAY', 'RUNNING', 3, 'waiting for budget', $1)`,
+      `INSERT INTO runs (run_id, mode, replay_id, status, attempt_cap, waiting_reason, created_at) VALUES ('run-w', 'REPLAY', 'rpl-w', 'RUNNING', 3, 'waiting for budget', $1)`,
       [NOW],
       { code: CHECK, constraint: 'runs_waiting_only_when_queued' },
     );
     await t.ok(
-      `INSERT INTO runs (run_id, mode, status, attempt_cap, waiting_reason, created_at) VALUES ('run-w', 'REPLAY', 'QUEUED', 3, 'waiting for budget', $1)`,
+      `INSERT INTO runs (run_id, mode, replay_id, status, attempt_cap, waiting_reason, created_at) VALUES ('run-w', 'REPLAY', 'rpl-w', 'QUEUED', 3, 'waiting for budget', $1)`,
       [NOW],
     );
   });
@@ -620,5 +650,35 @@ describe('commit-time and concurrent behaviour (A11)', () => {
       poolId,
     ]);
     expect(Number(rows[0]?.committed)).toBe(6);
+  });
+});
+
+describe('replay budgets (OQ-05 section 4, replay runs)', () => {
+  it('give a replay one pool of batch compute seconds, which belongs to no mission or period budget', async () => {
+    await replayRecord('rpl-pool', 'run-pool');
+    await t.ok(
+      `INSERT INTO budget_pools (scope, replay_id, dimension, limit_amount) VALUES ('REPLAY', 'rpl-pool', 'BATCH_COMPUTE_SECONDS', 360)`,
+    );
+    for (const values of [
+      // another dimension than batch compute seconds
+      `('REPLAY', 'rpl-pool', NULL, 'MODEL_SPEND', 1)`,
+      // a mission as well as a replay
+      `('REPLAY', 'rpl-pool', '${ids.mission}', 'BATCH_COMPUTE_SECONDS', 1)`,
+      // no replay
+      `('REPLAY', NULL, NULL, 'BATCH_COMPUTE_SECONDS', 1)`,
+      // a mission pool that names a replay
+      `('MISSION', 'rpl-pool', '${ids.mission}', 'PROVIDER_REQUESTS', 1)`,
+    ]) {
+      await t.violation(
+        `INSERT INTO budget_pools (scope, replay_id, mission_id, dimension, limit_amount) VALUES ${values}`,
+        [],
+        { code: CHECK, constraint: 'budget_pools_scope_shape' },
+      );
+    }
+    await t.violation(
+      `INSERT INTO budget_pools (scope, replay_id, dimension, limit_amount) VALUES ('REPLAY', 'rpl-pool', 'BATCH_COMPUTE_SECONDS', 1)`,
+      [],
+      { code: UNIQUE, constraint: 'budget_pools_replay' },
+    );
   });
 });

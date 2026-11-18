@@ -121,29 +121,48 @@ export async function hasOverrun(tx: Queryable, missionId: string): Promise<bool
 }
 
 /**
+ * Whose pools an attempt reserves from: its mission's, or, for a REPLAY run, the pool of its replay record (OQ-05
+ * section 4). A replay draws on no mission or period budget.
+ */
+export type BudgetOwner = { readonly missionId: string } | { readonly replayId: string };
+
+/**
  * Decide whether a set of reservation lines fits, with the pools locked in id order so that two callers cannot both
  * take the last of a pool. It writes nothing. The caller writes the attempt and calls commitReservation in the same
  * transaction, while the locks hold.
  */
 export async function planReservation(
   tx: Queryable,
-  missionId: string,
+  owner: BudgetOwner,
   needs: readonly Need[],
   allowance?: AgentAllowanceCheck,
 ): Promise<ReservationPlan> {
-  if (await hasOverrun(tx, missionId)) {
-    return { ok: false, reason: 'A budget overrun of this mission blocks further reservations.' };
+  const replay = 'replayId' in owner;
+  const ownerId = replay ? owner.replayId : owner.missionId;
+  const what = replay ? 'replay' : 'mission';
+  const overrun = await tx.query(
+    `SELECT 1 FROM budget_pools WHERE ${replay ? 'replay_id' : 'mission_id'} = $1 AND overrun > 0 LIMIT 1`,
+    [ownerId],
+  );
+  if (overrun.rows.length > 0) {
+    return { ok: false, reason: `A budget overrun of this ${what} blocks further reservations.` };
   }
   const resolved: { need: Need; poolId: number }[] = [];
   for (const need of needs) {
     const { rows } = await tx.query<{ pool_id: number }>(
-      `SELECT pool_id::int AS pool_id FROM budget_pools
-        WHERE scope = 'MISSION' AND mission_id = $1 AND dimension = $2 AND configuration_id IS NOT DISTINCT FROM $3`,
-      [missionId, need.dimension, need.configurationId ?? null],
+      replay
+        ? `SELECT pool_id::int AS pool_id FROM budget_pools
+            WHERE scope = 'REPLAY' AND replay_id = $1 AND dimension = $2 AND $3::text IS NULL`
+        : `SELECT pool_id::int AS pool_id FROM budget_pools
+            WHERE scope = 'MISSION' AND mission_id = $1 AND dimension = $2 AND configuration_id IS NOT DISTINCT FROM $3`,
+      [ownerId, need.dimension, need.configurationId ?? null],
     );
     const row = rows[0];
     if (row === undefined) {
-      return { ok: false, reason: `The mission has no pool for ${describe(need.dimension, need.configurationId)}.` };
+      return {
+        ok: false,
+        reason: `The ${what} has no pool for ${describe(need.dimension, need.configurationId).replace('the mission', `the ${what}`)}.`,
+      };
     }
     resolved.push({ need, poolId: row.pool_id });
   }
@@ -171,7 +190,8 @@ export async function planReservation(
       };
     }
   }
-  if (allowance !== undefined) {
+  if (allowance !== undefined && !replay) {
+    const missionId = ownerId;
     const used = await tx.query<{ attempts: string; allowed: number }>(
       `SELECT (SELECT count(*) FROM attempts a JOIN jobs j ON j.job_id = a.job_id
                 WHERE j.mission_id = $1 AND j.configuration_id = $2) AS attempts,

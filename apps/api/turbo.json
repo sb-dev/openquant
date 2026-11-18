@@ -5,6 +5,7 @@
     "typecheck": {
       "inputs": [
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/agent-runner/src/**",
         "$TURBO_ROOT$/packages/agents/**",
         "$TURBO_ROOT$/packages/api-contracts/schemas/**",
         "$TURBO_ROOT$/packages/api-contracts/routes/**"
@@ -19,7 +20,12 @@
         "$TURBO_ROOT$/packages/agents/**",
         "$TURBO_ROOT$/packages/api-contracts/schemas/**",
         "$TURBO_ROOT$/packages/api-contracts/routes/**",
-        "$TURBO_ROOT$/fixtures/protocol/**"
+        "$TURBO_ROOT$/fixtures/protocol/**",
+        "$TURBO_ROOT$/fixtures/s0/**",
+        "$TURBO_ROOT$/fixtures/market-data/**",
+        "$TURBO_ROOT$/apps/agent-runner/src/**",
+        "$TURBO_ROOT$/apps/engine/src/**",
+        "$TURBO_ROOT$/packages/quant-core/src/**"
       ],
       "passThroughEnv": ["OPENQUANT_TEST_DATABASE_URL", "PATH", "TMPDIR", "HOME"]
     },

@@ -32,9 +32,17 @@ import { type Binding, builderFor, type DispatchBuilders, retrievalRequestCap } 
 import { loadPolicy } from './documents.ts';
 import { blockMission } from './missions.ts';
 import { classify, type FailureCause } from './retry.ts';
-import { findMission, loadMissionBudget, lockMission, type MissionRow } from './rows.ts';
+import { findMission, findReplay, loadMissionBudget, lockMission, type MissionRow } from './rows.ts';
 import { assertTransition } from './transitions.ts';
-import { findWork, lockOpenWork, setWaitingReason, setWorkStatus, type Work, workOfAttempt } from './work.ts';
+import {
+  findWork,
+  lockOpenWork,
+  missionIdOf,
+  setWaitingReason,
+  setWorkStatus,
+  type Work,
+  workOfAttempt,
+} from './work.ts';
 
 export interface WorkContext {
   readonly env: ApiEnv;
@@ -96,24 +104,44 @@ async function newerAttemptExists(tx: Queryable, attempt: AttemptRow): Promise<b
   return rows.length > 0;
 }
 
-export interface Located {
-  readonly mission: MissionRow;
+/** An attempt with its run or job, and the mission of that work. A REPLAY run has no mission (replay.ts). */
+export interface LocatedAny {
+  readonly mission: MissionRow | undefined;
   readonly work: Work;
   readonly attempt: AttemptRow;
 }
 
+export interface Located extends LocatedAny {
+  readonly mission: MissionRow;
+}
+
 /**
- * Lock the mission, the run or job and the attempt, in that order, and read them again under the locks. Undefined when
- * the attempt does not exist.
+ * Lock the mission (or the replay record of a REPLAY run), the run or job and the attempt, in that order, and read them
+ * again under the locks. Undefined when the attempt does not exist.
  */
-export async function locate(tx: Queryable, attemptId: string): Promise<Located | undefined> {
+export async function locateAny(tx: Queryable, attemptId: string): Promise<LocatedAny | undefined> {
   const unlocked = await workOfAttempt(tx, attemptId);
   if (unlocked === undefined) return undefined;
-  const mission = await lockMission(tx, unlocked.missionId);
+  let mission: MissionRow | undefined;
+  if (unlocked.missionId !== null) mission = await lockMission(tx, unlocked.missionId);
+  else await tx.query('SELECT 1 FROM replays WHERE replay_id = $1 FOR UPDATE', [unlocked.replayId]);
   const work = await findWork(tx, unlocked.kind, unlocked.id, true);
   const attempt = await lockAttempt(tx, attemptId);
   if (work === undefined || attempt === undefined) return undefined;
   return { mission, work, attempt };
+}
+
+/**
+ * As locateAny, for the steps that only mission work takes (the retrieval, validation, gate-report and agent routes).
+ * An attempt of a REPLAY run is refused there: its only result is an evaluation submission.
+ */
+export async function locate(tx: Queryable, attemptId: string): Promise<Located | undefined> {
+  const located = await locateAny(tx, attemptId);
+  if (located === undefined) return undefined;
+  if (located.mission === undefined) {
+    throw new ApiFailure('IDENTITY_MISMATCH', 'This attempt belongs to a replay run, which takes no mission step.');
+  }
+  return located as Located;
 }
 
 /** The refusal of a call that does not come from the live owner of its attempt, or undefined when it does. */
@@ -172,7 +200,12 @@ export async function reservationNeeds(
   env: ApiEnv,
   work: Work,
 ): Promise<{ needs: Need[]; allowance?: AgentAllowanceCheck }> {
-  const mission = await findMission(tx, work.missionId);
+  if (work.replayId !== null) {
+    // A replay attempt reserves the evaluate timeout of its replay record from the replay's own pool.
+    const replay = await findReplay(tx, work.replayId);
+    return { needs: [{ dimension: 'BATCH_COMPUTE_SECONDS', amount: String(replay.evaluate_seconds) }] };
+  }
+  const mission = await findMission(tx, missionIdOf(work));
   if (mission === undefined) throw new Error(`The mission ${work.missionId} does not exist.`);
   const policy = await loadPolicy(tx, env, mission.policy_id, mission.policy_revision);
   if (policy === undefined) throw new Error(`The policy of mission ${mission.mission_id} is missing.`);
@@ -228,16 +261,23 @@ export async function openAttempt(tx: Queryable, ctx: WorkContext, work: Work): 
   if (ownershipRevision > work.attemptCap) {
     throw new Error(`The ${work.kind} ${work.id} has used its attempt cap of ${work.attemptCap}.`);
   }
-  const mission = await findMission(tx, work.missionId);
-  if (mission === undefined) throw new Error(`The mission ${work.missionId} does not exist.`);
-  if (mission.status === 'BLOCKED') {
-    return { ok: false, reason: `The mission is BLOCKED: ${mission.blocked_reason ?? 'no reason recorded'}.` };
-  }
-  if (mission.status !== 'IN_PROGRESS' && mission.status !== 'CREATED') {
-    return { ok: false, reason: `The mission is ${mission.status}.` };
+  if (work.missionId !== null) {
+    const mission = await findMission(tx, work.missionId);
+    if (mission === undefined) throw new Error(`The mission ${work.missionId} does not exist.`);
+    if (mission.status === 'BLOCKED') {
+      return { ok: false, reason: `The mission is BLOCKED: ${mission.blocked_reason ?? 'no reason recorded'}.` };
+    }
+    if (mission.status !== 'IN_PROGRESS' && mission.status !== 'CREATED') {
+      return { ok: false, reason: `The mission is ${mission.status}.` };
+    }
   }
   const { needs, allowance } = await reservationNeeds(tx, env, work);
-  const plan = await planReservation(tx, work.missionId, needs, allowance);
+  const plan = await planReservation(
+    tx,
+    work.replayId === null ? { missionId: missionIdOf(work) } : { replayId: work.replayId },
+    needs,
+    allowance,
+  );
   if (!plan.ok) return { ok: false, reason: plan.reason };
   const now = env.clock();
   const attemptId = env.ids.next('att');
@@ -298,7 +338,7 @@ export async function claimAttempt(tx: Queryable, ctx: WorkContext, input: Claim
       failure: new ApiFailure('EXECUTION_DISABLED', 'Research execution is disabled in this environment.'),
     };
   }
-  const located = await locate(tx, input.attemptId);
+  const located = await locateAny(tx, input.attemptId);
   if (located === undefined) return { ok: false, failure: new ApiFailure('NOT_FOUND', 'The attempt does not exist.') };
   const { mission, attempt } = located;
   let { work } = located;
@@ -314,7 +354,7 @@ export async function claimAttempt(tx: Queryable, ctx: WorkContext, input: Claim
       failure: new ApiFailure('ATTEMPT_NOT_CLAIMABLE', `The attempt is ${attempt.status}: it cannot be claimed.`),
     };
   }
-  if (mission.status !== 'IN_PROGRESS' && mission.status !== 'BLOCKED') {
+  if (mission !== undefined && mission.status !== 'IN_PROGRESS' && mission.status !== 'BLOCKED') {
     return {
       ok: false,
       failure: new ApiFailure('ATTEMPT_NOT_CLAIMABLE', `The mission is ${mission.status}: its work cannot be claimed.`),
@@ -387,12 +427,24 @@ export interface Completed {
 async function blockOnOverrun(
   tx: Queryable,
   ctx: WorkContext,
-  mission: MissionRow,
+  mission: MissionRow | undefined,
   overruns: readonly { dimension: string; configurationId: string | null; amount: string }[],
   attemptId: string,
 ): Promise<void> {
   const first = overruns[0];
   if (first === undefined) return;
+  if (mission === undefined) {
+    // A replay has no mission to block: the overrun on its pool refuses every further reservation of the replay
+    // (planReservation), and an attention item reports it.
+    await openAttention(
+      tx,
+      ctx.env,
+      null,
+      `replay attempt ${attemptId}`,
+      `Usage of attempt ${attemptId} went over its reservation by ${first.amount} in ${first.dimension} of its replay.`,
+    );
+    return;
+  }
   const where = first.configurationId === null ? 'the mission' : `the allowance of ${first.configurationId}`;
   await blockMission(
     tx,
@@ -409,7 +461,7 @@ export async function completeAttempt(
   ctx: WorkContext,
   completion: Completion,
 ): Promise<Guarded<Completed>> {
-  const located = await locate(tx, completion.attemptId);
+  const located = await locateAny(tx, completion.attemptId);
   if (located === undefined) return { ok: false, failure: new ApiFailure('NOT_FOUND', 'The attempt does not exist.') };
   const { mission, attempt } = located;
   let { work } = located;
@@ -460,7 +512,7 @@ export type AfterFailure =
 async function endForGood(
   tx: Queryable,
   ctx: WorkContext,
-  mission: MissionRow,
+  mission: MissionRow | undefined,
   work: Work,
   code: string,
   why: string,
@@ -468,6 +520,11 @@ async function endForGood(
   if (work.dispatchKind === 'agent') return;
   const what = work.kind === 'run' ? `run ${work.id}` : `${work.dispatchKind} job ${work.id}`;
   const reason = `The ${what} FAILED (${code}) and is not retried: ${why}`.slice(0, 1000);
+  if (mission === undefined) {
+    // A replay run: no mission to block and no trial to discard, only the attention item.
+    await openAttention(tx, ctx.env, null, what, reason);
+    return;
+  }
   if (work.dispatchKind === 'retrieve') await blockMission(tx, ctx.env, mission, reason, ctx.actorId);
   if (work.dispatchKind === 'validate') {
     const draft = await tx.query<{ draft_digest: string | null }>('SELECT draft_digest FROM jobs WHERE job_id = $1', [
@@ -490,7 +547,7 @@ async function endForGood(
 async function retryOrFail(
   tx: Queryable,
   ctx: WorkContext,
-  mission: MissionRow,
+  mission: MissionRow | undefined,
   work: Work,
   attempt: AttemptRow,
   classification: { retryable: boolean; code: string },
@@ -521,7 +578,7 @@ async function retryOrFail(
   // No budget covers a new reservation: the work waits QUEUED with no live attempt and the mission is BLOCKED.
   const reason = `${work.kind} ${work.id} waits for budget: ${opened.reason}`;
   const waiting = await setWaitingReason(tx, queued, reason.length > 1000 ? reason.slice(0, 1000) : reason);
-  await blockMission(tx, ctx.env, mission, reason, ctx.actorId);
+  if (mission !== undefined) await blockMission(tx, ctx.env, mission, reason, ctx.actorId);
   return { outcome: 'WAITING', work: waiting, reason };
 }
 
@@ -546,7 +603,7 @@ export async function failAttempt(
   ctx: WorkContext,
   report: FailureReport,
 ): Promise<Guarded<AfterFailure & { settled: string }>> {
-  const located = await locate(tx, report.attemptId);
+  const located = await locateAny(tx, report.attemptId);
   if (located === undefined) return { ok: false, failure: new ApiFailure('NOT_FOUND', 'The attempt does not exist.') };
   const { mission, work, attempt } = located;
   const failure = await fenceFailure(tx, ctx.env, attempt, report.ownershipRevision);
@@ -572,7 +629,7 @@ export async function failAttempt(
   const after = await retryOrFail(
     tx,
     ctx,
-    (await findMission(tx, mission.mission_id)) as MissionRow,
+    mission === undefined ? undefined : ((await findMission(tx, mission.mission_id)) as MissionRow),
     work,
     attempt,
     classification,
@@ -597,7 +654,7 @@ export type Expiry =
  * termination is confirmed (confirmTermination). Below the cap and with budget a new attempt is written, a retry.
  */
 export async function expireLease(tx: Queryable, ctx: WorkContext, attemptId: string): Promise<Expiry> {
-  const located = await locate(tx, attemptId);
+  const located = await locateAny(tx, attemptId);
   if (located === undefined) return { status: 'UNKNOWN_ATTEMPT' };
   const { mission, work, attempt } = located;
   if (attempt.status !== 'CLAIMED') return { status: 'NOT_CLAIMED' };
@@ -630,7 +687,7 @@ const unconfirmedSubject = (attemptId: string): string => `termination of attemp
  * Returns whether this call opened it.
  */
 export async function reportUnconfirmed(tx: Queryable, ctx: WorkContext, attemptId: string): Promise<boolean> {
-  const located = await locate(tx, attemptId);
+  const located = await locateAny(tx, attemptId);
   if (located === undefined) return false;
   const { mission, attempt } = located;
   if (attempt.status !== 'LEASE_EXPIRED' && !(attempt.status === 'CANCELLED' && attempt.claimed_at !== null)) {
@@ -644,7 +701,7 @@ export async function reportUnconfirmed(tx: Queryable, ctx: WorkContext, attempt
   await openAttention(
     tx,
     ctx.env,
-    mission.mission_id,
+    mission?.mission_id ?? null,
     subject,
     `The attempt ${attemptId} is ${attempt.status} and its host is not confirmed to have stopped. Its reservation stays RESERVED and it holds a concurrency slot of the mission until the termination probe confirms that the host stopped.`,
   );
@@ -662,7 +719,7 @@ export async function confirmTermination(
   attemptId: string,
   usage: UsageReport = {},
 ): Promise<{ status: 'SETTLED' | 'UNRECONCILED' | 'UNCHANGED' }> {
-  const located = await locate(tx, attemptId);
+  const located = await locateAny(tx, attemptId);
   if (located === undefined) throw new ApiFailure('NOT_FOUND', 'The attempt does not exist.');
   const { mission, attempt } = located;
   if (attempt.status !== 'LEASE_EXPIRED' && !(attempt.status === 'CANCELLED' && attempt.claimed_at !== null)) {
@@ -695,7 +752,7 @@ export async function reconcileReservation(
   attemptId: string,
   usage: UsageReport,
 ): Promise<{ status: 'SETTLED' | 'UNRECONCILED' | 'UNCHANGED' }> {
-  const located = await locate(tx, attemptId);
+  const located = await locateAny(tx, attemptId);
   if (located === undefined) throw new ApiFailure('NOT_FOUND', 'The attempt does not exist.');
   const { mission, attempt } = located;
   if (attempt.status === 'PENDING' || attempt.status === 'CLAIMED') {

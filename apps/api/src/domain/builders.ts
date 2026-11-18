@@ -31,7 +31,7 @@ import { loadCited } from './refs.ts';
 import { findMission, loadMissionBudget, lockMission, type MissionRow } from './rows.ts';
 import { artefactRef } from './store.ts';
 import { assertTransition } from './transitions.ts';
-import { insertJob, type Work } from './work.ts';
+import { insertJob, missionIdOf, type Work } from './work.ts';
 
 function timestamp(date: Date): string {
   return `${date.toISOString().slice(0, 19)}Z`;
@@ -75,7 +75,7 @@ export const buildValidate: DispatchBuilder = async ({ tx, env }, work, binding)
   );
   const job = row.rows[0];
   if (job?.draft_digest == null) throw new Error(`The validate job ${work.id} names no draft.`);
-  const mission = (await findMission(tx, work.missionId)) as MissionRow;
+  const mission = (await findMission(tx, missionIdOf(work))) as MissionRow;
   const policy = await loadPolicy(tx, env, mission.policy_id, mission.policy_revision);
   if (policy === undefined) throw new Error(`The policy of mission ${mission.mission_id} is missing.`);
   const inputs = {
@@ -92,7 +92,7 @@ export const buildValidate: DispatchBuilder = async ({ tx, env }, work, binding)
 
 export const buildAssess: DispatchBuilder = async ({ tx, env }, work, binding): Promise<Dispatch> => {
   if (work.trialSlot === null) throw new Error(`The assess job ${work.id} names no trial slot.`);
-  const mission = (await findMission(tx, work.missionId)) as MissionRow;
+  const mission = (await findMission(tx, missionIdOf(work))) as MissionRow;
   const policy = await loadPolicy(tx, env, mission.policy_id, mission.policy_revision);
   if (policy === undefined) throw new Error(`The policy of mission ${mission.mission_id} is missing.`);
   const plan = await tx.query<{ plan_digest: string }>(

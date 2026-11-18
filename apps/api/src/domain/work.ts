@@ -17,7 +17,10 @@ export interface Work {
   readonly kind: WorkKind;
   readonly id: string;
   readonly status: WorkStatus;
-  readonly missionId: string;
+  /** The mission of the work. Null only for a REPLAY run, which belongs to its replay record instead. */
+  readonly missionId: string | null;
+  /** The replay record of a REPLAY run (replay.ts), and null for all other work. */
+  readonly replayId: string | null;
   readonly attemptCap: number;
   readonly revision: number;
   readonly dispatchKind: DispatchKind;
@@ -50,25 +53,27 @@ interface WorkRow {
   plan_digest: string | null;
   strategy_hash: string | null;
   repeat_of_run: string | null;
+  replay_id: string | null;
 }
 
 const RUN_SELECT = `SELECT run_id AS id, status, mission_id, attempt_cap, revision, 'evaluate' AS job_kind,
   NULL::text AS configuration_id, NULL::text AS agent_role, trial_slot, run_slot, window_role, cost_scenario,
-  plan_digest, strategy_hash, repeat_of_run FROM runs`;
+  plan_digest, strategy_hash, repeat_of_run, replay_id FROM runs`;
 const JOB_SELECT = `SELECT job_id AS id, status, mission_id, attempt_cap, revision, kind AS job_kind, configuration_id,
   agent_role, trial_slot, NULL::text AS run_slot, NULL::text AS window_role, NULL::text AS cost_scenario,
-  NULL::text AS plan_digest, NULL::text AS strategy_hash, NULL::text AS repeat_of_run FROM jobs`;
+  NULL::text AS plan_digest, NULL::text AS strategy_hash, NULL::text AS repeat_of_run, NULL::text AS replay_id FROM jobs`;
 
 function toWork(kind: WorkKind, row: WorkRow): Work {
-  if (row.mission_id === null) {
-    // A replay run belongs to no mission and draws on no mission budget. Nothing in this part creates one.
-    throw new Error(`The ${kind} ${row.id} belongs to no mission: replay runs are not supported by this part.`);
+  // A REPLAY run belongs to its replay record and to no mission (migration 0011); every other work to a mission.
+  if ((row.mission_id === null) === (row.replay_id === null)) {
+    throw new Error(`The ${kind} ${row.id} must belong to exactly one mission or one replay.`);
   }
   return {
     kind,
     id: row.id,
     status: row.status,
     missionId: row.mission_id,
+    replayId: row.replay_id,
     attemptCap: row.attempt_cap,
     revision: row.revision,
     dispatchKind: row.job_kind as DispatchKind,
@@ -148,6 +153,12 @@ export async function insertRun(tx: Queryable, env: Pick<ApiEnv, 'ids' | 'clock'
     ],
   );
   return (await findWork(tx, 'run', runId)) as Work;
+}
+
+/** The mission of mission work. A replay run has none, and no mission step reaches one: that is a defect. */
+export function missionIdOf(work: Work): string {
+  if (work.missionId === null) throw new Error(`The ${work.kind} ${work.id} is a replay run: it has no mission.`);
+  return work.missionId;
 }
 
 export interface NewJob {

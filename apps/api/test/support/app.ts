@@ -33,6 +33,23 @@ export function createClock(start: Date = START): TestClock {
   };
 }
 
+/**
+ * A clock that follows the machine's clock, moved forward by an offset that the test sets. The connected test needs it:
+ * the real batch binary and the runner judge their leases by the machine's clock.
+ */
+export function createRealClock(): TestClock {
+  let offset = 0;
+  return {
+    now: () => new Date(Date.now() + offset),
+    set: (date) => {
+      offset = date.getTime() - Date.now();
+    },
+    advanceSeconds: (seconds) => {
+      offset += seconds * 1000;
+    },
+  };
+}
+
 export interface TestApp {
   readonly app: Hono<never>;
   readonly env: ApiEnv;
@@ -55,11 +72,13 @@ export interface TestAppOptions {
   readonly registry?: Readonly<Record<string, Handler>>;
   readonly database?: TestDatabase;
   readonly signingKey?: Uint8Array;
+  /** The clock of the application: a fixed start that the test moves (the default), or the machine's clock. */
+  readonly clock?: TestClock;
 }
 
 export async function createTestApp(options: TestAppOptions = {}): Promise<TestApp> {
   const database = options.database ?? (await migratedDatabase());
-  const clock = createClock();
+  const clock = options.clock ?? createClock();
   const objects = createMemoryObjectStore();
   const logs: LogEntry[] = [];
   const connections = { opened: 0, closed: 0, queries: 0 };
