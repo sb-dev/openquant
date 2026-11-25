@@ -19,8 +19,8 @@
     "generate:tree": "node scripts/generate-repository-tree.ts"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.7",
-    "turbo": "2.11.11",
+    "@biomejs/biome": "2.6.8",
+    "turbo": "2.11.13",
     "yaml": "2.9.1"
   }
 }
